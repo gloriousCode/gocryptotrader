@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 	testMode = true
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
-	log.GlobalLogConfig = &c
+	log.SetConfig(&c)
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	var err error
 	configData, err = readFileData(jsonFile)

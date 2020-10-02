@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ var (
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(false)
-	log.GlobalLogConfig = &c
+	log.SetConfig(&c)
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	os.Exit(m.Run())
 }
@@ -83,6 +84,23 @@ func TestVMLoad1s(t *testing.T) {
 	if err != nil {
 		if !errors.Is(err, ErrNoVMLoaded) {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestInvalidScript(t *testing.T) {
+	testVM := New()
+	err := testVM.Load(testScriptRunnerInvalid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testVM.CompileAndRun()
+	time.Sleep(5000)
+	err = testVM.Shutdown()
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			t.Error(err)
 		}
 	}
 }

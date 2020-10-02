@@ -40,8 +40,7 @@ func setupTestLoggers() {
 				Output: "stdout",
 			}},
 	}
-
-	GlobalLogConfig = &logTest
+	SetConfig(&logTest)
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }
@@ -50,8 +49,7 @@ func SetupDisabled() {
 	logTest := Config{
 		Enabled: convert.BoolPtr(false),
 	}
-
-	GlobalLogConfig = &logTest
+	SetConfig(&logTest)
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }
@@ -206,13 +204,15 @@ func BenchmarkInfoln(b *testing.B) {
 
 func TestNewLogEvent(t *testing.T) {
 	w := &bytes.Buffer{}
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
-
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if w.String() == "" {
 		t.Error("newLogEvent() failed expected output got empty string")
 	}
 
-	err := logger.newLogEvent("out", "header", "SUBLOGGER", nil)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", nil)
 	if err == nil {
 		t.Error("Error expected with output is set to nil")
 	}
@@ -220,13 +220,14 @@ func TestNewLogEvent(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
-
 	tempSL := subLogger{
 		"TESTYMCTESTALOT",
 		splitLevel("INFO|WARN|DEBUG|ERROR"),
 		w,
 	}
-
+	rwm.Lock()
+	subLoggers["TESTYMCTESTALOT"] = &tempSL
+	rwm.Unlock()
 	Info(&tempSL, "Hello")
 
 	if w.String() == "" {
@@ -236,7 +237,11 @@ func TestInfo(t *testing.T) {
 	tempSL.output = nil
 	w.Reset()
 
-	SetLevel("TESTYMCTESTALOT", "INFO")
+	_, err := SetLevel("TESTYMCTESTALOT", "INFO")
+	if err != nil {
+		t.Error(err)
+	}
+
 	Debug(&tempSL, "HelloHello")
 
 	if w.String() != "" {
@@ -247,14 +252,20 @@ func TestInfo(t *testing.T) {
 func TestSubLoggerName(t *testing.T) {
 	w := &bytes.Buffer{}
 	registerNewSubLogger("sublogger")
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Error(err)
+	}
 	if !strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
 	logger.ShowLogSystemName = false
 	w.Reset()
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Error(err)
+	}
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
 	}

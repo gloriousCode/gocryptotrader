@@ -35,6 +35,7 @@ func addPassingFakeExchange(baseExchangeName string) error {
 	if testExch == nil {
 		return ErrExchangeNotFound
 	}
+
 	base := testExch.GetBase()
 	bot.Config.Exchanges = append(bot.Config.Exchanges, config.ExchangeConfig{
 		Name:    fakePassExchange,

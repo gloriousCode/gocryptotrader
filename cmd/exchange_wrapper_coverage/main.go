@@ -18,20 +18,23 @@ const (
 )
 
 func main() {
-	var err error
-	engine.bot, err = engine.New()
+	bot, err := engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
 
-	engine.bot.Settings = engine.Settings{
+	bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 	}
-
+	err = engine.AddBot(bot)
+	if err != nil {
+		log.Fatalf("Failed to initialise engine. Err: %s", err)
+	}
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
-		err := engine.Bot.LoadExchange(exchange.Exchanges[x], true, &wg)
+		name := exchange.Exchanges[x]
+		err := bot.LoadExchange(name, true, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s",
 				exchange.Exchanges[x],
@@ -45,7 +48,7 @@ func main() {
 	log.Printf("Testing exchange wrappers..")
 	results := make(map[string][]string)
 	wg = sync.WaitGroup{}
-	exchanges := engine.bot.GetExchanges()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exch := exchanges[x]
 		wg.Add(1)

@@ -117,7 +117,7 @@ func migrateDB(db *sql.DB) error {
 // EnableVerboseTestOutput enables debug output for SQL queries
 func EnableVerboseTestOutput() {
 	c := log.GenDefaultSettings()
-	log.GlobalLogConfig = &c
+	log.SetConfig(&c)
 	log.SetupGlobalLogger()
 
 	DBLogger := database.Logger{}

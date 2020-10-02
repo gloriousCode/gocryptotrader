@@ -45,6 +45,10 @@ func SetupTestHelpers(t *testing.T) *Engine {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
 		helperTestLoaded = true
+		err = AddBot(bot)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	if bot.GetExchangeByName(testExchange) == nil {

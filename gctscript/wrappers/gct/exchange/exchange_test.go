@@ -39,7 +39,8 @@ var (
 		EnableDeprecatedRPC: false,
 		EnableWebsocketRPC:  false,
 	}
-	exchangeTest = Exchange{}
+	exchangeTest     = Exchange{}
+	validCredentials = false
 )
 
 func TestMain(m *testing.M) {
@@ -49,6 +50,7 @@ func TestMain(m *testing.M) {
 		fmt.Printf("Failed to configure exchange test cannot continue: %v", err)
 		os.Exit(1)
 	}
+
 	t = m.Run()
 	cleanup()
 	os.Exit(t)
@@ -124,7 +126,7 @@ func TestExchange_Pairs(t *testing.T) {
 }
 
 func TestExchange_AccountInformation(t *testing.T) {
-	if !configureExchangeKeys() {
+	if !validCredentials {
 		t.Skip("no exchange configured test skipped")
 	}
 	_, err := exchangeTest.AccountInformation(exchName)
@@ -134,7 +136,7 @@ func TestExchange_AccountInformation(t *testing.T) {
 }
 
 func TestExchange_QueryOrder(t *testing.T) {
-	if !configureExchangeKeys() {
+	if !validCredentials {
 		t.Skip("no exchange configured test skipped")
 	}
 	_, err := exchangeTest.QueryOrder(exchName, orderID)
@@ -144,7 +146,7 @@ func TestExchange_QueryOrder(t *testing.T) {
 }
 
 func TestExchange_SubmitOrder(t *testing.T) {
-	if !configureExchangeKeys() {
+	if !validCredentials {
 		t.Skip("no exchange configured test skipped")
 	}
 
@@ -171,7 +173,7 @@ func TestExchange_SubmitOrder(t *testing.T) {
 }
 
 func TestExchange_CancelOrder(t *testing.T) {
-	if !configureExchangeKeys() {
+	if !validCredentials {
 		t.Skip("no exchange configured test skipped")
 	}
 	_, err := exchangeTest.CancelOrder(exchName, orderID)
@@ -180,12 +182,24 @@ func TestExchange_CancelOrder(t *testing.T) {
 	}
 }
 
-func setupEngine() (err error) {
-	engine.bot, err = engine.NewFromSettings(&settings, nil)
+func setupEngine() error {
+	bot, err := engine.NewFromSettings(&settings)
 	if err != nil {
 		return err
 	}
-	return engine.bot.Start()
+	err = bot.LoadExchange(exchName, false, nil)
+	if err != nil {
+		return err
+	}
+	ex := bot.GetExchangeByName(exchName).GetBase()
+	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
+	ex.SkipAuthCheck = true
+	err = engine.AddBot(bot)
+	if err != nil {
+		return err
+	}
+	validCredentials = ex.ValidateAPICredentials()
+	return bot.Start()
 }
 
 func cleanup() {
@@ -193,11 +207,4 @@ func cleanup() {
 	if err != nil {
 		fmt.Printf("Clean up failed to remove file: %v manual removal may be required", err)
 	}
-}
-
-func configureExchangeKeys() bool {
-	ex := engine.bot.GetExchangeByName(exchName).GetBase()
-	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
-	ex.SkipAuthCheck = true
-	return ex.ValidateAPICredentials()
 }

@@ -24,7 +24,7 @@ func addValidEvent() (int64, error) {
 
 func TestAdd(t *testing.T) {
 	SetupTestHelpers(t)
-	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
+	_, err := Add(testExchange, "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
 	}

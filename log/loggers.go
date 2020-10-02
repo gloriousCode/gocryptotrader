@@ -168,10 +168,10 @@ func displayError(err error) {
 }
 
 func enabled() bool {
-	RWM.RLock()
-	defer RWM.RUnlock()
-	if GlobalLogConfig.Enabled == nil {
+	rwm.RLock()
+	defer rwm.RUnlock()
+	if logConfig.Enabled == nil {
 		return false
 	}
-	return *GlobalLogConfig.Enabled
+	return *logConfig.Enabled
 }

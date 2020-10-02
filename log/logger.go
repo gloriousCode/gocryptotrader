@@ -50,7 +50,7 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
-	err := GlobalLogFile.Close()
+	err := rotate.Close()
 	if err != nil {
 		return err
 	}
@@ -58,6 +58,8 @@ func CloseLogger() error {
 }
 
 func validSubLogger(s string) (bool, *subLogger) {
+	rwm.RLock()
+	defer rwm.RUnlock()
 	if v, found := subLoggers[s]; found {
 		return true, v
 	}

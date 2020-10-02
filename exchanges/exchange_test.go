@@ -29,7 +29,7 @@ const (
 
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
-	log.GlobalLogConfig = &c
+	log.SetConfig(&c)
 	log.SetupGlobalLogger()
 	os.Exit(m.Run())
 }

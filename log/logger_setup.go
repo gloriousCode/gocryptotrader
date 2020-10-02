@@ -22,8 +22,8 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			if FileLoggingConfiguredCorrectly {
-				m.Add(GlobalLogFile)
+			if IsLogConfiguredCorrectly() {
+				m.Add(rotate)
 			}
 		default:
 			m.Add(ioutil.Discard)
@@ -65,12 +65,11 @@ func configureSubLogger(logger, levels string, output io.Writer) error {
 	if !found {
 		return fmt.Errorf("logger %v not found", logger)
 	}
-
+	rwm.Lock()
 	logPtr.output = output
-
 	logPtr.Levels = splitLevel(levels)
 	subLoggers[logger] = logPtr
-
+	rwm.Unlock()
 	return nil
 }
 
@@ -87,20 +86,20 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() {
-	if FileLoggingConfiguredCorrectly {
-		GlobalLogFile = &Rotate{
-			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
-			MaxSize:  GlobalLogConfig.LoggerFileConfig.MaxSize,
-			Rotate:   GlobalLogConfig.LoggerFileConfig.Rotate,
+	if IsLogConfiguredCorrectly() {
+		rotate = &Rotate{
+			FileName: logConfig.LoggerFileConfig.FileName,
+			MaxSize:  logConfig.LoggerFileConfig.MaxSize,
+			Rotate:   logConfig.LoggerFileConfig.Rotate,
 		}
 	}
-
+	rwm.Lock()
 	for x := range subLoggers {
-		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		subLoggers[x].Levels = splitLevel(logConfig.Level)
+		subLoggers[x].output = getWriters(&logConfig.SubLoggerConfig)
 	}
-
-	logger = newLogger(GlobalLogConfig)
+	rwm.Unlock()
+	SetLogger(newLogger(logConfig))
 }
 
 func splitLevel(level string) (l Levels) {
@@ -127,8 +126,9 @@ func registerNewSubLogger(logger string) *subLogger {
 	}
 
 	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	rwm.Lock()
 	subLoggers[logger] = &temp
-
+	rwm.Unlock()
 	return &temp
 }
 

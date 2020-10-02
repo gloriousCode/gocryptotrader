@@ -45,7 +45,7 @@ type Engine struct {
 }
 
 type Bots struct {
-	Available []Engine
+	Available []*Engine
 	sync.RWMutex
 }
 
@@ -57,7 +57,10 @@ func AddBot(bot *Engine) error {
 			return fmt.Errorf("engine '%v' already exists", bot.Config.Name)
 		}
 	}
-	bots.Available = append(bots.Available, *bot)
+	if bot.ServicesWG == nil {
+		bot.ServicesWG = new(sync.WaitGroup)
+	}
+	bots.Available = append(bots.Available, bot)
 	return nil
 }
 
@@ -66,7 +69,7 @@ func (b *Bots) GetByName(name string) *Engine {
 	defer b.RUnlock()
 	for i := range b.Available {
 		if b.Available[i].Config.Name == name {
-			return &b.Available[i]
+			return b.Available[i]
 		}
 	}
 	return nil
@@ -82,7 +85,7 @@ func (b *Bots) GetByEnabledExchangeAndPair(name string, a asset.Item, cp currenc
 			return nil, err
 		}
 		if pairs.Contains(cp, true) {
-			return &b.Available[i], nil
+			return b.Available[i], nil
 		}
 	}
 	return nil, nil
@@ -90,27 +93,15 @@ func (b *Bots) GetByEnabledExchangeAndPair(name string, a asset.Item, cp currenc
 
 func (b *Bots) GetTheOne() *Engine {
 	b.RLock()
-	if len(b.Available) == 0 {
-		bot, err := New()
-		if err != nil {
-			log.Print(err)
-		}
-		b.Unlock()
-		err = AddBot(bot)
-		if err != nil {
-			log.Print(err)
-		}
-		b.RLock()
-		defer b.RUnlock()
-		return &b.Available[0]
-	}
 	defer b.RUnlock()
-
+	if len(b.Available) == 0 {
+		return nil
+	}
 	if len(b.Available) != 1 {
 		log.Print("yeah don't do this when you have multiple bots loaded")
 	}
 
-	return &b.Available[0]
+	return b.Available[0]
 }
 
 // Vars for engine
@@ -131,6 +122,18 @@ func New() (*Engine, error) {
 	var b Engine
 	b.Config = &config.Cfg
 	err := b.Config.LoadConfig("", false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config. Err: %s", err)
+	}
+
+	return &b, nil
+}
+
+// NewFromSettings starts a new engine based on the config path supplied
+func NewFromConfigPath(path string) (*Engine, error) {
+	var b Engine
+	b.Config = &config.Cfg
+	err := b.Config.LoadConfig(path, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
