@@ -30,10 +30,11 @@ func (p *portfolioManager) Start() error {
 	}
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
-	Bot.Portfolio = &portfolio.Portfolio
-	Bot.Portfolio.Seed(Bot.Config.Portfolio)
+	bot := Bot()
+	bot.Portfolio = &portfolio.Portfolio
+	bot.Portfolio.Seed(bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
-	portfolio.Verbose = Bot.Settings.Verbose
+	portfolio.Verbose = bot.Settings.Verbose
 
 	go p.run()
 	return nil
@@ -50,13 +51,14 @@ func (p *portfolioManager) Stop() error {
 
 func (p *portfolioManager) run() {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
-	Bot.ServicesWG.Add(1)
+	bot := Bot()
+	bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
-		Bot.ServicesWG.Done()
+		bot.ServicesWG.Done()
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 
@@ -89,5 +91,6 @@ func (p *portfolioManager) processPortfolio() {
 			key,
 			value)
 	}
-	SeedExchangeAccountInfo(Bot.GetAllEnabledExchangeAccountInfo().Data)
+	bot := Bot()
+	SeedExchangeAccountInfo(bot.GetAllEnabledExchangeAccountInfo().Data)
 }

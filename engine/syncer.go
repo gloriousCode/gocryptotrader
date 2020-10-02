@@ -291,9 +291,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			"Exchange CurrencyPairSyncer worker shutting down.")
 	}
 	defer cleanup()
+	bot := Bot()
 
 	for atomic.LoadInt32(&e.shutdown) != 1 {
-		exchanges := Bot.GetExchanges()
+		exchanges := bot.GetExchanges()
 		for x := range exchanges {
 			exchangeName := exchanges[x].GetName()
 			assetTypes := exchanges[x].GetAssetTypes()
@@ -436,7 +437,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 									}
 									printTickerSummary(result, "REST", err)
 									if err == nil {
-										if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+										if bot.Config.RemoteControl.WebsocketRPC.Enabled {
 											relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
 										}
 									}
@@ -475,7 +476,7 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 								result, err := exchanges[x].UpdateOrderbook(c.Pair, c.AssetType)
 								printOrderbookSummary(result, "REST", err)
 								if err == nil {
-									if Bot.Config.RemoteControl.WebsocketRPC.Enabled {
+									if bot.Config.RemoteControl.WebsocketRPC.Enabled {
 										relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), exchangeName)
 									}
 								}
@@ -502,7 +503,8 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	exchanges := Bot.GetExchanges()
+	bot := Bot()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()

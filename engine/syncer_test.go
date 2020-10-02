@@ -9,27 +9,27 @@ import (
 
 func TestNewCurrencyPairSyncer(t *testing.T) {
 	t.Skip()
-
-	if Bot == nil {
-		Bot = new(Engine)
+	bot := Bot()
+	if bot == nil {
+		bot = new(Engine)
 	}
-	Bot.Config = &config.Cfg
-	err := Bot.Config.LoadConfig("", true)
+	bot.Config = &config.Cfg
+	err := bot.Config.LoadConfig("", true)
 	if err != nil {
 		t.Fatalf("TestNewExchangeSyncer: Failed to load config: %s", err)
 	}
 
-	Bot.Settings.DisableExchangeAutoPairUpdates = true
-	Bot.Settings.Verbose = true
-	Bot.Settings.EnableExchangeWebsocketSupport = true
+	bot.Settings.DisableExchangeAutoPairUpdates = true
+	bot.Settings.Verbose = true
+	bot.Settings.EnableExchangeWebsocketSupport = true
 
-	Bot.SetupExchanges()
+	bot.SetupExchanges()
 
 	if err != nil {
 		t.Log("failed to start exchange syncer")
 	}
 
-	Bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(CurrencyPairSyncerConfig{
+	bot.ExchangeCurrencyPairManager, err = NewCurrencyPairSyncer(CurrencyPairSyncerConfig{
 		SyncTicker:       true,
 		SyncOrderbook:    false,
 		SyncTrades:       false,
@@ -39,7 +39,7 @@ func TestNewCurrencyPairSyncer(t *testing.T) {
 		t.Errorf("NewCurrencyPairSyncer failed: err %s", err)
 	}
 
-	Bot.ExchangeCurrencyPairManager.Start()
+	bot.ExchangeCurrencyPairManager.Start()
 	time.Sleep(time.Second * 15)
-	Bot.ExchangeCurrencyPairManager.Stop()
+	bot.ExchangeCurrencyPairManager.Stop()
 }

@@ -30,35 +30,36 @@ var (
 )
 
 func SetupTestHelpers(t *testing.T) *Engine {
+	bot := Bot()
 	if !helperTestLoaded {
-		if Bot == nil {
-			Bot = new(Engine)
+		if bot == nil {
+			bot = new(Engine)
 		}
-		Bot.Config = &config.Cfg
-		err := Bot.Config.LoadConfig(config.TestFile, true)
+		bot.Config = &config.Cfg
+		err := bot.Config.LoadConfig(config.TestFile, true)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load config: %s", err)
 		}
-		err = Bot.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
+		err = bot.Config.RetrieveConfigCurrencyPairs(true, asset.Spot)
 		if err != nil {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
 		helperTestLoaded = true
 	}
 
-	if Bot.GetExchangeByName(testExchange) == nil {
-		err := Bot.LoadExchange(testExchange, false, nil)
+	if bot.GetExchangeByName(testExchange) == nil {
+		err := bot.LoadExchange(testExchange, false, nil)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
-	if Bot.GetExchangeByName(fakePassExchange) == nil {
+	if bot.GetExchangeByName(fakePassExchange) == nil {
 		err := addPassingFakeExchange(testExchange)
 		if err != nil {
 			t.Fatalf("SetupTest: Failed to load exchange: %s", err)
 		}
 	}
-	return Bot
+	return bot
 }
 
 func TestGetExchangeOTPs(t *testing.T) {

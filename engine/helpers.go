@@ -67,21 +67,22 @@ type RPCEndpoint struct {
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func GetRPCEndpoints() map[string]RPCEndpoint {
 	endpoints := make(map[string]RPCEndpoint)
+	bot := Bot()
 	endpoints["grpc"] = RPCEndpoint{
-		Started:    Bot.Settings.EnableGRPC,
-		ListenAddr: "grpc://" + Bot.Config.RemoteControl.GRPC.ListenAddress,
+		Started:    bot.Settings.EnableGRPC,
+		ListenAddr: "grpc://" + bot.Config.RemoteControl.GRPC.ListenAddress,
 	}
 	endpoints["grpc_proxy"] = RPCEndpoint{
-		Started:    Bot.Settings.EnableGRPCProxy,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+		Started:    bot.Settings.EnableGRPCProxy,
+		ListenAddr: "http://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 	}
 	endpoints["deprecated_rpc"] = RPCEndpoint{
-		Started:    Bot.Settings.EnableDeprecatedRPC,
-		ListenAddr: "http://" + Bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
+		Started:    bot.Settings.EnableDeprecatedRPC,
+		ListenAddr: "http://" + bot.Config.RemoteControl.DeprecatedRPC.ListenAddress,
 	}
 	endpoints["websocket_rpc"] = RPCEndpoint{
-		Started:    Bot.Settings.EnableWebsocketRPC,
-		ListenAddr: "ws://" + Bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
+		Started:    bot.Settings.EnableWebsocketRPC,
+		ListenAddr: "ws://" + bot.Config.RemoteControl.WebsocketRPC.ListenAddress,
 	}
 	return endpoints
 }
@@ -686,8 +687,9 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func FormatCurrency(p currency.Pair) currency.Pair {
-	return p.Format(Bot.Config.Currency.CurrencyPairFormat.Delimiter,
-		Bot.Config.Currency.CurrencyPairFormat.Uppercase)
+	bot := Bot()
+	return p.Format(bot.Config.Currency.CurrencyPairFormat.Delimiter,
+		bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
 
 // GetExchangeNames returns a list of enabled or disabled exchanges

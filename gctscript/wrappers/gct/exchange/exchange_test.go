@@ -181,11 +181,11 @@ func TestExchange_CancelOrder(t *testing.T) {
 }
 
 func setupEngine() (err error) {
-	engine.Bot, err = engine.NewFromSettings(&settings, nil)
+	engine.bot, err = engine.NewFromSettings(&settings, nil)
 	if err != nil {
 		return err
 	}
-	return engine.Bot.Start()
+	return engine.bot.Start()
 }
 
 func cleanup() {
@@ -196,7 +196,7 @@ func cleanup() {
 }
 
 func configureExchangeKeys() bool {
-	ex := engine.Bot.GetExchangeByName(exchName).GetBase()
+	ex := engine.bot.GetExchangeByName(exchName).GetBase()
 	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
 	ex.SkipAuthCheck = true
 	return ex.ValidateAPICredentials()

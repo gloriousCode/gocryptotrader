@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
@@ -40,19 +41,95 @@ type Engine struct {
 	DepositAddressManager       *DepositAddressManager
 	Settings                    Settings
 	Uptime                      time.Time
-	ServicesWG                  sync.WaitGroup
+	ServicesWG                  *sync.WaitGroup
+}
+
+type Bots struct {
+	Available []Engine
+	sync.RWMutex
+}
+
+func AddBot(bot *Engine) error {
+	bots.Lock()
+	defer bots.Unlock()
+	for i := range bots.Available {
+		if bots.Available[i].Config.Name == bot.Config.Name {
+			return fmt.Errorf("engine '%v' already exists", bot.Config.Name)
+		}
+	}
+	bots.Available = append(bots.Available, *bot)
+	return nil
+}
+
+func (b *Bots) GetByName(name string) *Engine {
+	b.RLock()
+	defer b.RUnlock()
+	for i := range b.Available {
+		if b.Available[i].Config.Name == name {
+			return &b.Available[i]
+		}
+	}
+	return nil
+}
+
+func (b *Bots) GetByEnabledExchangeAndPair(name string, a asset.Item, cp currency.Pair) (*Engine, error) {
+	b.RLock()
+	defer b.RUnlock()
+	for i := range b.Available {
+		exch := b.Available[i].exchangeManager.getExchangeByName(name)
+		pairs, err := exch.GetEnabledPairs(a)
+		if err != nil {
+			return nil, err
+		}
+		if pairs.Contains(cp, true) {
+			return &b.Available[i], nil
+		}
+	}
+	return nil, nil
+}
+
+func (b *Bots) GetTheOne() *Engine {
+	b.RLock()
+	if len(b.Available) == 0 {
+		bot, err := New()
+		if err != nil {
+			log.Print(err)
+		}
+		b.Unlock()
+		err = AddBot(bot)
+		if err != nil {
+			log.Print(err)
+		}
+		b.RLock()
+		defer b.RUnlock()
+		return &b.Available[0]
+	}
+	defer b.RUnlock()
+
+	if len(b.Available) != 1 {
+		log.Print("yeah don't do this when you have multiple bots loaded")
+	}
+
+	return &b.Available[0]
 }
 
 // Vars for engine
 var (
-	Bot *Engine
+	bots Bots
+	// Stores the set flags
+	flagSet = make(map[string]bool)
 )
+
+// we currently only have one bot loaded at a given time
+// so this is a nice stand in
+func Bot() *Engine {
+	return bots.GetTheOne()
+}
 
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
 	b.Config = &config.Cfg
-
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
@@ -84,7 +161,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = b.Config.GetDataPath()
 	b.Settings.CheckParamInteraction = settings.CheckParamInteraction
-
+	b.ServicesWG = new(sync.WaitGroup)
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
@@ -344,7 +421,7 @@ func (bot *Engine) Start() error {
 	}
 
 	bot.Uptime = time.Now()
-	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
+	gctlog.Debugf(gctlog.Global, "bot '%s' started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
 		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",

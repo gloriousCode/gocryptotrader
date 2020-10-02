@@ -12,7 +12,7 @@ import (
 
 func main() {
 	var err error
-	engine.Bot, err = engine.New()
+	engine.bot, err = engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
@@ -21,7 +21,7 @@ func main() {
 	var wg sync.WaitGroup
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
-		err = engine.Bot.LoadExchange(name, true, &wg)
+		err = engine.bot.LoadExchange(name, true, &wg)
 		if err != nil {
 			log.Printf("Failed to load exchange %s. Err: %s", name, err)
 			continue
@@ -31,7 +31,7 @@ func main() {
 	log.Println("Done.")
 
 	var cfgs []config.ExchangeConfig
-	exchanges := engine.Bot.GetExchanges()
+	exchanges := engine.bot.GetExchanges()
 	for x := range exchanges {
 		var cfg *config.ExchangeConfig
 		cfg, err = exchanges[x].GetDefaultConfig()

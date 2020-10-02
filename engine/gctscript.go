@@ -62,14 +62,15 @@ func (g *gctScriptManager) Stop() error {
 
 func (g *gctScriptManager) run() {
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarted)
+	bot := Bot()
 
-	Bot.ServicesWG.Add(1)
+	bot.ServicesWG.Add(1)
 	vm.SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
-		Bot.ServicesWG.Done()
+		bot.ServicesWG.Done()
 		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 
@@ -77,14 +78,15 @@ func (g *gctScriptManager) run() {
 }
 
 func (g *gctScriptManager) autoLoad() {
-	for x := range Bot.Config.GCTScript.AutoLoad {
+	bot := Bot()
+	for x := range bot.Config.GCTScript.AutoLoad {
 		temp := vm.New()
 		if temp == nil {
 			log.Errorf(log.GCTScriptMgr, "Unable to create Virtual Machine, autoload failed for: %v",
-				Bot.Config.GCTScript.AutoLoad[x])
+				bot.Config.GCTScript.AutoLoad[x])
 			continue
 		}
-		var name = Bot.Config.GCTScript.AutoLoad[x]
+		var name = bot.Config.GCTScript.AutoLoad[x]
 		if filepath.Ext(name) != ".gct" {
 			name += ".gct"
 		}

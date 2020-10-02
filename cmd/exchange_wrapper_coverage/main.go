@@ -19,12 +19,12 @@ const (
 
 func main() {
 	var err error
-	engine.Bot, err = engine.New()
+	engine.bot, err = engine.New()
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
 
-	engine.Bot.Settings = engine.Settings{
+	engine.bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,
 	}
 
@@ -45,7 +45,7 @@ func main() {
 	log.Printf("Testing exchange wrappers..")
 	results := make(map[string][]string)
 	wg = sync.WaitGroup{}
-	exchanges := engine.Bot.GetExchanges()
+	exchanges := engine.bot.GetExchanges()
 	for x := range exchanges {
 		exch := exchanges[x]
 		wg.Add(1)

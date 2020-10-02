@@ -118,22 +118,25 @@ func main() {
 		// If config file is not explicitly set, fall back to default path resolution
 		settings.ConfigFile = ""
 	}
-
-	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
-	if engine.Bot == nil || err != nil {
+	var bot *engine.Engine
+	bot, err = engine.NewFromSettings(&settings, flagSet)
+	if err != nil {		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
+	}
+	err = engine.AddBot(bot)
+	if err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
 
 	gctscript.Setup()
 
-	engine.PrintSettings(&engine.Bot.Settings)
-	if err = engine.Bot.Start(); err != nil {
+	engine.PrintSettings(&bot.Settings)
+	if err = bot.Start(); err != nil {
 		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	interrupt := signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
-	engine.Bot.Stop()
+	bot.Stop()
 	gctlog.Infoln(gctlog.Global, "Exiting.")
 }

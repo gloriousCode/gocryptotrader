@@ -81,8 +81,9 @@ func TestGetEventCounter(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
-	if Bot == nil {
-		Bot = new(Engine)
+	bot := Bot()
+	if bot == nil {
+		bot = new(Engine)
 	}
 
 	var e Event
@@ -121,10 +122,11 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
+	bot := Bot()
+	if bot == nil {
+		bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
+	bot.Settings.Verbose = true
 
 	e := Event{
 		Exchange: testExchange,
@@ -188,10 +190,11 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
+	bot := Bot()
+	if bot == nil {
+		bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
+	bot.Settings.Verbose = true
 
 	e := Event{
 		Exchange: testExchange,
@@ -223,10 +226,11 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestCheckEventCondition(t *testing.T) {
 	t.Parallel()
-	if Bot == nil {
-		Bot = new(Engine)
+	bot := Bot()
+	if bot == nil {
+		bot = new(Engine)
 	}
-	Bot.Settings.Verbose = true
+	bot.Settings.Verbose = true
 
 	e := Event{
 		Item: ItemPrice,

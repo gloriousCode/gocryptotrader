@@ -41,21 +41,21 @@ func (a *databaseManager) Start() (err error) {
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
 	a.shutdown = make(chan struct{})
-
-	if Bot.Config.Database.Enabled {
-		if Bot.Config.Database.Driver == database.DBPostgreSQL {
+	bot := Bot()
+	if bot.Config.Database.Enabled {
+		if bot.Config.Database.Driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				Bot.Config.Database.Host,
-				Bot.Config.Database.Database,
-				Bot.Config.Database.Driver)
+				bot.Config.Database.Host,
+				bot.Config.Database.Database,
+				bot.Config.Database.Driver)
 			dbConn, err = dbpsql.Connect()
-		} else if Bot.Config.Database.Driver == database.DBSQLite ||
-			Bot.Config.Database.Driver == database.DBSQLite3 {
+		} else if bot.Config.Database.Driver == database.DBSQLite ||
+			bot.Config.Database.Driver == database.DBSQLite3 {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				Bot.Config.Database.Database,
-				Bot.Config.Database.Driver)
+				bot.Config.Database.Database,
+				bot.Config.Database.Driver)
 			dbConn, err = dbsqlite3.Connect()
 		}
 		if err != nil {
@@ -64,7 +64,7 @@ func (a *databaseManager) Start() (err error) {
 		dbConn.Connected = true
 
 		DBLogger := database.Logger{}
-		if Bot.Config.Database.Verbose {
+		if bot.Config.Database.Verbose {
 			boil.DebugMode = true
 			boil.DebugWriter = DBLogger
 		}
@@ -96,7 +96,8 @@ func (a *databaseManager) Stop() error {
 
 func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "Database manager started.")
-	Bot.ServicesWG.Add(1)
+	bot := Bot()
+	bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)
 
@@ -104,9 +105,7 @@ func (a *databaseManager) run() {
 		t.Stop()
 		atomic.CompareAndSwapInt32(&a.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&a.started, 1, 0)
-
-		Bot.ServicesWG.Done()
-
+		bot.ServicesWG.Done()
 		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
 

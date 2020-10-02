@@ -7,15 +7,16 @@ import (
 )
 
 func CleanupTest(t *testing.T) {
-	if Bot.GetExchangeByName(testExchange) != nil {
-		err := Bot.UnloadExchange(testExchange)
+	bot := Bot()
+	if bot.GetExchangeByName(testExchange) != nil {
+		err := bot.UnloadExchange(testExchange)
 		if err != nil {
 			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
 				err)
 		}
 	}
-	if Bot.GetExchangeByName(fakePassExchange) != nil {
-		err := Bot.UnloadExchange(fakePassExchange)
+	if bot.GetExchangeByName(fakePassExchange) != nil {
+		err := bot.UnloadExchange(fakePassExchange)
 		if err != nil {
 			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
 				err)

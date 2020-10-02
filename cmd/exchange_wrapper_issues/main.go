@@ -37,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
-	engine.Bot = bot
+	engine.bot = bot
 
 	bot.Settings = engine.Settings{
 		DisableExchangeAutoPairUpdates: true,

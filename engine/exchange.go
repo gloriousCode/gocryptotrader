@@ -48,25 +48,33 @@ var (
 )
 
 type exchangeManager struct {
-	m         sync.Mutex
+	m         *sync.Mutex
 	exchanges map[string]exchange.IBotExchange
 }
 
 func dryrunParamInteraction(param string) {
-	if !Bot.Settings.CheckParamInteraction {
+	bot := Bot()
+	if !bot.Settings.CheckParamInteraction {
 		return
 	}
 
-	if !Bot.Settings.EnableDryRun {
+	if !bot.Settings.EnableDryRun && !flagSet["dryrun"] {
 		log.Warnf(log.Global,
 			"Command line argument '-%s' induces dry run mode."+
 				" Set -dryrun=false if you wish to override this.",
 			param)
-		Bot.Settings.EnableDryRun = true
+		bot.Settings.EnableDryRun = true
+	}
+}
+
+func (e *exchangeManager) init() {
+	if e.m == nil {
+		e.m = new(sync.Mutex)
 	}
 }
 
 func (e *exchangeManager) add(exch exchange.IBotExchange) {
+	e.init()
 	e.m.Lock()
 	if e.exchanges == nil {
 		e.exchanges = make(map[string]exchange.IBotExchange)
@@ -79,7 +87,7 @@ func (e *exchangeManager) getExchanges() []exchange.IBotExchange {
 	if e.Len() == 0 {
 		return nil
 	}
-
+	e.init()
 	e.m.Lock()
 	defer e.m.Unlock()
 	var exchs []exchange.IBotExchange
@@ -97,6 +105,7 @@ func (e *exchangeManager) removeExchange(exchName string) error {
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
+	e.init()
 	e.m.Lock()
 	defer e.m.Unlock()
 	delete(e.exchanges, strings.ToLower(exchName))
@@ -108,6 +117,7 @@ func (e *exchangeManager) getExchangeByName(exchangeName string) exchange.IBotEx
 	if e.Len() == 0 {
 		return nil
 	}
+	e.init()
 	e.m.Lock()
 	defer e.m.Unlock()
 	exch, ok := e.exchanges[strings.ToLower(exchangeName)]
@@ -118,13 +128,15 @@ func (e *exchangeManager) getExchangeByName(exchangeName string) exchange.IBotEx
 }
 
 func (e *exchangeManager) Len() int {
+	e.init()
 	e.m.Lock()
 	defer e.m.Unlock()
 	return len(e.exchanges)
 }
 
 func (e *exchangeManager) unloadExchange(exchangeName string) error {
-	exchCfg, err := Bot.Config.GetExchangeConfig(exchangeName)
+	bot := Bot()
+	exchCfg, err := bot.Config.GetExchangeConfig(exchangeName)
 	if err != nil {
 		return err
 	}
@@ -355,7 +367,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	return nil
 }
 
-// SetupExchanges sets up the exchanges used by the Bot
+// SetupExchanges sets up the exchanges used by the bot
 func (bot *Engine) SetupExchanges() {
 	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()

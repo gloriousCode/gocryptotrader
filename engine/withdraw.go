@@ -27,7 +27,19 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
 
-	exch := Bot.GetExchangeByName(req.Exchange)
+	var err error
+	var ret *withdraw.ExchangeResponse
+	if req.Exchange == "" {
+		req.Exchange = exchName
+	}
+
+	err = withdraw.Validate(req)
+	if err != nil {
+		return nil, err
+	}
+
+	bot := Bot()
+	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}

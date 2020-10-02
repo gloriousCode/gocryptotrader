@@ -24,8 +24,8 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 
 // TestConfigAllJsonResponse test if config/all restful json response is valid
 func TestConfigAllJsonResponse(t *testing.T) {
-	SetupTestHelpers(t)
-	resp := makeHTTPGetRequest(t, Bot.Config)
+	bot := SetupTestHelpers(t)
+	resp := makeHTTPGetRequest(t, bot.Config)
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
@@ -38,7 +38,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 		t.Error("Response not parseable as json", err)
 	}
 
-	if reflect.DeepEqual(responseConfig, Bot.Config) {
+	if reflect.DeepEqual(responseConfig, bot.Config) {
 		t.Error("Json not equal to config")
 	}
 }
@@ -89,8 +89,8 @@ func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
 		t.Errorf("Response returned wrong status code expected %v got %v", http.StatusNotFound, status)
 	}
 
-	Bot.Config.Profiler.Enabled = true
-	Bot.Config.Profiler.MutexProfileFraction = 5
+	e.Config.Profiler.Enabled = true
+	e.Config.Profiler.MutexProfileFraction = 5
 	req, err = http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
 	if err != nil {
 		t.Fatal(err)

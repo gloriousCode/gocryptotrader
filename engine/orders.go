@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,9 +21,16 @@ var (
 	ErrOrderNotFound       = errors.New("order does not exist")
 )
 
+func (o *orderStore) init() {
+	if o.m == nil {
+		o.m = new(sync.RWMutex)
+	}
+}
+
 // get returns all orders for all exchanges
 // should not be exported as it can have large impact if used improperly
 func (o *orderStore) get() map[string][]*order.Detail {
+	o.init()
 	o.m.RLock()
 	orders := o.Orders
 	o.m.RUnlock()
@@ -31,6 +39,7 @@ func (o *orderStore) get() map[string][]*order.Detail {
 
 // GetByExchangeAndID returns a specific order by exchange and id
 func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, error) {
+	o.init()
 	o.m.RLock()
 	defer o.m.RUnlock()
 	r, ok := o.Orders[exchange]
@@ -48,6 +57,7 @@ func (o *orderStore) GetByExchangeAndID(exchange, id string) (*order.Detail, err
 
 // GetByExchange returns orders by exchange
 func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
+	o.init()
 	o.m.RLock()
 	defer o.m.RUnlock()
 	r, ok := o.Orders[exchange]
@@ -60,6 +70,7 @@ func (o *orderStore) GetByExchange(exchange string) ([]*order.Detail, error) {
 // GetByInternalOrderID will search all orders for our internal orderID
 // and return the order
 func (o *orderStore) GetByInternalOrderID(internalOrderID string) (*order.Detail, error) {
+	o.init()
 	o.m.RLock()
 	defer o.m.RUnlock()
 	for _, v := range o.Orders {
@@ -76,6 +87,7 @@ func (o *orderStore) exists(det *order.Detail) bool {
 	if det == nil {
 		return false
 	}
+	o.init()
 	o.m.RLock()
 	defer o.m.RUnlock()
 	r, ok := o.Orders[det.Exchange]
@@ -96,11 +108,13 @@ func (o *orderStore) Add(det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := Bot.GetExchangeByName(det.Exchange)
+	bot := Bot()
+	exch := bot.GetExchangeByName(order.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
-	if o.exists(det) {
+	o.init()
+	if o.exists(order) {
 		return ErrOrdersAlreadyExists
 	}
 	// Untracked websocket orders will not have internalIDs yet
@@ -163,19 +177,21 @@ func (o *orderManager) Stop() error {
 
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
+		bot := Bot()
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		o.CancelAllOrders(Bot.Config.GetEnabledExchanges())
+		o.CancelAllOrders(bot.Config.GetEnabledExchanges())
 	}
 }
 
 func (o *orderManager) run() {
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
-	Bot.ServicesWG.Add(1)
+	bot := Bot()
+	bot.ServicesWG.Add(1)
 	defer func() {
 		log.Debugln(log.OrderMgr, "Order manager shutdown.")
 		tick.Stop()
-		Bot.ServicesWG.Done()
+		bot.ServicesWG.Done()
 	}()
 
 	for {
@@ -195,6 +211,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	if orders == nil {
 		return
 	}
+	bot := Bot()
 
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", k)
@@ -218,7 +235,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			})
 			if err != nil {
 				log.Error(log.OrderMgr, err)
-				Bot.CommsManager.PushEvent(base.Event{
+				bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: err.Error(),
 				})
@@ -228,7 +245,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 				k, v[y].ID)
 			log.Debugln(log.OrderMgr, msg)
-			Bot.CommsManager.PushEvent(base.Event{
+			bot.CommsManager.PushEvent(base.Event{
 				Type:    "order",
 				Message: msg,
 			})
@@ -250,8 +267,9 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	if cancel.ID == "" {
 		return errors.New("order id is empty")
 	}
+	bot := Bot()
 
-	exch := Bot.GetExchangeByName(cancel.Exchange)
+	exch := bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
@@ -307,8 +325,9 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 			return nil, errors.New("order pair not found in allowed list")
 		}
 	}
+	bot := Bot()
 
-	exch := Bot.GetExchangeByName(newOrder.Exchange)
+	exch := bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
 		return nil, ErrExchangeNotFound
 	}
@@ -339,7 +358,7 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 		newOrder.Type)
 
 	log.Debugln(log.OrderMgr, msg)
-	Bot.CommsManager.PushEvent(base.Event{
+	bot.CommsManager.PushEvent(base.Event{
 		Type:    "order",
 		Message: msg,
 	})
@@ -388,13 +407,14 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 }
 
 func (o *orderManager) processOrders() {
-	authExchanges := Bot.GetAuthAPISupportedExchanges()
+	bot := Bot()
+	authExchanges := bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,
 			"Order manager: Processing orders for exchange %v.",
 			authExchanges[x])
 
-		exch := Bot.GetExchangeByName(authExchanges[x])
+		exch := bot.GetExchangeByName(authExchanges[x])
 		supportedAssets := exch.GetAssetTypes()
 		for y := range supportedAssets {
 			pairs, err := exch.GetEnabledPairs(supportedAssets[y])
@@ -408,7 +428,7 @@ func (o *orderManager) processOrders() {
 			}
 
 			if len(pairs) == 0 {
-				if Bot.Settings.Verbose {
+				if bot.Settings.Verbose {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						authExchanges[x],
@@ -439,7 +459,7 @@ func (o *orderManager) processOrders() {
 					msg := fmt.Sprintf("Order manager: Exchange %s added order ID=%v pair=%v price=%v amount=%v side=%v type=%v.",
 						ord.Exchange, ord.ID, ord.Pair, ord.Price, ord.Amount, ord.Side, ord.Type)
 					log.Debugf(log.OrderMgr, "%v", msg)
-					Bot.CommsManager.PushEvent(base.Event{
+					bot.CommsManager.PushEvent(base.Event{
 						Type:    "order",
 						Message: msg,
 					})

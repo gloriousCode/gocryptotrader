@@ -95,6 +95,7 @@ func (d *DepositAddressManager) GetDepositAddressesByExchange(exchName string) (
 
 // Sync synchronises all deposit addresses
 func (d *DepositAddressManager) Sync() {
-	result := Bot.GetExchangeCryptocurrencyDepositAddresses()
+	bot := Bot()
+	result := bot.GetExchangeCryptocurrencyDepositAddresses()
 	d.Store.Seed(result)
 }

@@ -25,7 +25,8 @@ func RESTfulError(method string, err error) {
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
 // trading Bots configuration.
 func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	err := RESTfulJSONResponse(w, Bot.Config)
+	bot := Bot()
+	err := RESTfulJSONResponse(w, bot.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
@@ -42,23 +43,25 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 	// Save change the settings
-	err = Bot.Config.UpdateConfig(Bot.Settings.ConfigFile, &responseData.Data, false)
+	bot := Bot()
+	err = bot.Config.UpdateConfig(bot.Settings.ConfigFile, &responseData.Data, false)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
 
-	err = RESTfulJSONResponse(w, Bot.Config)
+	err = RESTfulJSONResponse(w, bot.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
 	}
 
-	Bot.SetupExchanges()
+	bot.SetupExchanges()
 }
 
 // GetAllActiveOrderbooks returns all enabled exchanges orderbooks
 func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-	exchanges := Bot.GetExchanges()
+	bot := Bot()
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
 		exchName := exchanges[x].GetName()
@@ -103,7 +106,7 @@ func RESTGetAllActiveOrderbooks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// RESTGetPortfolio returns the Bot portfolio
+// RESTGetPortfolio returns the bot portfolio
 func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 	p := portfolio.GetPortfolio()
 	result := p.GetPortfolioSummary()
@@ -116,7 +119,8 @@ func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllActiveTickers returns all active tickers
 func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	response.Data = Bot.GetAllActiveTickers()
+	bot := Bot()
+	response.Data = bot.GetAllActiveTickers()
 
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {
@@ -127,7 +131,8 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
 func RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	response := Bot.GetAllEnabledExchangeAccountInfo()
+	bot := Bot()
+	response := bot.GetAllEnabledExchangeAccountInfo()
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {
 		RESTfulError(r.Method, err)
