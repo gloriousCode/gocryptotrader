@@ -9,16 +9,30 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
+func SetFilePath(fp string) {
+	rwm.Lock()
+	filePath = fp
+	rwm.Unlock()
+}
+
+func FilePath() string {
+	var resp string
+	rwm.RLock()
+	defer rwm.RUnlock()
+	resp = filePath
+	return resp
+}
+
 // Write implementation to satisfy io.Writer handles length check and rotation
 func (r *Rotate) Write(output []byte) (n int, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	rwm.Lock()
+	defer rwm.Unlock()
 
 	outputLen := int64(len(output))
 
-	if outputLen > r.maxSize() {
+	if outputLen > r.calculateMaxSize() {
 		return 0, fmt.Errorf(
-			"write length %v exceeds max file size %v", outputLen, r.maxSize(),
+			"write length %v exceeds max file size %v", outputLen, r.calculateMaxSize(),
 		)
 	}
 
@@ -29,8 +43,8 @@ func (r *Rotate) Write(output []byte) (n int, err error) {
 		}
 	}
 
-	if *r.Rotate {
-		if r.size+outputLen > r.maxSize() {
+	if *r.rotationEnabled {
+		if r.size+outputLen > r.calculateMaxSize() {
 			err = r.rotateFile()
 			if err != nil {
 				return 0, err
@@ -45,7 +59,9 @@ func (r *Rotate) Write(output []byte) (n int, err error) {
 }
 
 func (r *Rotate) openOrCreateFile(n int64) error {
-	logFile := filepath.Join(LogPath, r.FileName)
+	rwm.Lock()
+	defer rwm.Unlock()
+	logFile := filepath.Join(filePath, r.fileName)
 
 	info, err := os.Stat(logFile)
 	if err != nil {
@@ -55,30 +71,31 @@ func (r *Rotate) openOrCreateFile(n int64) error {
 		return fmt.Errorf("error opening log file info: %s", err)
 	}
 
-	if *r.Rotate {
-		if info.Size()+n >= r.maxSize() {
+	if *r.rotationEnabled {
+		if info.Size()+n >= r.calculateMaxSize() {
 			return r.rotateFile()
 		}
 	}
-
-	file, err := os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0600)
+	var f *os.File
+	f, err = os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return r.openNew()
 	}
 
-	r.output = file
+	r.output = f
 	r.size = info.Size()
-
 	return nil
 }
 
 func (r *Rotate) openNew() error {
-	name := filepath.Join(LogPath, r.FileName)
+	rwm.Lock()
+	defer rwm.Unlock()
+	name := filepath.Join(filePath, r.fileName)
 	_, err := os.Stat(name)
 
 	if err == nil {
 		timestamp := time.Now().Format("2006-01-02T15-04-05")
-		newName := filepath.Join(LogPath, timestamp+"-"+r.FileName)
+		newName := filepath.Join(filePath, timestamp+"-"+r.fileName)
 
 		err = file.Move(name, newName)
 		if err != nil {
@@ -86,18 +103,21 @@ func (r *Rotate) openNew() error {
 		}
 	}
 
-	file, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	var f *os.File
+	f, err = os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("can't open new logfile: %s", err)
 	}
 
-	r.output = file
+	r.output = f
 	r.size = 0
 
 	return nil
 }
 
 func (r *Rotate) close() (err error) {
+	rwm.Lock()
+	defer rwm.Unlock()
 	if r.output == nil {
 		return nil
 	}
@@ -108,8 +128,6 @@ func (r *Rotate) close() (err error) {
 
 // Close handler for open file
 func (r *Rotate) Close() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	return r.close()
 }
 
@@ -126,9 +144,9 @@ func (r *Rotate) rotateFile() (err error) {
 	return nil
 }
 
-func (r *Rotate) maxSize() int64 {
-	if r.MaxSize == 0 {
+func (r *Rotate) calculateMaxSize() int64 {
+	if r.maxSize == 0 {
 		return int64(defaultMaxSize * megabyte)
 	}
-	return r.MaxSize * int64(megabyte)
+	return r.maxSize * int64(megabyte)
 }

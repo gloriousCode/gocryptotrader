@@ -1305,7 +1305,7 @@ func (c *Config) CheckLoggerConfig() error {
 	if err != nil {
 		return err
 	}
-	log.LogPath = logPath
+	log.SetFilePath(logPath)
 
 	return nil
 }

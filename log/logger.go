@@ -57,19 +57,10 @@ func CloseLogger() error {
 	return nil
 }
 
-func validSubLogger(s string) (bool, *subLogger) {
-	rwm.RLock()
-	defer rwm.RUnlock()
-	if v, found := subLoggers[s]; found {
-		return true, v
-	}
-	return false, nil
-}
-
 // Level retries the current sublogger levels
 func Level(s string) (*Levels, error) {
-	found, logger := validSubLogger(s)
-	if !found {
+	logger := getSubLogger(s)
+	if logger == nil {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
@@ -78,11 +69,43 @@ func Level(s string) (*Levels, error) {
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (*Levels, error) {
-	found, logger := validSubLogger(s)
-	if !found {
+	logger := getSubLogger(s)
+	if logger == nil {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
 
 	return &logger.Levels, nil
+}
+
+func setLogger(l *Logger) {
+	rwm.Lock()
+	logger = l
+	rwm.Unlock()
+}
+
+func GetConfig() Config {
+	rwm.RLock()
+	cfg := logConfig
+	rwm.Unlock()
+	return *cfg
+}
+
+func isLogConfiguredCorrectly() bool {
+	rwm.RLock()
+	defer rwm.RUnlock()
+	b := fileLoggingConfiguredCorrectly
+	return b
+}
+
+func SetLogConfiguredCorrectly(b bool) {
+	rwm.Lock()
+	fileLoggingConfiguredCorrectly = b
+	rwm.Unlock()
+}
+
+func SetConfig(cfg *Config) {
+	rwm.Lock()
+	logConfig = cfg
+	rwm.Unlock()
 }

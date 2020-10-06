@@ -10,15 +10,25 @@ const (
 	spacer          = " | "
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
+	// Lovely strings
+	infoStr       = "INFO"
+	infoFmt       = "[" + infoStr + "]"
+	warnStr       = "WARN"
+	warnFmt       = "[" + warnStr + "]"
+	debugStr      = "DEBUG"
+	debugFmt      = "[" + debugStr + "]"
+	errStr        = "ERROR"
+	errorFmt      = "[" + errStr + "]"
+	defaultLevels = infoStr + "|" + warnStr + "|" + debugStr + "|" + errStr
 )
 
 var (
 	logger = &Logger{}
 	// fileLoggingConfiguredCorrectly flag set during config check if file logging meets requirements
 	fileLoggingConfiguredCorrectly bool
-	// logConfig holds global configuration options for logger
+	// logConfig holds configuration options for logger
 	logConfig = &Config{}
-	// rotate hold global configuration options for file logger
+	// rotate holds file rotation options for the logger
 	rotate    = &Rotate{}
 	eventPool = &sync.Pool{
 		New: func() interface{} {
@@ -28,51 +38,11 @@ var (
 		},
 	}
 
-	// LogPath system path to store log files in
-	LogPath string
-
+	// filePath system path to store log files in
+	filePath string
 	// rwm read/write mutex for logger
-	rwm = &sync.RWMutex{}
+	rwm sync.RWMutex
 )
-
-func SetLogger(l *Logger) {
-	rwm.Lock()
-	logger = l
-	rwm.Unlock()
-}
-
-func LogConfig() *Config {
-	rwm.RLock()
-	cfg := logConfig
-	rwm.Unlock()
-	return cfg
-}
-
-func LogFile() *Rotate {
-	rwm.RLock()
-	l := rotate
-	rwm.Unlock()
-	return l
-}
-
-func IsLogConfiguredCorrectly() bool {
-	rwm.RLock()
-	defer rwm.RUnlock()
-	b := fileLoggingConfiguredCorrectly
-	return b
-}
-
-func SetLogConfiguredCorrectly(b bool) {
-	rwm.Lock()
-	fileLoggingConfiguredCorrectly = b
-	rwm.Unlock()
-}
-
-func SetConfig(cfg *Config) {
-	rwm.Lock()
-	logConfig = cfg
-	rwm.Unlock()
-}
 
 // Config holds configuration settings loaded from bot config
 type Config struct {
@@ -123,7 +93,7 @@ type Levels struct {
 	Info, Debug, Warn, Error bool
 }
 
-type subLogger struct {
+type SubLogger struct {
 	name string
 	Levels
 	output io.Writer
