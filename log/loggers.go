@@ -6,7 +6,7 @@ import (
 )
 
 // Info takes a pointer SubLogger struct and string sends to newLogEvent
-func Info(subLoggerName string, data string) {
+func Info(subLoggerName, data string) {
 	if !enabled() {
 		return
 	}
@@ -32,12 +32,12 @@ func Infoln(subLoggerName string, v ...interface{}) {
 }
 
 // Infof takes a pointer SubLogger struct, string & interface formats and sends to Info()
-func Infof(subLoggerName string, data string, v ...interface{}) {
+func Infof(subLoggerName, data string, v ...interface{}) {
 	Info(subLoggerName, fmt.Sprintf(data, v...))
 }
 
 // Debug takes a pointer SubLogger struct and string sends to multiwriter
-func Debug(subLoggerName string, data string) {
+func Debug(subLoggerName, data string) {
 	if !enabled() {
 		return
 	}
@@ -63,12 +63,12 @@ func Debugln(subLoggerName string, v ...interface{}) {
 }
 
 // Debugf takes a pointer SubLogger struct, string & interface formats and sends to Info()
-func Debugf(subLoggerName string, data string, v ...interface{}) {
+func Debugf(subLoggerName, data string, v ...interface{}) {
 	Debug(subLoggerName, fmt.Sprintf(data, v...))
 }
 
 // Warn takes a pointer SubLogger struct & string  and sends to newLogEvent()
-func Warn(subLoggerName string, data string) {
+func Warn(subLoggerName, data string) {
 	if !enabled() {
 		return
 	}
@@ -94,7 +94,7 @@ func Warnln(subLoggerName string, v ...interface{}) {
 }
 
 // Warnf takes a pointer SubLogger struct, string & interface formats and sends to Warn()
-func Warnf(subLoggerName string, data string, v ...interface{}) {
+func Warnf(subLoggerName, data string, v ...interface{}) {
 	Warn(subLoggerName, fmt.Sprintf(data, v...))
 }
 
@@ -125,7 +125,7 @@ func Errorln(subLoggerName string, v ...interface{}) {
 }
 
 // Errorf takes a pointer SubLogger struct, string & interface formats and sends to Debug()
-func Errorf(subLoggerName string, data string, v ...interface{}) {
+func Errorf(subLoggerName, data string, v ...interface{}) {
 	Error(subLoggerName, fmt.Sprintf(data, v...))
 }
 

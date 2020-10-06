@@ -113,8 +113,7 @@ func (o *orderStore) Add(det *order.Detail) error {
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
-	o.init()
-	if o.exists(order) {
+	if o.exists(det) {
 		return ErrOrdersAlreadyExists
 	}
 	// Untracked websocket orders will not have internalIDs yet

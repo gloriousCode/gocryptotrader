@@ -24,5 +24,5 @@ const (
 
 // Global vars related to the logger package
 var (
-	subLoggers = map[string]*SubLogger{}
+	subLoggers map[string]*SubLogger
 )

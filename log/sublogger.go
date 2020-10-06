@@ -18,17 +18,16 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 	}
 }
 
-func registerNewSubLogger(logger string) *SubLogger {
-	temp := SubLogger{
-		name:   strings.ToUpper(logger),
+func registerNewSubLogger(subLoggerName string) {
+	subLogger := SubLogger{
+		name:   strings.ToUpper(subLoggerName),
 		output: os.Stdout,
 	}
 
-	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
+	subLogger.Levels = splitLevel(defaultLevels)
 	rwm.Lock()
-	subLoggers[logger] = &temp
+	subLoggers[subLoggerName] = &subLogger
 	rwm.Unlock()
-	return &temp
 }
 
 func configureSubLogger(logger, levels string, output io.Writer) error {

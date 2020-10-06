@@ -11,6 +11,7 @@ import (
 
 // register all loggers at package init()
 func init() {
+	subLoggers = make(map[string]*SubLogger)
 	registerNewSubLogger(Global)
 	registerNewSubLogger(ConnectionMgr)
 	registerNewSubLogger(CommunicationMgr)

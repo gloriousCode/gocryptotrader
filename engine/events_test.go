@@ -80,11 +80,8 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
+	SetupTestHelpers(t)
 	t.Parallel()
-	bot := Bot()
-	if bot == nil {
-		bot = new(Engine)
-	}
 
 	var e Event
 	if r := e.ExecuteAction(); !r {
