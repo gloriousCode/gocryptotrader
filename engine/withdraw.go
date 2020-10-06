@@ -28,12 +28,7 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 	}
 
 	var err error
-	var ret *withdraw.ExchangeResponse
-	if req.Exchange == "" {
-		req.Exchange = exchName
-	}
-
-	err = withdraw.Validate(req)
+	err = req.Validate()
 	if err != nil {
 		return nil, err
 	}
