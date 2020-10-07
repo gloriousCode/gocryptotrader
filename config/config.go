@@ -1086,7 +1086,7 @@ func (c *Config) CheckBankAccountConfig() {
 			}
 		}
 	}
-	banking.Accounts = c.BankAccounts
+	banking.AppendAccounts(c.BankAccounts...)
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not

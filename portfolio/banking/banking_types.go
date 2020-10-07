@@ -42,6 +42,6 @@ type Account struct {
 	SupportedExchanges  string  `json:"supportedExchanges,omitempty"`
 }
 
-// Accounts holds all bank account details
-var Accounts []Account
+// accounts holds all bank account details
+var accounts []Account
 var m = &sync.Mutex{}

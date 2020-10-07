@@ -13,9 +13,9 @@ func GetBankAccountByID(id string) (*Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	for x := range Accounts {
-		if strings.EqualFold(Accounts[x].ID, id) {
-			return &Accounts[x], nil
+	for x := range accounts {
+		if strings.EqualFold(accounts[x].ID, id) {
+			return &accounts[x], nil
 		}
 	}
 	return nil, fmt.Errorf(ErrBankAccountNotFound, id)
@@ -91,4 +91,12 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 		}
 	}
 	return
+}
+
+func AppendAccounts(as ...Account) {
+	m.Lock()
+	defer m.Unlock()
+	for i := range as {
+		accounts = append(accounts, as[i])
+	}
 }

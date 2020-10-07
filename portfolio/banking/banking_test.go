@@ -45,7 +45,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	Accounts = append(Accounts, testBankAccounts...)
+	accounts = append(accounts, testBankAccounts...)
 	os.Exit(m.Run())
 }
 

@@ -38,7 +38,7 @@ func cleanup() {
 
 func TestSubmitWithdrawal(t *testing.T) {
 	SetupTestHelpers(t)
-	banking.Accounts = append(banking.Accounts,
+	banking.AppendAccounts(
 		banking.Account{
 			Enabled:             true,
 			ID:                  "test-bank-01",
