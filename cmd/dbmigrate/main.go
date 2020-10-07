@@ -11,14 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/goose"
 )
 
 var (
-	dbConn         *database.Instance
 	configFile     string
 	defaultDataDir string
 	migrationDir   string
@@ -28,13 +23,13 @@ var (
 
 func openDBConnection(driver string) (err error) {
 	if driver == database.DBPostgreSQL {
-		dbConn, err = dbPSQL.Connect()
+		err = database.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
-		dbConn, err = dbsqlite3.Connect()
+		err = database.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
@@ -74,7 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	drv := repository.GetSQLDialect()
+	drv := database.GetSQLDialect()
 
 	if drv == database.DBSQLite || drv == database.DBSQLite3 {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
@@ -83,13 +78,13 @@ func main() {
 	}
 
 	if command == "" {
-		_ = goose.Run("status", dbConn.SQL, drv, migrationDir, "")
+		_ = database.RunGooseCommand("status", drv, migrationDir, "")
 		fmt.Println()
 		flag.Usage()
 		return
 	}
 
-	if err = goose.Run(command, dbConn.SQL, drv, migrationDir, args); err != nil {
+	if err = database.RunGooseCommand(command, drv, migrationDir, args); err != nil {
 		fmt.Println(err)
 	}
 }

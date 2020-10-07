@@ -1353,7 +1353,7 @@ func (c *Config) checkDatabaseConfig() error {
 		return nil
 	}
 
-	if !common.StringDataCompare(database.SupportedDrivers, c.Database.Driver) {
+	if !common.StringDataCompare(database.SupportedDrivers(), c.Database.Driver) {
 		c.Database.Enabled = false
 		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
@@ -1364,10 +1364,10 @@ func (c *Config) checkDatabaseConfig() error {
 		if err != nil {
 			return err
 		}
-		database.DB.DataPath = databaseDir
+		database.SetDBPath(databaseDir)
 	}
 
-	database.DB.Config = &c.Database
+	database.SetDBConfig(&c.Database)
 
 	return nil
 }
@@ -1442,11 +1442,11 @@ func (c *Config) CheckConnectionMonitorConfig() {
 	}
 
 	if len(c.ConnectionMonitor.DNSList) == 0 {
-		c.ConnectionMonitor.DNSList = connchecker.DefaultDNSList
+		c.ConnectionMonitor.DNSList = connchecker.DefaultDNSList()
 	}
 
-	if len(c.ConnectionMonitor.PublicDomainList) == 0 {
-		c.ConnectionMonitor.PublicDomainList = connchecker.DefaultDomainList
+	if len(c.ConnectionMonitor.DomainList) == 0 {
+		c.ConnectionMonitor.DomainList = connchecker.DefaultDomainList()
 	}
 }
 

@@ -1690,14 +1690,14 @@ func TestCheckConnectionMonitorConfig(t *testing.T) {
 	var c Config
 	c.ConnectionMonitor.CheckInterval = 0
 	c.ConnectionMonitor.DNSList = nil
-	c.ConnectionMonitor.PublicDomainList = nil
+	c.ConnectionMonitor.DomainList = nil
 	c.CheckConnectionMonitorConfig()
 
 	if c.ConnectionMonitor.CheckInterval != connchecker.DefaultCheckInterval ||
 		len(common.StringSliceDifference(
-			c.ConnectionMonitor.DNSList, connchecker.DefaultDNSList)) != 0 ||
+			c.ConnectionMonitor.DNSList, connchecker.defaultDNSList)) != 0 ||
 		len(common.StringSliceDifference(
-			c.ConnectionMonitor.PublicDomainList, connchecker.DefaultDomainList)) != 0 {
+			c.ConnectionMonitor.DomainList, connchecker.defaultDomainList)) != 0 {
 		t.Error("unexpected values")
 	}
 }

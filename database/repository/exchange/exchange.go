@@ -9,14 +9,14 @@ import (
 	"strings"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
+
 	"github.com/thrasher-corp/gocryptotrader/common/cache"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/sqlboiler/boil"
-	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // One returns one exchange by Name
@@ -31,13 +31,13 @@ func OneByUUID(in uuid.UUID) (Details, error) {
 
 // one returns one exchange by clause
 func one(in, clause string) (out Details, err error) {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return out, database.ErrDatabaseSupportDisabled
 	}
 
 	whereQM := qm.Where(clause+"= ?", in)
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+	if database.GetSQLDialect() == database.DBSQLite3 {
+		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.Executor())
 		if errS != nil {
 			return out, errS
 		}
@@ -47,7 +47,7 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 	} else {
-		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), database.DB.SQL)
+		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), database.Executor())
 		if errS != nil {
 			return out, errS
 		}
@@ -63,17 +63,17 @@ func one(in, clause string) (out Details, err error) {
 
 // Insert writes a single entry into database
 func Insert(in Details) error {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return database.ErrDatabaseSupportDisabled
 	}
 
 	ctx := context.Background()
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := database.BeginTransaction()
 	if err != nil {
 		return err
 	}
 
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if database.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, []Details{in})
 	} else {
 		err = insertPostgresql(ctx, tx, []Details{in})
@@ -97,17 +97,17 @@ func Insert(in Details) error {
 
 // InsertMany writes multiple entries into database
 func InsertMany(in []Details) error {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return database.ErrDatabaseSupportDisabled
 	}
 
 	ctx := context.Background()
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := database.BeginTransaction()
 	if err != nil {
 		return err
 	}
 
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if database.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, in)
 	} else {
 		err = insertPostgresql(ctx, tx, in)

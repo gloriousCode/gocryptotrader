@@ -11,11 +11,11 @@ import (
 
 // Instance holds all information for a database instance
 type Instance struct {
-	SQL       *sql.DB
-	DataPath  string
-	Config    *Config
-	Connected bool
-	Mu        sync.RWMutex
+	sql         *sql.DB
+	dataPath    string
+	config      *Config
+	isConnected bool
+	mu          sync.RWMutex
 }
 
 // Config holds all database configurable options including enable/disabled & DSN settings
@@ -28,22 +28,13 @@ type Config struct {
 
 var (
 	// DB Global Database Connection
-	DB = &Instance{}
-
+	db = Instance{}
 	// MigrationDir which folder to look in for current migrations
 	MigrationDir = filepath.Join("..", "..", "database", "migrations")
-
 	// ErrNoDatabaseProvided error to display when no database is provided
 	ErrNoDatabaseProvided = errors.New("no database provided")
-
 	// ErrDatabaseSupportDisabled error to display when no database is provided
 	ErrDatabaseSupportDisabled = errors.New("database support is disabled")
-
-	// SupportedDrivers slice of supported database driver types
-	SupportedDrivers = []string{DBSQLite, DBSQLite3, DBPostgreSQL}
-
-	// DefaultSQLiteDatabase is the default sqlite3 database name to use
-	DefaultSQLiteDatabase = "gocryptotrader.db"
 )
 
 const (
@@ -55,4 +46,6 @@ const (
 	DBPostgreSQL = "postgres"
 	// DBInvalidDriver const string for invalid driver
 	DBInvalidDriver = "invalid driver"
+	// DefaultSQLiteDatabase is the default sqlite3 database name to use
+	DefaultSQLiteDatabase = "gocryptotrader.db"
 )

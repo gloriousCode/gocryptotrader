@@ -57,8 +57,8 @@ func main() {
 	}
 
 	if dbConn != nil {
-		if dbConn.SQL != nil {
-			err = dbConn.SQL.Close()
+		if dbConn.sql != nil {
+			err = dbConn.sql.Close()
 			if err != nil {
 				log.Println(err)
 			}

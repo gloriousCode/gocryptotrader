@@ -1,10 +1,6 @@
-package repository
+package database
 
-import (
-	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/database"
-)
+import "testing"
 
 func TestGetSQLDialect(t *testing.T) {
 	testCases := []struct {
@@ -13,26 +9,26 @@ func TestGetSQLDialect(t *testing.T) {
 	}{
 		{
 			"postgresql",
-			database.DBPostgreSQL,
+			DBPostgreSQL,
 		},
 		{
 			"sqlite",
-			database.DBSQLite3,
+			DBSQLite3,
 		},
 		{
 			"sqlite3",
-			database.DBSQLite3,
+			DBSQLite3,
 		},
 		{
 			"invalid",
-			database.DBInvalidDriver,
+			DBInvalidDriver,
 		},
 	}
 	for x := range testCases {
 		test := testCases[x]
 
 		t.Run(test.driver, func(t *testing.T) {
-			database.DB.Config = &database.Config{
+			db.config = &Config{
 				Driver: test.driver,
 			}
 			ret := GetSQLDialect()

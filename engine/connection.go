@@ -30,7 +30,7 @@ func (c *connectionManager) Start(conf *config.ConnectionMonitorConfig) error {
 	log.Debugln(log.ConnectionMgr, "Connection manager starting...")
 	var err error
 	c.conn, err = connchecker.New(conf.DNSList,
-		conf.PublicDomainList,
+		conf.DomainList,
 		conf.CheckInterval)
 	if err != nil {
 		atomic.CompareAndSwapInt32(&c.started, 1, 0)

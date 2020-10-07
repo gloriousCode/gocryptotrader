@@ -20,23 +20,27 @@ const (
 	ConnNotFound = "No internet connectivity"
 )
 
-// Default check lists
-var (
-	DefaultDNSList    = []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"}
-	DefaultDomainList = []string{"www.google.com", "www.cloudflare.com", "www.facebook.com"}
-)
+// DefaultDNSList default DNS entries to check connectivity
+func DefaultDNSList() []string {
+	return []string{"8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"}
+}
+
+// DefaultDomainList default domains to check connectivity
+func DefaultDomainList() []string {
+	return []string{"www.google.com", "www.cloudflare.com", "www.facebook.com"}
+}
 
 // New returns a new connection checker, if no values set it will default it out
 func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, error) {
 	c := new(Checker)
 	if len(dnsList) == 0 {
-		c.DNSList = DefaultDNSList
+		c.DNSList = DefaultDNSList()
 	} else {
 		c.DNSList = dnsList
 	}
 
 	if len(domainList) == 0 {
-		c.DomainList = DefaultDomainList
+		c.DomainList = DefaultDomainList()
 	} else {
 		c.DomainList = domainList
 	}

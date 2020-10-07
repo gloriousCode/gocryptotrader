@@ -7,16 +7,16 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/sqlboiler/boil"
-	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 
 // Event stores Withdrawal Response details in database
 func Event(res *withdraw.Response) {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return
 	}
 
@@ -40,13 +40,13 @@ func Event(res *withdraw.Response) {
 	}
 
 	res.Exchange.Name = exchangeUUID.String()
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := database.BeginTransaction()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction being failed: %v", err)
 		return
 	}
 
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if database.GetSQLDialect() == database.DBSQLite3 {
 		err = addSQLiteEvent(ctx, tx, res)
 	} else {
 		err = addPSQLEvent(ctx, tx, res)
@@ -285,14 +285,14 @@ func generateWhereBetweenQuery(column string, start, end interface{}, limit int)
 }
 
 func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 
 	var resp []*withdraw.Response
 	var ctx = context.Background()
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
+	if database.GetSQLDialect() == database.DBSQLite3 {
+		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, database.Executor())
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				Type:        withdraw.RequestType(v[x].WithdrawType),
 			}
 
-			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
+			exchangeName, err := v[x].ExchangeName().One(ctx, database.Executor())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
@@ -343,7 +343,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				x, err := v[x].WithdrawalCryptos().One(ctx, database.DB.SQL)
+				x, err := v[x].WithdrawalCryptos().One(ctx, database.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -351,7 +351,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else {
-				x, err := v[x].WithdrawalFiats().One(ctx, database.DB.SQL)
+				x, err := v[x].WithdrawalFiats().One(ctx, database.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -364,7 +364,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			resp = append(resp, tempResp)
 		}
 	} else {
-		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.DB.SQL)
+		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.Executor())
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +384,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.CreatedAt = v[x].CreatedAt
 			tempResp.UpdatedAt = v[x].UpdatedAt
 
-			exchangeName, err := v[x].ExchangeName().One(ctx, database.DB.SQL)
+			exchangeName, err := v[x].ExchangeName().One(ctx, database.Executor())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
@@ -398,7 +398,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.DB.SQL)
+				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -406,7 +406,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else if withdraw.RequestType(v[x].WithdrawType) == withdraw.Fiat {
-				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.DB.SQL)
+				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.Executor())
 				if err != nil {
 					return nil, err
 				}

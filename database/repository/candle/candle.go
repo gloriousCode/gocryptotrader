@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/thrasher-corp/sqlboiler/queries/qm"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/sqlboiler/boil"
-	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )
 
 // Series returns candle data
@@ -43,8 +43,8 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
 
-	if repository.GetSQLDialect() == database.DBSQLite3 {
-		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.DB.SQL)
+	if database.GetSQLDialect() == database.DBSQLite3 {
+		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.Executor())
 		if errC != nil {
 			return out, errC
 		}
@@ -63,7 +63,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 			})
 		}
 	} else {
-		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.DB.SQL)
+		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.Executor())
 		if errC != nil {
 			return out, errC
 		}
@@ -93,7 +93,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 
 // Insert series of candles
 func Insert(in *Item) (uint64, error) {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return 0, database.ErrDatabaseSupportDisabled
 	}
 
@@ -102,13 +102,13 @@ func Insert(in *Item) (uint64, error) {
 	}
 
 	ctx := context.Background()
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := database.BeginTransaction()
 	if err != nil {
 		return 0, err
 	}
 
 	var totalInserted uint64
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if database.GetSQLDialect() == database.DBSQLite3 {
 		totalInserted, err = insertSQLite(ctx, tx, in)
 	} else {
 		totalInserted, err = insertPostgresSQL(ctx, tx, in)

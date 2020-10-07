@@ -6,9 +6,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	dbPSQL "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/urfave/cli/v2"
 )
@@ -33,7 +30,7 @@ func load(c *cli.Context) error {
 		return err
 	}
 
-	drv := repository.GetSQLDialect()
+	drv := database.GetSQLDialect()
 	if drv == database.DBSQLite || drv == database.DBSQLite3 {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
@@ -48,13 +45,13 @@ func openDBConnection(c *cli.Context, driver string) (err error) {
 		boil.DebugMode = true
 	}
 	if driver == database.DBPostgreSQL {
-		dbConn, err = dbPSQL.Connect()
+		err = database.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
-		dbConn, err = dbsqlite3.Connect()
+		err = database.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}

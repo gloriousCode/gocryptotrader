@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 )
 
 var (
@@ -76,7 +75,7 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 
 	sqlboilerConfig = make(map[string]driverConfig)
 
-	dbType := repository.GetSQLDialect()
+	dbType := database.GetSQLDialect()
 
 	if dbType == database.DBPostgreSQL {
 		dbType = "psql"

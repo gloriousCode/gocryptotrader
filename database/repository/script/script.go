@@ -5,30 +5,30 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/sqlboiler/boil"
+	"github.com/volatiletech/null"
+
 	"github.com/thrasher-corp/gocryptotrader/database"
 	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
 	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/sqlboiler/boil"
-	"github.com/volatiletech/null"
 )
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
 func Event(id, name, path string, data null.Bytes, executionType, status string, time time.Time) {
-	if database.DB.SQL == nil {
+	if !database.CheckConnection() {
 		return
 	}
 
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := database.BeginTransaction()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction begin failed: %v", err)
 		return
 	}
 
-	if repository.GetSQLDialect() == database.DBSQLite3 {
+	if database.GetSQLDialect() == database.DBSQLite3 {
 		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
 		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
 		if errQry != nil {

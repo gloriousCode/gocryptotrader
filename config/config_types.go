@@ -106,9 +106,9 @@ type Config struct {
 // ConnectionMonitorConfig defines the connection monitor variables to ensure
 // that there is internet connectivity
 type ConnectionMonitorConfig struct {
-	DNSList          []string      `json:"preferredDNSList"`
-	PublicDomainList []string      `json:"preferredDomainList"`
-	CheckInterval    time.Duration `json:"checkInterval"`
+	DNSList       []string      `json:"preferredDNSList"`
+	DomainList    []string      `json:"preferredDomainList"`
+	CheckInterval time.Duration `json:"checkInterval"`
 }
 
 // ExchangeConfig holds all the information needed for each enabled Exchange.
