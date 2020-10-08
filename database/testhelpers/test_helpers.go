@@ -94,8 +94,9 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 
 // CloseDatabase closes database connection
 func CloseDatabase(conn *database.Instance) (err error) {
-	if conn != nil {
-		return conn.sql.Close()
+	err = database.Close()
+	if err != nil {
+		return err
 	}
 	return nil
 }

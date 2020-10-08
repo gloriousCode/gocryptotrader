@@ -107,8 +107,6 @@ func Connect(driver string) (err error) {
 
 // RunGooseCommand will run a goose command against the database
 func RunGooseCommand(command, migrationDir, args string) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
 	return goose.Run(command, db.sql, GetSQLDialect(), migrationDir, args)
 }
 
