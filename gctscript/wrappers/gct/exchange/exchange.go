@@ -25,13 +25,16 @@ type Exchange struct{}
 
 // Exchanges returns slice of all current exchanges
 func (e Exchange) Exchanges(enabledOnly bool) []string {
-	bot := engine.Bot()
+	bot, _ := engine.Bot()
 	return bot.GetExchangeNames(enabledOnly)
 }
 
 // GetExchange returns IBotExchange for exchange or error if exchange is not found
 func (e Exchange) GetExchange(exch string) (exchange.IBotExchange, error) {
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return nil, err
+	}
 	ex := bot.GetExchangeByName(exch)
 	if ex == nil {
 		return nil, fmt.Errorf("%v exchange not found", exch)
@@ -52,7 +55,10 @@ func (e Exchange) IsEnabled(exch string) bool {
 
 // Orderbook returns current orderbook requested exchange, pair and asset
 func (e Exchange) Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return nil, err
+	}
 	return bot.GetSpecificOrderbook(pair, exch, item)
 }
 
@@ -68,7 +74,10 @@ func (e Exchange) Ticker(exch string, pair currency.Pair, item asset.Item) (*tic
 
 // Pairs returns either all or enabled currency pairs
 func (e Exchange) Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error) {
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return nil, err
+	}
 	x, err := bot.Config.GetExchangeConfig(exch)
 	if err != nil {
 		return nil, err
@@ -102,7 +111,10 @@ func (e Exchange) QueryOrder(exch, orderID string) (*order.Detail, error) {
 
 // SubmitOrder submit new order on exchange
 func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error) {
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return nil, err
+	}
 	r, err := bot.OrderManager.Submit(submit)
 	if err != nil {
 		return nil, err
@@ -125,7 +137,10 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 		Side:      orderDetails.Side,
 		AssetType: orderDetails.AssetType,
 	}
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return false, err
+	}
 	err = bot.OrderManager.Cancel(cancel)
 	if err != nil {
 		return false, err
@@ -154,7 +169,7 @@ func (e Exchange) DepositAddress(exch string, currencyCode currency.Code) (out s
 		err = errors.New("currency code is empty")
 		return
 	}
-	bot := engine.Bot()
+	bot, _ := engine.Bot()
 	return bot.DepositAddressManager.GetDepositAddressByExchange(exch, currencyCode)
 }
 
@@ -173,7 +188,10 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 		}
 	}
 
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return "", err
+	}
 	otp, err := bot.GetExchangeoOTPByName(exch)
 	if err == nil {
 		otpValue, errParse := strconv.ParseInt(otp, 10, 64)
@@ -207,7 +225,10 @@ func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, erro
 	if err != nil {
 		return "", err
 	}
-	bot := engine.Bot()
+	bot, err := engine.Bot()
+	if err != nil {
+		return "", err
+	}
 	otp, err := bot.GetExchangeoOTPByName(exch)
 	if err == nil {
 		v, errParse := strconv.ParseInt(otp, 10, 64)

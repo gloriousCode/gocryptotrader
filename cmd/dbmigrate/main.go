@@ -78,13 +78,13 @@ func main() {
 	}
 
 	if command == "" {
-		_ = database.RunGooseCommand("status", drv, migrationDir, "")
+		_ = database.RunGooseCommand("status", migrationDir, "")
 		fmt.Println()
 		flag.Usage()
 		return
 	}
 
-	if err = database.RunGooseCommand(command, drv, migrationDir, args); err != nil {
+	if err = database.RunGooseCommand(command, migrationDir, args); err != nil {
 		fmt.Println(err)
 	}
 }

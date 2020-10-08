@@ -17,7 +17,10 @@ import (
 )
 
 func printCurrencyFormat(price float64) string {
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return ""
+	}
 	displaySymbol, err := currency.GetSymbolByCurrencyName(bot.Config.Currency.FiatDisplayCurrency)
 	if err != nil {
 		log.Errorf(log.Global, "Failed to get display symbol: %s\n", err)
@@ -27,7 +30,10 @@ func printCurrencyFormat(price float64) string {
 }
 
 func printConvertCurrencyFormat(origCurrency currency.Code, origPrice float64) string {
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return ""
+	}
 	displayCurrency := bot.Config.Currency.FiatDisplayCurrency
 	conv, err := currency.ConvertCurrency(origPrice,
 		origCurrency,
@@ -73,7 +79,10 @@ func printTickerSummary(result *ticker.Price, protocol string, err error) {
 	}
 
 	stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	if result.Pair.Quote.IsFiatCurrency() &&
 		result.Pair.Quote != bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
@@ -135,7 +144,10 @@ func printOrderbookSummary(result *orderbook.Base, protocol string, err error) {
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	if result.Pair.Quote.IsFiatCurrency() &&
 		result.Pair.Quote != bot.Config.Currency.FiatDisplayCurrency {
 		origCurrency := result.Pair.Quote.Upper()
@@ -205,8 +217,11 @@ func relayWebsocketEvent(result interface{}, event, assetType, exchangeName stri
 
 // WebsocketRoutine Initial routine management system for websocket
 func WebsocketRoutine() {
-	bot := Bot()
-	if bot.Settings.Verbose {
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
+	if IsBotVerbose() {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
@@ -214,7 +229,7 @@ func WebsocketRoutine() {
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
-				if bot.Settings.Verbose {
+				if IsBotVerbose() {
 					log.Debugf(log.WebsocketMgr,
 						"Exchange %s websocket support: Yes Enabled: %v\n",
 						exchanges[i].GetName(),
@@ -248,7 +263,7 @@ func WebsocketRoutine() {
 						log.Errorf(log.WebsocketMgr, "%v\n", err)
 					}
 				}
-			} else if bot.Settings.Verbose {
+			} else if IsBotVerbose() {
 				log.Debugf(log.WebsocketMgr,
 					"Exchange %s websocket support: No\n",
 					exchanges[i].GetName(),
@@ -288,14 +303,17 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			exchName)
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case stream.TradeData:
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
@@ -303,7 +321,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 				d)
 		}
 	case stream.FundingData:
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
@@ -321,7 +339,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
 	case stream.KlineData:
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
 				FormatCurrency(d.Pair),
@@ -363,7 +381,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Warnf(log.WebsocketMgr,
 				"%s websocket Unknown type: %+v",
 				exchName,

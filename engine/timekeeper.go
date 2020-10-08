@@ -42,7 +42,7 @@ func (n *ntpManager) Start() (err error) {
 		}
 	}()
 
-	bot := Bot()
+	bot, _ := Bot()
 	if bot.Config.NTPClient.Level == -1 {
 		err = errors.New("NTP client disabled")
 		return
@@ -112,13 +112,19 @@ func (n *ntpManager) run() {
 }
 
 func (n *ntpManager) FetchNTPTime() time.Time {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return time.Time{}
+	}
 	return ntpclient.NTPClient(bot.Config.NTPClient.Pool)
 }
 
 func (n *ntpManager) processTime() error {
 	NTPTime := n.FetchNTPTime()
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 
 	currentTime := time.Now()
 	NTPcurrentTimeDifference := NTPTime.Sub(currentTime)

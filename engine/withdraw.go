@@ -33,7 +33,10 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 		return nil, err
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return nil, err
+	}
 	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound

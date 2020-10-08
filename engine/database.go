@@ -36,7 +36,10 @@ func (a *databaseManager) Start() (err error) {
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
 	a.shutdown = make(chan struct{})
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	if bot.Config.Database.Enabled {
 		if bot.Config.Database.Driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
@@ -91,7 +94,10 @@ func (a *databaseManager) Stop() error {
 
 func (a *databaseManager) run() {
 	log.Debugln(log.DatabaseMgr, "Database manager started.")
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	bot.ServicesWG.Add(1)
 
 	t := time.NewTicker(time.Second * 2)

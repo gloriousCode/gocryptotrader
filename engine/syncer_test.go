@@ -9,7 +9,7 @@ import (
 
 func TestNewCurrencyPairSyncer(t *testing.T) {
 	t.Skip()
-	bot := Bot()
+	bot, _ := Bot()
 	if bot == nil {
 		bot = new(Engine)
 	}

@@ -108,7 +108,10 @@ func (o *orderStore) Add(det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	exch := bot.GetExchangeByName(order.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
@@ -176,7 +179,10 @@ func (o *orderManager) Stop() error {
 
 func (o *orderManager) gracefulShutdown() {
 	if o.cfg.CancelOrdersOnShutdown {
-		bot := Bot()
+		bot, err := Bot()
+		if err != nil {
+			return
+		}
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
 		o.CancelAllOrders(bot.Config.GetEnabledExchanges())
 	}
@@ -185,7 +191,10 @@ func (o *orderManager) gracefulShutdown() {
 func (o *orderManager) run() {
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	bot.ServicesWG.Add(1)
 	defer func() {
 		log.Debugln(log.OrderMgr, "Order manager shutdown.")
@@ -210,7 +219,10 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 	if orders == nil {
 		return
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", k)
@@ -266,7 +278,10 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 	if cancel.ID == "" {
 		return errors.New("order id is empty")
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 
 	exch := bot.GetExchangeByName(cancel.Exchange)
 	if exch == nil {
@@ -277,7 +292,7 @@ func (o *orderManager) Cancel(cancel *order.Cancel) error {
 		return errors.New("order asset type not supported by exchange")
 	}
 
-	err := exch.CancelOrder(cancel)
+	err = exch.CancelOrder(cancel)
 	if err != nil {
 		return fmt.Errorf("%v - Failed to cancel order: %v", cancel.Exchange, err)
 	}
@@ -324,7 +339,10 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 			return nil, errors.New("order pair not found in allowed list")
 		}
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return nil, err
+	}
 
 	exch := bot.GetExchangeByName(newOrder.Exchange)
 	if exch == nil {
@@ -406,7 +424,10 @@ func (o *orderManager) Submit(newOrder *order.Submit) (*orderSubmitResponse, err
 }
 
 func (o *orderManager) processOrders() {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	authExchanges := bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,
@@ -427,7 +448,7 @@ func (o *orderManager) processOrders() {
 			}
 
 			if len(pairs) == 0 {
-				if bot.Settings.Verbose {
+				if IsBotVerbose() {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						authExchanges[x],

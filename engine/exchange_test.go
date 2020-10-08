@@ -7,7 +7,10 @@ import (
 )
 
 func CleanupTest(t *testing.T) {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		t.Error(err)
+	}
 	if bot.GetExchangeByName(testExchange) != nil {
 		err := bot.UnloadExchange(testExchange)
 		if err != nil {

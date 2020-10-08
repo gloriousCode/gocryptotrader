@@ -23,9 +23,12 @@ func RESTfulError(method string, err error) {
 }
 
 // RESTGetAllSettings replies to a request with an encoded JSON response about the
-// trading Bots configuration.
+// trading BotManager configuration.
 func RESTGetAllSettings(w http.ResponseWriter, r *http.Request) {
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	err := RESTfulJSONResponse(w, bot.Config)
 	if err != nil {
 		RESTfulError(r.Method, err)
@@ -43,7 +46,10 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 		RESTfulError(r.Method, err)
 	}
 	// Save change the settings
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	err = bot.Config.UpdateConfig(bot.Settings.ConfigFile, &responseData.Data, false)
 	if err != nil {
 		RESTfulError(r.Method, err)
@@ -60,7 +66,10 @@ func RESTSaveAllSettings(w http.ResponseWriter, r *http.Request) {
 // GetAllActiveOrderbooks returns all enabled exchanges orderbooks
 func GetAllActiveOrderbooks() []EnabledExchangeOrderbooks {
 	var orderbookData []EnabledExchangeOrderbooks
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return nil
+	}
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		assets := exchanges[x].GetAssetTypes()
@@ -119,7 +128,10 @@ func RESTGetPortfolio(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllActiveTickers returns all active tickers
 func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 	var response AllEnabledExchangeCurrencies
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	response.Data = bot.GetAllActiveTickers()
 
 	err := RESTfulJSONResponse(w, response)
@@ -131,7 +143,10 @@ func RESTGetAllActiveTickers(w http.ResponseWriter, r *http.Request) {
 // RESTGetAllEnabledAccountInfo via get request returns JSON response of account
 // info
 func RESTGetAllEnabledAccountInfo(w http.ResponseWriter, r *http.Request) {
-	bot := Bot()
+	bot, _ := Bot()
+	if bot == nil {
+		return
+	}
 	response := bot.GetAllEnabledExchangeAccountInfo()
 	err := RESTfulJSONResponse(w, response)
 	if err != nil {

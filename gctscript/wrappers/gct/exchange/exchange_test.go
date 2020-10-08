@@ -194,7 +194,7 @@ func setupEngine() error {
 	ex := bot.GetExchangeByName(exchName).GetBase()
 	ex.SetAPIKeys(exchAPIKEY, exchAPISECRET, exchClientID)
 	ex.SkipAuthCheck = true
-	err = engine.AddBot(bot)
+	err = engine.LoadBot(bot)
 	if err != nil {
 		return err
 	}

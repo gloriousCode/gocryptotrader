@@ -104,7 +104,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	fmt.Println(core.Banner)
+	fmt.Print(core.Banner)
 	fmt.Println(core.Version(false))
 
 	var err error
@@ -122,21 +122,24 @@ func main() {
 	bot, err = engine.NewFromSettings(&settings, flagSet)
 	if err != nil {		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
-	err = engine.AddBot(bot)
+
+	err = engine.LoadBot(bot)
 	if err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
 	}
-
 	gctscript.Setup()
 
 	engine.PrintSettings(&bot.Settings)
-	if err = bot.Start(); err != nil {
+	if err = engine.StartBot(); err != nil {
 		gctlog.Errorf(gctlog.Global, "Unable to start bot engine. Error: %s\n", err)
 		os.Exit(1)
 	}
 
 	interrupt := signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
-	bot.Stop()
+	err = engine.StopBot()
+	if err != nil {
+		log.Fatalf("Unable to stop bot engine. Error: %s\n", err)
+	}
 	gctlog.Infoln(gctlog.Global, "Exiting.")
 }

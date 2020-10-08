@@ -291,7 +291,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 			"Exchange CurrencyPairSyncer worker shutting down.")
 	}
 	defer cleanup()
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 
 	for atomic.LoadInt32(&e.shutdown) != 1 {
 		exchanges := bot.GetExchanges()
@@ -503,7 +506,10 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 // Start starts an exchange currency pair syncer
 func (e *ExchangeCurrencyPairSyncer) Start() {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()

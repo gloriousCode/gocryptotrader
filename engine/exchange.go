@@ -53,7 +53,10 @@ type exchangeManager struct {
 }
 
 func dryrunParamInteraction(param string) {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	if !bot.Settings.CheckParamInteraction {
 		return
 	}
@@ -135,7 +138,10 @@ func (e *exchangeManager) Len() int {
 }
 
 func (e *exchangeManager) unloadExchange(exchangeName string) error {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	exchCfg, err := bot.Config.GetExchangeConfig(exchangeName)
 	if err != nil {
 		return err

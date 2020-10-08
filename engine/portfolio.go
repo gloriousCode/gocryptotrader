@@ -30,11 +30,14 @@ func (p *portfolioManager) Start() error {
 	}
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	bot.Portfolio = &portfolio.Portfolio
 	bot.Portfolio.Seed(bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
-	portfolio.Verbose = bot.Settings.Verbose
+	portfolio.Verbose = IsBotVerbose()
 
 	go p.run()
 	return nil
@@ -51,7 +54,10 @@ func (p *portfolioManager) Stop() error {
 
 func (p *portfolioManager) run() {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
@@ -91,6 +97,9 @@ func (p *portfolioManager) processPortfolio() {
 			key,
 			value)
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	SeedExchangeAccountInfo(bot.GetAllEnabledExchangeAccountInfo().Data)
 }

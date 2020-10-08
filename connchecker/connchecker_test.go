@@ -12,7 +12,7 @@ func TestConnection(t *testing.T) {
 		t.Fatal("New error cannot be nil")
 	}
 
-	_, err = New(defaultDNSList, nil, 100000)
+	_, err = New(DefaultDNSList(), nil, 100000)
 	if err != nil {
 		t.Fatal("New error", err)
 	}

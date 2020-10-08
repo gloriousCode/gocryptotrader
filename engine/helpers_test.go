@@ -30,7 +30,7 @@ var (
 )
 
 func SetupTestHelpers(t *testing.T) *Engine {
-	bot := Bot()
+	bot, _ := Bot()
 	if !helperTestLoaded {
 		if bot == nil {
 			bot = new(Engine)
@@ -45,7 +45,8 @@ func SetupTestHelpers(t *testing.T) *Engine {
 			t.Fatalf("Failed to retrieve config currency pairs. %s", err)
 		}
 		helperTestLoaded = true
-		err = AddBot(bot)
+		var botManager BotManager
+		err = botManager.LoadBot(bot)
 		if err != nil {
 			t.Fatal(err)
 		}

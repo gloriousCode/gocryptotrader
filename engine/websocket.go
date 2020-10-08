@@ -213,7 +213,10 @@ func WebsocketClientHandler(w http.ResponseWriter, r *http.Request) {
 		StartWebsocketHandler()
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	connectionLimit := bot.Config.RemoteControl.WebsocketRPC.ConnectionLimit
 	numClients := len(wsHub.Clients)
 
@@ -265,7 +268,10 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	hashPW := crypto.HexEncodeToString(crypto.GetSHA256([]byte(bot.Config.RemoteControl.Password)))
 	if auth.Username == bot.Config.RemoteControl.Username && auth.Password == hashPW {
 		client.Authenticated = true
@@ -293,7 +299,10 @@ func wsAuth(client *WebsocketClient, data interface{}) error {
 }
 
 func wsGetConfig(client *WebsocketClient, data interface{}) error {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	wsResp := WebsocketEventResponse{
 		Event: "GetConfig",
 		Data:  bot.Config,
@@ -313,7 +322,10 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	err = bot.Config.UpdateConfig(bot.Settings.ConfigFile, &cfg, bot.Settings.EnableDryRun)
 	if err != nil {
 		wsResp.Error = err.Error()
@@ -327,7 +339,10 @@ func wsSaveConfig(client *WebsocketClient, data interface{}) error {
 }
 
 func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	accountInfo := bot.GetAllEnabledExchangeAccountInfo()
 	wsResp := WebsocketEventResponse{
 		Event: "GetAccountInfo",
@@ -337,7 +352,10 @@ func wsGetAccountInfo(client *WebsocketClient, data interface{}) error {
 }
 
 func wsGetTickers(client *WebsocketClient, data interface{}) error {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	wsResp := WebsocketEventResponse{
 		Event: "GetTickers",
 	}
@@ -362,7 +380,10 @@ func wsGetTicker(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	result, err := bot.GetSpecificTicker(p,
 		tickerReq.Exchange,
 		asset.Item(tickerReq.AssetType))
@@ -401,7 +422,10 @@ func wsGetOrderbook(client *WebsocketClient, data interface{}) error {
 		return err
 	}
 
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	result, err := bot.GetSpecificOrderbook(p,
 		orderbookReq.Exchange, asset.Item(orderbookReq.AssetType))
 
@@ -432,7 +456,10 @@ func wsGetPortfolio(client *WebsocketClient, data interface{}) error {
 	wsResp := WebsocketEventResponse{
 		Event: "GetPortfolio",
 	}
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	wsResp.Data = bot.Portfolio.GetPortfolioSummary()
 	return client.SendWebsocketMessage(wsResp)
 }

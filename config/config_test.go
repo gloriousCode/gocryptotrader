@@ -1695,9 +1695,9 @@ func TestCheckConnectionMonitorConfig(t *testing.T) {
 
 	if c.ConnectionMonitor.CheckInterval != connchecker.DefaultCheckInterval ||
 		len(common.StringSliceDifference(
-			c.ConnectionMonitor.DNSList, connchecker.defaultDNSList)) != 0 ||
+			c.ConnectionMonitor.DNSList, connchecker.DefaultDNSList())) != 0 ||
 		len(common.StringSliceDifference(
-			c.ConnectionMonitor.DomainList, connchecker.defaultDomainList)) != 0 {
+			c.ConnectionMonitor.DomainList, connchecker.DefaultDomainList())) != 0 {
 		t.Error("unexpected values")
 	}
 }

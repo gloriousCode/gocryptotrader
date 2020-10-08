@@ -8,6 +8,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/database"
+
 	"github.com/urfave/cli/v2"
 )
 
@@ -56,12 +58,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if dbConn != nil {
-		if dbConn.sql != nil {
-			err = dbConn.sql.Close()
-			if err != nil {
-				log.Println(err)
-			}
-		}
+	err = database.Close()
+	if err != nil {
+		log.Print(err)
 	}
 }

@@ -62,7 +62,10 @@ func (g *gctScriptManager) Stop() error {
 
 func (g *gctScriptManager) run() {
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarted)
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 
 	bot.ServicesWG.Add(1)
 	vm.SetDefaultScriptOutput()
@@ -78,7 +81,10 @@ func (g *gctScriptManager) run() {
 }
 
 func (g *gctScriptManager) autoLoad() {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 	for x := range bot.Config.GCTScript.AutoLoad {
 		temp := vm.New()
 		if temp == nil {

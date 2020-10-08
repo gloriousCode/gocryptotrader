@@ -67,7 +67,10 @@ type RPCEndpoint struct {
 // GetRPCEndpoints returns a list of RPC endpoints and their listen addrs
 func GetRPCEndpoints() map[string]RPCEndpoint {
 	endpoints := make(map[string]RPCEndpoint)
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return endpoints
+	}
 	endpoints["grpc"] = RPCEndpoint{
 		Started:    bot.Settings.EnableGRPC,
 		ListenAddr: "grpc://" + bot.Config.RemoteControl.GRPC.ListenAddress,
@@ -657,7 +660,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 	for x := range exchanges {
 		exchName := exchanges[x].GetName()
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if bot.Settings.Verbose {
+			if IsBotVerbose() {
 				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
@@ -687,7 +690,10 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func FormatCurrency(p currency.Pair) currency.Pair {
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return p
+	}
 	return p.Format(bot.Config.Currency.CurrencyPairFormat.Delimiter,
 		bot.Config.Currency.CurrencyPairFormat.Uppercase)
 }
@@ -744,7 +750,7 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 	for x := range exchanges {
 		if exchanges[x] != nil && exchanges[x].IsEnabled() {
 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-				if bot.Settings.Verbose {
+				if IsBotVerbose() {
 					log.Debugf(log.ExchangeSys,
 						"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
 						exchanges[x].GetName())

@@ -34,7 +34,10 @@ func (c *commsManager) Start() (err error) {
 	}()
 
 	log.Debugln(log.CommunicationMgr, "Communications manager starting...")
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return err
+	}
 	commsCfg := bot.Config.GetCommunicationsConfig()
 	c.comms, err = communications.NewComm(&commsCfg)
 	if err != nil {

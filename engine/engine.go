@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
@@ -44,77 +43,35 @@ type Engine struct {
 	ServicesWG                  *sync.WaitGroup
 }
 
-type Bots struct {
-	Available []*Engine
-	sync.RWMutex
-}
-
-func AddBot(bot *Engine) error {
-	bots.Lock()
-	defer bots.Unlock()
-	for i := range bots.Available {
-		if bots.Available[i].Config.Name == bot.Config.Name {
-			return fmt.Errorf("engine '%v' already exists", bot.Config.Name)
-		}
-	}
-	if bot.ServicesWG == nil {
-		bot.ServicesWG = new(sync.WaitGroup)
-	}
-	bots.Available = append(bots.Available, bot)
-	return nil
-}
-
-func (b *Bots) GetByName(name string) *Engine {
-	b.RLock()
-	defer b.RUnlock()
-	for i := range b.Available {
-		if b.Available[i].Config.Name == name {
-			return b.Available[i]
-		}
-	}
-	return nil
-}
-
-func (b *Bots) GetByEnabledExchangeAndPair(name string, a asset.Item, cp currency.Pair) (*Engine, error) {
-	b.RLock()
-	defer b.RUnlock()
-	for i := range b.Available {
-		exch := b.Available[i].exchangeManager.getExchangeByName(name)
-		pairs, err := exch.GetEnabledPairs(a)
-		if err != nil {
-			return nil, err
-		}
-		if pairs.Contains(cp, true) {
-			return b.Available[i], nil
-		}
-	}
-	return nil, nil
-}
-
-func (b *Bots) GetTheOne() *Engine {
-	b.RLock()
-	defer b.RUnlock()
-	if len(b.Available) == 0 {
-		return nil
-	}
-	if len(b.Available) != 1 {
-		log.Print("yeah don't do this when you have multiple bots loaded")
-	}
-
-	return b.Available[0]
-}
-
 // Vars for engine
 var (
-	bots Bots
+	bm BotManager
 	// Stores the set flags
 	flagSet = make(map[string]bool)
 )
 
-// we currently only have one bot loaded at a given time
-// so this is a nice stand in
-func Bot() *Engine {
-	return bots.GetTheOne()
+// LoadBot is the main.go entry to loading a bot without
+// exposing the bot manager
+func LoadBot(b *Engine) error {
+	return bm.LoadBot(b)
+}
+
+// StopBot stops the loaded bot
+// without exposing the bot manager
+func StartBot() error {
+	return bm.StartBot()
+}
+
+// StopBot stops the loaded bot
+// without exposing the bot manager
+func StopBot() error {
+	return bm.StopBot()
+}
+
+// Bot retrieves the loaded bot engine
+// without exposing the bot manager
+func Bot() (*Engine, error) {
+	return bm.GetBot()
 }
 
 // New starts a new engine
@@ -122,18 +79,6 @@ func New() (*Engine, error) {
 	var b Engine
 	b.Config = &config.Cfg
 	err := b.Config.LoadConfig("", false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load config. Err: %s", err)
-	}
-
-	return &b, nil
-}
-
-// NewFromSettings starts a new engine based on the config path supplied
-func NewFromConfigPath(path string) (*Engine, error) {
-	var b Engine
-	b.Config = &config.Cfg
-	err := b.Config.LoadConfig(path, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
@@ -164,7 +109,6 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	b.Settings.ConfigFile = settings.ConfigFile
 	b.Settings.DataDir = b.Config.GetDataPath()
 	b.Settings.CheckParamInteraction = settings.CheckParamInteraction
-	b.ServicesWG = new(sync.WaitGroup)
 	err = utils.AdjustGoMaxProcs(settings.GoMaxProcs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to adjust runtime GOMAXPROCS value. Err: %s", err)
@@ -426,7 +370,7 @@ func (bot *Engine) Start() error {
 	bot.Uptime = time.Now()
 	gctlog.Debugf(gctlog.Global, "bot '%s' started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
-	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
+	if bot.Config.Logging.Enabled != nil && *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
 		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
 			filepath.Join(gctlog.FilePath(), bot.Config.Logging.LoggerFileConfig.FileName))
 	}

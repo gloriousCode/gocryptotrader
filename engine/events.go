@@ -126,7 +126,10 @@ func (e *Event) ExecuteAction() bool {
 		action := strings.Split(e.Action, ",")
 		if action[0] == ActionSMSNotify {
 			if action[1] == "ALL" {
-				bot := Bot()
+				bot, err := Bot()
+				if err != nil {
+					return false
+				}
 				bot.CommsManager.PushEvent(base.Event{
 					Type:    "event",
 					Message: "Event triggered: " + e.String(),
@@ -149,16 +152,15 @@ func (e *Event) String() string {
 
 func (e *Event) processTicker() bool {
 	t, err := ticker.GetTicker(e.Exchange, e.Pair, e.Asset)
-	bot := Bot()
 	if err != nil {
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Debugf(log.EventMgr, "Events: failed to get ticker. Err: %s\n", err)
 		}
 		return false
 	}
 
 	if t.Last == 0 {
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Debugln(log.EventMgr, "Events: ticker last price is 0")
 		}
 		return false
@@ -194,9 +196,8 @@ func (e *Event) processCondition(actual, threshold float64) bool {
 
 func (e *Event) processOrderbook() bool {
 	ob, err := orderbook.Get(e.Exchange, e.Pair, e.Asset)
-	bot := Bot()
 	if err != nil {
-		if bot.Settings.Verbose {
+		if IsBotVerbose() {
 			log.Debugf(log.EventMgr, "Events: Failed to get orderbook. Err: %s\n", err)
 		}
 		return false
@@ -283,14 +284,17 @@ func IsValidEvent(exchange, item string, condition EventConditionParams, action 
 // chain
 func EventManger() {
 	log.Debugf(log.EventMgr, "EventManager started. SleepDelay: %v\n", EventSleepDelay.String())
-	bot := Bot()
+	bot, err := Bot()
+	if err != nil {
+		return
+	}
 
 	for {
 		total, executed := GetEventCounter()
 		if total > 0 && executed != total {
 			for _, event := range Events {
 				if !event.Executed {
-					if bot.Settings.Verbose {
+					if IsBotVerbose() {
 						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", event.String())
 					}
 					success := event.CheckEventCondition()

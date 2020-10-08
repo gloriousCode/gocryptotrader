@@ -119,7 +119,7 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
-	bot := Bot()
+	bot, _ := Bot()
 	if bot == nil {
 		bot = new(Engine)
 	}
@@ -187,7 +187,7 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
-	bot := Bot()
+	bot, _ := Bot()
 	if bot == nil {
 		bot = new(Engine)
 	}
@@ -223,7 +223,7 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestCheckEventCondition(t *testing.T) {
 	t.Parallel()
-	bot := Bot()
+	bot, _ := Bot()
 	if bot == nil {
 		bot = new(Engine)
 	}
