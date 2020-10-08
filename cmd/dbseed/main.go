@@ -57,8 +57,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	err = database.Close()
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = dbManager.Close()
 	if err != nil {
 		log.Print(err)
 	}

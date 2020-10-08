@@ -1357,17 +1357,20 @@ func (c *Config) checkDatabaseConfig() error {
 		c.Database.Enabled = false
 		return fmt.Errorf("unsupported database driver %v, database disabled", c.Database.Driver)
 	}
-
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
 	if c.Database.Driver == database.DBSQLite || c.Database.Driver == database.DBSQLite3 {
 		databaseDir := c.GetDataPath("database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {
 			return err
 		}
-		database.SetDBPath(databaseDir)
+		dbManager.SetDBPath(databaseDir)
 	}
 
-	database.SetDBConfig(&c.Database)
+	dbManager.SetDBConfig(&c.Database)
 
 	return nil
 }

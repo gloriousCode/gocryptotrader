@@ -54,12 +54,16 @@ func (a *databaseManager) Start() (err error) {
 				bot.Config.Database.Database,
 				bot.Config.Database.Driver)
 		}
-		err = database.Connect(bot.Config.Database.Driver)
+		dbManager, err := database.GetDBManager()
+		if err != nil {
+			return fmt.Errorf("failed to setup database: %v Some features that utilise a database will be unavailable", err)
+		}
+		err = dbManager.Connect(bot.Config.Database.Driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
 
-		database.SetConnectionStatus(true)
+		dbManager.SetConnectionStatus(true)
 
 		DBLogger := database.Logger{}
 		if bot.Config.Database.Verbose {
@@ -82,8 +86,11 @@ func (a *databaseManager) Stop() error {
 	if atomic.AddInt32(&a.stopped, 1) != 1 {
 		return errors.New("database manager is already stopping")
 	}
-
-	err := database.Close()
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
+	err = dbManager.Close()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Failed to close database: %v", err)
 	}
@@ -121,5 +128,9 @@ func (a *databaseManager) run() {
 }
 
 func (a *databaseManager) checkConnection() {
-	database.CheckConnection()
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return
+	}
+	dbManager.CheckConnection()
 }

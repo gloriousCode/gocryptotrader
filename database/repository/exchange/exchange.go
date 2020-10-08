@@ -31,13 +31,17 @@ func OneByUUID(in uuid.UUID) (Details, error) {
 
 // one returns one exchange by clause
 func one(in, clause string) (out Details, err error) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return out, err
+	}
+	if !dbManager.CheckConnection() {
 		return out, database.ErrDatabaseSupportDisabled
 	}
 
 	whereQM := qm.Where(clause+"= ?", in)
-	if database.GetSQLDialect() == database.DBSQLite3 {
-		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), database.Executor())
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+		ret, errS := modelSQLite.Exchanges(whereQM).One(context.Background(), dbManager.Executor())
 		if errS != nil {
 			return out, errS
 		}
@@ -47,7 +51,7 @@ func one(in, clause string) (out Details, err error) {
 			return out, errS
 		}
 	} else {
-		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), database.Executor())
+		ret, errS := modelPSQL.Exchanges(whereQM).One(context.Background(), dbManager.Executor())
 		if errS != nil {
 			return out, errS
 		}
@@ -63,17 +67,21 @@ func one(in, clause string) (out Details, err error) {
 
 // Insert writes a single entry into database
 func Insert(in Details) error {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
+	if !dbManager.CheckConnection() {
 		return database.ErrDatabaseSupportDisabled
 	}
 
 	ctx := context.Background()
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	if database.GetSQLDialect() == database.DBSQLite3 {
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, []Details{in})
 	} else {
 		err = insertPostgresql(ctx, tx, []Details{in})
@@ -97,17 +105,21 @@ func Insert(in Details) error {
 
 // InsertMany writes multiple entries into database
 func InsertMany(in []Details) error {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
+	if !dbManager.CheckConnection() {
 		return database.ErrDatabaseSupportDisabled
 	}
 
 	ctx := context.Background()
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		return err
 	}
 
-	if database.GetSQLDialect() == database.DBSQLite3 {
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
 		err = insertSQLite(ctx, tx, in)
 	} else {
 		err = insertPostgresql(ctx, tx, in)

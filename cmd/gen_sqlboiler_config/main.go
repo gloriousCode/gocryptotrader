@@ -74,8 +74,11 @@ func convertGCTtoSQLBoilerConfig(c *database.Config) {
 	}
 
 	sqlboilerConfig = make(map[string]driverConfig)
-
-	dbType := database.GetSQLDialect()
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return
+	}
+	dbType := dbManager.GetSQLDialect()
 
 	if dbType == database.DBPostgreSQL {
 		dbType = "psql"

@@ -28,10 +28,15 @@ func TestGetSQLDialect(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.driver, func(t *testing.T) {
-			db.config = &Config{
-				Driver: test.driver,
+			dbManager, err := GetDBManager()
+			if err != nil {
+				t.Error(err)
 			}
-			ret := GetSQLDialect()
+
+			dbManager.SetDBConfig(&Config{
+				Driver: test.driver,
+			})
+			ret := dbManager.GetSQLDialect()
 			if ret != test.expectedReturn {
 				t.Fatalf("unexpected return: %v", ret)
 			}

@@ -29,8 +29,8 @@ func load(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
-	drv := database.GetSQLDialect()
+	dbManager, err := database.GetDBManager()
+	drv := dbManager.GetSQLDialect()
 	if drv == database.DBSQLite || drv == database.DBSQLite3 {
 		fmt.Printf("Database file: %s\n", conf.Database.Database)
 	} else {
@@ -44,14 +44,18 @@ func openDBConnection(c *cli.Context, driver string) (err error) {
 	if c.IsSet("verbose") {
 		boil.DebugMode = true
 	}
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
 	if driver == database.DBPostgreSQL {
-		err = database.Connect(driver)
+		err = dbManager.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}
 		return nil
 	} else if driver == database.DBSQLite || driver == database.DBSQLite3 {
-		err = database.Connect(driver)
+		err = dbManager.Connect(driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v, some features that utilise a database will be unavailable", err)
 		}

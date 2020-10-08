@@ -15,7 +15,6 @@ type Instance struct {
 	dataPath    string
 	config      *Config
 	isConnected bool
-	mu          sync.RWMutex
 }
 
 // Config holds all database configurable options including enable/disabled & DSN settings
@@ -26,9 +25,15 @@ type Config struct {
 	drivers.ConnectionDetails `json:"connectionDetails"`
 }
 
+// Manager is the external manager for database related activities
+type Manager struct {
+	db *Instance
+	mu sync.RWMutex
+}
+
 var (
-	// DB Global Database Connection
-	db = Instance{}
+	// dm Global Database Manager
+	dm Manager
 	// MigrationDir which folder to look in for current migrations
 	MigrationDir = filepath.Join("..", "..", "database", "migrations")
 	// ErrNoDatabaseProvided error to display when no database is provided

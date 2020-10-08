@@ -69,32 +69,40 @@ func GetConnectionDetails() *database.Config {
 }
 
 // ConnectToDatabase opens connection to database and returns pointer to instance of database.DB
-func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err error) {
-	database.SetDBConfig(conn)
+func ConnectToDatabase(conn *database.Config) (err error) {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
+	dbManager.SetDBConfig(conn)
 	if conn.Driver == database.DBPostgreSQL {
-		err = database.Connect(conn.Driver)
+		err = dbManager.Connect(conn.Driver)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else if conn.Driver == database.DBSQLite3 || conn.Driver == database.DBSQLite {
-		database.SetDBPath(TempDir)
-		err = database.Connect(conn.Driver)
+		dbManager.SetDBPath(TempDir)
+		err = dbManager.Connect(conn.Driver)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	err = database.RunGooseCommand("up", MigrationDir, "")
+	err = dbManager.RunGooseCommand("up", MigrationDir, "")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	return
 }
 
 // CloseDatabase closes database connection
-func CloseDatabase(conn *database.Instance) (err error) {
-	err = database.Close()
+func CloseDatabase() error {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return err
+	}
+	err = dbManager.Close()
 	if err != nil {
 		return err
 	}

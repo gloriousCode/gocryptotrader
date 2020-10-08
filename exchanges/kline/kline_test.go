@@ -492,7 +492,7 @@ func TestStoreInDatabase(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -517,7 +517,7 @@ func TestStoreInDatabase(t *testing.T) {
 				t.Fatalf("unexpected number inserted: %v", r)
 			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}
@@ -563,7 +563,7 @@ func TestLoadFromDatabase(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -589,7 +589,7 @@ func TestLoadFromDatabase(t *testing.T) {
 				t.Fatalf("uncorrect data returned: %v", ret.Exchange)
 			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}

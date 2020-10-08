@@ -26,7 +26,12 @@ var (
 
 // Event stores Withdrawal Response details in database
 func Event(res *withdraw.Response) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return
+	}
+
+	if !dbManager.CheckConnection() {
 		return
 	}
 
@@ -40,13 +45,13 @@ func Event(res *withdraw.Response) {
 	}
 
 	res.Exchange.Name = exchangeUUID.String()
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction being failed: %v", err)
 		return
 	}
 
-	if database.GetSQLDialect() == database.DBSQLite3 {
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
 		err = addSQLiteEvent(ctx, tx, res)
 	} else {
 		err = addPSQLEvent(ctx, tx, res)
@@ -285,14 +290,18 @@ func generateWhereBetweenQuery(column string, start, end interface{}, limit int)
 }
 
 func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return nil, err
+	}
+	if !dbManager.CheckConnection() {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 
 	var resp []*withdraw.Response
 	var ctx = context.Background()
-	if database.GetSQLDialect() == database.DBSQLite3 {
-		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, database.Executor())
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+		v, err := modelSQLite.WithdrawalHistories(q...).All(ctx, dbManager.Executor())
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +322,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				Type:        withdraw.RequestType(v[x].WithdrawType),
 			}
 
-			exchangeName, err := v[x].ExchangeName().One(ctx, database.Executor())
+			exchangeName, err := v[x].ExchangeName().One(ctx, dbManager.Executor())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
@@ -343,7 +352,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				x, err := v[x].WithdrawalCryptos().One(ctx, database.Executor())
+				x, err := v[x].WithdrawalCryptos().One(ctx, dbManager.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -351,7 +360,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else {
-				x, err := v[x].WithdrawalFiats().One(ctx, database.Executor())
+				x, err := v[x].WithdrawalFiats().One(ctx, dbManager.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -364,7 +373,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			resp = append(resp, tempResp)
 		}
 	} else {
-		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, database.Executor())
+		v, err := modelPSQL.WithdrawalHistories(q...).All(ctx, dbManager.Executor())
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +393,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			tempResp.CreatedAt = v[x].CreatedAt
 			tempResp.UpdatedAt = v[x].UpdatedAt
 
-			exchangeName, err := v[x].ExchangeName().One(ctx, database.Executor())
+			exchangeName, err := v[x].ExchangeName().One(ctx, dbManager.Executor())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Unable to get exchange name")
 				tempUUID, errUUID := uuid.FromString(v[x].ExchangeNameID)
@@ -398,7 +407,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 			}
 
 			if withdraw.RequestType(v[x].WithdrawType) == withdraw.Crypto {
-				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, database.Executor())
+				x, err := v[x].WithdrawalCryptoWithdrawalCryptos().One(ctx, dbManager.Executor())
 				if err != nil {
 					return nil, err
 				}
@@ -406,7 +415,7 @@ func getByColumns(q []qm.QueryMod) ([]*withdraw.Response, error) {
 				tempResp.RequestDetails.Crypto.AddressTag = x.AddressTag.String
 				tempResp.RequestDetails.Crypto.FeeAmount = x.Fee
 			} else if withdraw.RequestType(v[x].WithdrawType) == withdraw.Fiat {
-				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, database.Executor())
+				x, err := v[x].WithdrawalFiatWithdrawalFiats().One(ctx, dbManager.Executor())
 				if err != nil {
 					return nil, err
 				}

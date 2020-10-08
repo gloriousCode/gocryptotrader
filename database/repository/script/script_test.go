@@ -3,6 +3,7 @@ package script
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"sync"
 	"testing"
@@ -15,20 +16,20 @@ import (
 )
 
 var (
-	verbose = false
+	verbose = true
 )
 
 func TestMain(m *testing.M) {
+	if verbose {
+		testhelpers.EnableVerboseTestOutput()
+	}
+
 	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
-	}
-
-	if verbose {
-		testhelpers.EnableVerboseTestOutput()
 	}
 
 	t := m.Run()
@@ -46,7 +47,7 @@ func TestScript(t *testing.T) {
 		name   string
 		config *database.Config
 		runner func()
-		closer func(dbConn *database.Instance) error
+		closer func() error
 		output interface{}
 	}{
 		{
@@ -75,7 +76,7 @@ func TestScript(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -85,7 +86,7 @@ func TestScript(t *testing.T) {
 			}
 
 			if test.closer != nil {
-				err = test.closer(dbConn)
+				err = test.closer()
 				if err != nil {
 					t.Log(err)
 				}
@@ -99,9 +100,10 @@ func writeScript() {
 	for x := 0; x < 20; x++ {
 		wg.Add(1)
 
-		go func(x int) {
+		go func(z int) {
+			log.Printf("Doing %v", z)
 			defer wg.Done()
-			test := fmt.Sprintf("test-%v", x)
+			test := fmt.Sprintf("test-%v", z)
 			var data null.Bytes
 			Event(test, test, test, data, test, test, time.Now())
 		}(x)

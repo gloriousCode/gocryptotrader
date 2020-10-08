@@ -42,9 +42,12 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 		return out, errS
 	}
 	queries = append(queries, qm.Where("exchange_name_id = ?", exchangeUUID.String()))
-
-	if database.GetSQLDialect() == database.DBSQLite3 {
-		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), database.Executor())
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return out, err
+	}
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+		retCandle, errC := modelSQLite.Candles(queries...).All(context.Background(), dbManager.Executor())
 		if errC != nil {
 			return out, errC
 		}
@@ -63,7 +66,7 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 			})
 		}
 	} else {
-		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), database.Executor())
+		retCandle, errC := modelPSQL.Candles(queries...).All(context.Background(), dbManager.Executor())
 		if errC != nil {
 			return out, errC
 		}
@@ -93,7 +96,11 @@ func Series(exchangeName, base, quote string, interval int64, asset string, star
 
 // Insert series of candles
 func Insert(in *Item) (uint64, error) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return 0, err
+	}
+	if !dbManager.CheckConnection() {
 		return 0, database.ErrDatabaseSupportDisabled
 	}
 
@@ -102,13 +109,13 @@ func Insert(in *Item) (uint64, error) {
 	}
 
 	ctx := context.Background()
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		return 0, err
 	}
 
 	var totalInserted uint64
-	if database.GetSQLDialect() == database.DBSQLite3 {
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
 		totalInserted, err = insertSQLite(ctx, tx, in)
 	} else {
 		totalInserted, err = insertPostgresSQL(ctx, tx, in)

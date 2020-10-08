@@ -35,7 +35,7 @@ func TestDatabaseConnect(t *testing.T) {
 	testCases := []struct {
 		name   string
 		config *database.Config
-		closer func(dbConn *database.Instance) error
+		closer func() error
 		output interface{}
 	}{
 		{
@@ -72,7 +72,7 @@ func TestDatabaseConnect(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := ConnectToDatabase(test.config)
+			err := ConnectToDatabase(test.config)
 			if err != nil {
 				switch v := test.output.(type) {
 				case error:
@@ -86,7 +86,7 @@ func TestDatabaseConnect(t *testing.T) {
 			}
 
 			if test.closer != nil {
-				err = test.closer(dbConn)
+				err = test.closer()
 				if err != nil {
 					t.Log(err)
 				}

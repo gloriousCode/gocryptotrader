@@ -36,7 +36,7 @@ func TestAudit(t *testing.T) {
 		name   string
 		config *database.Config
 		runner func(t *testing.T)
-		closer func(dbConn *database.Instance) error
+		closer func() error
 		output interface{}
 	}{
 		{
@@ -84,7 +84,7 @@ func TestAudit(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -94,7 +94,7 @@ func TestAudit(t *testing.T) {
 			}
 
 			if test.closer != nil {
-				err = test.closer(dbConn)
+				err = test.closer()
 				if err != nil {
 					t.Log(err)
 				}

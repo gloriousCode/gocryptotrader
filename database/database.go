@@ -14,18 +14,27 @@ import (
 	"github.com/thrasher-corp/goose"
 )
 
+func GetDBManager() (*Manager, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	if dm.db == nil {
+		dm.db = &Instance{}
+	}
+	return &dm, nil
+}
+
 // SetDBConfig ensures the config is set in a thread safe fashion
-func SetDBConfig(cfg *Config) {
-	db.mu.Lock()
-	db.config = cfg
-	db.mu.Unlock()
+func (dm *Manager) SetDBConfig(cfg *Config) {
+	dm.mu.Lock()
+	dm.db.config = cfg
+	dm.mu.Unlock()
 }
 
 // SetDBPath ensures the path is set in a thread safe fashion
-func SetDBPath(path string) {
-	db.mu.Lock()
-	db.dataPath = path
-	db.mu.Unlock()
+func (dm *Manager) SetDBPath(path string) {
+	dm.mu.Lock()
+	dm.db.dataPath = path
+	dm.mu.Unlock()
 }
 
 // SupportedDrivers slice of supported database driver types
@@ -34,58 +43,58 @@ func SupportedDrivers() []string {
 }
 
 // CheckConnection checks the status of the db connection
-func CheckConnection() bool {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if db.sql == nil {
+func (dm *Manager) CheckConnection() bool {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	if dm.db.sql == nil {
 		return false
 	}
-	err := db.sql.Ping()
+	err := dm.db.sql.Ping()
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Database connection error: %v\n", err)
-		db.isConnected = false
+		dm.db.isConnected = false
 	}
 
-	if !db.isConnected {
+	if !dm.db.isConnected {
 		log.Info(log.DatabaseMgr, "Database connection reestablished")
-		db.isConnected = true
+		dm.db.isConnected = true
 	}
-	return db.isConnected
+	return dm.db.isConnected
 }
 
 // SetConnectionStatus sets the connection status in a thread safe fashion
-func SetConnectionStatus(status bool) {
-	db.mu.Lock()
-	db.isConnected = status
-	db.mu.Unlock()
+func (dm *Manager) SetConnectionStatus(status bool) {
+	dm.mu.Lock()
+	dm.db.isConnected = status
+	dm.mu.Unlock()
 }
 
 // Connect will connect to the database depending on the driver provided
-func Connect(driver string) (err error) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
+func (dm *Manager) Connect(driver string) (err error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
 	switch driver {
 	case DBSQLite, DBSQLite3:
-		databaseFullLocation := filepath.Join(db.dataPath, db.config.Database)
+		databaseFullLocation := filepath.Join(dm.db.dataPath, dm.db.config.Database)
 		dbConn, err := sql.Open("sqlite3", databaseFullLocation)
 		if err != nil {
 			return err
 		}
-		db.sql = dbConn
-		db.sql.SetMaxOpenConns(1)
+		dm.db.sql = dbConn
+		dm.db.sql.SetMaxOpenConns(1)
 
 	case DBPostgreSQL:
-		if db.config.SSLMode == "" {
-			db.config.SSLMode = "disable"
+		if dm.db.config.SSLMode == "" {
+			dm.db.config.SSLMode = "disable"
 		}
 
 		configDSN := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
-			db.config.Username,
-			db.config.Password,
-			db.config.Host,
-			db.config.Port,
-			db.config.Database,
-			db.config.SSLMode)
+			dm.db.config.Username,
+			dm.db.config.Password,
+			dm.db.config.Host,
+			dm.db.config.Port,
+			dm.db.config.Database,
+			dm.db.config.SSLMode)
 		dbConn, err := sql.Open(DBPostgreSQL, configDSN)
 		if err != nil {
 			return err
@@ -95,10 +104,10 @@ func Connect(driver string) (err error) {
 			return err
 		}
 
-		db.sql = dbConn
-		db.sql.SetMaxOpenConns(2)
-		db.sql.SetMaxIdleConns(1)
-		db.sql.SetConnMaxLifetime(time.Hour)
+		dm.db.sql = dbConn
+		dm.db.sql.SetMaxOpenConns(2)
+		dm.db.sql.SetMaxIdleConns(1)
+		dm.db.sql.SetConnMaxLifetime(time.Hour)
 	default:
 		return errors.New(DBInvalidDriver)
 	}
@@ -106,15 +115,15 @@ func Connect(driver string) (err error) {
 }
 
 // RunGooseCommand will run a goose command against the database
-func RunGooseCommand(command, migrationDir, args string) error {
-	return goose.Run(command, db.sql, GetSQLDialect(), migrationDir, args)
+func (dm *Manager) RunGooseCommand(command, migrationDir, args string) error {
+	return goose.Run(command, dm.db.sql, dm.GetSQLDialect(), migrationDir, args)
 }
 
 // GetSQLDialect returns current SQL Dialect based on enabled driver
-func GetSQLDialect() string {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-	switch db.config.Driver {
+func (dm *Manager) GetSQLDialect() string {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+	switch dm.db.config.Driver {
 	case "sqlite", "sqlite3":
 		return DBSQLite3
 	case "psql", "postgres", "postgresql":
@@ -124,18 +133,20 @@ func GetSQLDialect() string {
 }
 
 // Executor sadly returns the db.SQL obj
-func Executor() *sql.DB {
-	return db.sql
+func (dm *Manager) Executor() *sql.DB {
+	return dm.db.sql
 }
 
 // BeginTransaction returns a transaction without exposing db.SQL
-func BeginTransaction() (*sql.Tx, error) {
-	return db.sql.BeginTx(context.Background(), nil)
+func (dm *Manager) BeginTransaction(ctx context.Context) (*sql.Tx, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	return dm.db.sql.BeginTx(ctx, nil)
 }
 
 // Close closes the connection
-func Close() error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	return db.sql.Close()
+func (dm *Manager) Close() error {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	return dm.db.sql.Close()
 }

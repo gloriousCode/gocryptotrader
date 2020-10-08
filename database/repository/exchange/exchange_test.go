@@ -82,7 +82,7 @@ func TestInsertMany(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +99,7 @@ func TestInsertMany(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}
@@ -138,7 +138,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -163,7 +163,7 @@ func TestOneAndOneByUUID(t *testing.T) {
 			if ret.Name != ret2.Name {
 				t.Fatalf("unexpected value received: %v", ret2.Name)
 			}
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}

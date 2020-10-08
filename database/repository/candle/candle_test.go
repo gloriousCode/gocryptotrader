@@ -82,7 +82,7 @@ func TestInsert(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -107,7 +107,7 @@ func TestInsert(t *testing.T) {
 			if r != 365 {
 				t.Fatalf("unexpected number inserted: %v", r)
 			}
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}
@@ -146,7 +146,7 @@ func TestInsertFromCSV(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -168,7 +168,7 @@ func TestInsertFromCSV(t *testing.T) {
 				t.Fatalf("expected 365 results to be inserted received: %v", count)
 			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}
@@ -207,7 +207,7 @@ func TestSeries(t *testing.T) {
 				t.Skip("database not configured skipping test")
 			}
 
-			dbConn, err := testhelpers.ConnectToDatabase(test.config)
+			err := testhelpers.ConnectToDatabase(test.config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -253,7 +253,7 @@ func TestSeries(t *testing.T) {
 				}
 			}
 
-			err = testhelpers.CloseDatabase(dbConn)
+			err = testhelpers.CloseDatabase()
 			if err != nil {
 				t.Error(err)
 			}

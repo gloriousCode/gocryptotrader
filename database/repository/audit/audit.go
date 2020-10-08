@@ -15,20 +15,24 @@ import (
 
 // Event inserts a new audit event to database
 func Event(id, msgtype, message string) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return
+	}
+	if !dbManager.CheckConnection() {
 		return
 	}
 
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
 
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		log.Errorf(log.Global, "Event transaction begin failed: %v", err)
 		return
 	}
 
-	if database.GetSQLDialect() == database.DBSQLite3 {
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
 		var tempEvent = modelSQLite.AuditEvent{
 			Type:       msgtype,
 			Identifier: id,
@@ -62,7 +66,11 @@ func Event(id, msgtype, message string) {
 
 // GetEvent () returns list of order events matching query
 func GetEvent(startTime, endTime time.Time, order string, limit int) (interface{}, error) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return nil, err
+	}
+	if !dbManager.CheckConnection() {
 		return nil, database.ErrDatabaseSupportDisabled
 	}
 
@@ -77,9 +85,9 @@ func GetEvent(startTime, endTime time.Time, order string, limit int) (interface{
 	limitQuery := qm.Limit(limit)
 
 	ctx := context.Background()
-	if database.GetSQLDialect() == database.DBSQLite3 {
-		return modelSQLite.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.Executor())
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+		return modelSQLite.AuditEvents(query, orderByQuery, limitQuery).All(ctx, dbManager.Executor())
 	}
 
-	return modelPSQL.AuditEvents(query, orderByQuery, limitQuery).All(ctx, database.Executor())
+	return modelPSQL.AuditEvents(query, orderByQuery, limitQuery).All(ctx, dbManager.Executor())
 }

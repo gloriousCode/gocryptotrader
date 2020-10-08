@@ -16,35 +16,36 @@ import (
 
 // Event inserts a new script event into database with execution details (script name time status hash of script)
 func Event(id, name, path string, data null.Bytes, executionType, status string, time time.Time) {
-	if !database.CheckConnection() {
+	dbManager, err := database.GetDBManager()
+	if err != nil {
+		return
+	}
+	if !dbManager.CheckConnection() {
 		return
 	}
 
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
-	tx, err := database.BeginTransaction()
+	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction begin failed: %v", err)
 		return
 	}
+	defer tx.Rollback()
 
-	if database.GetSQLDialect() == database.DBSQLite3 {
-		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
-		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
-		if errQry != nil {
-			log.Errorf(log.DatabaseMgr, "Query failed: %v", errQry)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-			}
-			return
-		}
+	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+		//query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
+		//f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
+		//if errQry != nil {
+		//	log.Errorf(log.DatabaseMgr, "Query failed: %v", errQry)
+		//	return
+		//}
+		f := true
 		var tempEvent = modelSQLite.Script{}
 		if !f {
 			newUUID, errUUID := uuid.NewV4()
 			if errUUID != nil {
 				log.Errorf(log.DatabaseMgr, "Failed to generate UUID: %v", errUUID)
-				_ = tx.Rollback()
 				return
 			}
 
@@ -56,10 +57,6 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 			err = tempEvent.Insert(ctx, tx, boil.Infer())
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
-				err = tx.Rollback()
-				if err != nil {
-					log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-				}
 				return
 			}
 		} else {
@@ -75,10 +72,6 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-			}
 			return
 		}
 	} else {
@@ -91,10 +84,6 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		err = tempEvent.Upsert(ctx, tx, true, []string{"script_id"}, boil.Whitelist("last_executed_at"), boil.Infer())
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-			}
 			return
 		}
 
@@ -107,10 +96,6 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 		err = tempEvent.AddScriptExecutions(ctx, tx, true, tempScriptExecution)
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Event insert failed: %v", err)
-			err = tx.Rollback()
-			if err != nil {
-				log.Errorf(log.DatabaseMgr, "Event Transaction rollback failed: %v", err)
-			}
 			return
 		}
 	}
