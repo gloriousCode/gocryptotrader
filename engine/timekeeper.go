@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	ntpclient "github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
@@ -30,7 +31,7 @@ func (n *ntpManager) Started() bool {
 	return atomic.LoadInt32(&n.started) == 1
 }
 
-func (n *ntpManager) Start() (err error) {
+func (n *ntpManager) Start(cfg config.NTPClientConfig) (err error) {
 	if atomic.AddInt32(&n.started, 1) != 1 {
 		return errors.New("NTP manager already started")
 	}
@@ -42,14 +43,13 @@ func (n *ntpManager) Start() (err error) {
 		}
 	}()
 
-	bot, _ := Bot()
-	if bot.Config.NTPClient.Level == -1 {
+	if cfg.Level == -1 {
 		err = errors.New("NTP client disabled")
 		return
 	}
 
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
-	if bot.Config.NTPClient.Level == 0 && *bot.Config.Logging.Enabled {
+	if cfg.Level == 0 {
 		// Initial NTP check (prompts user on how we should proceed)
 		n.inititalCheck = true
 

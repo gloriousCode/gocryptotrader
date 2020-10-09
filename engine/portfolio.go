@@ -54,17 +54,19 @@ func (p *portfolioManager) Stop() error {
 
 func (p *portfolioManager) run() {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
-	bot, err := Bot()
+	err := AddToServiceWG(1)
 	if err != nil {
-		return
+		log.Error(log.PortfolioMgr, err)
 	}
-	bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
-		bot.ServicesWG.Done()
+		err = CompleteServiceWG(1)
+		if err != nil {
+			log.Error(log.PortfolioMgr, err)
+		}
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 

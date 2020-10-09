@@ -24,10 +24,14 @@ func GetDBManager() (*Manager, error) {
 }
 
 // SetDBConfig ensures the config is set in a thread safe fashion
-func (dm *Manager) SetDBConfig(cfg *Config) {
+func (dm *Manager) SetDBConfig(cfg *Config) error {
+	if cfg.ConnectionDetails.Database == "" {
+		return ErrNoDatabaseProvided
+	}
 	dm.mu.Lock()
 	dm.db.config = cfg
 	dm.mu.Unlock()
+	return nil
 }
 
 // SetDBPath ensures the path is set in a thread safe fashion
@@ -116,7 +120,8 @@ func (dm *Manager) Connect(driver string) (err error) {
 
 // RunGooseCommand will run a goose command against the database
 func (dm *Manager) RunGooseCommand(command, migrationDir, args string) error {
-	return goose.Run(command, dm.db.sql, dm.GetSQLDialect(), migrationDir, args)
+	dialect := dm.GetSQLDialect()
+	return goose.Run(command, dm.db.sql, dialect, migrationDir, args)
 }
 
 // GetSQLDialect returns current SQL Dialect based on enabled driver

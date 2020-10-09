@@ -1550,7 +1550,9 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 // file contains JSON.
 // Prompts for decryption key, if target file is encrypted
 func (c *Config) ReadConfig(configPath string, dryrun bool) error {
-	defaultPath, _, err := GetFilePath(configPath)
+	m.Lock()
+	defer m.Unlock()
+	defaultPath, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}

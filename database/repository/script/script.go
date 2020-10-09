@@ -26,21 +26,19 @@ func Event(id, name, path string, data null.Bytes, executionType, status string,
 
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
+	dialect := dbManager.GetSQLDialect()
 	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction begin failed: %v", err)
 		return
 	}
-	defer tx.Rollback()
-
-	if dbManager.GetSQLDialect() == database.DBSQLite3 {
-		//query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
-		//f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
-		//if errQry != nil {
-		//	log.Errorf(log.DatabaseMgr, "Query failed: %v", errQry)
-		//	return
-		//}
-		f := true
+	if dialect == database.DBSQLite3 {
+		query := modelSQLite.ScriptWhere.ScriptID.EQ(id)
+		f, errQry := modelSQLite.Scripts(query).Exists(ctx, tx)
+		if errQry != nil {
+			log.Errorf(log.DatabaseMgr, "Query failed: %v", errQry)
+			return
+		}
 		var tempEvent = modelSQLite.Script{}
 		if !f {
 			newUUID, errUUID := uuid.NewV4()

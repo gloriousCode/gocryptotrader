@@ -25,14 +25,14 @@ func Event(id, msgtype, message string) {
 
 	ctx := context.Background()
 	ctx = boil.SkipTimestamps(ctx)
-
+	dialect := dbManager.GetSQLDialect()
 	tx, err := dbManager.BeginTransaction(ctx)
 	if err != nil {
 		log.Errorf(log.Global, "Event transaction begin failed: %v", err)
 		return
 	}
 
-	if dbManager.GetSQLDialect() == database.DBSQLite3 {
+	if dialect == database.DBSQLite3 {
 		var tempEvent = modelSQLite.AuditEvent{
 			Type:       msgtype,
 			Identifier: id,
@@ -60,7 +60,6 @@ func Event(id, msgtype, message string) {
 	err = tx.Commit()
 	if err != nil {
 		log.Errorf(log.Global, "Event Transaction commit failed: %v", err)
-		return
 	}
 }
 

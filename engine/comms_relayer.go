@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/communications"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -22,11 +23,10 @@ func (c *commsManager) Started() bool {
 	return atomic.LoadInt32(&c.started) == 1
 }
 
-func (c *commsManager) Start() (err error) {
+func (c *commsManager) Start(cfg *config.CommunicationsConfig) (err error) {
 	if atomic.AddInt32(&c.started, 1) != 1 {
 		return errors.New("communications manager already started")
 	}
-
 	defer func() {
 		if err != nil {
 			atomic.CompareAndSwapInt32(&c.started, 1, 0)
@@ -34,12 +34,7 @@ func (c *commsManager) Start() (err error) {
 	}()
 
 	log.Debugln(log.CommunicationMgr, "Communications manager starting...")
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
-	commsCfg := bot.Config.GetCommunicationsConfig()
-	c.comms, err = communications.NewComm(&commsCfg)
+	c.comms, err = communications.NewComm(cfg)
 	if err != nil {
 		return err
 	}

@@ -74,6 +74,32 @@ func Bot() (*Engine, error) {
 	return bm.GetBot()
 }
 
+func AddToServiceWG(i int) error {
+	bot, err := bm.GetBot()
+	if err != nil {
+		return err
+	}
+	if bot.ServicesWG == nil {
+		return errors.New("nil services")
+	}
+	bot.ServicesWG.Add(i)
+	return nil
+}
+
+func CompleteServiceWG(d int) error {
+	bot, err := bm.GetBot()
+	if err != nil {
+		return err
+	}
+	if bot.ServicesWG == nil {
+		return errors.New("nil services")
+	}
+	for i := 0; i < d; i++ {
+		bot.ServicesWG.Done()
+	}
+	return nil
+}
+
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
@@ -343,7 +369,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDatabaseManager {
-		if err := bot.DatabaseManager.Start(); err != nil {
+		if err := bot.DatabaseManager.Start(bot.Config.Database); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}
@@ -362,7 +388,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableNTPClient {
-		if err := bot.NTPManager.Start(); err != nil {
+		if err := bot.NTPManager.Start(bot.Config.NTPClient); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %v", err)
 		}
 	}
@@ -399,7 +425,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableCommsRelayer {
-		if err := bot.CommsManager.Start(); err != nil {
+		cfg := bot.Config.GetCommunicationsConfig()
+		if err := bot.CommsManager.Start(&cfg); err != nil {
 			gctlog.Errorf(gctlog.Global, "Communications manager unable to start: %v\n", err)
 		}
 	}
@@ -445,7 +472,8 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableDepositAddressManager {
 		bot.DepositAddressManager = new(DepositAddressManager)
-		go bot.DepositAddressManager.Sync()
+		addresses := bot.GetExchangeCryptocurrencyDepositAddresses()
+		go bot.DepositAddressManager.Sync(addresses)
 	}
 
 	if bot.Settings.EnableOrderManager {

@@ -22,7 +22,7 @@ func (a *databaseManager) Started() bool {
 	return atomic.LoadInt32(&a.started) == 1
 }
 
-func (a *databaseManager) Start() (err error) {
+func (a *databaseManager) Start(cfg database.Config) (err error) {
 	if atomic.AddInt32(&a.started, 1) != 1 {
 		return errors.New("database manager already started")
 	}
@@ -36,29 +36,25 @@ func (a *databaseManager) Start() (err error) {
 	log.Debugln(log.DatabaseMgr, "Database manager starting...")
 
 	a.shutdown = make(chan struct{})
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
-	if bot.Config.Database.Enabled {
-		if bot.Config.Database.Driver == database.DBPostgreSQL {
+	if cfg.Enabled {
+		if cfg.Driver == database.DBPostgreSQL {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to host %s/%s utilising %s driver\n",
-				bot.Config.Database.Host,
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
-		} else if bot.Config.Database.Driver == database.DBSQLite ||
-			bot.Config.Database.Driver == database.DBSQLite3 {
+				cfg.Host,
+				cfg.Database,
+				cfg.Driver)
+		} else if cfg.Driver == database.DBSQLite ||
+			cfg.Driver == database.DBSQLite3 {
 			log.Debugf(log.DatabaseMgr,
 				"Attempting to establish database connection to %s utilising %s driver\n",
-				bot.Config.Database.Database,
-				bot.Config.Database.Driver)
+				cfg.Database,
+				cfg.Driver)
 		}
 		dbManager, err := database.GetDBManager()
 		if err != nil {
 			return fmt.Errorf("failed to setup database: %v Some features that utilise a database will be unavailable", err)
 		}
-		err = dbManager.Connect(bot.Config.Database.Driver)
+		err = dbManager.Connect(cfg.Driver)
 		if err != nil {
 			return fmt.Errorf("database failed to connect: %v Some features that utilise a database will be unavailable", err)
 		}
@@ -66,7 +62,7 @@ func (a *databaseManager) Start() (err error) {
 		dbManager.SetConnectionStatus(true)
 
 		DBLogger := database.Logger{}
-		if bot.Config.Database.Verbose {
+		if cfg.Verbose {
 			boil.DebugMode = true
 			boil.DebugWriter = DBLogger
 		}
@@ -100,12 +96,11 @@ func (a *databaseManager) Stop() error {
 }
 
 func (a *databaseManager) run() {
-	log.Debugln(log.DatabaseMgr, "Database manager started.")
-	bot, err := Bot()
+	err := AddToServiceWG(1)
 	if err != nil {
 		return
 	}
-	bot.ServicesWG.Add(1)
+	log.Debugln(log.DatabaseMgr, "Database manager started.")
 
 	t := time.NewTicker(time.Second * 2)
 
@@ -113,7 +108,10 @@ func (a *databaseManager) run() {
 		t.Stop()
 		atomic.CompareAndSwapInt32(&a.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&a.started, 1, 0)
-		bot.ServicesWG.Done()
+		err = CompleteServiceWG(1)
+		if err != nil {
+			return
+		}
 		log.Debugln(log.DatabaseMgr, "Database manager shutdown.")
 	}()
 

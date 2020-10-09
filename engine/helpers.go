@@ -95,7 +95,8 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	switch strings.ToLower(subsys) {
 	case "communications":
 		if enable {
-			return bot.CommsManager.Start()
+			cfg := bot.Config.GetCommunicationsConfig()
+			return bot.CommsManager.Start(&cfg)
 		}
 		return bot.CommsManager.Stop()
 	case "internet_monitor":
@@ -115,12 +116,12 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return bot.NTPManager.Start()
+			return bot.NTPManager.Start(bot.Config.NTPClient)
 		}
 		return bot.NTPManager.Stop()
 	case "database":
 		if enable {
-			return bot.DatabaseManager.Start()
+			return bot.DatabaseManager.Start(bot.Config.Database)
 		}
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
