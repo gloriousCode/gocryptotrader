@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -11,60 +12,79 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	setupTestLoggers()
+	err := setupTestLoggers()
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
-func setupTestLoggers() {
+func setupTestLoggers() error {
 	logTest := Config{
 		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
+		subLoggerConfig: subLoggerConfig{
 			Output: "console",
-			Level:  "INFO|WARN|DEBUG|ERROR",
+			Level:  defaultLevels,
 		},
 		AdvancedSettings: advancedSettings{
 			ShowLogSystemName: convert.BoolPtr(true),
-			Spacer:            " | ",
+			Spacer:            spacer,
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
-				Info:  "[INFO]",
-				Warn:  "[WARN]",
-				Debug: "[DEBUG]",
-				Error: "[ERROR]",
+				Info:  infoFmt,
+				Warn:  warnFmt,
+				Debug: debugFmt,
+				Error: errorFmt,
 			},
 		},
-		SubLoggers: []SubLoggerConfig{
+		SubLoggers: []subLoggerConfig{
 			{
 				Name:   "TEST",
-				Level:  "INFO|DEBUG|WARN|ERROR",
+				Level:  defaultLevels,
 				Output: "stdout",
 			}},
 	}
-
-	GlobalLogConfig = &logTest
-	SetupGlobalLogger()
+	err := SetConfig(&logTest)
+	if err != nil {
+		return err
+	}
+	err = SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
 	SetupSubLoggers(logTest.SubLoggers)
+	return nil
 }
 
-func SetupDisabled() {
+func SetupDisabled() error {
 	logTest := Config{
 		Enabled: convert.BoolPtr(false),
+		AdvancedSettings: advancedSettings{
+			ShowLogSystemName: convert.BoolPtr(false),
+		},
 	}
-
-	GlobalLogConfig = &logTest
-	SetupGlobalLogger()
+	err := SetConfig(&logTest)
+	if err != nil {
+		return err
+	}
+	err = SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
 	SetupSubLoggers(logTest.SubLoggers)
+	return nil
 }
 
 func BenchmarkInfo(b *testing.B) {
+	err := setupTestLoggers()
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Info(Global, "Hello this is an info benchmark")
 	}
-}
-
-func SetupTestDisabled(t *testing.T) {
-	SetupDisabled()
 }
 
 func TestAddWriter(t *testing.T) {
@@ -101,7 +121,7 @@ func TestRemoveWriter(t *testing.T) {
 }
 
 func TestLevel(t *testing.T) {
-	_, err := Level("LOG")
+	_, err := Level(Global)
 	if err != nil {
 		t.Errorf("Failed to get log %s levels skipping", err)
 	}
@@ -113,7 +133,7 @@ func TestLevel(t *testing.T) {
 }
 
 func TestSetLevel(t *testing.T) {
-	newLevel, err := SetLevel("LOG", "ERROR")
+	newLevel, err := SetLevel(Global, errStr)
 	if err != nil {
 		t.Skipf("Failed to get log %s levels skipping", err)
 	}
@@ -126,20 +146,17 @@ func TestSetLevel(t *testing.T) {
 		t.Error("failed to set level correctly")
 	}
 
-	_, err = SetLevel("abc12345556665", "ERROR")
+	_, err = SetLevel("abc12345556665", errStr)
 	if err == nil {
 		t.Error("SetLevel() Should return error on invalid logger")
 	}
 }
 
 func TestValidSubLogger(t *testing.T) {
-	b, logPtr := validSubLogger("LOG")
+	logPtr := getSubLogger(Global)
 
-	if !b {
-		t.Skip("validSubLogger() should return found, pointer if valid logger found")
-	}
 	if logPtr == nil {
-		t.Error("validSubLogger() should return a pointer and not nil")
+		t.Error("getSubLogger() should return a pointer and not nil")
 	}
 }
 
@@ -151,17 +168,18 @@ func TestCloseLogger(t *testing.T) {
 }
 
 func TestConfigureSubLogger(t *testing.T) {
-	err := configureSubLogger("LOG", "INFO", os.Stdin)
+	err := configureSubLogger(Global, infoStr, os.Stdin)
 	if err != nil {
 		t.Skipf("configureSubLogger() returned unexpected error %v", err)
 	}
-	if (Global.Levels != Levels{
+	global := getSubLogger(Global)
+	if (global.Levels != Levels{
 		Info:  true,
 		Debug: false,
 	}) {
 		t.Error("configureSubLogger() incorrectly configure subLogger")
 	}
-	if Global.name != "LOG" {
+	if global.name != Global {
 		t.Error("configureSubLogger() Failed to uppercase name")
 	}
 }
@@ -182,7 +200,10 @@ func TestSplitLevel(t *testing.T) {
 }
 
 func BenchmarkInfoDisabled(b *testing.B) {
-	SetupDisabled()
+	err := SetupDisabled()
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -191,6 +212,10 @@ func BenchmarkInfoDisabled(b *testing.B) {
 }
 
 func BenchmarkInfof(b *testing.B) {
+	err := setupTestLoggers()
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
@@ -198,6 +223,10 @@ func BenchmarkInfof(b *testing.B) {
 }
 
 func BenchmarkInfoln(b *testing.B) {
+	err := setupTestLoggers()
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		Infoln(Global, "Hello this is an infoln benchmark")
@@ -206,13 +235,15 @@ func BenchmarkInfoln(b *testing.B) {
 
 func TestNewLogEvent(t *testing.T) {
 	w := &bytes.Buffer{}
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
-
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if w.String() == "" {
 		t.Error("newLogEvent() failed expected output got empty string")
 	}
 
-	err := logger.newLogEvent("out", "header", "SUBLOGGER", nil)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", nil)
 	if err == nil {
 		t.Error("Error expected with output is set to nil")
 	}
@@ -220,14 +251,15 @@ func TestNewLogEvent(t *testing.T) {
 
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
-
-	tempSL := subLogger{
+	tempSL := subLoggerDetails{
 		"TESTYMCTESTALOT",
-		splitLevel("INFO|WARN|DEBUG|ERROR"),
+		splitLevel(defaultLevels),
 		w,
 	}
-
-	Info(&tempSL, "Hello")
+	rwm.Lock()
+	subLoggers["TESTYMCTESTALOT"] = &tempSL
+	rwm.Unlock()
+	Info("TESTYMCTESTALOT", "Hello")
 
 	if w.String() == "" {
 		t.Error("expected Info() to write output to buffer")
@@ -236,8 +268,12 @@ func TestInfo(t *testing.T) {
 	tempSL.output = nil
 	w.Reset()
 
-	SetLevel("TESTYMCTESTALOT", "INFO")
-	Debug(&tempSL, "HelloHello")
+	_, err := SetLevel("TESTYMCTESTALOT", infoStr)
+	if err != nil {
+		t.Error(err)
+	}
+
+	Debug("TESTYMCTESTALOT", "HelloHello")
 
 	if w.String() != "" {
 		t.Error("Expected output buffer to be empty but Debug wrote to output")
@@ -247,14 +283,20 @@ func TestInfo(t *testing.T) {
 func TestSubLoggerName(t *testing.T) {
 	w := &bytes.Buffer{}
 	registerNewSubLogger("sublogger")
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err := logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Error(err)
+	}
 	if !strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
 	logger.ShowLogSystemName = false
 	w.Reset()
-	logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	err = logger.newLogEvent("out", "header", "SUBLOGGER", w)
+	if err != nil {
+		t.Error(err)
+	}
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
 	}

@@ -115,12 +115,19 @@ func migrateDB(db *sql.DB) error {
 }
 
 // EnableVerboseTestOutput enables debug output for SQL queries
-func EnableVerboseTestOutput() {
+func EnableVerboseTestOutput() error {
 	c := log.GenDefaultSettings()
-	log.GlobalLogConfig = &c
-	log.SetupGlobalLogger()
+	err := log.SetConfig(&c)
+	if err != nil {
+		return err
+	}
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		return err
+	}
 
 	DBLogger := database.Logger{}
 	boil.DebugMode = true
 	boil.DebugWriter = DBLogger
+	return nil
 }

@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func newLogger(c *Config) *Logger {
-	return &Logger{
+func newLogger(c *Config) *loggerDetails {
+	return &loggerDetails{
 		Timestamp:         c.AdvancedSettings.TimeStampFormat,
 		Spacer:            c.AdvancedSettings.Spacer,
 		ErrorHeader:       c.AdvancedSettings.Headers.Error,
@@ -19,12 +19,12 @@ func newLogger(c *Config) *Logger {
 	}
 }
 
-func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
+func (l *loggerDetails) newLogEvent(data, header, slName string, w io.Writer) error {
 	if w == nil {
 		return errors.New("io.Writer not set")
 	}
 
-	e := eventPool.Get().(*Event)
+	e := eventPool.Get().(*event)
 	e.output = w
 	e.data = append(e.data, []byte(header)...)
 	if l.ShowLogSystemName {
@@ -50,24 +50,17 @@ func (l *Logger) newLogEvent(data, header, slName string, w io.Writer) error {
 
 // CloseLogger is called on shutdown of application
 func CloseLogger() error {
-	err := GlobalLogFile.Close()
+	err := rotate.Close()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func validSubLogger(s string) (bool, *subLogger) {
-	if v, found := subLoggers[s]; found {
-		return true, v
-	}
-	return false, nil
-}
-
 // Level retries the current sublogger levels
 func Level(s string) (*Levels, error) {
-	found, logger := validSubLogger(s)
-	if !found {
+	logger := getSubLogger(s)
+	if logger == nil {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 
@@ -76,11 +69,51 @@ func Level(s string) (*Levels, error) {
 
 // SetLevel sets sublogger levels
 func SetLevel(s, level string) (*Levels, error) {
-	found, logger := validSubLogger(s)
-	if !found {
+	logger := getSubLogger(s)
+	if logger == nil {
 		return nil, fmt.Errorf("logger %v not found", s)
 	}
 	logger.Levels = splitLevel(level)
 
 	return &logger.Levels, nil
+}
+
+func setLogger(l *loggerDetails) {
+	rwm.Lock()
+	logger = l
+	rwm.Unlock()
+}
+
+// GetConfig returns the config
+func GetConfig() Config {
+	rwm.RLock()
+	cfg := logConfig
+	rwm.Unlock()
+	return *cfg
+}
+
+func isFileLoggingSetup() bool {
+	rwm.RLock()
+	defer rwm.RUnlock()
+	b := fileLoggingConfiguredCorrectly
+	return b
+}
+
+// SetLogConfiguredCorrectly sets whether the logger
+// has been configured correctly
+func SetLogConfiguredCorrectly(b bool) {
+	rwm.Lock()
+	fileLoggingConfiguredCorrectly = b
+	rwm.Unlock()
+}
+
+// SetConfig sets the config
+func SetConfig(cfg *Config) error {
+	if cfg == nil {
+		return errors.New(nilConfigReceived)
+	}
+	rwm.Lock()
+	logConfig = cfg
+	rwm.Unlock()
+	return nil
 }

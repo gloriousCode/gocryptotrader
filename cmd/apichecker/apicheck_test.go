@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -28,9 +29,12 @@ func TestMain(m *testing.M) {
 	testMode = true
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
-	log.GlobalLogConfig = &c
+	err := log.SetConfig(&c)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
-	var err error
 	configData, err = readFileData(jsonFile)
 	if err != nil {
 		log.Error(log.Global, err)

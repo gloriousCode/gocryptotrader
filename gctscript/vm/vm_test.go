@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -32,7 +33,11 @@ var (
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(false)
-	log.GlobalLogConfig = &c
+	err := log.SetConfig(&c)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 	GCTScriptConfig = configHelper(true, true, maxTestVirtualMachines)
 	os.Exit(m.Run())
 }

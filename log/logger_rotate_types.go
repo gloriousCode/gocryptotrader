@@ -2,7 +2,6 @@ package log
 
 import (
 	"os"
-	"sync"
 )
 
 const (
@@ -12,11 +11,9 @@ const (
 
 // Rotate struct for each instance of Rotate
 type Rotate struct {
-	FileName string
-	Rotate   *bool
-	MaxSize  int64
-
-	size   int64
-	output *os.File
-	mu     sync.Mutex
+	fileName        string
+	rotationEnabled *bool
+	maxSize         int64
+	size            int64
+	output          *os.File
 }

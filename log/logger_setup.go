@@ -1,7 +1,7 @@
 package log
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -10,10 +10,33 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
-func getWriters(s *SubLoggerConfig) io.Writer {
+// register all loggers at package init()
+func init() {
+	subLoggers = make(map[string]*subLoggerDetails)
+	registerNewSubLogger(Global)
+	registerNewSubLogger(ConnectionMgr)
+	registerNewSubLogger(CommunicationMgr)
+	registerNewSubLogger(ConfigMgr)
+	registerNewSubLogger(DatabaseMgr)
+	registerNewSubLogger(OrderMgr)
+	registerNewSubLogger(PortfolioMgr)
+	registerNewSubLogger(SyncMgr)
+	registerNewSubLogger(TimeMgr)
+	registerNewSubLogger(GCTScriptMgr)
+	registerNewSubLogger(WebsocketMgr)
+	registerNewSubLogger(EventMgr)
+	registerNewSubLogger(DispatchMgr)
+	registerNewSubLogger(RequestSys)
+	registerNewSubLogger(ExchangeSys)
+	registerNewSubLogger(GRPCSys)
+	registerNewSubLogger(RESTSys)
+	registerNewSubLogger(Ticker)
+	registerNewSubLogger(OrderBook)
+}
+
+func getWriters(s *subLoggerConfig) io.Writer {
 	mw := MultiWriter()
 	m := mw.(*multiWriter)
-
 	outputWriters := strings.Split(s.Output, "|")
 	for x := range outputWriters {
 		switch outputWriters[x] {
@@ -22,8 +45,8 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			if FileLoggingConfiguredCorrectly {
-				m.Add(GlobalLogFile)
+			if isFileLoggingSetup() {
+				m.Add(rotate)
 			}
 		default:
 			m.Add(ioutil.Discard)
@@ -36,8 +59,8 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 func GenDefaultSettings() (log Config) {
 	log = Config{
 		Enabled: convert.BoolPtr(true),
-		SubLoggerConfig: SubLoggerConfig{
-			Level:  "INFO|DEBUG|WARN|ERROR",
+		subLoggerConfig: subLoggerConfig{
+			Level:  defaultLevels,
 			Output: "console",
 		},
 		LoggerFileConfig: &loggerFileConfig{
@@ -50,110 +73,55 @@ func GenDefaultSettings() (log Config) {
 			Spacer:            spacer,
 			TimeStampFormat:   timestampFormat,
 			Headers: headers{
-				Info:  "[INFO]",
-				Warn:  "[WARN]",
-				Debug: "[DEBUG]",
-				Error: "[ERROR]",
+				Info:  infoFmt,
+				Warn:  warnFmt,
+				Debug: debugFmt,
+				Error: errorFmt,
 			},
 		},
 	}
 	return
 }
 
-func configureSubLogger(logger, levels string, output io.Writer) error {
-	found, logPtr := validSubLogger(logger)
-	if !found {
-		return fmt.Errorf("logger %v not found", logger)
-	}
-
-	logPtr.output = output
-
-	logPtr.Levels = splitLevel(levels)
-	subLoggers[logger] = logPtr
-
-	return nil
-}
-
-// SetupSubLoggers configure all sub loggers with provided configuration values
-func SetupSubLoggers(s []SubLoggerConfig) {
-	for x := range s {
-		output := getWriters(&s[x])
-		err := configureSubLogger(strings.ToUpper(s[x].Name), s[x].Level, output)
-		if err != nil {
-			continue
-		}
-	}
-}
-
 // SetupGlobalLogger setup the global loggers with the default global config values
-func SetupGlobalLogger() {
-	if FileLoggingConfiguredCorrectly {
-		GlobalLogFile = &Rotate{
-			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
-			MaxSize:  GlobalLogConfig.LoggerFileConfig.MaxSize,
-			Rotate:   GlobalLogConfig.LoggerFileConfig.Rotate,
+func SetupGlobalLogger() error {
+	if logConfig == nil {
+		return errors.New(configNotLoaded)
+	}
+	if logConfig.AdvancedSettings.ShowLogSystemName == nil {
+		return errors.New(missingLogSubSystemName)
+	}
+	isFileLoggingSetup := isFileLoggingSetup()
+	rwm.Lock()
+	if isFileLoggingSetup {
+		rotate = &Rotate{
+			fileName:        logConfig.LoggerFileConfig.FileName,
+			maxSize:         logConfig.LoggerFileConfig.MaxSize,
+			rotationEnabled: logConfig.LoggerFileConfig.Rotate,
 		}
 	}
-
 	for x := range subLoggers {
-		subLoggers[x].Levels = splitLevel(GlobalLogConfig.Level)
-		subLoggers[x].output = getWriters(&GlobalLogConfig.SubLoggerConfig)
+		subLoggers[x].Levels = splitLevel(logConfig.Level)
+		subLoggers[x].output = getWriters(&logConfig.subLoggerConfig)
 	}
-
-	logger = newLogger(GlobalLogConfig)
+	rwm.Unlock()
+	setLogger(newLogger(logConfig))
+	return nil
 }
 
 func splitLevel(level string) (l Levels) {
 	enabledLevels := strings.Split(level, "|")
 	for x := range enabledLevels {
 		switch level := enabledLevels[x]; level {
-		case "DEBUG":
+		case debugStr:
 			l.Debug = true
-		case "INFO":
+		case infoStr:
 			l.Info = true
-		case "WARN":
+		case warnStr:
 			l.Warn = true
-		case "ERROR":
+		case errStr:
 			l.Error = true
 		}
 	}
 	return
-}
-
-func registerNewSubLogger(logger string) *subLogger {
-	temp := subLogger{
-		name:   strings.ToUpper(logger),
-		output: os.Stdout,
-	}
-
-	temp.Levels = splitLevel("INFO|WARN|DEBUG|ERROR")
-	subLoggers[logger] = &temp
-
-	return &temp
-}
-
-// register all loggers at package init()
-func init() {
-	Global = registerNewSubLogger("LOG")
-
-	ConnectionMgr = registerNewSubLogger("CONNECTION")
-	CommunicationMgr = registerNewSubLogger("COMMS")
-	ConfigMgr = registerNewSubLogger("CONFIG")
-	DatabaseMgr = registerNewSubLogger("DATABASE")
-	OrderMgr = registerNewSubLogger("ORDER")
-	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
-	SyncMgr = registerNewSubLogger("SYNC")
-	TimeMgr = registerNewSubLogger("TIMEKEEPER")
-	GCTScriptMgr = registerNewSubLogger("GCTSCRIPT")
-	WebsocketMgr = registerNewSubLogger("WEBSOCKET")
-	EventMgr = registerNewSubLogger("EVENT")
-	DispatchMgr = registerNewSubLogger("DISPATCH")
-
-	RequestSys = registerNewSubLogger("REQUESTER")
-	ExchangeSys = registerNewSubLogger("EXCHANGE")
-	GRPCSys = registerNewSubLogger("GRPC")
-	RESTSys = registerNewSubLogger("REST")
-
-	Ticker = registerNewSubLogger("TICKER")
-	OrderBook = registerNewSubLogger("ORDERBOOK")
 }

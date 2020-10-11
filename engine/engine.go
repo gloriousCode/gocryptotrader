@@ -82,7 +82,10 @@ func NewFromSettings(settings *Settings) (*Engine, error) {
 	}
 
 	if *b.Config.Logging.Enabled {
-		gctlog.SetupGlobalLogger()
+		err = gctlog.SetupGlobalLogger()
+		if err != nil {
+			return nil, err
+		}
 		gctlog.SetupSubLoggers(b.Config.Logging.SubLoggers)
 		gctlog.Infoln(gctlog.Global, "Logger initialised.")
 	}
@@ -354,7 +357,7 @@ func (bot *Engine) Start() error {
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
 		gctlog.Debugf(gctlog.Global, "Using log file: %s\n",
-			filepath.Join(gctlog.LogPath, bot.Config.Logging.LoggerFileConfig.FileName))
+			filepath.Join(gctlog.FilePath(), bot.Config.Logging.LoggerFileConfig.FileName))
 	}
 	gctlog.Debugf(gctlog.Global,
 		"Using %d out of %d logical processors for runtime performance\n",

@@ -29,11 +29,15 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	var err error
 	if verbose {
-		testhelpers.EnableVerboseTestOutput()
+		err = testhelpers.EnableVerboseTestOutput()
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
 	}
 
-	var err error
 	testhelpers.PostgresTestDatabase = testhelpers.GetConnectionDetails()
 	testhelpers.TempDir, err = ioutil.TempDir("", "gct-temp")
 	if err != nil {

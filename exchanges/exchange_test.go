@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -29,8 +30,16 @@ const (
 
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
-	log.GlobalLogConfig = &c
-	log.SetupGlobalLogger()
+	err := log.SetConfig(&c)
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	err = log.SetupGlobalLogger()
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
 	os.Exit(m.Run())
 }
 
