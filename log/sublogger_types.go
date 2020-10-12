@@ -1,5 +1,6 @@
 package log
 
+// Global sub logger strings
 const (
 	Global           = "LOG"
 	ConnectionMgr    = "CONNECTION"
@@ -22,7 +23,6 @@ const (
 	OrderBook        = "ORDERBOOK"
 )
 
-// Global vars related to the logger package
 var (
 	subLoggers = make(map[string]*subLoggerDetails)
 )

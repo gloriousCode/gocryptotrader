@@ -25,6 +25,7 @@ const (
 	nilConfigReceived       = "nil config received"
 	filePathEmpty           = "log file path empty"
 	missingLogSubSystemName = "missing showLogSystemName setting"
+	missingEnabled          = "missing enabled setting"
 )
 
 var (

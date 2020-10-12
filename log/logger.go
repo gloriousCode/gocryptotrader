@@ -84,14 +84,6 @@ func setLogger(l *loggerDetails) {
 	rwm.Unlock()
 }
 
-// GetConfig returns the config
-func GetConfig() Config {
-	rwm.RLock()
-	cfg := logConfig
-	rwm.Unlock()
-	return *cfg
-}
-
 func isFileLoggingSetup() bool {
 	rwm.RLock()
 	defer rwm.RUnlock()
@@ -111,6 +103,12 @@ func SetLogConfiguredCorrectly(b bool) {
 func SetConfig(cfg *Config) error {
 	if cfg == nil {
 		return errors.New(nilConfigReceived)
+	}
+	if cfg.Enabled == nil {
+		return errors.New(missingEnabled)
+	}
+	if cfg.AdvancedSettings.ShowLogSystemName == nil {
+		return errors.New(missingLogSubSystemName)
 	}
 	rwm.Lock()
 	logConfig = cfg
