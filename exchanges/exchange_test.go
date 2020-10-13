@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		fmt.Print(err)
 		os.Exit(1)
 	}
-	os.Exit(m.Run())
+	m.Run()
 }
 
 func TestSupportsRESTTickerBatchUpdates(t *testing.T) {

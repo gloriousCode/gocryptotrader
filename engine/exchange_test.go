@@ -6,23 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
-func CleanupTest(t *testing.T) {
-	if Bot.GetExchangeByName(testExchange) != nil {
-		err := Bot.UnloadExchange(testExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-	if Bot.GetExchangeByName(fakePassExchange) != nil {
-		err := Bot.UnloadExchange(fakePassExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-}
-
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var e exchangeManager
@@ -69,7 +52,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	if e.GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
@@ -78,12 +61,10 @@ func TestCheckExchangeExists(t *testing.T) {
 	if e.GetExchangeByName("Asdsad") != nil {
 		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	exch := e.GetExchangeByName(testExchange)
 	if exch == nil {
@@ -108,12 +89,10 @@ func TestGetExchangeByName(t *testing.T) {
 	if exch != nil {
 		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestUnloadExchange(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	err := e.UnloadExchange("asdf")
 	if err == nil || err.Error() != "exchange asdf not found" {
@@ -138,12 +117,10 @@ func TestUnloadExchange(t *testing.T) {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
-
-	CleanupTest(t)
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := createTestBot(t)
 
 	// Load bot as per normal, dry run and verbose for Bitfinex should be
 	// disabled

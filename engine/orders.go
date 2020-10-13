@@ -129,7 +129,7 @@ func (o *orderManager) Started() bool {
 }
 
 // Start will boot up the orderManager
-func (o *orderManager) Start() error {
+func (o *orderManager) Start(bot *Engine) error {
 	if atomic.AddInt32(&o.started, 1) != 1 {
 		return errors.New("order manager already started")
 	}
@@ -138,7 +138,7 @@ func (o *orderManager) Start() error {
 
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]*order.Detail)
-	go o.run()
+	go o.run(bot)
 	return nil
 }
 
@@ -161,27 +161,27 @@ func (o *orderManager) Stop() error {
 	return nil
 }
 
-func (o *orderManager) gracefulShutdown() {
+func (o *orderManager) gracefulShutdown(bot *Engine) {
 	if o.cfg.CancelOrdersOnShutdown {
 		log.Debugln(log.OrderMgr, "Order manager: Cancelling any open orders...")
-		o.CancelAllOrders(Bot.Config.GetEnabledExchanges())
+		o.CancelAllOrders(bot)
 	}
 }
 
-func (o *orderManager) run() {
+func (o *orderManager) run(bot *Engine) {
 	log.Debugln(log.OrderBook, "Order manager started.")
 	tick := time.NewTicker(OrderManagerDelay)
-	Bot.ServicesWG.Add(1)
+	bot.ServicesWG.Add(1)
 	defer func() {
 		log.Debugln(log.OrderMgr, "Order manager shutdown.")
 		tick.Stop()
-		Bot.ServicesWG.Done()
+		bot.ServicesWG.Done()
 	}()
 
 	for {
 		select {
 		case <-o.shutdown:
-			o.gracefulShutdown()
+			o.gracefulShutdown(bot)
 			return
 		case <-tick.C:
 			o.processOrders()
@@ -190,7 +190,7 @@ func (o *orderManager) run() {
 }
 
 // CancelAllOrders iterates and cancels all orders for each exchange provided
-func (o *orderManager) CancelAllOrders(exchangeNames []string) {
+func (o *orderManager) CancelAllOrders(bot *Engine) {
 	orders := o.orderStore.get()
 	if orders == nil {
 		return
@@ -198,7 +198,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 
 	for k, v := range orders {
 		log.Debugf(log.OrderMgr, "Order manager: Cancelling order(s) for exchange %s.", k)
-		if !common.StringDataCompareInsensitive(exchangeNames, k) {
+		if !common.StringDataCompareInsensitive(bot.Config.GetEnabledExchanges(), k) {
 			continue
 		}
 
@@ -218,7 +218,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			})
 			if err != nil {
 				log.Error(log.OrderMgr, err)
-				Bot.CommsManager.PushEvent(base.Event{
+				bot.CommsManager.PushEvent(base.Event{
 					Type:    "order",
 					Message: err.Error(),
 				})
@@ -228,7 +228,7 @@ func (o *orderManager) CancelAllOrders(exchangeNames []string) {
 			msg := fmt.Sprintf("Order manager: Exchange %s order ID=%v cancelled.",
 				k, v[y].ID)
 			log.Debugln(log.OrderMgr, msg)
-			Bot.CommsManager.PushEvent(base.Event{
+			bot.CommsManager.PushEvent(base.Event{
 				Type:    "order",
 				Message: msg,
 			})
