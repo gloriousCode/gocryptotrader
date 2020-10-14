@@ -115,7 +115,7 @@ func (e Exchange) SubmitOrder(submit *order.Submit) (*order.SubmitResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	r, err := bot.OrderManager.Submit(submit)
+	r, err := bot.OrderManager.Submit(bot, submit)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (e Exchange) CancelOrder(exch, orderID string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	err = bot.OrderManager.Cancel(cancel)
+	err = bot.OrderManager.Cancel(bot, cancel)
 	if err != nil {
 		return false, err
 	}

@@ -23,7 +23,7 @@ func addValidEvent() (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	_, err := Add(testExchange, "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
@@ -45,7 +45,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	id, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -61,7 +61,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	_, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -80,7 +80,7 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	t.Parallel()
 
 	var e Event
@@ -243,7 +243,7 @@ func TestCheckEventCondition(t *testing.T) {
 }
 
 func TestIsValidEvent(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	// invalid exchange name
 	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
@@ -294,7 +294,7 @@ func TestIsValidExchange(t *testing.T) {
 	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-	SetupTestHelpers(t)
+	createTestBot(t)
 	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}

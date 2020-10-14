@@ -52,11 +52,7 @@ type exchangeManager struct {
 	exchanges map[string]exchange.IBotExchange
 }
 
-func dryrunParamInteraction(param string) {
-	bot, err := Bot()
-	if err != nil {
-		return
-	}
+func dryrunParamInteraction(bot *Engine, param string) {
 	if !bot.Settings.CheckParamInteraction {
 		return
 	}
@@ -137,11 +133,7 @@ func (e *exchangeManager) Len() int {
 	return len(e.exchanges)
 }
 
-func (e *exchangeManager) unloadExchange(exchangeName string) error {
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
+func (e *exchangeManager) unloadExchange(bot *Engine, exchangeName string) error {
 	exchCfg, err := bot.Config.GetExchangeConfig(exchangeName)
 	if err != nil {
 		return err
@@ -163,7 +155,7 @@ func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
 
 // UnloadExchange unloads an exchange by name
 func (bot *Engine) UnloadExchange(exchName string) error {
-	return bot.exchangeManager.unloadExchange(exchName)
+	return bot.exchangeManager.unloadExchange(bot, exchName)
 }
 
 // GetExchanges retrieves the loaded exchanges
@@ -253,7 +245,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 
 	if bot.Settings.EnableAllPairs {
 		if exchCfg.CurrencyPairs != nil {
-			dryrunParamInteraction("enableallpairs")
+			dryrunParamInteraction(bot, "enableallpairs")
 			assets := exchCfg.CurrencyPairs.GetAssetTypes()
 			for x := range assets {
 				var pairs currency.Pairs
@@ -267,12 +259,12 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	}
 
 	if bot.Settings.EnableExchangeVerbose {
-		dryrunParamInteraction("exchangeverbose")
+		dryrunParamInteraction(bot, "exchangeverbose")
 		exchCfg.Verbose = true
 	}
 
 	if bot.Settings.EnableExchangeWebsocketSupport {
-		dryrunParamInteraction("exchangewebsocketsupport")
+		dryrunParamInteraction(bot, "exchangewebsocketsupport")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.Websocket {
 				exchCfg.Features.Enabled.Websocket = true
@@ -281,7 +273,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	}
 
 	if bot.Settings.EnableExchangeAutoPairUpdates {
-		dryrunParamInteraction("exchangeautopairupdates")
+		dryrunParamInteraction(bot, "exchangeautopairupdates")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = true
@@ -290,7 +282,7 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	}
 
 	if bot.Settings.DisableExchangeAutoPairUpdates {
-		dryrunParamInteraction("exchangedisableautopairupdates")
+		dryrunParamInteraction(bot, "exchangedisableautopairupdates")
 		if exchCfg.Features != nil {
 			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 				exchCfg.Features.Enabled.AutoPairUpdates = false
@@ -299,27 +291,27 @@ func (bot *Engine) LoadExchange(name string, useWG bool, wg *sync.WaitGroup) err
 	}
 
 	if bot.Settings.HTTPUserAgent != "" {
-		dryrunParamInteraction("httpuseragent")
+		dryrunParamInteraction(bot, "httpuseragent")
 		exchCfg.HTTPUserAgent = bot.Settings.HTTPUserAgent
 	}
 
 	if bot.Settings.HTTPProxy != "" {
-		dryrunParamInteraction("httpproxy")
+		dryrunParamInteraction(bot, "httpproxy")
 		exchCfg.ProxyAddress = bot.Settings.HTTPProxy
 	}
 
 	if bot.Settings.HTTPTimeout != exchange.DefaultHTTPTimeout {
-		dryrunParamInteraction("httptimeout")
+		dryrunParamInteraction(bot, "httptimeout")
 		exchCfg.HTTPTimeout = bot.Settings.HTTPTimeout
 	}
 
 	if bot.Settings.EnableExchangeHTTPDebugging {
-		dryrunParamInteraction("exchangehttpdebugging")
+		dryrunParamInteraction(bot, "exchangehttpdebugging")
 		exchCfg.HTTPDebugging = bot.Settings.EnableExchangeHTTPDebugging
 	}
 
 	if bot.Settings.EnableAllExchanges {
-		dryrunParamInteraction("enableallexchanges")
+		dryrunParamInteraction(bot, "enableallexchanges")
 	}
 
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {

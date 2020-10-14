@@ -74,32 +74,6 @@ func Bot() (*Engine, error) {
 	return bm.GetBot()
 }
 
-func AddToServiceWG(i int) error {
-	bot, err := bm.GetBot()
-	if err != nil {
-		return err
-	}
-	if bot.ServicesWG == nil {
-		return errors.New("nil services")
-	}
-	bot.ServicesWG.Add(i)
-	return nil
-}
-
-func CompleteServiceWG(d int) error {
-	bot, err := bm.GetBot()
-	if err != nil {
-		return err
-	}
-	if bot.ServicesWG == nil {
-		return errors.New("nil services")
-	}
-	for i := 0; i < d; i++ {
-		bot.ServicesWG.Done()
-	}
-	return nil
-}
-
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
@@ -369,7 +343,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableDatabaseManager {
-		if err := bot.DatabaseManager.Start(bot.Config.Database); err != nil {
+		if err := bot.DatabaseManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Database manager unable to start: %v", err)
 		}
 	}
@@ -465,7 +439,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnablePortfolioManager {
-		if err = bot.PortfolioManager.Start(); err != nil {
+		if err = bot.PortfolioManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Fund manager unable to start: %v", err)
 		}
 	}
@@ -477,7 +451,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableOrderManager {
-		if err = bot.OrderManager.Start(); err != nil {
+		if err = bot.OrderManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to start: %v", err)
 		}
 	}
@@ -511,7 +485,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableGCTScriptManager {
 		if bot.Config.GCTScript.Enabled {
-			if err := bot.GctScriptManager.Start(); err != nil {
+			if err := bot.GctScriptManager.Start(bot); err != nil {
 				gctlog.Errorf(gctlog.Global, "GCTScript manager unable to start: %v", err)
 			}
 		}

@@ -11,15 +11,19 @@ const (
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
 	// Lovely strings
-	infoStr       = "INFO"
-	infoFmt       = "[" + infoStr + "]"
-	warnStr       = "WARN"
-	warnFmt       = "[" + warnStr + "]"
-	debugStr      = "DEBUG"
-	debugFmt      = "[" + debugStr + "]"
-	errStr        = "ERROR"
-	errorFmt      = "[" + errStr + "]"
-	defaultLevels = infoStr + "|" + warnStr + "|" + debugStr + "|" + errStr
+	infoStr                 = "INFO"
+	infoFmt                 = "[" + infoStr + "]"
+	warnStr                 = "WARN"
+	warnFmt                 = "[" + warnStr + "]"
+	debugStr                = "DEBUG"
+	debugFmt                = "[" + debugStr + "]"
+	errStr                  = "ERROR"
+	errorFmt                = "[" + errStr + "]"
+	defaultLevels           = infoStr + "|" + warnStr + "|" + debugStr + "|" + errStr
+	nilConfigReceived       = "nil config received"
+	filePathEmpty           = "log file path empty"
+	missingLogSubSystemName = "missing showLogSystemName setting"
+	missingEnabled          = "missing enabled setting"
 )
 
 var (

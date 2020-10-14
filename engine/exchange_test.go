@@ -73,7 +73,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	if e.GetExchangeByName(testExchange) == nil {
 		t.Errorf("TestGetExchangeExists: Unable to find exchange")
@@ -87,7 +87,7 @@ func TestCheckExchangeExists(t *testing.T) {
 }
 
 func TestGetExchangeByName(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	exch := e.GetExchangeByName(testExchange)
 	if exch == nil {
@@ -117,7 +117,7 @@ func TestGetExchangeByName(t *testing.T) {
 }
 
 func TestUnloadExchange(t *testing.T) {
-	e := SetupTestHelpers(t)
+	e := createTestBot(t)
 
 	err := e.UnloadExchange("asdf")
 	if err == nil || err.Error() != "exchange asdf not found" {
@@ -147,7 +147,7 @@ func TestUnloadExchange(t *testing.T) {
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
-	bot := SetupTestHelpers(t)
+	bot := createTestBot(t)
 
 	// Load bot as per normal, dry run and verbose for Bitfinex should be
 	// disabled

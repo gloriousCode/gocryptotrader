@@ -23,7 +23,7 @@ func (g *gctScriptManager) Started() bool {
 }
 
 // Start starts gctscript subsystem and creates shutdown channel
-func (g *gctScriptManager) Start() (err error) {
+func (g *gctScriptManager) Start(bot *Engine) (err error) {
 	if atomic.AddInt32(&g.started, 1) != 1 {
 		return fmt.Errorf("%s %s", gctscriptManagerName, ErrSubSystemAlreadyStarted)
 	}
@@ -37,7 +37,7 @@ func (g *gctScriptManager) Start() (err error) {
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarting)
 
 	g.shutdown = make(chan struct{})
-	go g.run()
+	go g.run(bot)
 	return nil
 }
 
@@ -60,22 +60,16 @@ func (g *gctScriptManager) Stop() error {
 	return nil
 }
 
-func (g *gctScriptManager) run() {
+func (g *gctScriptManager) run(bot *Engine) {
 	log.Debugln(log.Global, gctscriptManagerName, MsgSubSystemStarted)
-	err := AddToServiceWG(1)
-	if err != nil {
-		return
-	}
+	bot.ServicesWG.Add(1)
 
 	vm.SetDefaultScriptOutput()
 	g.autoLoad()
 	defer func() {
 		atomic.CompareAndSwapInt32(&g.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&g.started, 1, 0)
-		err := CompleteServiceWG(1)
-		if err != nil {
-			return
-		}
+		bot.ServicesWG.Done()
 		log.Debugln(log.GCTScriptMgr, gctscriptManagerName, MsgSubSystemShutdown)
 	}()
 

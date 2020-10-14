@@ -24,7 +24,7 @@ func (p *portfolioManager) Started() bool {
 	return atomic.LoadInt32(&p.started) == 1
 }
 
-func (p *portfolioManager) Start() error {
+func (p *portfolioManager) Start(bot *Engine) error {
 	if atomic.AddInt32(&p.started, 1) != 1 {
 		return errors.New("portfolio manager already started")
 	}
@@ -39,7 +39,7 @@ func (p *portfolioManager) Start() error {
 	p.shutdown = make(chan struct{})
 	portfolio.Verbose = IsBotVerbose()
 
-	go p.run()
+	go p.run(bot)
 	return nil
 }
 func (p *portfolioManager) Stop() error {
@@ -52,21 +52,15 @@ func (p *portfolioManager) Stop() error {
 	return nil
 }
 
-func (p *portfolioManager) run() {
+func (p *portfolioManager) run(bot *Engine) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
-	err := AddToServiceWG(1)
-	if err != nil {
-		log.Error(log.PortfolioMgr, err)
-	}
+	bot.ServicesWG.Add(1)
 	tick := time.NewTicker(PortfolioSleepDelay)
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.stopped, 1, 0)
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 		tick.Stop()
-		err = CompleteServiceWG(1)
-		if err != nil {
-			log.Error(log.PortfolioMgr, err)
-		}
+		bot.ServicesWG.Done()
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 

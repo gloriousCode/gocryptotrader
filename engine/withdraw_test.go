@@ -37,7 +37,7 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
-	SetupTestHelpers(t)
+	createTestBot(t)
 	banking.AppendAccounts(
 		banking.Account{
 			Enabled:             true,

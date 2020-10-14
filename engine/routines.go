@@ -357,7 +357,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 		printOrderbookSummary(d, "websocket", nil)
 	case *order.Detail:
 		if !bot.OrderManager.orderStore.exists(d) {
-			err := bot.OrderManager.orderStore.Add(d)
+			err := bot.OrderManager.orderStore.Add(bot, d)
 			if err != nil {
 				return err
 			}
@@ -369,7 +369,7 @@ func WebsocketDataHandler(exchName string, data interface{}) error {
 			od.UpdateOrderFromDetail(d)
 		}
 	case *order.Cancel:
-		return bot.OrderManager.Cancel(d)
+		return bot.OrderManager.Cancel(bot, d)
 	case *order.Modify:
 		od, err := bot.OrderManager.orderStore.GetByExchangeAndID(d.Exchange, d.ID)
 		if err != nil {

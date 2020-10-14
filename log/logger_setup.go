@@ -44,7 +44,7 @@ func getWriters(s *SubLoggerConfig) io.Writer {
 		case "stderr":
 			m.Add(os.Stderr)
 		case "file":
-			if isLogConfiguredCorrectly() {
+			if isFileLoggingSetup() {
 				m.Add(rotate)
 			}
 		default:
@@ -84,7 +84,7 @@ func GenDefaultSettings() (log Config) {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() {
-	isCorrect := isLogConfiguredCorrectly()
+	isCorrect := isFileLoggingSetup()
 	rwm.Lock()
 	if isCorrect {
 		rotate = &Rotate{

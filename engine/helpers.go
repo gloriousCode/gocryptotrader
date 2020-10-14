@@ -106,12 +106,12 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.CommsManager.Stop()
 	case "orders":
 		if enable {
-			return bot.OrderManager.Start()
+			return bot.OrderManager.Start(bot)
 		}
 		return bot.OrderManager.Stop()
 	case "portfolio":
 		if enable {
-			return bot.PortfolioManager.Start()
+			return bot.PortfolioManager.Start(bot)
 		}
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
@@ -121,7 +121,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.NTPManager.Stop()
 	case "database":
 		if enable {
-			return bot.DatabaseManager.Start(bot.Config.Database)
+			return bot.DatabaseManager.Start(bot)
 		}
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
@@ -137,7 +137,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 	case "gctscript":
 		if enable {
 			vm.GCTScriptConfig.Enabled = true
-			return bot.GctScriptManager.Start()
+			return bot.GctScriptManager.Start(bot)
 		}
 		vm.GCTScriptConfig.Enabled = false
 		return bot.GctScriptManager.Stop()

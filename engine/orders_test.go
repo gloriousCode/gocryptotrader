@@ -9,19 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var ordersSetupRan bool
-
 func OrdersSetup(t *testing.T) *Engine {
-	bot := SetupTestHelpers(t)
-	if !ordersSetupRan {
-		err := bot.OrderManager.Start()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bot.OrderManager.Started() {
-			t.Fatal("Order manager not started")
-		}
-		ordersSetupRan = true
+	bot := createTestBot(t)
+	err := bot.OrderManager.Start(bot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bot.OrderManager.Started() {
+		t.Fatal("Order manager not started")
 	}
 	return bot
 }
@@ -35,14 +30,14 @@ func TestOrdersGet(t *testing.T) {
 
 func TestOrdersAdd(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: testExchange,
 		ID:       "TestOrdersAdd",
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: "testTest",
 		ID:       "TestOrdersAdd",
 	})
@@ -50,12 +45,12 @@ func TestOrdersAdd(t *testing.T) {
 		t.Error("Expected error from non existent exchange")
 	}
 
-	err = bot.OrderManager.orderStore.Add(nil)
+	err = bot.OrderManager.orderStore.Add(bot, nil)
 	if err == nil {
 		t.Error("Expected error from nil order")
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: testExchange,
 		ID:       "TestOrdersAdd",
 	})
@@ -66,7 +61,7 @@ func TestOrdersAdd(t *testing.T) {
 
 func TestGetByInternalOrderID(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        testExchange,
 		ID:              "TestGetByInternalOrderID",
 		InternalOrderID: "internalTest",
@@ -94,7 +89,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 
 func TestGetByExchange(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        testExchange,
 		ID:              "TestGetByExchange",
 		InternalOrderID: "internalTestGetByExchange",
@@ -103,7 +98,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        testExchange,
 		ID:              "TestGetByExchange2",
 		InternalOrderID: "internalTestGetByExchange2",
@@ -112,7 +107,7 @@ func TestGetByExchange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        fakePassExchange,
 		ID:              "TestGetByExchange3",
 		InternalOrderID: "internalTest3",
@@ -145,7 +140,7 @@ func TestGetByExchange(t *testing.T) {
 	if err != ErrOrderNotFound {
 		t.Error(err)
 	}
-	err = bot.OrderManager.orderStore.Add(&order.Detail{
+	err = bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: "thisWillFail",
 	})
 	if err == nil {
@@ -155,7 +150,7 @@ func TestGetByExchange(t *testing.T) {
 
 func TestGetByExchangeAndID(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.orderStore.Add(&order.Detail{
+	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: testExchange,
 		ID:       "TestGetByExchangeAndID",
 	})
@@ -191,7 +186,7 @@ func TestExists(t *testing.T) {
 		Exchange: testExchange,
 		ID:       "TestExists",
 	}
-	err := bot.OrderManager.orderStore.Add(o)
+	err := bot.OrderManager.orderStore.Add(bot, o)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,31 +198,31 @@ func TestExists(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	bot := OrdersSetup(t)
-	err := bot.OrderManager.Cancel(nil)
+	err := bot.OrderManager.Cancel(bot, nil)
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = bot.OrderManager.Cancel(&order.Cancel{})
+	err = bot.OrderManager.Cancel(bot, &order.Cancel{})
 	if err == nil {
 		t.Error("Expected error due to empty order")
 	}
 
-	err = bot.OrderManager.Cancel(&order.Cancel{
+	err = bot.OrderManager.Cancel(bot, &order.Cancel{
 		Exchange: testExchange,
 	})
 	if err == nil {
 		t.Error("Expected error due to no order ID")
 	}
 
-	err = bot.OrderManager.Cancel(&order.Cancel{
+	err = bot.OrderManager.Cancel(bot, &order.Cancel{
 		ID: "ID",
 	})
 	if err == nil {
 		t.Error("Expected error due to no Exchange")
 	}
 
-	err = bot.OrderManager.Cancel(&order.Cancel{
+	err = bot.OrderManager.Cancel(bot, &order.Cancel{
 		ID:        "ID",
 		Exchange:  testExchange,
 		AssetType: asset.Binary,
@@ -241,12 +236,12 @@ func TestCancelOrder(t *testing.T) {
 		ID:       "TestCancelOrder",
 		Status:   order.New,
 	}
-	err = bot.OrderManager.orderStore.Add(o)
+	err = bot.OrderManager.orderStore.Add(bot, o)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = bot.OrderManager.Cancel(&order.Cancel{
+	err = bot.OrderManager.Cancel(bot, &order.Cancel{
 		ID:        "Unknown",
 		Exchange:  fakePassExchange,
 		AssetType: asset.Spot,
@@ -269,7 +264,7 @@ func TestCancelOrder(t *testing.T) {
 		Date:      time.Now(),
 		Pair:      pair,
 	}
-	err = bot.OrderManager.Cancel(cancel)
+	err = bot.OrderManager.Cancel(bot, cancel)
 	if err != nil {
 		t.Error(err)
 	}
@@ -286,31 +281,24 @@ func TestCancelAllOrders(t *testing.T) {
 		ID:       "TestCancelAllOrders",
 		Status:   order.New,
 	}
-	err := bot.OrderManager.orderStore.Add(o)
+	err := bot.OrderManager.orderStore.Add(bot, o)
 	if err != nil {
 		t.Error(err)
 	}
-
-	bot.OrderManager.CancelAllOrders([]string{"NotFound"})
-	if o.Status == order.Cancelled {
-		t.Error("Order should not be cancelled")
-	}
-
-	bot.OrderManager.CancelAllOrders([]string{fakePassExchange})
+	bot.OrderManager.CancelAllOrders(bot)
 	if o.Status != order.Cancelled {
 		t.Error("Order should be cancelled")
 	}
 
-	o.Status = order.New
-	bot.OrderManager.CancelAllOrders(nil)
-	if o.Status != order.New {
-		t.Error("Order should not be cancelled")
+	bot.OrderManager.CancelAllOrders(bot)
+	if o.Status != order.Cancelled {
+		t.Error("Order should still be cancelled")
 	}
 }
 
 func TestSubmit(t *testing.T) {
 	bot := OrdersSetup(t)
-	_, err := bot.OrderManager.Submit(nil)
+	_, err := bot.OrderManager.Submit(bot, nil)
 	if err == nil {
 		t.Error("Expected error from nil order")
 	}
@@ -321,13 +309,13 @@ func TestSubmit(t *testing.T) {
 		Status:   order.New,
 		Type:     order.Market,
 	}
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected error from empty exchange")
 	}
 
 	o.Exchange = fakePassExchange
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected error from validation")
 	}
@@ -344,20 +332,20 @@ func TestSubmit(t *testing.T) {
 	o.Side = order.Buy
 	o.Amount = 1
 	o.Price = 1
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected fail due to order market type is not allowed")
 	}
 	bot.OrderManager.cfg.AllowMarketOrders = true
 	bot.OrderManager.cfg.LimitAmount = 1
 	o.Amount = 2
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected fail due to order limit exceeds allowed limit")
 	}
 	bot.OrderManager.cfg.LimitAmount = 0
 	bot.OrderManager.cfg.AllowedExchanges = []string{"fake"}
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected fail due to order exchange not found in allowed list")
 	}
@@ -369,13 +357,13 @@ func TestSubmit(t *testing.T) {
 
 	bot.OrderManager.cfg.AllowedExchanges = nil
 	bot.OrderManager.cfg.AllowedPairs = currency.Pairs{failPair}
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err == nil {
 		t.Error("Expected fail due to order pair not found in allowed list")
 	}
 
 	bot.OrderManager.cfg.AllowedPairs = nil
-	_, err = bot.OrderManager.Submit(o)
+	_, err = bot.OrderManager.Submit(bot, o)
 	if err != nil {
 		t.Error(err)
 	}
