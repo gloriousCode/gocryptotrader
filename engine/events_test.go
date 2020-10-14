@@ -144,7 +144,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); r {
+	if r := e.processTicker(true); r {
 		t.Error("unexpected result")
 	}
 
@@ -153,7 +153,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); !r {
+	if r := e.processTicker(true); !r {
 		t.Error("unexpected result")
 	}
 }
@@ -216,28 +216,23 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("unexpected result:", err)
 	}
 
-	if r := e.processOrderbook(); !r {
+	if r := e.processOrderbook(true); !r {
 		t.Error("unexpected result")
 	}
 }
 
 func TestCheckEventCondition(t *testing.T) {
 	t.Parallel()
-	bot, _ := Bot()
-	if bot == nil {
-		bot = new(Engine)
-	}
-	bot.Settings.Verbose = true
 
 	e := Event{
 		Item: ItemPrice,
 	}
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(true); r {
 		t.Error("unexpected result")
 	}
 
 	e.Item = ItemOrderbook
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(true); r {
 		t.Error("unexpected result")
 	}
 }

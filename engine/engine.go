@@ -471,12 +471,12 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
-			go bot.ExchangeCurrencyPairManager.Start()
+			go bot.ExchangeCurrencyPairManager.Start(bot.GetExchanges())
 		}
 	}
 
 	if bot.Settings.EnableEventManager {
-		go EventManger()
+		go EventManger(bot)
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
