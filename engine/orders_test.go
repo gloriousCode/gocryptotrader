@@ -379,5 +379,5 @@ func TestSubmit(t *testing.T) {
 
 func TestProcessOrders(t *testing.T) {
 	bot := OrdersSetup(t)
-	bot.OrderManager.processOrders()
+	bot.OrderManager.processOrders(bot)
 }

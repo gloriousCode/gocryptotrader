@@ -22,7 +22,7 @@ const (
 
 // SubmitWithdrawal performs validation and submits a new withdraw request to
 // exchange
-func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
+func SubmitWithdrawal(bot *Engine, req *withdraw.Request) (*withdraw.Response, error) {
 	if req == nil {
 		return nil, withdraw.ErrRequestCannotBeNil
 	}
@@ -33,10 +33,6 @@ func SubmitWithdrawal(req *withdraw.Request) (*withdraw.Response, error) {
 		return nil, err
 	}
 
-	bot, err := Bot()
-	if err != nil {
-		return nil, err
-	}
 	exch := bot.GetExchangeByName(exchName)
 	if exch == nil {
 		return nil, ErrExchangeNotFound

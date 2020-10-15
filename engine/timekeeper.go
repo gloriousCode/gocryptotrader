@@ -7,9 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	ntpclient "github.com/thrasher-corp/gocryptotrader/ntpclient"
+	"github.com/thrasher-corp/gocryptotrader/ntpclient"
 )
 
 // vars related to the NTP manager
@@ -21,17 +20,17 @@ var (
 
 // ntpManager starts the NTP manager
 type ntpManager struct {
-	started       int32
-	stopped       int32
-	inititalCheck bool
-	shutdown      chan struct{}
+	started      int32
+	stopped      int32
+	initialCheck bool
+	shutdown     chan struct{}
 }
 
 func (n *ntpManager) Started() bool {
 	return atomic.LoadInt32(&n.started) == 1
 }
 
-func (n *ntpManager) Start(cfg config.NTPClientConfig) (err error) {
+func (n *ntpManager) Start(bot *Engine) (err error) {
 	if atomic.AddInt32(&n.started, 1) != 1 {
 		return errors.New("NTP manager already started")
 	}
@@ -43,20 +42,21 @@ func (n *ntpManager) Start(cfg config.NTPClientConfig) (err error) {
 		}
 	}()
 
-	if cfg.Level == -1 {
+	level := bot.Config.NTPClient.Level
+	if level == -1 {
 		err = errors.New("NTP client disabled")
 		return
 	}
 
 	log.Debugln(log.TimeMgr, "NTP manager starting...")
-	if cfg.Level == 0 {
+	if level == 0 {
 		// Initial NTP check (prompts user on how we should proceed)
-		n.inititalCheck = true
+		n.initialCheck = true
 
 		// Sometimes the NTP client can have transient issues due to UDP, try
 		// the default retry limits before giving up
 		for i := 0; i < NTPRetryLimit; i++ {
-			err = n.processTime()
+			err = n.processTime(bot)
 			switch err {
 			case nil:
 				break
@@ -73,7 +73,7 @@ func (n *ntpManager) Start(cfg config.NTPClientConfig) (err error) {
 		}
 	}
 	n.shutdown = make(chan struct{})
-	go n.run()
+	go n.run(bot)
 	log.Debugln(log.TimeMgr, "NTP manager started.")
 	return nil
 }
@@ -92,7 +92,7 @@ func (n *ntpManager) Stop() error {
 	return nil
 }
 
-func (n *ntpManager) run() {
+func (n *ntpManager) run(bot *Engine) {
 	t := time.NewTicker(NTPCheckInterval)
 	defer func() {
 		t.Stop()
@@ -106,34 +106,28 @@ func (n *ntpManager) run() {
 		case <-n.shutdown:
 			return
 		case <-t.C:
-			n.processTime()
+			err := n.processTime(bot)
+			if err != nil {
+				log.Errorln(log.TimeMgr, err)
+			}
 		}
 	}
 }
 
-func (n *ntpManager) FetchNTPTime() time.Time {
-	bot, err := Bot()
-	if err != nil {
-		return time.Time{}
-	}
-	return ntpclient.NTPClient(bot.Config.NTPClient.Pool)
+func (n *ntpManager) FetchNTPTime(pool []string) time.Time {
+	return ntpclient.NTPClient(pool)
 }
 
-func (n *ntpManager) processTime() error {
-	NTPTime := n.FetchNTPTime()
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
-
+func (n *ntpManager) processTime(bot *Engine) error {
+	NTPTime := n.FetchNTPTime(bot.Config.NTPClient.Pool)
 	currentTime := time.Now()
-	NTPcurrentTimeDifference := NTPTime.Sub(currentTime)
+	NTPCurrentTimeDifference := NTPTime.Sub(currentTime)
 	configNTPTime := *bot.Config.NTPClient.AllowedDifference
 	configNTPNegativeTime := *bot.Config.NTPClient.AllowedNegativeDifference - (*bot.Config.NTPClient.AllowedNegativeDifference * 2)
-	if NTPcurrentTimeDifference > configNTPTime || NTPcurrentTimeDifference < configNTPNegativeTime {
-		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n", NTPTime, currentTime, NTPcurrentTimeDifference, configNTPTime, configNTPNegativeTime)
-		if n.inititalCheck {
-			n.inititalCheck = false
+	if NTPCurrentTimeDifference > configNTPTime || NTPCurrentTimeDifference < configNTPNegativeTime {
+		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n", NTPTime, currentTime, NTPCurrentTimeDifference, configNTPTime, configNTPNegativeTime)
+		if n.initialCheck {
+			n.initialCheck = false
 			disable, err := bot.Config.DisableNTPCheck(os.Stdin)
 			if err != nil {
 				return fmt.Errorf("unable to disable NTP check: %s", err)

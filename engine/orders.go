@@ -196,7 +196,7 @@ func (o *orderManager) run(bot *Engine) {
 			o.gracefulShutdown(bot)
 			return
 		case <-tick.C:
-			o.processOrders()
+			o.processOrders(bot)
 		}
 	}
 }
@@ -399,11 +399,7 @@ func (o *orderManager) Submit(bot *Engine, newOrder *order.Submit) (*orderSubmit
 	}, nil
 }
 
-func (o *orderManager) processOrders() {
-	bot, err := Bot()
-	if err != nil {
-		return
-	}
+func (o *orderManager) processOrders(bot *Engine) {
 	authExchanges := bot.GetAuthAPISupportedExchanges()
 	for x := range authExchanges {
 		log.Debugf(log.OrderMgr,

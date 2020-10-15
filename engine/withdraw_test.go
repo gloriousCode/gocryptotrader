@@ -37,7 +37,7 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
-	createTestBot(t)
+	bot := createTestBot(t)
 	banking.AppendAccounts(
 		banking.Account{
 			Enabled:             true,
@@ -72,12 +72,12 @@ func TestSubmitWithdrawal(t *testing.T) {
 		},
 	}
 
-	_, err = SubmitWithdrawal(req)
+	_, err = SubmitWithdrawal(bot, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = SubmitWithdrawal(nil)
+	_, err = SubmitWithdrawal(bot, nil)
 	if err != nil {
 		if err.Error() != withdraw.ErrRequestCannotBeNil.Error() {
 			t.Fatal(err)

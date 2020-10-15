@@ -116,7 +116,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.OrderManager.Stop()
 	case "ntp_timekeeper":
 		if enable {
-			return bot.NTPManager.Start(bot.Config.NTPClient)
+			return bot.NTPManager.Start(bot)
 		}
 		return bot.NTPManager.Stop()
 	case "database":
@@ -126,7 +126,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
 		if enable {
-			bot.ExchangeCurrencyPairManager.Start()
+			bot.ExchangeCurrencyPairManager.Start(bot.GetExchanges())
 		}
 		bot.ExchangeCurrencyPairManager.Stop()
 	case "dispatch":

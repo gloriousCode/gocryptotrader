@@ -30,10 +30,6 @@ func (p *portfolioManager) Start(bot *Engine) error {
 	}
 
 	log.Debugln(log.PortfolioMgr, "Portfolio manager starting...")
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
 	bot.Portfolio = &portfolio.Portfolio
 	bot.Portfolio.Seed(bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
@@ -64,18 +60,18 @@ func (p *portfolioManager) run(bot *Engine) {
 		log.Debugf(log.PortfolioMgr, "Portfolio manager shutdown.")
 	}()
 
-	p.processPortfolio()
+	p.processPortfolio(bot)
 	for {
 		select {
 		case <-p.shutdown:
 			return
 		case <-tick.C:
-			p.processPortfolio()
+			p.processPortfolio(bot)
 		}
 	}
 }
 
-func (p *portfolioManager) processPortfolio() {
+func (p *portfolioManager) processPortfolio(bot *Engine) {
 	pf := portfolio.GetPortfolio()
 	data := pf.GetPortfolioGroupedCoin()
 	for key, value := range data {
@@ -92,10 +88,6 @@ func (p *portfolioManager) processPortfolio() {
 			"Portfolio manager: Successfully updated address balance for %s address(es) %s\n",
 			key,
 			value)
-	}
-	bot, err := Bot()
-	if err != nil {
-		return
 	}
 	SeedExchangeAccountInfo(bot.GetAllEnabledExchangeAccountInfo().Data)
 }

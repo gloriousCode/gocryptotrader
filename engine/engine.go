@@ -362,7 +362,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableNTPClient {
-		if err := bot.NTPManager.Start(bot.Config.NTPClient); err != nil {
+		if err := bot.NTPManager.Start(bot); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %v", err)
 		}
 	}
