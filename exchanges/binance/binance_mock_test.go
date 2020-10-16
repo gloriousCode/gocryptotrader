@@ -19,7 +19,8 @@ const mockfile = "../../testdata/http_mock/binance/binance.json"
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Binance load config error", err)

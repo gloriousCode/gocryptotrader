@@ -29,7 +29,8 @@ var b Bithumb
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Bithumb load config error", err)

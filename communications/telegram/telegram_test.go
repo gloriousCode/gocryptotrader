@@ -14,7 +14,8 @@ const (
 var T Telegram
 
 func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		t.Fatal(err)

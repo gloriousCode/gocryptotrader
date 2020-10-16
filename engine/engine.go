@@ -77,7 +77,7 @@ func Bot() (*Engine, error) {
 // New starts a new engine
 func New() (*Engine, error) {
 	var b Engine
-	b.Config = &config.Cfg
+	b.Config = &config.Config{}
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
@@ -115,6 +115,9 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 	}
 
 	validateSettings(&b, settings, flagSet)
+	if b.ServicesWG == nil {
+		b.ServicesWG = new(sync.WaitGroup)
+	}
 	return &b, nil
 }
 
@@ -126,7 +129,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	}
 	log.Printf("Loading config file %s..\n", filePath)
 
-	conf := &config.Cfg
+	conf := &config.Config{}
 	err = conf.ReadConfig(filePath, settings.EnableDryRun)
 	if err != nil {
 		return nil, fmt.Errorf(config.ErrFailureOpeningConfig, filePath, err)
@@ -471,7 +474,7 @@ func (bot *Engine) Start() error {
 		if err != nil {
 			gctlog.Warnf(gctlog.Global, "Unable to initialise exchange currency pair syncer. Err: %s", err)
 		} else {
-			go bot.ExchangeCurrencyPairManager.Start(bot.GetExchanges())
+			go bot.ExchangeCurrencyPairManager.Start(bot)
 		}
 	}
 
@@ -549,8 +552,10 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	if err := currency.ShutdownStorageUpdater(); err != nil {
-		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
+	if currency.IsStorageUpdaterRunning() {
+		if err := currency.ShutdownStorageUpdater(); err != nil {
+			gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
+		}
 	}
 
 	if !bot.Settings.EnableDryRun {

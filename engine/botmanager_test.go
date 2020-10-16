@@ -61,7 +61,7 @@ func TestStartBot(t *testing.T) {
 	}
 	// real test
 	e1 := &Engine{}
-	e1.Config = &config.Cfg
+	e1.Config = &config.Config{}
 	err = e1.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Error(err)
@@ -96,7 +96,7 @@ func TestStopBot(t *testing.T) {
 	}
 	// no bot started test
 	e1 := &Engine{}
-	e1.Config = &config.Cfg
+	e1.Config = &config.Config{}
 	err = e1.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Error(err)
@@ -142,7 +142,7 @@ func TestUnloadBot(t *testing.T) {
 	}
 	// unload while running test
 	e1 := &Engine{}
-	e1.Config = &config.Cfg
+	e1.Config = &config.Config{}
 	err = e1.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Error(err)
@@ -214,7 +214,7 @@ func TestIsBotVerbose(t *testing.T) {
 	if e1 == nil {
 		e1 = new(Engine)
 	}
-	e1.Config = &config.Cfg
+	e1.Config = &config.Config{}
 	err := e1.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Error(err)

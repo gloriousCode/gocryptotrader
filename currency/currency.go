@@ -1,5 +1,7 @@
 package currency
 
+import "sync/atomic"
+
 // GetDefaultExchangeRates returns the currency exchange rates based off the
 // default fiat values
 func GetDefaultExchangeRates() (Conversions, error) {
@@ -74,6 +76,11 @@ func GetTotalMarketCryptocurrencies() ([]Code, error) {
 // RunStorageUpdater runs a new foreign exchange updater instance
 func RunStorageUpdater(o BotOverrides, m *MainConfiguration, filepath string) error {
 	return storage.RunUpdater(o, m, filepath)
+}
+
+// isRunning returns if the dispatch system is running
+func IsStorageUpdaterRunning() bool {
+	return atomic.LoadUint32(&storage.running) == 1
 }
 
 // ShutdownStorageUpdater cleanly shuts down and saves to currency.json

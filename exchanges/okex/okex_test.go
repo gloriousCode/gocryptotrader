@@ -50,7 +50,8 @@ func TestSetRealOrderDefaults(t *testing.T) {
 func TestMain(m *testing.M) {
 	o.SetDefaults()
 	o.ExchangeName = OKGroupExchange
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Okex load config error", err)

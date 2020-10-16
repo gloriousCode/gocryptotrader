@@ -19,7 +19,8 @@ const mockFile = "../../testdata/http_mock/gemini/gemini.json"
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Gemini load config error", err)

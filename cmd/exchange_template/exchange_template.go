@@ -114,7 +114,7 @@ func checkExchangeName(exchName string) error {
 }
 
 func makeExchange(exch *exchange) error {
-	configTestFile := config.GetConfig()
+	configTestFile := config.Config{}
 	err := configTestFile.LoadConfig(exchangeConfigPath, true)
 	if err != nil {
 		return err

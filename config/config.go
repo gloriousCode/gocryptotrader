@@ -1552,7 +1552,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 func (c *Config) ReadConfig(configPath string, dryrun bool) error {
 	m.Lock()
 	defer m.Unlock()
-	defaultPath, err := GetFilePath(configPath)
+	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
@@ -1796,7 +1796,7 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 
 // GetConfig returns a pointer to a configuration object
 func GetConfig() *Config {
-	return &Cfg
+	return &cfg
 }
 
 // RemoveExchange removes an exchange config

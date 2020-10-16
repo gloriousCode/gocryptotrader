@@ -29,7 +29,8 @@ const (
 
 func TestMain(m *testing.M) {
 	l.SetDefaults()
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("LakeBTC load config error", err)

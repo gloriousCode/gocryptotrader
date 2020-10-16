@@ -126,7 +126,7 @@ func (bot *Engine) SetSubsystem(subsys string, enable bool) error {
 		return bot.DatabaseManager.Stop()
 	case "exchange_syncer":
 		if enable {
-			bot.ExchangeCurrencyPairManager.Start(bot.GetExchanges())
+			bot.ExchangeCurrencyPairManager.Start(bot)
 		}
 		bot.ExchangeCurrencyPairManager.Stop()
 	case "dispatch":

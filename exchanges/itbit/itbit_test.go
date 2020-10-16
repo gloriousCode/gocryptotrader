@@ -28,7 +28,8 @@ const (
 
 func TestMain(m *testing.M) {
 	i.SetDefaults()
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Itbit load config error", err)

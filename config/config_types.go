@@ -67,7 +67,7 @@ const (
 
 // Variables here are used for configuration
 var (
-	Cfg Config
+	cfg Config
 	m   sync.Mutex
 )
 

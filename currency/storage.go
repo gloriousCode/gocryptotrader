@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -41,6 +42,10 @@ func (s *Storage) SetDefaults() {
 // through coin market cap and expose analytics for exchange services
 func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration, filePath string) error {
 	s.mtx.Lock()
+	if atomic.CompareAndSwapUint32(&s.running, 0, 1) {
+		s.mtx.Unlock()
+		return errors.New("already running")
+	}
 	s.shutdown = make(chan struct{})
 
 	if !settings.Cryptocurrencies.HasData() {
@@ -206,8 +211,10 @@ func (s *Storage) SetDefaultCryptocurrencies(c ...Code) error {
 			return err
 		}
 	}
+	s.mtx.Lock()
 	s.defaultCryptoCurrencies = append(s.defaultCryptoCurrencies, c...)
 	s.cryptocurrencies = append(s.cryptocurrencies, c...)
+	s.mtx.Unlock()
 	return nil
 }
 
@@ -587,14 +594,16 @@ func (s *Storage) IsCryptocurrency(c Code) bool {
 	if c == USD {
 		return false
 	}
-
+	s.mtx.Lock()
 	for i := range s.cryptocurrencies {
 		if s.cryptocurrencies[i].Match(c) ||
 			s.cryptocurrencies[i].Match(GetTranslation(c)) {
+			s.mtx.Unlock()
 			return true
 		}
 	}
 
+	s.mtx.Unlock()
 	return false
 }
 
@@ -619,9 +628,12 @@ func (s *Storage) ValidateFiatCode(newCode string) Code {
 // TODO: Update and add in RegisterCrypto member func
 func (s *Storage) ValidateCryptoCode(newCode string) Code {
 	c := s.currencyCodes.Register(newCode)
+
+	s.mtx.Lock()
 	if !s.cryptocurrencies.Contains(c) {
 		s.cryptocurrencies = append(s.cryptocurrencies, c)
 	}
+	s.mtx.Unlock()
 	return c
 }
 
@@ -667,6 +679,8 @@ func (s *Storage) GetBaseCurrency() Code {
 // UpdateEnabledCryptoCurrencies appends new cryptocurrencies to the enabled
 // currency list
 func (s *Storage) UpdateEnabledCryptoCurrencies(c Currencies) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	for i := range c {
 		if !s.cryptocurrencies.Contains(c[i]) {
 			s.cryptocurrencies = append(s.cryptocurrencies, c[i])
@@ -677,6 +691,8 @@ func (s *Storage) UpdateEnabledCryptoCurrencies(c Currencies) {
 // UpdateEnabledFiatCurrencies appends new fiat currencies to the enabled
 // currency list
 func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	for i := range c {
 		if !s.fiatCurrencies.Contains(c[i]) &&
 			!s.cryptocurrencies.Contains(c[i]) {
@@ -745,6 +761,10 @@ func (s *Storage) IsVerbose() bool {
 func (s *Storage) Shutdown() error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+	if atomic.CompareAndSwapUint32(&s.running, 1, 0) {
+		return errors.New("already shutdown")
+	}
+
 	close(s.shutdown)
 	s.wg.Wait()
 	return s.WriteCurrencyDataToFile(s.path, true)

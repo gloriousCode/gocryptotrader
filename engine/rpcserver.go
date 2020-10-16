@@ -1007,7 +1007,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 	p := currency.NewPairWithDelimiter(r.Pair.Base,
 		r.Pair.Quote, r.Pair.Delimiter)
 
-	id, err := Add(r.Exchange, r.Item, evtCondition, p, asset.Item(r.AssetType), r.Action)
+	id, err := Add(s.Engine, r.Exchange, r.Item, evtCondition, p, asset.Item(r.AssetType), r.Action)
 	if err != nil {
 		return nil, err
 	}

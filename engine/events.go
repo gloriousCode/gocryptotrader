@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -68,22 +68,23 @@ type Event struct {
 
 // Events variable is a pointer array to the event structures that will be
 // appended
-var Events []*Event
+var events []*Event
+var m sync.Mutex
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
-func Add(exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
-	err := IsValidEvent(exchange, item, condition, action)
+func Add(bot *Engine, exchange, item string, condition EventConditionParams, p currency.Pair, a asset.Item, action string) (int64, error) {
+	err := IsValidEvent(bot, exchange, item, condition, action)
 	if err != nil {
 		return 0, err
 	}
 
 	evt := &Event{}
 
-	if len(Events) == 0 {
+	if len(events) == 0 {
 		evt.ID = 0
 	} else {
-		evt.ID = int64(len(Events) + 1)
+		evt.ID = int64(len(events) + 1)
 	}
 
 	evt.Exchange = exchange
@@ -93,15 +94,19 @@ func Add(exchange, item string, condition EventConditionParams, p currency.Pair,
 	evt.Asset = a
 	evt.Action = action
 	evt.Executed = false
-	Events = append(Events, evt)
+	m.Lock()
+	events = append(events, evt)
+	m.Unlock()
 	return evt.ID, nil
 }
 
 // Remove deletes and event by its ID
 func Remove(eventID int64) bool {
-	for i := range Events {
-		if Events[i].ID == eventID {
-			Events = append(Events[:i], Events[i+1:]...)
+	m.Lock()
+	defer m.Unlock()
+	for i := range events {
+		if events[i].ID == eventID {
+			events = append(events[:i], events[i+1:]...)
 			return true
 		}
 	}
@@ -111,9 +116,11 @@ func Remove(eventID int64) bool {
 // GetEventCounter displays the emount of total events on the chain and the
 // events that have been executed.
 func GetEventCounter() (total, executed int) {
-	total = len(Events)
-	for i := range Events {
-		if Events[i].Executed {
+	m.Lock()
+	defer m.Unlock()
+	total = len(events)
+	for i := range events {
+		if events[i].Executed {
 			executed++
 		}
 	}
@@ -238,12 +245,12 @@ func (e *Event) CheckEventCondition(verbose bool) bool {
 }
 
 // IsValidEvent checks the actions to be taken and returns an error if incorrect
-func IsValidEvent(exchange, item string, condition EventConditionParams, action string) error {
+func IsValidEvent(bot *Engine, exchange, item string, condition EventConditionParams, action string) error {
 	exchange = strings.ToUpper(exchange)
 	item = strings.ToUpper(item)
 	action = strings.ToUpper(action)
 
-	if !IsValidExchange(exchange) {
+	if !IsValidExchange(bot, exchange) {
 		return errExchangeDisabled
 	}
 
@@ -287,7 +294,8 @@ func EventManger(bot *Engine) {
 	for {
 		total, executed := GetEventCounter()
 		if total > 0 && executed != total {
-			for _, event := range Events {
+			m.Lock()
+			for _, event := range events {
 				if !event.Executed {
 					if bot.Settings.Verbose {
 						log.Debugf(log.EventMgr, "Events: Processing event %s.\n", event.String())
@@ -304,16 +312,20 @@ func EventManger(bot *Engine) {
 					}
 				}
 			}
+			m.Unlock()
 		}
 		time.Sleep(EventSleepDelay)
 	}
 }
 
 // IsValidExchange validates the exchange
-func IsValidExchange(exchangeName string) bool {
-	cfg := config.GetConfig()
-	for x := range cfg.Exchanges {
-		if strings.EqualFold(cfg.Exchanges[x].Name, exchangeName) && cfg.Exchanges[x].Enabled {
+func IsValidExchange(bot *Engine, exchangeName string) bool {
+	if bot == nil || bot.Config == nil {
+		return false
+	}
+	exchanges := bot.Config.Exchanges
+	for x := range exchanges {
+		if strings.EqualFold(exchanges[x].Name, exchangeName) && exchanges[x].Enabled {
 			return true
 		}
 	}

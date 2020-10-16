@@ -14,38 +14,41 @@ import (
 )
 
 func TestWebsocketDataHandlerProcess(t *testing.T) {
+	t.Parallel()
+	bot := OrdersSetup(t)
 	ws := sharedtestvalues.NewTestWebsocket()
-	go WebsocketDataReceiver(ws)
+	go WebsocketDataReceiver(bot, ws)
 	ws.DataHandler <- "string"
 	time.Sleep(time.Second)
 	close(shutdowner)
 }
 
 func TestHandleData(t *testing.T) {
-	OrdersSetup(t)
+	t.Parallel()
+	bot := OrdersSetup(t)
 	var exchName = "exch"
 	var orderID = "testOrder.Detail"
-	err := WebsocketDataHandler(exchName, errors.New("error"))
+	err := WebsocketDataHandler(bot, exchName, errors.New("error"))
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}
-	err = WebsocketDataHandler(exchName, nil)
+	err = WebsocketDataHandler(bot, exchName, nil)
 	if err == nil {
 		t.Error("Expected nil data error")
 	}
-	err = WebsocketDataHandler(exchName, stream.TradeData{})
+	err = WebsocketDataHandler(bot, exchName, stream.TradeData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, stream.FundingData{})
+	err = WebsocketDataHandler(bot, exchName, stream.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, &ticker.Price{})
+	err = WebsocketDataHandler(bot, exchName, &ticker.Price{})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, stream.KlineData{})
+	err = WebsocketDataHandler(bot, exchName, stream.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -55,12 +58,12 @@ func TestHandleData(t *testing.T) {
 		Amount:   1337,
 		Price:    1337,
 	}
-	err = WebsocketDataHandler(exchName, origOrder)
+	err = WebsocketDataHandler(bot, exchName, origOrder)
 	if err != nil {
 		t.Error(err)
 	}
 	// Send it again since it exists now
-	err = WebsocketDataHandler(exchName, &order.Detail{
+	err = WebsocketDataHandler(bot, exchName, &order.Detail{
 		Exchange: fakePassExchange,
 		ID:       orderID,
 		Amount:   1338,
@@ -72,7 +75,7 @@ func TestHandleData(t *testing.T) {
 		t.Error("Bad pipeline")
 	}
 
-	err = WebsocketDataHandler(exchName, &order.Modify{
+	err = WebsocketDataHandler(bot, exchName, &order.Modify{
 		Exchange: fakePassExchange,
 		ID:       orderID,
 		Status:   order.Active,
@@ -84,7 +87,7 @@ func TestHandleData(t *testing.T) {
 		t.Error("Expected order to be modified to Active")
 	}
 
-	err = WebsocketDataHandler(exchName, &order.Cancel{
+	err = WebsocketDataHandler(bot, exchName, &order.Cancel{
 		Exchange: fakePassExchange,
 		ID:       orderID,
 	})
@@ -95,12 +98,12 @@ func TestHandleData(t *testing.T) {
 		t.Error("Expected order status to be cancelled")
 	}
 	// Send some gibberish
-	err = WebsocketDataHandler(exchName, order.Stop)
+	err = WebsocketDataHandler(bot, exchName, order.Stop)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = WebsocketDataHandler(exchName, stream.UnhandledMessageWarning{
+	err = WebsocketDataHandler(bot, exchName, stream.UnhandledMessageWarning{
 		Message: "there's an issue here's a tissue"},
 	)
 	if err != nil {
@@ -112,22 +115,22 @@ func TestHandleData(t *testing.T) {
 		OrderID:  "one",
 		Err:      errors.New("lol"),
 	}
-	err = WebsocketDataHandler(exchName, classificationError)
+	err = WebsocketDataHandler(bot, exchName, classificationError)
 	if err == nil {
-		t.Error("Expected error")
+		t.Fatal("Expected error")
 	}
 	if err.Error() != classificationError.Error() {
 		t.Errorf("Problem formatting error. Expected %v Received %v", classificationError.Error(), err.Error())
 	}
 
-	err = WebsocketDataHandler(exchName, &orderbook.Base{
+	err = WebsocketDataHandler(bot, exchName, &orderbook.Base{
 		ExchangeName: fakePassExchange,
 		Pair:         currency.NewPair(currency.BTC, currency.USD),
 	})
 	if err != nil {
 		t.Error(err)
 	}
-	err = WebsocketDataHandler(exchName, "this is a test string")
+	err = WebsocketDataHandler(bot, exchName, "this is a test string")
 	if err != nil {
 		t.Error(err)
 	}

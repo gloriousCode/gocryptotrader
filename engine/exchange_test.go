@@ -73,6 +73,7 @@ func TestExchangeManagerRemoveExchange(t *testing.T) {
 }
 
 func TestCheckExchangeExists(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	if e.GetExchangeByName(testExchange) == nil {
@@ -87,6 +88,7 @@ func TestCheckExchangeExists(t *testing.T) {
 }
 
 func TestGetExchangeByName(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	exch := e.GetExchangeByName(testExchange)
@@ -117,6 +119,7 @@ func TestGetExchangeByName(t *testing.T) {
 }
 
 func TestUnloadExchange(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	err := e.UnloadExchange("asdf")
@@ -147,6 +150,7 @@ func TestUnloadExchange(t *testing.T) {
 }
 
 func TestDryRunParamInteraction(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 
 	// Load bot as per normal, dry run and verbose for Bitfinex should be

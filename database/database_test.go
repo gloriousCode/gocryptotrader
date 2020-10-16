@@ -1,6 +1,10 @@
 package database
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+)
 
 func TestGetSQLDialect(t *testing.T) {
 	testCases := []struct {
@@ -33,9 +37,15 @@ func TestGetSQLDialect(t *testing.T) {
 				t.Error(err)
 			}
 
-			dbManager.SetDBConfig(&Config{
+			err = dbManager.SetDBConfig(&Config{
+				ConnectionDetails: drivers.ConnectionDetails{
+					Database: test.driver,
+				},
 				Driver: test.driver,
 			})
+			if err != nil {
+				t.Fatal(err)
+			}
 			ret := dbManager.GetSQLDialect()
 			if ret != test.expectedReturn {
 				t.Fatalf("unexpected return: %v", ret)

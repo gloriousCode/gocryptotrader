@@ -24,6 +24,7 @@ func makeHTTPGetRequest(t *testing.T, response interface{}) *http.Response {
 
 // TestConfigAllJsonResponse test if config/all restful json response is valid
 func TestConfigAllJsonResponse(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	resp := makeHTTPGetRequest(t, bot.Config)
 	body, err := ioutil.ReadAll(resp.Body)
@@ -44,6 +45,7 @@ func TestConfigAllJsonResponse(t *testing.T) {
 }
 
 func TestInvalidHostRequest(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
@@ -60,6 +62,7 @@ func TestInvalidHostRequest(t *testing.T) {
 }
 
 func TestValidHostRequest(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	req, err := http.NewRequest(http.MethodGet, "/config/all", nil)
 	if err != nil {
@@ -76,6 +79,7 @@ func TestValidHostRequest(t *testing.T) {
 }
 
 func TestProfilerEnabledShouldEnableProfileEndPoint(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	req, err := http.NewRequest(http.MethodGet, "/debug/pprof/", nil)
 	if err != nil {

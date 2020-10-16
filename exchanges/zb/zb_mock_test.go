@@ -19,7 +19,7 @@ const mockfile = "../../testdata/http_mock/zb/zb.json"
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("ZB load config error", err)

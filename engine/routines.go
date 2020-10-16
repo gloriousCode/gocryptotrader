@@ -255,7 +255,7 @@ func WebsocketRoutine() {
 				}
 
 				// Data handler routine
-				go WebsocketDataReceiver(ws)
+				go WebsocketDataReceiver(bot, ws)
 
 				if ws.IsEnabled() {
 					err = ws.Connect()
@@ -278,7 +278,7 @@ var wg sync.WaitGroup
 
 // WebsocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
-func WebsocketDataReceiver(ws *stream.Websocket) {
+func WebsocketDataReceiver(bot *Engine, ws *stream.Websocket) {
 	wg.Add(1)
 	defer wg.Done()
 
@@ -287,7 +287,7 @@ func WebsocketDataReceiver(ws *stream.Websocket) {
 		case <-shutdowner:
 			return
 		case data := <-ws.ToRoutine:
-			err := WebsocketDataHandler(ws.GetName(), data)
+			err := WebsocketDataHandler(bot, ws.GetName(), data)
 			if err != nil {
 				log.Error(log.WebsocketMgr, err)
 			}
@@ -297,16 +297,12 @@ func WebsocketDataReceiver(ws *stream.Websocket) {
 
 // WebsocketDataHandler is a central point for exchange websocket implementations to send
 // processed data. WebsocketDataHandler will then pass that to an appropriate handler
-func WebsocketDataHandler(exchName string, data interface{}) error {
+func WebsocketDataHandler(bot *Engine, exchName string, data interface{}) error {
 	if data == nil {
 		return fmt.Errorf("routines.go - exchange %s nil data sent to websocket",
 			exchName)
 	}
 
-	bot, err := Bot()
-	if err != nil {
-		return err
-	}
 	switch d := data.(type) {
 	case string:
 		log.Info(log.WebsocketMgr, d)

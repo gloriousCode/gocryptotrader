@@ -28,7 +28,7 @@ import (
 
 func createTestBot(t *testing.T) *Engine {
 	bot := new(Engine)
-	bot.Config = &config.Cfg
+	bot.Config = &config.Config{}
 	err := bot.Config.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatalf("SetupTest: Failed to load config: %s", err)
@@ -51,6 +51,7 @@ func createTestBot(t *testing.T) *Engine {
 }
 
 func TestGetExchangeOTPs(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	_, err := bot.GetExchangeOTPs()
 	if err == nil {
@@ -91,6 +92,7 @@ func TestGetExchangeOTPs(t *testing.T) {
 }
 
 func TestGetExchangeoOTPByName(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	_, err := bot.GetExchangeoOTPByName("Bitstamp")
 	if err == nil {
@@ -116,6 +118,7 @@ func TestGetExchangeoOTPByName(t *testing.T) {
 }
 
 func TestGetAuthAPISupportedExchanges(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
@@ -123,6 +126,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 }
 
 func TestIsOnline(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	if r := e.IsOnline(); r {
 		t.Fatal("Unexpected result")
@@ -150,6 +154,7 @@ func TestIsOnline(t *testing.T) {
 }
 
 func TestGetAvailableExchanges(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	if r := len(e.GetAvailableExchanges()); r == 0 {
 		t.Error("Expected len > 0")
@@ -157,9 +162,10 @@ func TestGetAvailableExchanges(t *testing.T) {
 }
 
 func TestGetSpecificAvailablePairs(t *testing.T) {
-	e := createTestBot(t)
+	t.Parallel()
+	bot := createTestBot(t)
 	assetType := asset.Spot
-	result := e.GetSpecificAvailablePairs(true, true, true, false, assetType)
+	result := bot.GetSpecificAvailablePairs(true, true, true, false, assetType)
 
 	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
@@ -179,7 +185,7 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 		t.Fatal("Unexpected result")
 	}
 
-	result = e.GetSpecificAvailablePairs(true, true, false, false, assetType)
+	result = bot.GetSpecificAvailablePairs(true, true, false, false, assetType)
 
 	if result.Contains(btcusdt, false) {
 		t.Fatal("Unexpected result")
@@ -190,13 +196,14 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result = e.GetSpecificAvailablePairs(true, false, false, true, assetType)
+	result = bot.GetSpecificAvailablePairs(true, false, false, true, assetType)
 	if !result.Contains(ltcbtc, false) {
 		t.Fatal("Unexpected result")
 	}
 }
 
 func TestIsRelatablePairs(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 	xbtusd, err := currency.NewPairFromStrings("XBT", "USD")
 	if err != nil {
@@ -386,6 +393,7 @@ func TestIsRelatablePairs(t *testing.T) {
 }
 
 func TestGetRelatableCryptocurrencies(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 	btcltc, err := currency.NewPairFromStrings("BTC", "LTC")
 	if err != nil {
@@ -437,6 +445,7 @@ func TestGetRelatableCryptocurrencies(t *testing.T) {
 }
 
 func TestGetRelatableFiatCurrencies(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 
 	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
@@ -466,6 +475,7 @@ func TestGetRelatableFiatCurrencies(t *testing.T) {
 }
 
 func TestMapCurrenciesByExchange(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	var pairs = []currency.Pair{
@@ -485,6 +495,7 @@ func TestMapCurrenciesByExchange(t *testing.T) {
 }
 
 func TestGetExchangeNamesByCurrency(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 	assetType := asset.Spot
 
@@ -613,6 +624,7 @@ func TestGetSpecificTicker(t *testing.T) {
 }
 
 func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 
 	var exchangeInfo []account.Holdings
@@ -673,6 +685,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 }
 
 func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 
 	p, err := currency.NewPairFromStrings("BTC", "USD")
@@ -703,6 +716,7 @@ func TestGetExchangeHighestPriceByCurrencyPair(t *testing.T) {
 }
 
 func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
+	t.Parallel()
 	createTestBot(t)
 
 	p, err := currency.NewPairFromStrings("BTC", "USD")
@@ -733,6 +747,7 @@ func TestGetExchangeLowestPriceByCurrencyPair(t *testing.T) {
 }
 
 func TestGetCryptocurrenciesByExchange(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	_, err := e.GetCryptocurrenciesByExchange("Bitfinex", false, false, asset.Spot)
@@ -742,6 +757,7 @@ func TestGetCryptocurrenciesByExchange(t *testing.T) {
 }
 
 func TestGetExchangeNames(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	if e := bot.GetExchangeNames(true); len(e) == 0 {
 		t.Error("exchange names should be populated")

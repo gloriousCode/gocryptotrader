@@ -22,6 +22,7 @@ func OrdersSetup(t *testing.T) *Engine {
 }
 
 func TestOrdersGet(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	if bot.OrderManager.orderStore.get() == nil {
 		t.Error("orderStore not established")
@@ -29,6 +30,7 @@ func TestOrdersGet(t *testing.T) {
 }
 
 func TestOrdersAdd(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: testExchange,
@@ -60,6 +62,7 @@ func TestOrdersAdd(t *testing.T) {
 }
 
 func TestGetByInternalOrderID(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        testExchange,
@@ -88,6 +91,7 @@ func TestGetByInternalOrderID(t *testing.T) {
 }
 
 func TestGetByExchange(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange:        testExchange,
@@ -149,6 +153,7 @@ func TestGetByExchange(t *testing.T) {
 }
 
 func TestGetByExchangeAndID(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	err := bot.OrderManager.orderStore.Add(bot, &order.Detail{
 		Exchange: testExchange,
@@ -178,6 +183,7 @@ func TestGetByExchangeAndID(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	if bot.OrderManager.orderStore.exists(nil) {
 		t.Error("Expected false")
@@ -197,6 +203,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestCancelOrder(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	err := bot.OrderManager.Cancel(bot, nil)
 	if err == nil {
@@ -297,6 +304,7 @@ func TestCancelAllOrders(t *testing.T) {
 }
 
 func TestSubmit(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	_, err := bot.OrderManager.Submit(bot, nil)
 	if err == nil {
@@ -378,6 +386,7 @@ func TestSubmit(t *testing.T) {
 }
 
 func TestProcessOrders(t *testing.T) {
+	t.Parallel()
 	bot := OrdersSetup(t)
 	bot.OrderManager.processOrders(bot)
 }

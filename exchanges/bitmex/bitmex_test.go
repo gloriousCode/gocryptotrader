@@ -32,7 +32,8 @@ var b Bitmex
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Bitmex load config error", err)

@@ -166,7 +166,7 @@ func (h *FakePassingExchange) GetActiveOrders(_ *order.GetOrdersRequest) ([]orde
 func (h *FakePassingExchange) SetHTTPClientUserAgent(_ string)          {}
 func (h *FakePassingExchange) GetHTTPClientUserAgent() string           { return "" }
 func (h *FakePassingExchange) SetClientProxyAddress(_ string) error     { return nil }
-func (h *FakePassingExchange) SupportsWebsocket() bool                  { return true }
+func (h *FakePassingExchange) SupportsWebsocket() bool                  { return false }
 func (h *FakePassingExchange) SupportsREST() bool                       { return true }
 func (h *FakePassingExchange) IsWebsocketEnabled() bool                 { return true }
 func (h *FakePassingExchange) GetWebsocket() (*stream.Websocket, error) { return nil, nil }

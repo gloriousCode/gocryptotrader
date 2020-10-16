@@ -60,7 +60,7 @@ func TestNewExchange(t *testing.T) {
 		t.Errorf("unable to remove dir: %s, manual removal required", err)
 	}
 
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	if err := cfg.LoadConfig(exchangeConfigPath, true); err != nil {
 		t.Fatal(err)
 	}

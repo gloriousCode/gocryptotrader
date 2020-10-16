@@ -211,7 +211,7 @@ func (e Exchange) WithdrawalFiatFunds(bankAccountID string, request *withdraw.Re
 	request.Fiat.Bank.SWIFTCode = v.SWIFTCode
 	request.Fiat.Bank.IBAN = v.IBAN
 
-	resp, err := engine.SubmitWithdrawal(request)
+	resp, err := engine.SubmitWithdrawal(bot, request)
 	if err != nil {
 		return "", err
 	}
@@ -238,7 +238,7 @@ func (e Exchange) WithdrawalCryptoFunds(request *withdraw.Request) (string, erro
 		request.OneTimePassword = v
 	}
 
-	resp, err := engine.SubmitWithdrawal(request)
+	resp, err := engine.SubmitWithdrawal(bot, request)
 	if err != nil {
 		return "", err
 	}

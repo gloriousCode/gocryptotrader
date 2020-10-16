@@ -217,7 +217,8 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatalf("TestSetAutoPairDefaults failed to load config file. Error: %s", err)
@@ -297,6 +298,7 @@ func TestGetAssetTypes(t *testing.T) {
 }
 
 func TestGetClientBankAccounts(t *testing.T) {
+	// sadly GetClientBankAccounts has a reliance on the main config pointer
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
@@ -321,7 +323,8 @@ func TestGetClientBankAccounts(t *testing.T) {
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal(err)
@@ -1329,7 +1332,8 @@ func TestSetPairs(t *testing.T) {
 }
 
 func TestUpdatePairs(t *testing.T) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
+
 	err := cfg.LoadConfig(config.TestFile, true)
 	if err != nil {
 		t.Fatal("TestUpdatePairs failed to load config")

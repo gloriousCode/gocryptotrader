@@ -125,6 +125,7 @@ func TestMakeNewSessionDK(t *testing.T) {
 }
 
 func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
+	t.Parallel()
 	c := &Config{}
 	c.EncryptConfig = 1
 	tempDir, err := ioutil.TempDir("", "")
@@ -258,13 +259,13 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Ensure we'll get the prompt when loading
-	c := &Config{
+	cfg := &Config{
 		EncryptConfig: 0,
 	}
 
 	// Save config
 	testConfigFile := filepath.Join(tempDir, "config.json")
-	err = c.SaveConfig(testConfigFile, false)
+	err = cfg.SaveConfig(testConfigFile, false)
 	if err != nil {
 		t.Fatalf("Problem saving config file in %s: %s\n", tempDir, err)
 	}
@@ -282,15 +283,15 @@ func TestReadConfigWithPrompt(t *testing.T) {
 	defer cleanup()
 
 	// Run the test
-	c = &Config{}
-	c.ReadConfig(testConfigFile, false)
+	cfg = &Config{}
+	cfg.ReadConfig(testConfigFile, false)
 
 	// Verify results
 	data, err := ioutil.ReadFile(testConfigFile)
 	if err != nil {
 		t.Fatalf("Problem reading saved file at %s: %s\n", testConfigFile, err)
 	}
-	if c.EncryptConfig != fileEncryptionEnabled {
+	if cfg.EncryptConfig != fileEncryptionEnabled {
 		t.Error("Config encryption flag should be set after prompts")
 	}
 	if !ConfirmECS(data) {

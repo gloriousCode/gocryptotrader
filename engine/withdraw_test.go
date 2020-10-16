@@ -37,6 +37,7 @@ func cleanup() {
 }
 
 func TestSubmitWithdrawal(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	banking.AppendAccounts(
 		banking.Account{

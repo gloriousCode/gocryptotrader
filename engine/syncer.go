@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -505,8 +504,9 @@ func (e *ExchangeCurrencyPairSyncer) worker() {
 }
 
 // Start starts an exchange currency pair syncer
-func (e *ExchangeCurrencyPairSyncer) Start(exchanges []exchange.IBotExchange) {
+func (e *ExchangeCurrencyPairSyncer) Start(bot *Engine) {
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
+	exchanges := bot.GetExchanges()
 	for x := range exchanges {
 		exchangeName := exchanges[x].GetName()
 		supportsWebsocket := exchanges[x].SupportsWebsocket()
@@ -531,9 +531,8 @@ func (e *ExchangeCurrencyPairSyncer) Start(exchanges []exchange.IBotExchange) {
 					err)
 				usingREST = true
 			}
-
-			if !ws.IsConnected() && !ws.IsConnecting() {
-				go WebsocketDataReceiver(ws)
+			if !ws.IsConnected() && !ws.IsConnecting() && !usingREST {
+				go WebsocketDataReceiver(bot, ws)
 
 				err = ws.Connect()
 				if err != nil {

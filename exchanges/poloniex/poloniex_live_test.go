@@ -16,7 +16,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal("Poloniex load config error", err)
