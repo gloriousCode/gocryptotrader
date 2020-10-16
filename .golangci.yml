@@ -32,7 +32,7 @@ linters:
     - exportloopref
 #   - funlen
     - gci
-    - gochecknoglobals
+#   - gochecknoglobals
 #   - gochecknoinits
 #   - gocognit
     - goconst
