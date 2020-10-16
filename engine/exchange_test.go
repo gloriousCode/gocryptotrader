@@ -6,27 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 )
 
-func CleanupTest(t *testing.T) {
-	bot, err := Bot()
-	if err != nil {
-		t.Error(err)
-	}
-	if bot.GetExchangeByName(testExchange) != nil {
-		err := bot.UnloadExchange(testExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-	if bot.GetExchangeByName(fakePassExchange) != nil {
-		err := bot.UnloadExchange(fakePassExchange)
-		if err != nil {
-			t.Fatalf("CleanupTest: Failed to unload exchange: %s",
-				err)
-		}
-	}
-}
-
 func TestExchangeManagerAdd(t *testing.T) {
 	t.Parallel()
 	var e exchangeManager
@@ -83,8 +62,6 @@ func TestCheckExchangeExists(t *testing.T) {
 	if e.GetExchangeByName("Asdsad") != nil {
 		t.Errorf("TestGetExchangeExists: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestGetExchangeByName(t *testing.T) {
@@ -114,8 +91,6 @@ func TestGetExchangeByName(t *testing.T) {
 	if exch != nil {
 		t.Errorf("TestGetExchangeByName: Non-existent exchange found")
 	}
-
-	CleanupTest(t)
 }
 
 func TestUnloadExchange(t *testing.T) {
@@ -145,8 +120,6 @@ func TestUnloadExchange(t *testing.T) {
 		t.Errorf("TestUnloadExchange: Incorrect result: %s",
 			err)
 	}
-
-	CleanupTest(t)
 }
 
 func TestDryRunParamInteraction(t *testing.T) {

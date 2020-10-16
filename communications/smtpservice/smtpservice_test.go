@@ -10,6 +10,7 @@ import (
 var s SMTPservice
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{}
 
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)

@@ -7,20 +7,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-var s SMSGlobal
-
-func TestSetup(t *testing.T) {
-	cfg := &config.Config{}
-
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	commsCfg := cfg.GetCommunicationsConfig()
-	s.Setup(&commsCfg)
-}
-
 func TestConnect(t *testing.T) {
+	t.Parallel()
+	var s SMSGlobal
 	err := s.Connect()
 	if err != nil {
 		t.Error("SMSGlobal Connect() error", err)
@@ -28,6 +17,8 @@ func TestConnect(t *testing.T) {
 }
 
 func TestPushEvent(t *testing.T) {
+	t.Parallel()
+	var s SMSGlobal
 	err := s.PushEvent(base.Event{})
 	if err != nil {
 		t.Error("SMSGlobal PushEvent() error", err)
@@ -35,6 +26,15 @@ func TestPushEvent(t *testing.T) {
 }
 
 func TestGetEnabledContacts(t *testing.T) {
+	t.Parallel()
+	var s SMSGlobal
+	cfg := &config.Config{}
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
 	v := s.GetEnabledContacts()
 	if v != 1 {
 		t.Error("SMSGlobal GetEnabledContacts() error")
@@ -42,7 +42,16 @@ func TestGetEnabledContacts(t *testing.T) {
 }
 
 func TestGetContactByNumber(t *testing.T) {
-	_, err := s.GetContactByNumber("1231424")
+	t.Parallel()
+	var s SMSGlobal
+	cfg := &config.Config{}
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
+	_, err = s.GetContactByNumber("1231424")
 	if err != nil {
 		t.Error("SMSGlobal GetContactByNumber() error", err)
 	}
@@ -53,7 +62,16 @@ func TestGetContactByNumber(t *testing.T) {
 }
 
 func TestGetContactByName(t *testing.T) {
-	_, err := s.GetContactByName("StyleGherkin")
+	t.Parallel()
+	var s SMSGlobal
+	cfg := &config.Config{}
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
+	_, err = s.GetContactByName("StyleGherkin")
 	if err != nil {
 		t.Error("SMSGlobal GetContactByName() error", err)
 	}
@@ -64,7 +82,16 @@ func TestGetContactByName(t *testing.T) {
 }
 
 func TestAddContact(t *testing.T) {
-	err := s.AddContact(Contact{Name: "bra", Number: "2876", Enabled: true})
+	t.Parallel()
+	var s SMSGlobal
+	cfg := &config.Config{}
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
+	err = s.AddContact(Contact{Name: "bra", Number: "2876", Enabled: true})
 	if err != nil {
 		t.Error("SMSGlobal AddContact() error", err)
 	}
@@ -79,7 +106,16 @@ func TestAddContact(t *testing.T) {
 }
 
 func TestRemoveContact(t *testing.T) {
-	err := s.RemoveContact(Contact{Name: "StyleGherkin", Number: "1231424", Enabled: true})
+	t.Parallel()
+	var s SMSGlobal
+	cfg := &config.Config{}
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commsCfg := cfg.GetCommunicationsConfig()
+	s.Setup(&commsCfg)
+	err = s.RemoveContact(Contact{Name: "StyleGherkin", Number: "1231424", Enabled: true})
 	if err != nil {
 		t.Error("SMSGlobal RemoveContact() error", err)
 	}
@@ -90,6 +126,8 @@ func TestRemoveContact(t *testing.T) {
 }
 
 func TestSendMessageToAll(t *testing.T) {
+	t.Parallel()
+	var s SMSGlobal
 	err := s.SendMessageToAll("Hello,World!")
 	if err != nil {
 		t.Error("SMSGlobal SendMessageToAll() error", err)
@@ -97,6 +135,8 @@ func TestSendMessageToAll(t *testing.T) {
 }
 
 func TestSendMessage(t *testing.T) {
+	t.Parallel()
+	var s SMSGlobal
 	err := s.SendMessage("1337", "Hello!")
 	if err != nil {
 		t.Error("SMSGlobal SendMessage() error", err)

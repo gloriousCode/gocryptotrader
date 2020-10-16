@@ -83,22 +83,6 @@ func (bm *BotManager) UnloadBot() error {
 	return nil
 }
 
-// IsBotVerbose is a quick check for verbosity
-// so you don't need to load the bot, then check to do
-// a println
-func IsBotVerbose() bool {
-	bm.RLock()
-	defer bm.RUnlock()
-	if atomic.LoadInt32(&bm.isLoaded) == 0 {
-		return false
-	}
-	if bm.bot == nil {
-		return false
-	}
-	isVerbose := bm.bot.Settings.Verbose
-	return isVerbose
-}
-
 // GetBot will return the bot pointer with some basic checks
 func (bm *BotManager) GetBot() (*Engine, error) {
 	bm.RLock()

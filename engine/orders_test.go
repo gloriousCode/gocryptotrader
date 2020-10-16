@@ -18,6 +18,7 @@ func OrdersSetup(t *testing.T) *Engine {
 	if !bot.OrderManager.Started() {
 		t.Fatal("Order manager not started")
 	}
+
 	return bot
 }
 

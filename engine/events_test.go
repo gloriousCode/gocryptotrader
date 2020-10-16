@@ -81,7 +81,11 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
-	createTestBot(t)
+	bot := createTestBot(t)
+	err := bm.LoadBot(bot)
+	if err != nil {
+		t.Error(err)
+	}
 	var e Event
 	if r := e.ExecuteAction(); !r {
 		t.Error("unexpected result")

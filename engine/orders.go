@@ -30,7 +30,6 @@ func (o *orderStore) init() {
 // get returns all orders for all exchanges
 // should not be exported as it can have large impact if used improperly
 func (o *orderStore) get() map[string][]*order.Detail {
-	o.init()
 	o.m.RLock()
 	orders := o.Orders
 	o.m.RUnlock()
@@ -150,6 +149,7 @@ func (o *orderManager) Start(bot *Engine) error {
 
 	o.shutdown = make(chan struct{})
 	o.orderStore.Orders = make(map[string][]*order.Detail)
+	o.orderStore.m = new(sync.RWMutex)
 	go o.run(bot)
 	return nil
 }
@@ -420,7 +420,7 @@ func (o *orderManager) processOrders(bot *Engine) {
 			}
 
 			if len(pairs) == 0 {
-				if IsBotVerbose() {
+				if bot.Settings.Verbose {
 					log.Debugf(log.OrderMgr,
 						"Order manager: No pairs enabled for %s and asset type %s, skipping...",
 						authExchanges[x],

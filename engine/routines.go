@@ -221,7 +221,7 @@ func WebsocketRoutine() {
 	if err != nil {
 		return
 	}
-	if IsBotVerbose() {
+	if bot.Settings.Verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
 
@@ -229,7 +229,7 @@ func WebsocketRoutine() {
 	for i := range exchanges {
 		go func(i int) {
 			if exchanges[i].SupportsWebsocket() {
-				if IsBotVerbose() {
+				if bot.Settings.Verbose {
 					log.Debugf(log.WebsocketMgr,
 						"Exchange %s websocket support: Yes Enabled: %v\n",
 						exchanges[i].GetName(),
@@ -263,7 +263,7 @@ func WebsocketRoutine() {
 						log.Errorf(log.WebsocketMgr, "%v\n", err)
 					}
 				}
-			} else if IsBotVerbose() {
+			} else if bot.Settings.Verbose {
 				log.Debugf(log.WebsocketMgr,
 					"Exchange %s websocket support: No\n",
 					exchanges[i].GetName(),
@@ -309,7 +309,7 @@ func WebsocketDataHandler(bot *Engine, exchName string, data interface{}) error 
 	case error:
 		return fmt.Errorf("routines.go exchange %s websocket error - %s", exchName, data)
 	case stream.TradeData:
-		if IsBotVerbose() {
+		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s trade updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
@@ -317,7 +317,7 @@ func WebsocketDataHandler(bot *Engine, exchName string, data interface{}) error 
 				d)
 		}
 	case stream.FundingData:
-		if IsBotVerbose() {
+		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
 				exchName,
 				FormatCurrency(d.CurrencyPair),
@@ -335,7 +335,7 @@ func WebsocketDataHandler(bot *Engine, exchName string, data interface{}) error 
 		err := ticker.ProcessTicker(d)
 		printTickerSummary(d, "websocket", err)
 	case stream.KlineData:
-		if IsBotVerbose() {
+		if bot.Settings.Verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
 				FormatCurrency(d.Pair),
@@ -377,7 +377,7 @@ func WebsocketDataHandler(bot *Engine, exchName string, data interface{}) error 
 	case stream.UnhandledMessageWarning:
 		log.Warn(log.WebsocketMgr, d.Message)
 	default:
-		if IsBotVerbose() {
+		if bot.Settings.Verbose {
 			log.Warnf(log.WebsocketMgr,
 				"%s websocket Unknown type: %+v",
 				exchName,

@@ -661,7 +661,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddresses() map[string]map[st
 	for x := range exchanges {
 		exchName := exchanges[x].GetName()
 		if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-			if IsBotVerbose() {
+			if bot.Settings.Verbose {
 				log.Debugf(log.ExchangeSys, "GetExchangeCryptocurrencyDepositAddresses: Skippping %s due to disabled authenticated API support.\n", exchName)
 			}
 			continue
@@ -751,7 +751,7 @@ func (bot *Engine) GetAllEnabledExchangeAccountInfo() AllEnabledExchangeAccounts
 	for x := range exchanges {
 		if exchanges[x] != nil && exchanges[x].IsEnabled() {
 			if !exchanges[x].GetAuthenticatedAPISupport(exchange.RestAuthentication) {
-				if IsBotVerbose() {
+				if bot.Settings.Verbose {
 					log.Debugf(log.ExchangeSys,
 						"GetAllEnabledExchangeAccountInfo: Skipping %s due to disabled authenticated API support.\n",
 						exchanges[x].GetName())

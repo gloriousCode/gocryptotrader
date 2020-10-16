@@ -33,7 +33,7 @@ func (p *portfolioManager) Start(bot *Engine) error {
 	bot.Portfolio = &portfolio.Portfolio
 	bot.Portfolio.Seed(bot.Config.Portfolio)
 	p.shutdown = make(chan struct{})
-	portfolio.Verbose = IsBotVerbose()
+	portfolio.Verbose = bot.Settings.Verbose
 
 	go p.run(bot)
 	return nil

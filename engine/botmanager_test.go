@@ -205,29 +205,3 @@ func TestGetBot(t *testing.T) {
 		t.Errorf("unknown bot loaded, expected %v, received %v", e1.Config.Name, b.Config.Name)
 	}
 }
-
-func TestIsBotVerbose(t *testing.T) {
-	if IsBotVerbose() {
-		t.Error("expected false")
-	}
-	e1, _ := Bot()
-	if e1 == nil {
-		e1 = new(Engine)
-	}
-	e1.Config = &config.Config{}
-	err := e1.Config.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Error(err)
-	}
-	err = bm.LoadBot(e1)
-	if err != nil {
-		t.Error(err)
-	}
-	if IsBotVerbose() {
-		t.Error("expected false")
-	}
-	e1.Settings.Verbose = true
-	if !IsBotVerbose() {
-		t.Error("expected true")
-	}
-}

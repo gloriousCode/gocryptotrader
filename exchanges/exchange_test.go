@@ -217,6 +217,7 @@ func TestSetAPICredentialDefaults(t *testing.T) {
 }
 
 func TestSetAutoPairDefaults(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{}
 
 	err := cfg.LoadConfig(config.TestFile, true)
@@ -323,6 +324,7 @@ func TestGetClientBankAccounts(t *testing.T) {
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{}
 
 	err := cfg.LoadConfig(config.TestFile, true)
@@ -1332,6 +1334,7 @@ func TestSetPairs(t *testing.T) {
 }
 
 func TestUpdatePairs(t *testing.T) {
+	t.Parallel()
 	cfg := &config.Config{}
 
 	err := cfg.LoadConfig(config.TestFile, true)
