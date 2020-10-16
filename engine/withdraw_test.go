@@ -88,6 +88,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 }
 
 func TestWithdrawEventByID(t *testing.T) {
+	t.Parallel()
 	tempResp := &withdraw.Response{
 		ID: withdraw.DryRunID,
 	}
@@ -110,6 +111,7 @@ func TestWithdrawEventByID(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchange(t *testing.T) {
+	t.Parallel()
 	_, err := WithdrawalEventByExchange(testExchange, 1)
 	if err == nil {
 		t.Fatal(err)
@@ -117,6 +119,7 @@ func TestWithdrawalEventByExchange(t *testing.T) {
 }
 
 func TestWithdrawEventByDate(t *testing.T) {
+	t.Parallel()
 	_, err := WithdrawEventByDate(testExchange, time.Now(), time.Now(), 1)
 	if err == nil {
 		t.Fatal(err)
@@ -124,6 +127,7 @@ func TestWithdrawEventByDate(t *testing.T) {
 }
 
 func TestWithdrawalEventByExchangeID(t *testing.T) {
+	t.Parallel()
 	_, err := WithdrawalEventByExchangeID(testExchange, testExchange)
 	if err == nil {
 		t.Fatal(err)
@@ -131,6 +135,7 @@ func TestWithdrawalEventByExchangeID(t *testing.T) {
 }
 
 func TestParseEvents(t *testing.T) {
+	t.Parallel()
 	var testData []*withdraw.Response
 	for x := 0; x < 5; x++ {
 		test := fmt.Sprintf("test-%v", x)

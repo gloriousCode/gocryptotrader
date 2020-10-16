@@ -537,6 +537,7 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 }
 
 func TestGetSpecificOrderbook(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	e.LoadExchange("Bitstamp", false, nil)
@@ -584,6 +585,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 }
 
 func TestGetSpecificTicker(t *testing.T) {
+	t.Parallel()
 	e := createTestBot(t)
 
 	e.LoadExchange("Bitstamp", false, nil)

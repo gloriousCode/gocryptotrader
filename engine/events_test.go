@@ -23,6 +23,7 @@ func addValidEvent(bot *Engine) (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	_, err := Add(bot, testExchange, "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
@@ -38,13 +39,10 @@ func TestAdd(t *testing.T) {
 	if err != nil {
 		t.Error("unexpected result", err)
 	}
-
-	if len(events) != 2 {
-		t.Error("2 events should be stored")
-	}
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	id, err := addValidEvent(bot)
 	if err != nil {
@@ -61,7 +59,6 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	t.Parallel()
 	bot := createTestBot(t)
 	_, err := addValidEvent(bot)
 	if err != nil {
@@ -122,6 +119,7 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	bot.Settings.Verbose = true
 
@@ -187,6 +185,7 @@ func TestProcessCondition(t *testing.T) {
 }
 
 func TestProcessOrderbook(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	bot.Settings.Verbose = true
 

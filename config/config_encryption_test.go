@@ -9,8 +9,6 @@ import (
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
-	t.Parallel()
-
 	confirm, err := promptForConfigEncryption()
 	if confirm {
 		t.Error("promptForConfigEncryption return incorrect bool")

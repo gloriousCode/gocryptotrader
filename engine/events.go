@@ -69,7 +69,7 @@ type Event struct {
 // Events variable is a pointer array to the event structures that will be
 // appended
 var events []*Event
-var m sync.Mutex
+var m sync.RWMutex
 
 // Add adds an event to the Events chain and returns an index/eventID
 // and an error
@@ -80,12 +80,13 @@ func Add(bot *Engine, exchange, item string, condition EventConditionParams, p c
 	}
 
 	evt := &Event{}
-
+	m.RLock()
 	if len(events) == 0 {
 		evt.ID = 0
 	} else {
 		evt.ID = int64(len(events) + 1)
 	}
+	m.RUnlock()
 
 	evt.Exchange = exchange
 	evt.Item = item
