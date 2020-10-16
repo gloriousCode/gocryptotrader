@@ -108,7 +108,7 @@ func (o *orderStore) Add(bot *Engine, det *order.Detail) error {
 	if det == nil {
 		return errors.New("order store: Order is nil")
 	}
-	exch := bot.GetExchangeByName(order.Exchange)
+	exch := bot.GetExchangeByName(det.Exchange)
 	if exch == nil {
 		return ErrExchangeNotFound
 	}
