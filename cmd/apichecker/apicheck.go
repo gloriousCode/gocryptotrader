@@ -101,7 +101,11 @@ func main() {
 	flag.Parse()
 	var err error
 	c := log.GenDefaultSettings()
-	log.SetConfig(&c)
+	err = log.SetConfig(&c)
+	if err != nil {
+		log.Error(log.Global, err)
+		os.Exit(1)
+	}
 	log.SetupGlobalLogger()
 	configData, err = readFileData(jsonFile)
 	if err != nil {

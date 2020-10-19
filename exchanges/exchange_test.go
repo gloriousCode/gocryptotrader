@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
 const (
@@ -29,7 +28,11 @@ const (
 
 func TestMain(m *testing.M) {
 	c := log.GenDefaultSettings()
-	log.SetConfig(&c)
+	err := log.SetConfig(&c)
+	if err != nil {
+		log.Error(log.Global, err)
+		os.Exit(1)
+	}
 	log.SetupGlobalLogger()
 	os.Exit(m.Run())
 }
@@ -299,18 +302,20 @@ func TestGetAssetTypes(t *testing.T) {
 }
 
 func TestGetClientBankAccounts(t *testing.T) {
-	// sadly GetClientBankAccounts has a reliance on the main config pointer
 	cfg := config.GetConfig()
-	err := cfg.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Fatal(err)
+	if cfg.BankAccounts == nil && len(cfg.BankAccounts) == 0 {
+		err := cfg.LoadConfig(config.TestFile, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-
 	var b Base
-	var r *banking.Account
-	r, err = b.GetClientBankAccounts("Kraken", "USD")
+	r, err := b.GetClientBankAccounts("Kraken", "USD")
 	if err != nil {
 		t.Error(err)
+	}
+	if r == nil {
+		t.Fatal("expected a response")
 	}
 
 	if r.BankName != "test" {
@@ -324,14 +329,13 @@ func TestGetClientBankAccounts(t *testing.T) {
 }
 
 func TestGetExchangeBankAccounts(t *testing.T) {
-	t.Parallel()
-	cfg := &config.Config{}
-
-	err := cfg.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Fatal(err)
+	cfg := config.GetConfig()
+	if cfg.BankAccounts == nil && len(cfg.BankAccounts) == 0 {
+		err := cfg.LoadConfig(config.TestFile, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-
 	var b = Base{Name: "Bitfinex"}
 	r, err := b.GetExchangeBankAccounts("", "USD")
 	if err != nil {
@@ -1701,6 +1705,7 @@ func TestGetBase(t *testing.T) {
 }
 
 func TestGetAssetType(t *testing.T) {
+	t.Parallel()
 	var b Base
 	p := currency.NewPair(currency.BTC, currency.USD)
 	_, err := b.GetPairAssetType(p)
@@ -1769,6 +1774,7 @@ func TestGetFormattedPairAndAssetType(t *testing.T) {
 }
 
 func TestStoreAssetPairFormat(t *testing.T) {
+	t.Parallel()
 	b := Base{
 		Config: &config.ExchangeConfig{Name: "kitties"},
 	}
@@ -1805,6 +1811,7 @@ func TestStoreAssetPairFormat(t *testing.T) {
 }
 
 func TestSetGlobalPairsManager(t *testing.T) {
+	t.Parallel()
 	b := Base{
 		Config: &config.ExchangeConfig{Name: "kitties"},
 	}
@@ -1870,6 +1877,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 		test := testCases[x]
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ret := b.FormatExchangeKlineInterval(test.interval)
 
 			if ret != test.output {
@@ -1880,6 +1888,7 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 }
 
 func TestBase_ValidateKline(t *testing.T) {
+	t.Parallel()
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USDT},
 	}
@@ -1928,6 +1937,7 @@ func TestBase_ValidateKline(t *testing.T) {
 }
 
 func TestCheckTransientError(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	err := b.CheckTransientError(nil)
 	if err != nil {
@@ -1947,6 +1957,7 @@ func TestCheckTransientError(t *testing.T) {
 }
 
 func TestDisableEnableRateLimiter(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	b.checkAndInitRequester()
 	err := b.EnableRateLimiter()
@@ -1971,6 +1982,7 @@ func TestDisableEnableRateLimiter(t *testing.T) {
 }
 
 func TestGetWebsocket(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	_, err := b.GetWebsocket()
 	if err == nil {
@@ -1984,6 +1996,7 @@ func TestGetWebsocket(t *testing.T) {
 }
 
 func TestFlushWebsocketChannels(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	err := b.FlushWebsocketChannels()
 	if err != nil {
@@ -1998,6 +2011,7 @@ func TestFlushWebsocketChannels(t *testing.T) {
 }
 
 func TestSubscribeToWebsocketChannels(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	err := b.SubscribeToWebsocketChannels(nil)
 	if err == nil {
@@ -2012,6 +2026,7 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 }
 
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	err := b.UnsubscribeToWebsocketChannels(nil)
 	if err == nil {
@@ -2026,6 +2041,7 @@ func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 }
 
 func TestGetSubscriptions(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	_, err := b.GetSubscriptions()
 	if err == nil {
@@ -2040,6 +2056,7 @@ func TestGetSubscriptions(t *testing.T) {
 }
 
 func TestAuthenticateWebsocket(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	if err := b.AuthenticateWebsocket(); err == nil {
 		t.Fatal("error cannot be nil")
@@ -2047,6 +2064,7 @@ func TestAuthenticateWebsocket(t *testing.T) {
 }
 
 func TestKlineIntervalEnabled(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	if b.klineIntervalEnabled(kline.EightHour) {
 		t.Fatal("unexpected value")
@@ -2054,6 +2072,7 @@ func TestKlineIntervalEnabled(t *testing.T) {
 }
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
+	t.Parallel()
 	b := Base{}
 	if b.FormatExchangeKlineInterval(kline.EightHour) != "28800" {
 		t.Fatal("unexpected value")

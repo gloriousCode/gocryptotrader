@@ -59,6 +59,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	_, err := addValidEvent(bot)
 	if err != nil {
@@ -78,6 +79,7 @@ func TestGetEventCounter(t *testing.T) {
 }
 
 func TestExecuteAction(t *testing.T) {
+	t.Parallel()
 	bot := createTestBot(t)
 	err := bm.LoadBot(bot)
 	if err != nil {

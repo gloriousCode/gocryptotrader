@@ -31,9 +31,9 @@ func (c *Config) GetCurrencyConfig() CurrencyConfig {
 	return c.Currency
 }
 
-// GetExchangeBankAccounts returns banking details associated with an exchange
+// GetExchangeBankingAccountByCriteria returns banking details associated with an exchange
 // for depositing funds
-func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
+func (c *Config) GetExchangeBankingAccountByCriteria(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -71,9 +71,9 @@ func (c *Config) UpdateExchangeBankAccounts(exchangeName string, bankCfg []banki
 		exchangeName)
 }
 
-// GetClientBankAccounts returns banking details used for a given exchange
+// GetClientBankAccountByExchange returns banking details used for a given exchange
 // and currency
-func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*banking.Account, error) {
+func (c *Config) GetClientBankAccountByExchange(exchangeName, targetCurrency string) (*banking.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -89,8 +89,8 @@ func (c *Config) GetClientBankAccounts(exchangeName, targetCurrency string) (*ba
 		targetCurrency)
 }
 
-// UpdateClientBankAccounts updates the configuration for a bank
-func (c *Config) UpdateClientBankAccounts(bankCfg *banking.Account) error {
+// UpdateClientBankAccount updates the configuration for a bank
+func (c *Config) UpdateClientBankAccount(bankCfg *banking.Account) error {
 	m.Lock()
 	defer m.Unlock()
 

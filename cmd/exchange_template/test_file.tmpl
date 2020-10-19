@@ -21,7 +21,7 @@ var {{.Variable}} {{.CapitalName}}
 
 func TestMain(m *testing.M) {
 	{{.Variable}}.SetDefaults()
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		log.Fatal(err)

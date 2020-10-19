@@ -58,13 +58,13 @@ func TestGetClientBankAccounts(t *testing.T) {
 
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
-		t.Fatal("GetExchangeBankAccounts LoadConfig error", err)
+		t.Fatal("GetExchangeBankingAccountByCriteria LoadConfig error", err)
 	}
-	_, err = cfg.GetClientBankAccounts("Kraken", "USD")
+	_, err = cfg.GetClientBankAccountByExchange("Kraken", "USD")
 	if err != nil {
-		t.Error("GetExchangeBankAccounts error", err)
+		t.Error("GetExchangeBankingAccountByCriteria error", err)
 	}
-	_, err = cfg.GetClientBankAccounts("noob exchange", "USD")
+	_, err = cfg.GetClientBankAccountByExchange("noob exchange", "USD")
 	if err == nil {
 		t.Fatal("error cannot be nil")
 	}
@@ -76,15 +76,15 @@ func TestGetExchangeBankAccounts(t *testing.T) {
 
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
-		t.Error("GetExchangeBankAccounts LoadConfig error", err)
+		t.Error("GetExchangeBankingAccountByCriteria LoadConfig error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Bitfinex", "", "USD")
+	_, err = cfg.GetExchangeBankingAccountByCriteria("Bitfinex", "", "USD")
 	if err != nil {
-		t.Error("GetExchangeBankAccounts error", err)
+		t.Error("GetExchangeBankingAccountByCriteria error", err)
 	}
-	_, err = cfg.GetExchangeBankAccounts("Not an exchange", "", "Not a currency")
+	_, err = cfg.GetExchangeBankingAccountByCriteria("Not an exchange", "", "Not a currency")
 	if err == nil {
-		t.Error("GetExchangeBankAccounts, no error returned for invalid exchange")
+		t.Error("GetExchangeBankingAccountByCriteria, no error returned for invalid exchange")
 	}
 }
 
@@ -94,7 +94,7 @@ func TestCheckBankAccountConfig(t *testing.T) {
 
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
-		t.Error("GetExchangeBankAccounts LoadConfig error", err)
+		t.Error("GetExchangeBankingAccountByCriteria LoadConfig error", err)
 	}
 
 	cfg.BankAccounts[0].Enabled = true
@@ -139,17 +139,17 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 
 	err := cfg.LoadConfig(TestFile, true)
 	if err != nil {
-		t.Error("UpdateClientBankAccounts LoadConfig error", err)
+		t.Error("UpdateClientBankAccount LoadConfig error", err)
 	}
 	b := banking.Account{Enabled: false, BankName: testString, AccountNumber: "0234"}
-	err = cfg.UpdateClientBankAccounts(&b)
+	err = cfg.UpdateClientBankAccount(&b)
 	if err != nil {
-		t.Error("UpdateClientBankAccounts error", err)
+		t.Error("UpdateClientBankAccount error", err)
 	}
 
-	err = cfg.UpdateClientBankAccounts(&banking.Account{})
+	err = cfg.UpdateClientBankAccount(&banking.Account{})
 	if err == nil {
-		t.Error("UpdateClientBankAccounts error")
+		t.Error("UpdateClientBankAccount error")
 	}
 
 	var count int
@@ -161,7 +161,7 @@ func TestUpdateClientBankAccounts(t *testing.T) {
 		}
 	}
 	if count != 1 {
-		t.Error("UpdateClientBankAccounts error")
+		t.Error("UpdateClientBankAccount error")
 	}
 }
 

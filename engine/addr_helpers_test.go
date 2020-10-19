@@ -11,6 +11,7 @@ const (
 )
 
 func TestSeed(t *testing.T) {
+	t.Parallel()
 	var d DepositAddressStore
 	u := map[string]map[string]string{
 		"BITSTAMP": {
@@ -30,6 +31,7 @@ func TestSeed(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	var d DepositAddressStore
 	_, err := d.GetDepositAddress("", currency.BTC)
 	if err != ErrDepositAddressStoreIsNil {

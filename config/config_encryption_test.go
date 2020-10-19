@@ -126,19 +126,30 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
 	c.EncryptConfig = 1
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("TestEncryptTwiceReusesSaltButNewCipher", "TestEncryptTwiceReusesSaltButNewCipher*")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	// Prepare input
 	passFile, err := ioutil.TempFile(tempDir, "*.pw")
 	if err != nil {
 		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
 	}
-	passFile.WriteString("pass\npass\n")
-	passFile.Close()
+	_, err = passFile.WriteString("pass\npass\n")
+	if err != nil {
+		t.Error(err)
+	}
+	err = passFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
 
 	// Temporarily replace Stdin with a custom input
 	oldIn := os.Stdin
@@ -181,22 +192,36 @@ func TestEncryptTwiceReusesSaltButNewCipher(t *testing.T) {
 }
 
 func TestSaveAndReopenEncryptedConfig(t *testing.T) {
+	t.Parallel()
 	c := &Config{}
 	c.Name = "myCustomName"
 	c.EncryptConfig = 1
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("TestSaveAndReopenEncryptedConfig", "TestSaveAndReopenEncryptedConfig*")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		err := os.RemoveAll(tempDir)
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 
 	// Prepare password
 	passFile, err := ioutil.TempFile(tempDir, "*.pw")
 	if err != nil {
-		t.Fatalf("Problem creating temp file at %s: %s\n", tempDir, err)
+		t.Errorf("Problem creating temp file at %s: %s\n", tempDir, err)
+		return
 	}
-	passFile.WriteString("pass\npass\n")
-	passFile.Close()
+	_, err = passFile.WriteString("pass\npass\n")
+	if err != nil {
+		t.Error(err)
+	}
+	err = passFile.Close()
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	// Temporarily replace Stdin with a custom input
 	cleanup := setAnswersFile(t, passFile.Name())
@@ -206,15 +231,22 @@ func TestSaveAndReopenEncryptedConfig(t *testing.T) {
 	enc := filepath.Join(tempDir, "encrypted.dat")
 	err = c.SaveConfig(enc, false)
 	if err != nil {
-		t.Fatalf("Problem storing config in file %s: %s\n", enc, err)
+		t.Errorf("Problem storing config in file %s: %s\n", enc, err)
+		return
 	}
 
 	// Prepare password input for decryption
 	passFile, err = os.Open(passFile.Name())
 	if err != nil {
-		t.Fatalf("Problem opening temp file at %s: %s\n", passFile.Name(), err)
+		t.Errorf("Problem opening temp file at %s: %s\n", passFile.Name(), err)
+		return
 	}
-	defer passFile.Close()
+	defer func() {
+		err = passFile.Close()
+		if err != nil {
+			t.Error(err)
+		}
+	}()
 	os.Stdin = passFile
 
 	// Clean session
@@ -250,7 +282,7 @@ func setAnswersFile(t *testing.T, answerFile string) func() {
 
 func TestReadConfigWithPrompt(t *testing.T) {
 	// Prepare temp dir
-	tempDir, err := ioutil.TempDir("", "")
+	tempDir, err := ioutil.TempDir("TestReadConfigWithPrompt", "TestReadConfigWithPrompt*")
 	if err != nil {
 		t.Fatalf("Problem creating temp dir at %s: %s\n", tempDir, err)
 	}

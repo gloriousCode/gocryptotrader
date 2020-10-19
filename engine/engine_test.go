@@ -8,6 +8,7 @@ import (
 )
 
 func TestLoadConfigWithSettings(t *testing.T) {
+	t.Parallel()
 	empty := ""
 	somePath := "somePath"
 	// Clean up after the tests
@@ -73,7 +74,6 @@ func TestLoadConfigWithSettings(t *testing.T) {
 }
 
 func TestStartStopDoesNotCausePanic(t *testing.T) {
-	t.Parallel()
 	botOne, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
 		EnableDryRun: true,

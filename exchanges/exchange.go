@@ -233,14 +233,14 @@ func (e *Base) GetPairAssetType(c currency.Pair) (asset.Item, error) {
 // a client for withdrawal purposes
 func (e *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
-	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
+	return cfg.GetClientBankAccountByExchange(exchangeName, withdrawalCurrency)
 }
 
 // GetExchangeBankAccounts returns banking details associated with an
 // exchange for funding purposes
 func (e *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
-	return cfg.GetExchangeBankAccounts(e.Name, id, depositCurrency)
+	return cfg.GetExchangeBankingAccountByCriteria(e.Name, id, depositCurrency)
 }
 
 // SetCurrencyPairFormat checks the exchange request and config currency pair

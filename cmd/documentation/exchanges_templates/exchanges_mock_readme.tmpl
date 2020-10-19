@@ -35,7 +35,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
@@ -75,7 +75,7 @@ const mockfile = "../../testdata/http_mock/your_current_exchange_name/your_curre
 var mockTests = true
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	cfg.LoadConfig("../../testdata/configtest.json")
 	your_current_exchange_nameConfig, err := cfg.GetExchangeConfig("your_current_exchange_name")
 	if err != nil {
