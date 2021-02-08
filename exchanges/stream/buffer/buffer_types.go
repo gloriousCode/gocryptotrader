@@ -28,6 +28,25 @@ type orderbookHolder struct {
 	buffer *[]Update
 }
 
+func (u *Update) Equal(u2 *Update) bool {
+	if !u.Pair.Equal(u2.Pair) {
+		return false
+	}
+	if len(u.Asks) != len(u2.Asks) {
+		return false
+	}
+	if len(u.Bids) != len(u2.Bids) {
+		return false
+	}
+	if u.Asset != u2.Asset {
+		return false
+	}
+	if u.MaxDepth != u2.MaxDepth {
+		return false
+	}
+	return true
+}
+
 // Update stores orderbook updates and dictates what features to use when processing
 type Update struct {
 	UpdateID   int64 // Used when no time is provided

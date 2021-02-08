@@ -972,6 +972,8 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
+var prevUpdate []buffer.Update
+
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64, fundingRate bool) error {
@@ -1023,6 +1025,15 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			}
 		}
 	}
+	for i := range prevUpdate {
+		if orderbookUpdate.Equal(&prevUpdate[i]) {
+			return nil
+		}
+	}
+	if len(prevUpdate) == 2 {
+		prevUpdate = []buffer.Update{}
+	}
+	prevUpdate = append(prevUpdate, orderbookUpdate)
 
 	cMtx.Lock()
 	checkme := checksumStore[channelID]
