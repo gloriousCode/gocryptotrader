@@ -972,8 +972,6 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
-var prevUpdate []buffer.Update
-
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
 func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book []WebsocketBook, channelID int, sequenceNo int64, fundingRate bool) error {
@@ -1025,26 +1023,25 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			}
 		}
 	}
-	for i := range prevUpdate {
-		if orderbookUpdate.Equal(&prevUpdate[i]) {
-			return nil
+	err := b.checkUpdateForDuplication(orderbookUpdate, channelID)
+	if err != nil {
+		if b.Verbose {
+			log.Debug(log.ExchangeSys, err.Error())
 		}
+
+		return nil
 	}
-	if len(prevUpdate) == 2 {
-		prevUpdate = []buffer.Update{}
-	}
-	prevUpdate = append(prevUpdate, orderbookUpdate)
 
 	cMtx.Lock()
-	checkme := checksumStore[channelID]
-	if checkme == nil {
+	checkMe := checksumStore[channelID]
+	if checkMe == nil {
 		cMtx.Unlock()
 		return b.Websocket.Orderbook.Update(&orderbookUpdate)
 	}
 	checksumStore[channelID] = nil
 	cMtx.Unlock()
 
-	if checkme.Sequence+1 == sequenceNo {
+	if checkMe.Sequence+1 == sequenceNo {
 		// Sequence numbers get dropped, if checksum is not in line with
 		// sequence, do not check.
 		ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
@@ -1054,13 +1051,39 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				assetType)
 		}
 
-		err := validateCRC32(ob, checkme.Token)
+		err := validateCRC32(ob, checkMe.Token)
 		if err != nil {
-			return err
+			return fmt.Errorf("%v - %v", channelID, err.Error())
 		}
 	}
 
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
+}
+
+func (b *Bitfinex) checkUpdateForDuplication(orderbookUpdate buffer.Update, channelID int) error {
+	if orderbookUpdate.Asset == asset.MarginFunding {
+		found := false
+		for x := range butts {
+			if !butts[x].CurrencyPair.Equal(orderbookUpdate.Pair) {
+				continue
+			}
+			found = true
+			for i := range butts[x].previousMarginFundingObUpdate {
+				if orderbookUpdate.Equal(&butts[x].previousMarginFundingObUpdate[i]) {
+					return fmt.Errorf("%v %v %v %v duplicate orderbook update detected, skipping", b.Name, orderbookUpdate.Asset, orderbookUpdate.Pair, channelID)
+				}
+			}
+			if len(butts[x].previousMarginFundingObUpdate) == 6 {
+				butts[x].previousMarginFundingObUpdate = []buffer.Update{}
+			}
+		}
+		if !found {
+			butts = append(butts, Butts{CurrencyPair: orderbookUpdate.Pair, previousMarginFundingObUpdate: []buffer.Update{
+				orderbookUpdate,
+			}})
+		}
+	}
+	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()

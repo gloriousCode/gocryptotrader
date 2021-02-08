@@ -3,7 +3,9 @@ package bitfinex
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 )
 
 // AcceptedOrderType defines the accepted market types, exchange strings denote non-contract order types.
@@ -17,6 +19,16 @@ var AcceptedWalletNames = []string{"trading", "exchange", "deposit", "margin",
 
 // AcceptableMethods defines a map of currency codes to methods
 var AcceptableMethods = make(map[string]string)
+
+// previousMarginFundingObUpdate Bitfinex sends duplicate orderbook
+// updates with new ids via websocket. This variable holds previous updates
+// to
+var butts []Butts
+
+type Butts struct {
+	CurrencyPair                  currency.Pair
+	previousMarginFundingObUpdate []buffer.Update
+}
 
 // Ticker holds ticker information
 type Ticker struct {

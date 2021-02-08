@@ -419,3 +419,47 @@ func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	book.ob.Asks = nil
 	return nil
 }
+
+// Equal compares an existing update to verify and
+// drop updates when exchanges send duplicates
+func (u *Update) Equal(u2 *Update) bool {
+	if !u.Pair.Equal(u2.Pair) {
+		return false
+	}
+	if len(u.Asks) != len(u2.Asks) {
+		return false
+	}
+	if len(u.Bids) != len(u2.Bids) {
+		return false
+	}
+	if u.Asset != u2.Asset {
+		return false
+	}
+
+	for i := range u.Bids {
+		found := false
+		for j := range u2.Bids {
+			if u.Bids[i].Amount == u2.Bids[j].Amount &&
+				u.Bids[i].Price == u2.Bids[j].Price {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	for i := range u.Asks {
+		found := false
+		for j := range u2.Asks {
+			if u.Asks[i].Amount == u2.Asks[j].Amount &&
+				u.Asks[i].Price == u2.Asks[j].Price {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}

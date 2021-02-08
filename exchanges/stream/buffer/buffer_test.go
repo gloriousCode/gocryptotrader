@@ -1105,3 +1105,62 @@ func TestFlushOrderbook(t *testing.T) {
 		t.Fatal("orderbook items not flushed")
 	}
 }
+
+func TestEqual(t *testing.T) {
+	u1 := Update{
+		UpdateID:   1337,
+		UpdateTime: time.Now(),
+		Asset:      asset.Spot,
+		Bids: []orderbook.Item{
+			{
+				Amount: 1337,
+				Price:  1337,
+			},
+		},
+		Asks: []orderbook.Item{
+			{
+				Amount: 1338,
+				Price:  1338,
+			},
+		},
+		Pair: currency.NewPair(currency.BTC, currency.USDT),
+	}
+	u2 := u1
+
+	u2.UpdateID = 1338
+	if !u1.Equal(&u2) {
+		t.Error("expected true")
+	}
+	u2 = u1
+	u2.Asset = asset.Futures
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+	u2 = u1
+	u2.Pair = currency.NewPair(currency.LTC, currency.DOGE)
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+
+	u2 = u1
+	u2.Asks = append(u2.Asks, orderbook.Item{Amount: 123, Price: 456})
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+
+	u1.Asks = append(u1.Asks, orderbook.Item{Amount: 321, Price: 456})
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+
+	u2 = u1
+	u2.Bids = append(u2.Bids, orderbook.Item{Amount: 123, Price: 456})
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+
+	u1.Bids = append(u1.Bids, orderbook.Item{Amount: 321, Price: 456})
+	if u1.Equal(&u2) {
+		t.Error("expected false")
+	}
+}
