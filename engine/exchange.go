@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -124,19 +123,8 @@ func (e *exchangeManager) Len() int {
 	return len(e.exchanges)
 }
 
-func (e *exchangeManager) unloadExchange(exchConfig *config.ExchangeConfig) error {
-	err := e.removeExchange(exchConfig.Name)
-	if err != nil {
-		return err
-	}
-
-	exchConfig.Enabled = false
-	return nil
-}
-
 // GetExchangeByName returns an exchange given an exchange name
 func (bot *Engine) GetExchangeByName(exchName string) exchange.IBotExchange {
-
 	return bot.exchangeManager.getExchangeByName(exchName)
 }
 
@@ -147,7 +135,13 @@ func (bot *Engine) UnloadExchange(exchName string) error {
 		return err
 	}
 
-	return bot.exchangeManager.unloadExchange(exchCfg)
+	err = bot.exchangeManager.removeExchange(exchName)
+	if err != nil {
+		return err
+	}
+
+	exchCfg.Enabled = false
+	return nil
 }
 
 // GetExchanges retrieves the loaded exchanges

@@ -3,6 +3,7 @@ package engine
 import (
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -23,7 +24,10 @@ func addValidEvent() (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
-	CreateTestBot(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" {
+		config.Cfg = *bot.Config
+	}
 	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
@@ -45,7 +49,10 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	CreateTestBot(t)
+	bot := CreateTestBot(t)
+	if &config.Cfg == nil {
+		config.Cfg = *bot.Config
+	}
 	id, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -61,7 +68,10 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	CreateTestBot(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" {
+		config.Cfg = *bot.Config
+	}
 	_, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -81,7 +91,10 @@ func TestGetEventCounter(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
-	CreateTestBot(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" {
+		config.Cfg = *bot.Config
+	}
 
 	var e Event
 	if r := e.ExecuteAction(); !r {
@@ -233,7 +246,10 @@ func TestCheckEventCondition(t *testing.T) {
 }
 
 func TestIsValidEvent(t *testing.T) {
-	CreateTestBot(t)
+	bot := CreateTestBot(t)
+	if config.Cfg.Name == "" {
+		config.Cfg = *bot.Config
+	}
 	// invalid exchange name
 	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
