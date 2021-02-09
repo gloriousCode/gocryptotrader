@@ -23,7 +23,7 @@ func addValidEvent() (int64, error) {
 }
 
 func TestAdd(t *testing.T) {
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	_, err := Add("", "", EventConditionParams{}, currency.Pair{}, "", "")
 	if err == nil {
 		t.Error("should err on invalid params")
@@ -45,7 +45,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	id, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -61,7 +61,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestGetEventCounter(t *testing.T) {
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	_, err := addValidEvent()
 	if err != nil {
 		t.Error("unexpected result", err)
@@ -81,9 +81,7 @@ func TestGetEventCounter(t *testing.T) {
 
 func TestExecuteAction(t *testing.T) {
 	t.Parallel()
-	if Bot == nil {
-		Bot = new(Engine)
-	}
+	CreateTestBot(t)
 
 	var e Event
 	if r := e.ExecuteAction(); !r {
@@ -121,10 +119,6 @@ func TestString(t *testing.T) {
 }
 
 func TestProcessTicker(t *testing.T) {
-	if Bot == nil {
-		Bot = new(Engine)
-	}
-
 	e := Event{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -144,7 +138,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); r {
+	if r := e.processTicker(false); r {
 		t.Error("unexpected result")
 	}
 
@@ -153,7 +147,7 @@ func TestProcessTicker(t *testing.T) {
 	if err := ticker.ProcessTicker(&tick); err != nil {
 		t.Fatal("unexpected result:", err)
 	}
-	if r := e.processTicker(); !r {
+	if r := e.processTicker(false); !r {
 		t.Error("unexpected result")
 	}
 }
@@ -228,18 +222,18 @@ func TestCheckEventCondition(t *testing.T) {
 	e := Event{
 		Item: ItemPrice,
 	}
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 
 	e.Item = ItemOrderbook
-	if r := e.CheckEventCondition(); r {
+	if r := e.CheckEventCondition(false); r {
 		t.Error("unexpected result")
 	}
 }
 
 func TestIsValidEvent(t *testing.T) {
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	// invalid exchange name
 	if err := IsValidEvent("meow", "", EventConditionParams{}, ""); err != errExchangeDisabled {
 		t.Error("unexpected result:", err)
@@ -290,7 +284,7 @@ func TestIsValidExchange(t *testing.T) {
 	if s := IsValidExchange("invalidexchangerino"); s {
 		t.Error("unexpected result")
 	}
-	SetupTestHelpers(t)
+	CreateTestBot(t)
 	if s := IsValidExchange(testExchange); !s {
 		t.Error("unexpected result")
 	}
