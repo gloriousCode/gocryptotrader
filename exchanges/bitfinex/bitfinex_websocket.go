@@ -1069,7 +1069,7 @@ func (b *Bitfinex) checkUpdateForDuplication(orderbookUpdate buffer.Update, chan
 			}
 			found = true
 			for i := range butts[x].previousMarginFundingObUpdate {
-				if orderbookUpdate.Equal(&butts[x].previousMarginFundingObUpdate[i]) {
+				if orderbookUpdate.Action != "delete" && orderbookUpdate.Equal(&butts[x].previousMarginFundingObUpdate[i]) {
 					return fmt.Errorf("%v %v %v %v duplicate orderbook update detected, skipping", b.Name, orderbookUpdate.Asset, orderbookUpdate.Pair, channelID)
 				}
 			}
