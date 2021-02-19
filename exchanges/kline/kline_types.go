@@ -43,7 +43,6 @@ var (
 )
 
 // Item holds all the relevant information for internal kline elements
-type Item struct {
 	Exchange string
 	Pair     currency.Pair
 	Asset    asset.Item

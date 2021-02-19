@@ -231,7 +231,7 @@ func (k *Item) FormatDates() {
 }
 
 // durationToWord returns english version of interval
-func durationToWord(in Interval) string {
+func durationToWorddurationToWord(in Interval) string {
 	switch in {
 	case FifteenSecond:
 		return "fifteensecond"
