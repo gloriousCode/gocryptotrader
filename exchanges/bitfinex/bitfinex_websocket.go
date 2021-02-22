@@ -35,7 +35,7 @@ type checksum struct {
 }
 
 // checksumStore quick global for now
-var checksumStore = make(map[int]*checksum)
+var checksumStore = make(map[int][]*checksum)
 var cMtx sync.Mutex
 
 // WsConnect starts a new websocket connection
@@ -147,7 +147,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				b.Websocket.DataHandler <- d
 				b.WsAddSubscriptionChannel(0, "account", "N/A")
 			} else if status == "fail" {
-				return fmt.Errorf("bitfinex.go error - Websocket unable to AUTH. Error code: %s",
+				return fmt.Errorf("Websocket unable to AUTH. Error code: %s",
 					d["code"].(string))
 			}
 		}
@@ -179,10 +179,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 
 				cMtx.Lock()
-				checksumStore[chanID] = &checksum{
+				checksumStore[chanID] = append(checksumStore[chanID], &checksum{
 					Token:    int(tokenF),
 					Sequence: int64(seqNoF),
-				}
+				})
 				cMtx.Unlock()
 				return nil
 			}
@@ -190,7 +190,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 		chanInfo, ok := b.WebsocketSubdChannels[chanID]
 		if !ok && chanID != 0 {
-			return fmt.Errorf("bitfinex.go error - Unable to locate chanID: %d",
+			return fmt.Errorf("Unable to locate chanID: %d",
 				chanID)
 		}
 
@@ -248,6 +248,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			var fundingRate bool
 			switch id := obSnapBundle[0].(type) {
 			case []interface{}:
+				// process orderbook snapshot
 				for i := range obSnapBundle {
 					data := obSnapBundle[i].([]interface{})
 					id, okAssert := data[0].(float64)
@@ -282,44 +283,57 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 				err := b.WsInsertSnapshot(pair, chanAsset, newOrderbook, fundingRate)
 				if err != nil {
-					return fmt.Errorf("bitfinex_websocket.go inserting snapshot error: %s",
+					return fmt.Errorf("inserting snapshot error: %s",
 						err)
 				}
 			case float64:
-				pricePeriod, okSnap := obSnapBundle[1].(float64)
-				if !okSnap {
-					return errors.New("type assertion failed for orderbook snapshot data")
-				}
-				amountRate, okSnap := obSnapBundle[2].(float64)
-				if !okSnap {
-					return errors.New("type assertion failed for orderbook snapshot data")
-				}
-				if len(obSnapBundle) == 4 {
-					fundingRate = true
-					var amount float64
-					amount, okSnap = obSnapBundle[3].(float64)
+				// process orderbook update
+				switch len(obSnapBundle) {
+				case 3:
+					// process spot update
+					price, okSnap := obSnapBundle[1].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook snapshot data")
+					}
+					amount, okSnap := obSnapBundle[2].(float64)
 					if !okSnap {
 						return errors.New("type assertion failed for orderbook snapshot data")
 					}
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
-						Period: int64(pricePeriod),
-						Price:  amountRate,
+						Price:  price,
 						Amount: amount})
-				} else {
+				case 4:
+					// process funding update
+					fundingRate = true
+					period, okSnap := obSnapBundle[1].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook snapshot data")
+					}
+					var rate float64
+					rate, okSnap = obSnapBundle[2].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook snapshot data")
+					}
+					amount, okSnap := obSnapBundle[3].(float64)
+					if !okSnap {
+						return errors.New("type assertion failed for orderbook snapshot data")
+					}
 					newOrderbook = append(newOrderbook, WebsocketBook{
 						ID:     int64(id),
-						Price:  pricePeriod,
-						Amount: amountRate})
+						Period: int64(period),
+						Price:  rate,
+						Amount: amount})
+				default:
+					return fmt.Errorf("unexpected orderbook received")
 				}
 
 				err := b.WsUpdateOrderbook(pair, chanAsset, newOrderbook, chanID, int64(sequenceNo), fundingRate)
 				if err != nil {
-					return fmt.Errorf("bitfinex_websocket.go updating orderbook error: %s",
+					return fmt.Errorf("updating orderbook error: %s",
 						err)
 				}
 			}
-
 			return nil
 		case wsCandles:
 			if candleBundle, ok := d[1].([]interface{}); ok {
@@ -935,7 +949,7 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 // channel
 func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books []WebsocketBook, fundingRate bool) error {
 	if len(books) == 0 {
-		return errors.New("bitfinex.go error - no orderbooks submitted")
+		return errors.New("no orderbooks submitted")
 	}
 	var book orderbook.Base
 	for i := range books {
@@ -985,7 +999,26 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			Period: book[i].Period,
 		}
 
-		if book[i].Price > 0 {
+		if book[i].Price == 0 {
+			orderbookUpdate.Action = buffer.Delete
+			if fundingRate {
+				if book[i].Amount < 0 {
+					// delete bid
+					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
+				} else {
+					// delete ask
+					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
+				}
+			} else {
+				if book[i].Amount > 0 {
+					// delete bid
+					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
+				} else {
+					// delete ask
+					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
+				}
+			}
+		} else {
 			orderbookUpdate.Action = buffer.UpdateInsert
 			if fundingRate {
 				if book[i].Amount < 0 {
@@ -1002,25 +1035,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				}
 			}
-		} else {
-			orderbookUpdate.Action = buffer.Delete
-			if fundingRate {
-				if book[i].Amount == 1 {
-					// delete bid
-					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
-				} else {
-					// delete ask
-					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
-				}
-			} else {
-				if book[i].Amount == 1 {
-					// delete bid
-					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
-				} else {
-					// delete ask
-					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
-				}
-			}
 		}
 	}
 
@@ -1030,23 +1044,46 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 		cMtx.Unlock()
 		return b.Websocket.Orderbook.Update(&orderbookUpdate)
 	}
-	checksumStore[channelID] = nil
+
+	successed := 0
+	lendo := 0
+	checkSumFound := false
+	validChecksummed := false
+	for i := range checkme {
+		if checkme[i].Sequence+1 == sequenceNo {
+			checkSumFound = true
+			// Sequence numbers get dropped, if checksum is not in line with
+			// sequence, do not check.
+			ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
+			if ob == nil {
+				cMtx.Unlock()
+				return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
+					p,
+					assetType)
+			}
+
+			err := validateCRC32(ob, checkme[i].Token)
+			if err != nil {
+				continue
+				//	log.Errorf(log.WebsocketMgr, "bad checksum %v of %v, %w", i, len(checkme), err)
+			}
+			validChecksummed = true
+			successed = i + 1
+			lendo = len(checkme)
+		}
+	}
+	if len(checkme) > 5 {
+		// remove the oldest
+		checkme = checkme[1:]
+	}
 	cMtx.Unlock()
 
-	if checkme.Sequence+1 == sequenceNo {
-		// Sequence numbers get dropped, if checksum is not in line with
-		// sequence, do not check.
-		ob := b.Websocket.Orderbook.GetOrderbook(p, assetType)
-		if ob == nil {
-			return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s",
-				p,
-				assetType)
-		}
-
-		err := validateCRC32(ob, checkme.Token)
-		if err != nil {
-			return err
-		}
+	if !checkSumFound {
+		return fmt.Errorf("woah dude, there were no relevant checksums here %v", sequenceNo+1)
+	} else if !validChecksummed {
+		log.Info(log.WebsocketMgr, "failed to checksum")
+	} else if validChecksummed {
+		log.Infof(log.WebsocketMgr, "successfully checksummed on %v of %v", successed, lendo)
 	}
 
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
@@ -1056,9 +1093,6 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{
 		wsBook,
-		wsTrades,
-		wsTicker,
-		wsCandles,
 	}
 
 	var subscriptions []stream.ChannelSubscription
