@@ -75,6 +75,7 @@ type IBotExchange interface {
 	GetHistoricCandlesExtended(p currency.Pair, a asset.Item, timeStart, timeEnd time.Time, interval kline.Interval) (kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
+	ShutdownRequests() error
 
 	// Websocket specific wrapper functionality
 	// GetWebsocket returns a pointer to the websocket

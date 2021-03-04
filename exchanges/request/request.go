@@ -38,8 +38,18 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) *Requ
 	return r
 }
 
+func (r *Requester) Shutdown() error {
+	r.stopRequests = true
+	r.maxRetries = 0
+	return r.DisableRateLimiter()
+}
+
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, i *Item) error {
+	if r.stopRequests {
+		r.timedLock.UnlockIfLocked()
+		return nil
+	}
 	if !i.NonceEnabled {
 		r.timedLock.LockForDuration()
 	}
@@ -138,6 +148,9 @@ func (r *Requester) doRequest(req *http.Request, p *Item) error {
 	}
 
 	for attempt := 1; ; attempt++ {
+		if r.stopRequests {
+			return nil
+		}
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := r.InitiateRateLimit(p.Endpoint)
 		if err != nil {

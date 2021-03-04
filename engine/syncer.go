@@ -43,9 +43,9 @@ func NewCurrencyPairSyncer(c CurrencyPairSyncerConfig) (*ExchangeCurrencyPairSyn
 
 	s := ExchangeCurrencyPairSyncer{
 		Cfg: CurrencyPairSyncerConfig{
-			SyncTicker:       c.SyncTicker,
-			SyncOrderbook:    c.SyncOrderbook,
-			SyncTrades:       c.SyncTrades,
+			SyncTicker:       true,
+			SyncOrderbook:    true,
+			SyncTrades:       true,
 			SyncContinuously: c.SyncContinuously,
 			SyncTimeout:      c.SyncTimeout,
 			NumWorkers:       c.NumWorkers,

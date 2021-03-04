@@ -34,6 +34,7 @@ type Settings struct {
 	EnableWebsocketRoutine      bool
 	EventManagerDelay           time.Duration
 	Verbose                     bool
+	DropRequestsOnShutdown      bool
 
 	// Exchange syncer settings
 	EnableTickerSyncing    bool

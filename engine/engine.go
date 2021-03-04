@@ -545,6 +545,14 @@ func (bot *Engine) Stop() {
 		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
 	}
 
+	exchanges := bot.exchangeManager.getExchanges()
+	for i := range exchanges {
+		err := exchanges[i].ShutdownRequests()
+		if err != nil {
+			gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop exchange %v. Error: %v", exchanges[i].GetName(), err)
+		}
+	}
+
 	if !bot.Settings.EnableDryRun {
 		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
