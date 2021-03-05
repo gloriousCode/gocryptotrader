@@ -158,6 +158,12 @@ func validateSettings(b *Engine, s *Settings, flagSet map[string]bool) {
 		b.Settings.EnableGRPC = b.Config.RemoteControl.GRPC.Enabled
 	}
 
+	if flagSet["ungracefulshutdown"] {
+		b.Settings.UngracefulShutdown = s.UngracefulShutdown
+	} else {
+		b.Settings.UngracefulShutdown = b.Config.UngracefulShutdown
+	}
+
 	if flagSet["grpcproxy"] {
 		b.Settings.EnableGRPCProxy = s.EnableGRPCProxy
 	} else {
@@ -545,14 +551,6 @@ func (bot *Engine) Stop() {
 		gctlog.Errorf(gctlog.Global, "Currency storage system. Error: %v", err)
 	}
 
-	exchanges := bot.exchangeManager.getExchanges()
-	for i := range exchanges {
-		err := exchanges[i].ShutdownRequests()
-		if err != nil {
-			gctlog.Errorf(gctlog.Global, "Exchange manager unable to stop exchange %v. Error: %v", exchanges[i].GetName(), err)
-		}
-	}
-
 	if !bot.Settings.EnableDryRun {
 		err := bot.Config.SaveConfigToFile(bot.Settings.ConfigFile)
 		if err != nil {
@@ -562,10 +560,14 @@ func (bot *Engine) Stop() {
 		}
 	}
 
-	// Wait for services to gracefully shutdown
-	bot.ServicesWG.Wait()
 	err := gctlog.CloseLogger()
 	if err != nil {
 		log.Printf("Failed to close logger. Error: %v\n", err)
 	}
+
+	if bot.Settings.UngracefulShutdown {
+		return
+	}
+	// Wait for services to gracefully shutdown
+	bot.ServicesWG.Wait()
 }

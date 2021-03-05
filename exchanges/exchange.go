@@ -1261,10 +1261,3 @@ func (u URL) String() string {
 		return ""
 	}
 }
-
-// ShutdownRequests disables the ability to make requests
-// called when shutting down GoCryptoTrader, prevents new requests
-// from being made to speed up shutdown
-func (e *Base) ShutdownRequests() error {
-	return e.Requester.Shutdown()
-}

@@ -1,13 +1,11 @@
 package exchange
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -2324,37 +2322,4 @@ func TestSetRunning(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-// TestShutdownRequests demonstrates how shutting down requests
-// prevents this otherwise impossible rate limited test to complete
-func TestShutdownRequests(t *testing.T) {
-	b := Base{}
-	var result interface{}
-	b.Requester = request.New(
-		"",
-		common.NewHTTPClientWithTimeout(DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(time.Hour, 1)),
-	)
-	err := b.ShutdownRequests()
-	if err != nil {
-		t.Error(err)
-	}
-	var wg sync.WaitGroup
-	for i := 0; i < 40; i++ {
-		wg.Add(1)
-		go func() {
-			err := b.SendPayload(context.Background(), &request.Item{
-				Method: http.MethodGet,
-				Path:   "https://jsonplaceholder.typicode.com/todos/1",
-				Result: &result,
-			})
-			if err != nil {
-				t.Error(err)
-			}
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
 }
