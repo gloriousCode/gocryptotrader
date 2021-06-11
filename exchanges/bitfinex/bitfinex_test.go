@@ -1144,7 +1144,6 @@ func TestWsNewOffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 }
 
 // TestWsCancelOffer dials websocket, sends cancel offer request.
@@ -1159,7 +1158,6 @@ func TestWsCancelOffer(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second)
 }
 
 func TestConvertSymbolToDepositMethod(t *testing.T) {
