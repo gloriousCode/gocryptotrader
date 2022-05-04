@@ -1566,7 +1566,9 @@ func (f *FTX) GetCollateral(ctx context.Context, maintenance bool) (*CollateralR
 // LoadCollateralWeightings sets the collateral weights for
 // currencies supported by FTX
 func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
-	f.collateralWeight = make(map[*currency.Item]CollateralWeight)
+	f.collateralWeight = CollateralWeightHolder{
+		weights: make(map[*currency.Item]CollateralWeight),
+	}
 	// taken from https://help.ftx.com/hc/en-us/articles/360031149632-Non-USD-Collateral
 	// sets default, then uses the latest from FTX
 	f.collateralWeight.load("1INCH", 0.9, 0.85, 0.0005)
@@ -1722,29 +1724,48 @@ func (f *FTX) LoadCollateralWeightings(ctx context.Context) error {
 	return nil
 }
 
-func (c CollateralWeightHolder) hasData() bool {
-	return len(c) > 0
+func (c *CollateralWeightHolder) hasData() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.weights) > 0
 }
 
-func (c CollateralWeightHolder) loadTotal(code string, weighting float64) {
+func (c *CollateralWeightHolder) loadTotal(code string, weighting float64) {
 	cc := currency.NewCode(code)
-	currencyCollateral := c[cc.Item]
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	currencyCollateral := c.weights[cc.Item]
 	currencyCollateral.Total = weighting
-	c[cc.Item] = currencyCollateral
+	c.weights[cc.Item] = currencyCollateral
 }
 
-func (c CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
+func (c *CollateralWeightHolder) loadInitialMarginFraction(code string, imf float64) {
 	cc := currency.NewCode(code)
-	currencyCollateral := c[cc.Item]
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	currencyCollateral := c.weights[cc.Item]
 	currencyCollateral.InitialMarginFractionFactor = imf
-	c[cc.Item] = currencyCollateral
+	c.weights[cc.Item] = currencyCollateral
 }
 
-func (c CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
+func (c *CollateralWeightHolder) load(code string, total, initial, imfFactor float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	cc := currency.NewCode(code)
-	c[cc.Item] = CollateralWeight{
+	c.weights[cc.Item] = CollateralWeight{
 		Total:                       total,
 		Initial:                     initial,
 		InitialMarginFractionFactor: imfFactor,
 	}
+}
+
+func (c *CollateralWeightHolder) get(code currency.Code) (CollateralWeight, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	response, ok := c.weights[code.Item]
+	if !ok {
+		return CollateralWeight{}, fmt.Errorf("%s %w", code, errCollateralCurrencyNotFound)
+	}
+	return response, nil
+
 }

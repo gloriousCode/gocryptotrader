@@ -1701,3 +1701,20 @@ func (f *FTX) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (c
 func (f *FTX) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.USD, asset.Spot, nil
 }
+
+func (f *FTX) GetMarginRequirementsForCurrency(c currency.Code, accountLeverage decimal.Decimal) (*order.MarginRequirements, error) {
+	resp, err := f.collateralWeight.get(c)
+	if err != nil {
+		return nil, err
+	}
+	var maxLeverage decimal.Decimal
+	if accountLeverage.IsPositive() {
+		maxLeverage = decimal.Min(decimal.NewFromInt(1).Div(resp.Initial), accountLeverage)
+	}
+
+	return &order.MarginRequirements{
+		InitialMargin:     resp.Initial,
+		MaintenanceMargin: resp.Total,
+		MaxLeverage:       maxLeverage,
+	}, nil
+}

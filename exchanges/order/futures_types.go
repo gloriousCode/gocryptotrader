@@ -60,6 +60,13 @@ type CollateralManagement interface {
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	ScaleCollateral(ctx context.Context, calculator *CollateralCalculator) (*CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *TotalCollateralCalculator) (*TotalCollateralResponse, error)
+	GetMarginRequirementsForCurrency(code currency.Code) (*MarginRequirements, error)
+}
+
+type MarginRequirements struct {
+	InitialMargin     decimal.Decimal
+	MaintenanceMargin decimal.Decimal
+	MaxLeverage       decimal.Decimal
 }
 
 // TotalCollateralResponse holds all collateral

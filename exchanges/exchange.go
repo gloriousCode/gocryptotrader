@@ -1318,3 +1318,7 @@ func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currenc
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
 }
+
+func (b *Base) GetMarginRequirementsForCurrency(currency.Code) (*order.MarginRequirements, error) {
+	return nil, common.ErrNotYetImplemented
+}

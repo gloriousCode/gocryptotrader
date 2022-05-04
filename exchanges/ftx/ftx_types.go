@@ -1,6 +1,7 @@
 package ftx
 
 import (
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -902,7 +903,10 @@ type StakeReward struct {
 }
 
 // CollateralWeightHolder stores collateral weights over the lifecycle of the application
-type CollateralWeightHolder map[*currency.Item]CollateralWeight
+type CollateralWeightHolder struct {
+	mu      sync.RWMutex
+	weights map[*currency.Item]CollateralWeight
+}
 
 // CollateralWeight holds collateral information provided by FTX
 // it is used to scale collateral when the currency is not in USD
