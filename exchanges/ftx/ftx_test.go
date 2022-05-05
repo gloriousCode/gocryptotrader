@@ -2097,7 +2097,7 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if len(ff.collateralWeight) == 0 {
+	if len(ff.collateralWeight.weights) == 0 {
 		t.Fatal("expected some weight")
 	}
 	if !ff.collateralWeight.hasData() {
@@ -2110,7 +2110,7 @@ func TestLoadCollateralWeightings(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if len(f.collateralWeight) == 0 {
+	if len(f.collateralWeight.weights) == 0 {
 		t.Fatal("expected some weight")
 	}
 }
@@ -2119,11 +2119,11 @@ func TestLoadTotalIMF(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
 	c.loadTotal("BTC", 1)
-	if _, ok := c[currency.BTC.Item]; !ok {
+	if _, ok := c.weights[currency.BTC.Item]; !ok {
 		t.Error("expected entry")
 	}
 	c.loadInitialMarginFraction("btc", 1)
-	cw, ok := c[currency.BTC.Item]
+	cw, ok := c.weights[currency.BTC.Item]
 	if !ok {
 		t.Error("expected entry")
 	}
@@ -2139,7 +2139,7 @@ func TestLoadCollateralWeight(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
 	c.load("DOGE", 1, 2, 3)
-	cw, ok := c[currency.DOGE.Item]
+	cw, ok := c.weights[currency.DOGE.Item]
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
