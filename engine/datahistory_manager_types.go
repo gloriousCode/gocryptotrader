@@ -27,6 +27,8 @@ const (
 	dataHistoryConvertCandlesDataType
 	dataHistoryCandleValidationDataType
 	dataHistoryCandleValidationSecondarySourceType
+	fundingRateType
+	lendingRateType
 )
 
 // DataHistoryJob status descriptors
@@ -79,6 +81,10 @@ func (d dataHistoryDataType) String() string {
 		return "conversion validation"
 	case 5:
 		return "conversion validation secondary source"
+	case 6:
+		return "funding rates"
+	case 7:
+		return "lending rates"
 	}
 	return ""
 }
@@ -136,6 +142,8 @@ type DataHistoryManager struct {
 	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
 	tradeSaver                 func(...trade.Data) error
 	candleSaver                func(*kline.Item, bool) (uint64, error)
+	fundingSaver               func([]interface{}) error
+	lendingSaver               func([]interface{}) error
 }
 
 // DataHistoryJob used to gather candle/trade history and save

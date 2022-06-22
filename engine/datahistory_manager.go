@@ -211,6 +211,8 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
 			jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
+		case fundingRateType:
+
 		default:
 			return fmt.Errorf("%s %w %s", jobs[i].Nickname, errUnknownDataType, jobs[i].DataType)
 		}
@@ -441,6 +443,8 @@ ranges:
 			result, err = m.convertTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
 			result, err = m.convertCandleData(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
+		case fundingRateType:
+		case lendingRateType:
 		default:
 			return errUnknownDataType
 		}
