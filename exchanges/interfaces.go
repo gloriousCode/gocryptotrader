@@ -86,6 +86,9 @@ type IBotExchange interface {
 	GetCredentials(ctx context.Context) (*Credentials, error)
 	ValidateCredentials(ctx context.Context, a asset.Item) error
 
+	// GetFundingRates placeholder
+	GetFundingRates(context.Context, interface{}) ([]interface{}, error)
+	GetMarginRatesHistory(context.Context, interface{}) (interface{}, error)
 	FunctionalityChecker
 }
 

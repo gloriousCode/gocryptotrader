@@ -142,8 +142,8 @@ type DataHistoryManager struct {
 	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
 	tradeSaver                 func(...trade.Data) error
 	candleSaver                func(*kline.Item, bool) (uint64, error)
-	fundingSaver               func([]interface{}) error
-	lendingSaver               func([]interface{}) error
+	fundingSaver               func([]interface{}, bool) error
+	lendingSaver               func([]interface{}, bool) error
 }
 
 // DataHistoryJob used to gather candle/trade history and save

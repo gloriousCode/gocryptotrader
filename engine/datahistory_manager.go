@@ -729,6 +729,86 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 	return r, err
 }
 
+func (m *DataHistoryManager) processFundingRates(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
+	if !m.IsRunning() {
+		return nil, ErrSubSystemNotStarted
+	}
+	if job == nil {
+		return nil, errNilJob
+	}
+	if exch == nil {
+		return nil, ErrExchangeNotFound
+	}
+	if err := common.StartEndTimeCheck(startRange, endRange); err != nil {
+		return nil, err
+	}
+
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
+	r := &DataHistoryJobResult{
+		ID:                id,
+		JobID:             job.ID,
+		IntervalStartDate: startRange,
+		IntervalEndDate:   endRange,
+		Status:            dataHistoryStatusComplete,
+		Date:              time.Now(),
+	}
+
+	fr, err := exch.GetFundingRates(context.TODO(), nil)
+	if err != nil {
+		return nil, err
+	}
+	jobRange := job.rangeHolder.Ranges[intervalIndex]
+intervals:
+	for x := range jobRange.Intervals {
+		for y := range fr {
+			if !fr[y].Time.Equal(jobRange.Intervals[x].Start) {
+				continue
+			}
+			fr.SourceJobID = job.ID
+			jobRange.Intervals[x].HasData = true
+			continue intervals
+		}
+	}
+	for i := range job.rangeHolder.Ranges[intervalIndex].Intervals {
+		if !job.rangeHolder.Ranges[intervalIndex].Intervals[i].HasData {
+			r.Status = dataHistoryStatusFailed
+			r.Result += fmt.Sprintf("missing data from %v - %v. ",
+				startRange.Format(common.SimpleTimeFormatWithTimezone),
+				endRange.Format(common.SimpleTimeFormatWithTimezone))
+		}
+	}
+	err = m.saveFundingRatesInBatches(job, fr, r)
+	return r, err
+}
+
+func (m *DataHistoryManager) saveFundingRatesInBatches(job *DataHistoryJob, fr []interface{}, r *DataHistoryJobResult) error {
+	if !m.IsRunning() {
+		return ErrSubSystemNotStarted
+	}
+	if job == nil {
+		return errNilJob
+	}
+	if fr == nil {
+		return errNilCandles
+	}
+	if r == nil {
+		return errNilResult
+	}
+	if m.maxResultInsertions <= 0 {
+		m.maxResultInsertions = defaultMaxResultInsertions
+	}
+
+	err := m.fundingSaver(fr, job.OverwriteExistingData)
+	if err != nil {
+		r.Result += "could not save results: " + err.Error() + ". "
+		r.Status = dataHistoryStatusFailed
+	}
+	return err
+}
+
 func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
