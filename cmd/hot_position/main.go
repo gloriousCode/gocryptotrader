@@ -29,6 +29,45 @@ var (
 	subAccount = ""
 )
 
+type PositionCostingsEstimate struct {
+	LongTrade           PairData
+	ShotTrade           PairData
+	StartDate           time.Time
+	EndDate             time.Time
+	AvailableCollateral decimal.Decimal
+	DesiredSpend        decimal.Decimal
+	LeftoverCapital     decimal.Decimal
+	UsingMargin         bool
+	MarginLeverage      decimal.Decimal
+	TotalBorrowRates    decimal.Decimal
+	FeeRate             decimal.Decimal
+	LongShortGap        decimal.Decimal
+}
+
+type PairData struct {
+	Asset                  asset.Item
+	Pair                   currency.Pair
+	IsPerp                 bool
+	Size                   decimal.Decimal
+	Weight                 decimal.Decimal
+	Rates                  FundingRates
+	RateCosts              FundingRates
+	BorrowRateCosts        decimal.Decimal
+	LastPrice              decimal.Decimal
+	Fee                    decimal.Decimal
+	CollateralContribution decimal.Decimal
+	CollateralSpent        decimal.Decimal
+	PositionCost           decimal.Decimal
+	AllCostings            decimal.Decimal
+}
+
+type FundingRates struct {
+	LatestRate              decimal.Decimal
+	PredictedRate           decimal.Decimal
+	PositionTimeAverageRate decimal.Decimal
+	YearAverageRate         decimal.Decimal
+}
+
 func main() {
 	f := ftx.FTX{}
 	f.SetDefaults()
@@ -36,14 +75,20 @@ func main() {
 
 	cfg, err := f.GetDefaultConfig()
 	closeOnErr(err)
+	_ = cfg.CurrencyPairs.SetAssetEnabled(asset.Futures, true)
+	_ = cfg.CurrencyPairs.SetAssetEnabled(asset.Spot, true)
 
 	err = f.SetupDefaults(cfg)
+	closeOnErr(err)
+	err = f.LoadCollateralWeightings(context.Background())
 	closeOnErr(err)
 
 	f.SetCredentials(apiKey, apiSecret, "", subAccount, "", "")
 	b := f.GetBase()
 	b.API.AuthenticatedSupport = true
 	b.API.AuthenticatedWebsocketSupport = true
+	err = f.UpdateTradablePairs(context.Background(), true)
+	closeOnErr(err)
 	f.CurrencyPairs.Pairs[asset.Futures].Enabled = f.CurrencyPairs.Pairs[asset.Futures].Available
 	f.CurrencyPairs.Pairs[asset.Spot].Enabled = f.CurrencyPairs.Pairs[asset.Spot].Available
 	reader := bufio.NewReader(os.Stdin)
@@ -56,8 +101,19 @@ func main() {
 	sizeStr := quickParse(reader)
 	spendAmount, err := strconv.ParseFloat(sizeStr, 64)
 	closeOnErr(err)
+	response.DesiredSpend = decimal.NewFromFloat(spendAmount)
 
-	if spendAmount > collateral.CollateralAvailable.InexactFloat64() {
+	if response.ShotTrade.Asset == asset.Spot {
+		fmt.Println("in order to short a spot asset, you need to use margin. Do you want to use margin?")
+		yn := quickParse(reader)
+		if yn == y || yn == yes {
+			response.UsingMargin = true
+		} else {
+			fmt.Println("well then you can't do this!")
+			os.Exit(0)
+		}
+	}
+	if response.DesiredSpend.GreaterThan(collateral.CollateralAvailable) && !response.UsingMargin {
 		fmt.Println("spendAmount greater than collateral, do you want to use margin?")
 		yn := quickParse(reader)
 		if yn == y || yn == yes {
@@ -72,68 +128,56 @@ func main() {
 	futuresPairs, err := f.CurrencyPairs.GetPairs(asset.Futures, true)
 	closeOnErr(err)
 
-	response.LongTrade.SetPairValues(reader, order.Long, futuresPairs, spotPairs, &f)
-	response.ShotTrade.SetPairValues(reader, order.Short, futuresPairs, spotPairs, &f)
-
 	acc, err := f.GetAccountInfo(context.Background())
 	closeOnErr(err)
 	response.FeeRate = decimal.NewFromFloat(acc.TakerFee)
 
-	response.TheThing(&f)
-
-	fmt.Printf("When will these positions close? format: %s\n", common.SimpleTimeFormat)
-
+	defaultTime := time.Now().Add(time.Hour * 24 * 90)
+	fmt.Printf("When will these positions close? format: %s\n", defaultTime.Format(common.SimpleTimeFormat))
 	positionCloseStr := quickParse(reader)
-	positionCloseTime, err := time.Parse(common.SimpleTimeFormat, positionCloseStr)
-	closeOnErr(err)
 	response.StartDate = time.Now()
-	response.EndDate = positionCloseTime
-
-	positionLife := time.Until(positionCloseTime)
-	positionHours := decimal.NewFromFloat(positionLife.Hours())
-
-	isLongPerp, err := f.IsPerpetualFutureCurrency(response.LongTrade.Asset, response.LongTrade.Pair)
-	closeOnErr(err)
-	if isLongPerp {
-		response.LongTrade.SetPairFundingRates(&f, positionLife, positionHours, response.FeeRate)
+	if positionCloseStr == "" {
+		response.EndDate = defaultTime
+	} else {
+		positionCloseTime, err := time.Parse(common.SimpleTimeFormat, positionCloseStr)
+		closeOnErr(err)
+		response.EndDate = positionCloseTime
 	}
 
-	isShortPerp, err := f.IsPerpetualFutureCurrency(response.ShotTrade.Asset, response.ShotTrade.Pair)
-	closeOnErr(err)
-	if isShortPerp {
-		response.ShotTrade.SetPairFundingRates(&f, positionLife, positionHours, response.FeeRate)
-	}
+	response.LongTrade.SetPairValues(reader, order.Long, futuresPairs, spotPairs, &f)
+	response.ShotTrade.SetPairValues(reader, order.Short, futuresPairs, spotPairs, &f)
+	response.CalculatePairCost(&f)
 
 	response.TotalBorrowRates = response.ShotTrade.BorrowRateCosts.Add(response.LongTrade.BorrowRateCosts)
+	response.LongShortGap = response.LongTrade.LastPrice.Sub(response.ShotTrade.LastPrice).Div(response.ShotTrade.LastPrice).Mul(decimal.NewFromInt(100))
 
 	log.Printf("available collateral: %v\n", response.AvailableCollateral)
 	log.Printf("desired spend: %v\n", response.DesiredSpend)
 	log.Printf("position start: %v\n", response.StartDate)
 	log.Printf("position end: %v\n", response.EndDate)
 	log.Printf("fee rate: %v\n", response.FeeRate)
-	log.Println("-----Long position details-----")
-	log.Printf("asset: %v\n", response.LongTrade.Asset)
-	log.Printf("pair: %v\n", response.LongTrade.Pair)
-	log.Printf("is perpetual future: %v\n", response.LongTrade.IsPerp)
-	log.Printf("position size: %v\n", response.LongTrade.Size)
-	log.Printf("perp cost using predicted rate: %v\n", response.LongTrade.RateCosts.PredictedRate)
-	log.Printf("perp cost using latest rate: %v\n", response.LongTrade.RateCosts.LatestRate)
-	log.Printf("perp cost using year average rate: %v\n", response.LongTrade.RateCosts.YearAverageRate)
-	log.Printf("perp cost using position length average rate: %v\n", response.LongTrade.RateCosts.PositionTimeAverageRate)
-
-	log.Println("-----Short position details-----")
-	log.Printf("asset: %v\n", response.ShotTrade.Asset)
-	log.Printf("pair: %v\n", response.ShotTrade.Pair)
-	log.Printf("is perpetual future: %v\n", response.ShotTrade.IsPerp)
-	log.Printf("position size: %v\n", response.ShotTrade.Size)
-	log.Printf("perp cost using predicted rate: %v\n", response.ShotTrade.RateCosts.PredictedRate)
-	log.Printf("perp cost using latest rate: %v\n", response.ShotTrade.RateCosts.LatestRate)
-	log.Printf("perp cost using year average rate: %v\n", response.ShotTrade.RateCosts.YearAverageRate)
-	log.Printf("perp cost using position length average rate: %v\n", response.ShotTrade.RateCosts.PositionTimeAverageRate)
-
+	log.Printf("price gap %%: %v\n", response.LongShortGap)
+	response.LongTrade.printPositionDetails(order.Long)
+	response.ShotTrade.printPositionDetails(order.Short)
 }
 
-func (p *PositionCostingsEstimate) TheThing(f *ftx.FTX) {
+func (p *PairData) printPositionDetails(side order.Side) {
+	log.Printf("-----%v position details-----", side)
+	log.Printf("asset: %v\n", p.Asset)
+	log.Printf("pair: %v\n", p.Pair)
+	log.Printf("is perpetual future: %v\n", p.IsPerp)
+	log.Printf("position size: %v\n", p.Size)
+	log.Printf("position cost: %v\n", p.CollateralSpent)
+	log.Printf("position fee: %v\n", p.Fee)
+	log.Printf("perp cost using predicted rate: %v\n", p.RateCosts.PredictedRate)
+	log.Printf("perp cost using latest rate: %v\n", p.RateCosts.LatestRate)
+	log.Printf("perp cost using year average rate: %v\n", p.RateCosts.YearAverageRate)
+	log.Printf("perp cost using position length average rate: %v\n", p.RateCosts.PositionTimeAverageRate)
+	log.Printf("borrow cost: %v", p.BorrowRateCosts)
+	log.Printf("total cost: %v", p.AllCostings)
+}
+
+func (p *PositionCostingsEstimate) CalculatePairCost(f *ftx.FTX) {
 	longScale, err := f.ScaleCollateral(context.TODO(), &order.CollateralCalculator{
 		CollateralCurrency: p.LongTrade.Pair.Base,
 		Asset:              p.LongTrade.Asset,
@@ -151,13 +195,45 @@ func (p *PositionCostingsEstimate) TheThing(f *ftx.FTX) {
 	if excess.IsNegative() {
 		os.Exit(-1)
 	}
-	p.LongTrade.Size = sizedAmount
-	p.ShotTrade.Size = sizedAmount
+	p.LongTrade.Size = initialAmount
+	p.ShotTrade.Size = initialAmount
+	p.LongTrade.CollateralSpent = initialAmount.Mul(p.LongTrade.LastPrice)
+	p.LongTrade.Fee = initialAmount.Mul(p.LongTrade.LastPrice).Mul(p.FeeRate)
+	p.ShotTrade.CollateralSpent = initialAmount.Mul(p.ShotTrade.LastPrice)
+	p.ShotTrade.Fee = initialAmount.Mul(p.ShotTrade.LastPrice).Mul(p.FeeRate)
 
+	if p.LongTrade.CollateralSpent.Mul(p.LongTrade.Weight).GreaterThan(p.ShotTrade.CollateralSpent.Mul(p.ShotTrade.Weight)) {
+		p.LongTrade.CollateralContribution = p.LongTrade.CollateralSpent.Mul(p.LongTrade.Weight)
+		howMuchToSpend := p.DesiredSpend.Sub(p.LongTrade.CollateralSpent)
+		if p.LongTrade.CollateralContribution.Add(howMuchToSpend).LessThan(p.ShotTrade.CollateralSpent.Add(p.ShotTrade.Fee)) {
+			fmt.Println("FUCK NOT ENOUGH")
+			os.Exit(-1)
+		}
+		//p.ShotTrade.CollateralContribution = p.LongTrade.CollateralSpent.Mul(p.LongTrade.Weight)
+	} else {
+
+	}
+
+	positionLife := time.Until(p.EndDate)
+	positionHours := decimal.NewFromFloat(positionLife.Hours())
+	isLongPerp, err := f.IsPerpetualFutureCurrency(p.LongTrade.Asset, p.LongTrade.Pair)
+	closeOnErr(err)
+	if isLongPerp {
+		p.LongTrade.SetPairFundingRates(f, positionLife, positionHours, p.FeeRate)
+	}
+
+	isShortPerp, err := f.IsPerpetualFutureCurrency(p.ShotTrade.Asset, p.ShotTrade.Pair)
+	closeOnErr(err)
+	if isShortPerp {
+		p.ShotTrade.SetPairFundingRates(f, positionLife, positionHours, p.FeeRate)
+	}
+
+	p.LongTrade.AllCostings = p.LongTrade.CollateralSpent.Add(p.LongTrade.RateCosts.PositionTimeAverageRate).Add(p.LongTrade.Fee).Add(p.LongTrade.BorrowRateCosts)
+	p.ShotTrade.AllCostings = p.ShotTrade.CollateralSpent.Add(p.ShotTrade.RateCosts.PositionTimeAverageRate).Add(p.ShotTrade.Fee).Add(p.ShotTrade.BorrowRateCosts)
 }
 
 func (p *PairData) SetPairValues(reader *bufio.Reader, side order.Side, futuresPairs currency.Pairs, spotPairs currency.Pairs, f *ftx.FTX) {
-	fmt.Printf("What currency pair do you want to %v? format 'btcusd'", side)
+	fmt.Printf("What currency pair do you want to %v? format 'btcusd'\n", side)
 	longStr := quickParse(reader)
 	var err error
 	p.Asset = asset.Futures
@@ -230,40 +306,7 @@ func (p *PairData) SetPairFundingRates(f *ftx.FTX, positionLife time.Duration, p
 	p.RateCosts.PositionTimeAverageRate = p.Rates.PositionTimeAverageRate.Mul(one.Add(fiveHundred.Mul(feeRate))).Mul(positionHours)
 	p.RateCosts.PredictedRate = p.Rates.PredictedRate.Mul(one.Add(fiveHundred.Mul(feeRate))).Mul(positionHours)
 	p.RateCosts.LatestRate = p.Rates.LatestRate.Mul(one.Add(fiveHundred.Mul(feeRate))).Mul(positionHours)
-}
 
-type PositionCostingsEstimate struct {
-	LongTrade           PairData
-	ShotTrade           PairData
-	StartDate           time.Time
-	EndDate             time.Time
-	AvailableCollateral decimal.Decimal
-	DesiredSpend        decimal.Decimal
-	UsingMargin         bool
-	MarginLeverage      decimal.Decimal
-	TotalBorrowRates    decimal.Decimal
-	FeeRate             decimal.Decimal
-}
-
-type PairData struct {
-	Asset           asset.Item
-	Pair            currency.Pair
-	IsPerp          bool
-	Size            decimal.Decimal
-	Weight          decimal.Decimal
-	Rates           FundingRates
-	RateCosts       FundingRates
-	BorrowRateCosts decimal.Decimal
-	LastPrice       decimal.Decimal
-	Fee             decimal.Decimal
-	AllCostings     decimal.Decimal
-}
-
-type FundingRates struct {
-	LatestRate              decimal.Decimal
-	PredictedRate           decimal.Decimal
-	PositionTimeAverageRate decimal.Decimal
-	YearAverageRate         decimal.Decimal
 }
 
 func closeOnErr(err error) {
