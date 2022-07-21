@@ -447,8 +447,8 @@ func TestGenerateReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+	dfk := &kline.PriceData{
+		KLine: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(currency.BTC, currency.USD),
 			Asset:    a,
@@ -469,7 +469,7 @@ func TestGenerateReport(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	f.items[0].trackingCandles = dfk
-	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	f.CreateSnapshot(dfk.KLine.Candles[0].Time)
 
 	report = f.GenerateReport()
 	if len(report.Items) != 2 {
@@ -490,8 +490,8 @@ func TestCreateSnapshot(t *testing.T) {
 	f.items = append(f.items, &Item{})
 	f.CreateSnapshot(time.Time{})
 
-	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+	dfk := &kline.PriceData{
+		KLine: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
 					Time: time.Now(),
@@ -512,7 +512,7 @@ func TestCreateSnapshot(t *testing.T) {
 		transferFee:     decimal.NewFromInt(1337),
 		trackingCandles: dfk,
 	})
-	f.CreateSnapshot(dfk.Item.Candles[0].Time)
+	f.CreateSnapshot(dfk.KLine.Candles[0].Time)
 }
 
 func TestAddUSDTrackingData(t *testing.T) {
@@ -523,13 +523,13 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
-	err = f.AddUSDTrackingData(&kline.DataFromKline{})
+	err = f.AddUSDTrackingData(&kline.PriceData{})
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
-	dfk := &kline.DataFromKline{
-		Item: gctkline.Item{
+	dfk := &kline.PriceData{
+		KLine: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
 					Time: time.Now(),
@@ -562,8 +562,8 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotMatchTrackingToItem)
 	}
 
-	dfk = &kline.DataFromKline{
-		Item: gctkline.Item{
+	dfk = &kline.PriceData{
+		KLine: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(pair.Quote, currency.USD),
 			Asset:    a,

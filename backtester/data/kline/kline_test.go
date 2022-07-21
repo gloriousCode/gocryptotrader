@@ -24,12 +24,12 @@ func TestLoad(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	tt := time.Now()
-	d := DataFromKline{}
+	d := PriceData{}
 	err := d.Load()
 	if !errors.Is(err, errNoCandleData) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
 	}
-	d.Item = gctkline.Item{
+	d.KLine = gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -59,13 +59,13 @@ func TestHasDataAtTime(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := PriceData{}
 	has := d.HasDataAtTime(time.Now())
 	if has {
 		t.Error("expected false")
 	}
 
-	d.Item = gctkline.Item{
+	d.KLine = gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -95,7 +95,7 @@ func TestHasDataAtTime(t *testing.T) {
 		t.Error(err)
 	}
 	d.RangeHolder = ranger
-	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
+	d.RangeHolder.SetHasDataFromCandles(d.KLine.Candles)
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")
@@ -107,7 +107,7 @@ func TestAppend(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := PriceData{
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	item := gctkline.Item{
@@ -126,7 +126,7 @@ func TestAppend(t *testing.T) {
 			},
 		},
 	}
-	d.AppendResults(&item)
+	d.AppendKLine(&item)
 }
 
 func TestStreamOpen(t *testing.T) {
@@ -134,7 +134,7 @@ func TestStreamOpen(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := PriceData{}
 	if bad := d.StreamOpen(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -165,7 +165,7 @@ func TestStreamVolume(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := PriceData{}
 	if bad := d.StreamVol(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -196,7 +196,7 @@ func TestStreamClose(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := PriceData{}
 	if bad := d.StreamClose(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -227,7 +227,7 @@ func TestStreamHigh(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{}
+	d := PriceData{}
 	if bad := d.StreamHigh(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
@@ -258,7 +258,7 @@ func TestStreamLow(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := PriceData{
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	if bad := d.StreamLow(); len(bad) > 0 {

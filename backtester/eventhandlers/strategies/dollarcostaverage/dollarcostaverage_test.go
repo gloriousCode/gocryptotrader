@@ -70,8 +70,8 @@ func TestOnSignal(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+	da := &kline.PriceData{
+		KLine:       gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -84,7 +84,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected missing data")
 	}
 
-	da.Item = gctkline.Item{
+	da.KLine = gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -110,7 +110,7 @@ func TestOnSignal(t *testing.T) {
 		t.Error(err)
 	}
 	da.RangeHolder = ranger
-	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	da.RangeHolder.SetHasDataFromCandles(da.KLine.Candles)
 	resp, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
@@ -149,8 +149,8 @@ func TestOnSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &kline.DataFromKline{
-		Item:        gctkline.Item{},
+	da := &kline.PriceData{
+		KLine:       gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -166,7 +166,7 @@ func TestOnSignals(t *testing.T) {
 		t.Error("expected missing data")
 	}
 
-	da.Item = gctkline.Item{
+	da.KLine = gctkline.Item{
 		Exchange: exch,
 		Pair:     p,
 		Asset:    a,
@@ -192,7 +192,7 @@ func TestOnSignals(t *testing.T) {
 		t.Error(err)
 	}
 	da.RangeHolder = ranger
-	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
+	da.RangeHolder.SetHasDataFromCandles(da.KLine.Candles)
 	resp, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
 	if err != nil {
 		t.Error(err)

@@ -313,7 +313,11 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Interval: %v", c.DataSettings.Interval)
 		log.Infof(common.Config, "REAL ORDERS: %v", c.DataSettings.LiveData.RealOrders)
 		for i := range c.DataSettings.LiveData.ExchangeCredentials {
-
+			account := "credentials:"
+			if c.DataSettings.LiveData.ExchangeCredentials[i].Credentials.SubAccount != "" {
+				account = "subaccount: " + c.DataSettings.LiveData.ExchangeCredentials[i].Credentials.SubAccount
+			}
+			log.Infof(common.Config, "%v %v: %v", c.DataSettings.LiveData.ExchangeCredentials[i].Name, account, c.DataSettings.LiveData.ExchangeCredentials[i].Credentials.Key)
 		}
 	}
 	if c.DataSettings.APIData != nil {

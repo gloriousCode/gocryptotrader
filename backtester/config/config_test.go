@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -25,7 +26,7 @@ const (
 	testExchange = "ftx"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -396,12 +397,7 @@ func TestPrintSettings(t *testing.T) {
 				FullPath: "fake",
 			},
 			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
+				RealOrders: false,
 			},
 			DatabaseData: &DatabaseData{
 				StartDate:        startDate,
@@ -867,12 +863,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			Interval: kline.OneMin,
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
+				RealOrders: false,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
@@ -1342,10 +1333,23 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		DataSettings: DataSettings{
 			Interval: kline.OneDay,
 			DataType: common.CandleStr,
-			APIData: &APIData{
-				StartDate:        time.Date(2021, 1, 14, 0, 0, 0, 0, time.UTC),
-				EndDate:          time.Date(2021, 9, 24, 0, 0, 0, 0, time.UTC),
-				InclusiveEndDate: false,
+			//APIData: &APIData{
+			//	StartDate:        time.Date(2021, 1, 14, 0, 0, 0, 0, time.UTC),
+			//	EndDate:          time.Date(2021, 9, 24, 0, 0, 0, 0, time.UTC),
+			//	InclusiveEndDate: false,
+			//},
+			LiveData: &LiveData{
+				RealOrders: false,
+				ExchangeCredentials: []ExchangeCredentials{
+					{
+						Name: "ftx",
+						Credentials: exchange.Credentials{
+							Key:        "1234",
+							Secret:     "1234",
+							SubAccount: "main",
+						},
+					},
+				},
 			},
 		},
 		PortfolioSettings: PortfolioSettings{

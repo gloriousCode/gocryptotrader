@@ -192,8 +192,8 @@ type DatabaseData struct {
 
 // LiveData defines all fields to configure live data
 type LiveData struct {
-	RealOrders          bool                `json:"real-orders"`
-	ExchangeCredentials ExchangeCredentials `json:"exchange-credentials"`
+	RealOrders          bool                  `json:"real-orders"`
+	ExchangeCredentials []ExchangeCredentials `json:"exchange-credentials"`
 }
 
 // ExchangeCredentials holds api credentials for an exchange

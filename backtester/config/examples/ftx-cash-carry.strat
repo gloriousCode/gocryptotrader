@@ -1,5 +1,5 @@
 {
- "nickname": "Example Cash and Carry",
+ "nickname": "ExampleCashAndCarry",
  "goal": "To demonstrate a cash and carry strategy",
  "strategy-settings": {
   "name": "ftx-cash-carry",
@@ -71,10 +71,21 @@
  "data-settings": {
   "interval": 86400000000000,
   "data-type": "candle",
-  "api-data": {
-   "start-date": "2021-01-14T00:00:00Z",
-   "end-date": "2021-09-24T00:00:00Z",
-   "inclusive-end-date": false
+  "live-data": {
+   "real-orders": false,
+   "exchange-credentials": [
+    {
+     "name": "ftx",
+     "credentials": {
+      "Key": "1234",
+      "Secret": "1234",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "main",
+      "OneTimePassword": ""
+     }
+    }
+   ]
   }
  },
  "portfolio-settings": {

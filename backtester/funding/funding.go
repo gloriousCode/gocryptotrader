@@ -153,7 +153,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 
 // AddUSDTrackingData adds USD tracking data to a funding item
 // only in the event that it is not USD and there is data
-func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
+func (f *FundManager) AddUSDTrackingData(k *kline.PriceData) error {
 	if f == nil || f.items == nil {
 		return common.ErrNilArguments
 	}
@@ -167,7 +167,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if baseSet && quoteSet {
 			return nil
 		}
-		if f.items[i].asset.IsFutures() && k.Item.Asset.IsFutures() {
+		if f.items[i].asset.IsFutures() && k.KLine.Asset.IsFutures() {
 			if f.items[i].isCollateral {
 				err := f.setUSDCandles(k, i)
 				if err != nil {
@@ -180,11 +180,11 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 			continue
 		}
 
-		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
-			f.items[i].asset == k.Item.Asset {
-			if f.items[i].currency.Equal(k.Item.Pair.Base) {
+		if strings.EqualFold(f.items[i].exchange, k.KLine.Exchange) &&
+			f.items[i].asset == k.KLine.Asset {
+			if f.items[i].currency.Equal(k.KLine.Pair.Base) {
 				if f.items[i].trackingCandles == nil &&
-					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+					trackingcurrencies.CurrencyIsUSDTracked(k.KLine.Pair.Quote) {
 					f.items[i].trackingCandles = k
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
@@ -209,24 +209,24 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if baseSet {
 		return nil
 	}
-	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.Item.Exchange, k.Item.Asset, k.Item.Pair)
+	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.KLine.Exchange, k.KLine.Asset, k.KLine.Pair)
 }
 
 // setUSDCandles sets usd tracking candles
 // usd stablecoins do not always match in value,
 // this is a simplified implementation that can allow
 // USD tracking for many currencies across many exchanges
-func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
+func (f *FundManager) setUSDCandles(k *kline.PriceData, i int) error {
 	usdCandles := gctkline.Item{
-		Exchange: k.Item.Exchange,
-		Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
-		Asset:    k.Item.Asset,
-		Interval: k.Item.Interval,
-		Candles:  make([]gctkline.Candle, len(k.Item.Candles)),
+		Exchange: k.KLine.Exchange,
+		Pair:     currency.Pair{Delimiter: k.KLine.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
+		Asset:    k.KLine.Asset,
+		Interval: k.KLine.Interval,
+		Candles:  make([]gctkline.Candle, len(k.KLine.Candles)),
 	}
 	for j := range usdCandles.Candles {
 		usdCandles.Candles[j] = gctkline.Candle{
-			Time:  k.Item.Candles[j].Time,
+			Time:  k.KLine.Candles[j].Time,
 			Open:  1,
 			High:  1,
 			Low:   1,
@@ -234,7 +234,7 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 		}
 	}
 	cpy := *k
-	cpy.Item = usdCandles
+	cpy.KLine = usdCandles
 	if err := cpy.Load(); err != nil {
 		return err
 	}

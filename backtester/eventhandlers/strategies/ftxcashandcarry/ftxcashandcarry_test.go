@@ -128,8 +128,8 @@ func TestSortSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &datakline.DataFromKline{
-		Item:        gctkline.Item{},
+	da := &datakline.PriceData{
+		KLine:       gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -155,8 +155,8 @@ func TestSortSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d2.Next()
-	da2 := &datakline.DataFromKline{
-		Item:        gctkline.Item{},
+	da2 := &datakline.PriceData{
+		KLine:       gctkline.Item{},
 		Base:        d2,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
@@ -326,9 +326,9 @@ func TestOnSimultaneousSignals(t *testing.T) {
 
 	expectedError = common.ErrNilArguments
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	d := &datakline.DataFromKline{
+	d := &datakline.PriceData{
 		Base: data.Base{},
-		Item: gctkline.Item{
+		KLine: gctkline.Item{
 			Exchange:       exchangeName,
 			Asset:          asset.Spot,
 			Pair:           cp,
@@ -369,9 +369,9 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 
 	expectedError = nil
-	d2 := &datakline.DataFromKline{
+	d2 := &datakline.PriceData{
 		Base: data.Base{},
-		Item: gctkline.Item{
+		KLine: gctkline.Item{
 			Exchange:       exchangeName,
 			Asset:          asset.Futures,
 			Pair:           cp,

@@ -8,12 +8,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
-func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
+func (d *PriceData) HasDataAtTime(t time.Time) bool {
 	if d.RangeHolder == nil {
 		return false
 	}
@@ -21,33 +22,33 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) bool {
 }
 
 // Load sets the candle data to the stream for processing
-func (d *DataFromKline) Load() error {
+func (d *PriceData) Load() error {
 	d.addedTimes = make(map[int64]bool)
-	if len(d.Item.Candles) == 0 {
+	if len(d.KLine.Candles) == 0 {
 		return errNoCandleData
 	}
 
-	klineData := make([]common.DataEventHandler, len(d.Item.Candles))
-	for i := range d.Item.Candles {
+	klineData := make([]common.DataEventHandler, len(d.KLine.Candles))
+	for i := range d.KLine.Candles {
 		newKline := &kline.Kline{
 			Base: &event.Base{
 				Offset:         int64(i + 1),
-				Exchange:       d.Item.Exchange,
-				Time:           d.Item.Candles[i].Time.UTC(),
-				Interval:       d.Item.Interval,
-				CurrencyPair:   d.Item.Pair,
-				AssetType:      d.Item.Asset,
-				UnderlyingPair: d.Item.UnderlyingPair,
+				Exchange:       d.KLine.Exchange,
+				Time:           d.KLine.Candles[i].Time.UTC(),
+				Interval:       d.KLine.Interval,
+				CurrencyPair:   d.KLine.Pair,
+				AssetType:      d.KLine.Asset,
+				UnderlyingPair: d.KLine.UnderlyingPair,
 			},
-			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
-			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
-			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
-			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
-			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
-			ValidationIssues: d.Item.Candles[i].ValidationIssues,
+			Open:             decimal.NewFromFloat(d.KLine.Candles[i].Open),
+			High:             decimal.NewFromFloat(d.KLine.Candles[i].High),
+			Low:              decimal.NewFromFloat(d.KLine.Candles[i].Low),
+			Close:            decimal.NewFromFloat(d.KLine.Candles[i].Close),
+			Volume:           decimal.NewFromFloat(d.KLine.Candles[i].Volume),
+			ValidationIssues: d.KLine.Candles[i].ValidationIssues,
 		}
 		klineData[i] = newKline
-		d.addedTimes[d.Item.Candles[i].Time.UTC().UnixNano()] = true
+		d.addedTimes[d.KLine.Candles[i].Time.UTC().UnixNano()] = true
 	}
 
 	d.SetStream(klineData)
@@ -55,8 +56,21 @@ func (d *DataFromKline) Load() error {
 	return nil
 }
 
-// AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
+func (d *PriceData) AppendTicker(t *ticker.Price) error {
+	if d.addedTimes == nil {
+		d.addedTimes = make(map[int64]bool)
+	}
+	if _, ok := d.addedTimes[t.LastUpdated.UnixNano()]; !ok {
+		gctCandles = append(gctCandles, ki.Candles[i])
+		d.addedTimes[t.LastUpdated.UnixNano()] = true
+	}
+	klineData := make([]common.DataEventHandler, 1)
+
+	d.AppendStream()
+}
+
+// AppendKLine adds a candle item to the data stream and sorts it to ensure it is all in order
+func (d *PriceData) AppendKLine(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
 	}
@@ -101,7 +115,7 @@ func (d *DataFromKline) AppendResults(ki *gctkline.Item) {
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration
-func (d *DataFromKline) StreamOpen() []decimal.Decimal {
+func (d *PriceData) StreamOpen() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -117,7 +131,7 @@ func (d *DataFromKline) StreamOpen() []decimal.Decimal {
 }
 
 // StreamHigh returns all High prices from the beginning until the current iteration
-func (d *DataFromKline) StreamHigh() []decimal.Decimal {
+func (d *PriceData) StreamHigh() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -133,7 +147,7 @@ func (d *DataFromKline) StreamHigh() []decimal.Decimal {
 }
 
 // StreamLow returns all Low prices from the beginning until the current iteration
-func (d *DataFromKline) StreamLow() []decimal.Decimal {
+func (d *PriceData) StreamLow() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -149,7 +163,7 @@ func (d *DataFromKline) StreamLow() []decimal.Decimal {
 }
 
 // StreamClose returns all Close prices from the beginning until the current iteration
-func (d *DataFromKline) StreamClose() []decimal.Decimal {
+func (d *PriceData) StreamClose() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -165,7 +179,7 @@ func (d *DataFromKline) StreamClose() []decimal.Decimal {
 }
 
 // StreamVol returns all Volume prices from the beginning until the current iteration
-func (d *DataFromKline) StreamVol() []decimal.Decimal {
+func (d *PriceData) StreamVol() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 

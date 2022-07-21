@@ -68,7 +68,7 @@ func (bt *BackTest) RunLive() error {
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
+func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
 	startDate := time.Now().Add(-cfg.DataSettings.Interval.Duration() * 2)
 	dates, err := gctkline.CalculateCandleDateRanges(
 		startDate,
@@ -91,7 +91,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	}
 	dates.SetHasDataFromCandles(candles.Candles)
 	resp.RangeHolder = dates
-	resp.Item = *candles
+	resp.KLine = *candles
 
 	loadNewDataTimer := time.NewTimer(time.Second * 5)
 	for {
@@ -110,7 +110,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.DataFromKline, cfg *config.Conf
 	}
 }
 
-func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) error {
+func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) error {
 	if resp == nil {
 		return errNilData
 	}
@@ -132,8 +132,8 @@ func (bt *BackTest) loadLiveData(resp *kline.DataFromKline, cfg *config.Config, 
 	if len(candles.Candles) == 0 {
 		return nil
 	}
-	resp.AppendResults(candles)
-	bt.Reports.UpdateItem(&resp.Item)
+	resp.AppendKLine(candles)
+	bt.Reports.UpdateItem(&resp.KLine)
 	log.Info(common.Backtester, "sleeping for 30 seconds before checking for new candle data")
 	return nil
 }

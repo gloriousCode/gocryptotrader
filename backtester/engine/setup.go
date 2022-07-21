@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -38,6 +39,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -608,7 +610,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.PriceData, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -634,7 +636,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
-	resp := &kline.DataFromKline{}
+	resp := &kline.PriceData{}
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -651,18 +653,18 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
-		resp.Item.RemoveDuplicates()
-		resp.Item.SortCandlesByTimestamp(false)
+		resp.KLine.RemoveDuplicates()
+		resp.KLine.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
-			resp.Item.Candles[0].Time,
-			resp.Item.Candles[len(resp.Item.Candles)-1].Time.Add(cfg.DataSettings.Interval.Duration()),
+			resp.KLine.Candles[0].Time,
+			resp.KLine.Candles[len(resp.KLine.Candles)-1].Time.Add(cfg.DataSettings.Interval.Duration()),
 			cfg.DataSettings.Interval,
 			0,
 		)
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		resp.RangeHolder.SetHasDataFromCandles(resp.KLine.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -694,8 +696,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return nil, fmt.Errorf("unable to retrieve data from GoCryptoTrader database. Error: %v. Please ensure the database is setup correctly and has data before use", err)
 		}
 
-		resp.Item.RemoveDuplicates()
-		resp.Item.SortCandlesByTimestamp(false)
+		resp.KLine.RemoveDuplicates()
+		resp.KLine.SortCandlesByTimestamp(false)
 		resp.RangeHolder, err = gctkline.CalculateCandleDateRanges(
 			cfg.DataSettings.DatabaseData.StartDate,
 			cfg.DataSettings.DatabaseData.EndDate,
@@ -705,7 +707,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.RangeHolder.SetHasDataFromCandles(resp.Item.Candles)
+		resp.RangeHolder.SetHasDataFromCandles(resp.KLine.Candles)
 		summary := resp.RangeHolder.DataSummary(false)
 		if len(summary) > 0 {
 			log.Warnf(common.Setup, "%v", summary)
@@ -725,16 +727,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		if isUSDTrackingPair {
-			return nil, errLiveUSDTrackingNotSupported
-		}
-		if len(cfg.CurrencySettings) > 1 {
-			return nil, errors.New("live data simulation only supports one currency")
-		}
-		err = loadLiveData(cfg, b)
+		t, err := loadLiveData(cfg, exch, fPair, a)
 		if err != nil {
 			return nil, err
 		}
+		resp.AppendKLine()
 		go bt.loadLiveDataLoop(
 			resp,
 			cfg,
@@ -760,10 +757,10 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return resp, err
 		}
-		resp.Item.UnderlyingPair = currency.NewPair(fPair.Base, curr)
+		resp.KLine.UnderlyingPair = currency.NewPair(fPair.Base, curr)
 	}
 
-	err = b.ValidateKline(fPair, a, resp.Item.Interval)
+	err = b.ValidateKline(fPair, a, resp.KLine.Interval)
 	if err != nil {
 		if dataType != common.DataTrade || !strings.EqualFold(err.Error(), "interval not supported") {
 			return nil, err
@@ -774,11 +771,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddKlineItem(&resp.Item)
+	bt.Reports.AddKlineItem(&resp.KLine)
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.PriceData, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -797,7 +794,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.PriceData, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -827,41 +824,26 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
-	return &kline.DataFromKline{
-		Item:        *candles,
+	return &kline.PriceData{
+		KLine:       *candles,
 		RangeHolder: dates,
 	}, nil
 }
 
-func loadLiveData(cfg *config.Config, base *gctexchange.Base) error {
-	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
-		return common.ErrNilArguments
+func loadLiveData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*ticker.Price, error) {
+	if cfg == nil || exch == nil || cfg.DataSettings.LiveData == nil {
+		return nil, common.ErrNilArguments
 	}
 	if cfg.DataSettings.Interval <= 0 {
-		return errIntervalUnset
+		return nil, errIntervalUnset
 	}
-
-	if cfg.DataSettings.LiveData.APIKeyOverride != "" {
-		base.API.SetKey(cfg.DataSettings.LiveData.APIKeyOverride)
-	}
-	if cfg.DataSettings.LiveData.APISecretOverride != "" {
-		base.API.SetSecret(cfg.DataSettings.LiveData.APISecretOverride)
-	}
-	if cfg.DataSettings.LiveData.APIClientIDOverride != "" {
-		base.API.SetClientID(cfg.DataSettings.LiveData.APIClientIDOverride)
-	}
-	if cfg.DataSettings.LiveData.API2FAOverride != "" {
-		base.API.SetPEMKey(cfg.DataSettings.LiveData.API2FAOverride)
-	}
-	if cfg.DataSettings.LiveData.APISubAccountOverride != "" {
-		base.API.SetSubAccount(cfg.DataSettings.LiveData.APISubAccountOverride)
-	}
-
-	validated := base.AreCredentialsValid(context.TODO())
-	base.API.AuthenticatedSupport = validated
+	b := exch.GetBase()
+	validated := b.AreCredentialsValid(context.TODO())
+	b.API.AuthenticatedSupport = validated
 	if !validated && cfg.DataSettings.LiveData.RealOrders {
 		log.Warn(common.Setup, "invalid API credentials set, real orders set to false")
 		cfg.DataSettings.LiveData.RealOrders = false
 	}
-	return nil
+
+	return live.LoadData(context.TODO(), exch, fPair, a)
 }

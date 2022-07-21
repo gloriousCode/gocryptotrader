@@ -23,8 +23,8 @@ import (
 var errNoUSDData = errors.New("could not retrieve USD CSV candle data")
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*gctkline.DataFromKline, error) {
-	resp := &gctkline.DataFromKline{}
+func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*gctkline.PriceData, error) {
+	resp := &gctkline.PriceData{}
 	csvFile, err := os.Open(filepath)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		if err != nil {
 			return nil, fmt.Errorf("could not read csv candle data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
-		resp.Item = candles
+		resp.KLine = candles
 	case common.DataTrade:
 		var trades []trade.Data
 		for {
@@ -146,7 +146,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 
 			trades = append(trades, t)
 		}
-		resp.Item, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
+		resp.KLine, err = trade.ConvertTradesToCandles(kline.Interval(interval), trades...)
 		if err != nil {
 			return nil, fmt.Errorf("could not read csv trade data for %v %v %v, %v", exchangeName, a, fPair, err)
 		}
@@ -156,10 +156,10 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		}
 		return nil, fmt.Errorf("could not process csv data for %v %v %v, %w", exchangeName, a, fPair, common.ErrInvalidDataType)
 	}
-	resp.Item.Exchange = strings.ToLower(exchangeName)
-	resp.Item.Pair = fPair
-	resp.Item.Asset = a
-	resp.Item.Interval = kline.Interval(interval)
+	resp.KLine.Exchange = strings.ToLower(exchangeName)
+	resp.KLine.Pair = fPair
+	resp.KLine.Asset = a
+	resp.KLine.Interval = kline.Interval(interval)
 
 	return resp, nil
 }

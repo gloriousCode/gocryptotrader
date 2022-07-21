@@ -204,3 +204,23 @@ func TestProcessTime(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
 }
+
+type SomeStruct struct {
+	bruh string
+}
+
+func TestSOmething(t *testing.T) {
+	wowChan := make(chan *SomeStruct, 100)
+	for x := 0; x < 10; x++ {
+		wowChan <- &SomeStruct{bruh: "tehehehe"}
+	}
+
+	close(wowChan)
+
+	for resp := range wowChan {
+		if resp == nil {
+			t.Log("nil!")
+		}
+		//fmt.Println(resp)
+	}
+}
