@@ -29,7 +29,7 @@ func main() {
 			wd,
 			"config",
 			"examples",
-			"ftx-cash-carry.strat"),
+			"dca-candles-live.strat"),
 		"the config containing strategy params")
 	flag.StringVar(
 		&templatePath,

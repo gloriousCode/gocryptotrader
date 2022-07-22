@@ -7,7 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -199,6 +199,6 @@ type LiveData struct {
 // ExchangeCredentials holds api credentials for an exchange
 // used for live ordering
 type ExchangeCredentials struct {
-	Name        string               `json:"name"`
-	Credentials exchange.Credentials `json:"credentials"`
+	Name        string              `json:"name"`
+	Credentials account.Credentials `json:"credentials"`
 }

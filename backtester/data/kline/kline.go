@@ -7,8 +7,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/ticker"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	gctticker "github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -56,17 +59,37 @@ func (d *PriceData) Load() error {
 	return nil
 }
 
-func (d *PriceData) AppendTicker(t *ticker.Price) error {
+// AppendTicker is used to append ticker data for live data or something
+func (d *PriceData) AppendTicker(exch string, a asset.Item, cp currency.Pair, t *gctticker.Price) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
 	}
-	if _, ok := d.addedTimes[t.LastUpdated.UnixNano()]; !ok {
-		gctCandles = append(gctCandles, ki.Candles[i])
-		d.addedTimes[t.LastUpdated.UnixNano()] = true
-	}
-	klineData := make([]common.DataEventHandler, 1)
 
-	d.AppendStream()
+	if _, ok := d.addedTimes[t.LastUpdated.UnixNano()]; ok {
+		return
+	}
+	d.addedTimes[t.LastUpdated.UnixNano()] = true
+	offset := int64(len(d.List())) + 1
+	d.AppendStream(&ticker.Ticker{
+		Base: &event.Base{
+			Offset:       offset,
+			Exchange:     exch,
+			Time:         t.LastUpdated,
+			CurrencyPair: cp,
+			AssetType:    a,
+			Interval:     gctkline.Interval(time.Second * 5),
+		},
+		Last:        decimal.NewFromFloat(t.Last),
+		High:        decimal.NewFromFloat(t.High),
+		Low:         decimal.NewFromFloat(t.Low),
+		Bid:         decimal.NewFromFloat(t.Bid),
+		Ask:         decimal.NewFromFloat(t.Ask),
+		Volume:      decimal.NewFromFloat(t.Volume),
+		QuoteVolume: decimal.NewFromFloat(t.QuoteVolume),
+		Open:        decimal.NewFromFloat(t.Open),
+		Close:       decimal.NewFromFloat(t.Close),
+	})
+	d.SortStream()
 }
 
 // AppendKLine adds a candle item to the data stream and sorts it to ensure it is all in order

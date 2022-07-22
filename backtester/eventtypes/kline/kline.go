@@ -25,6 +25,11 @@ func (k *Kline) GetOpenPrice() decimal.Decimal {
 	return k.Open
 }
 
+// GetLastPrice returns the last price
+func (k *Kline) GetLastPrice() decimal.Decimal {
+	return k.Close
+}
+
 // GetUnderlyingPair returns the open price of a kline
 func (k *Kline) GetUnderlyingPair() currency.Pair {
 	return k.UnderlyingPair

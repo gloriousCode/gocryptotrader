@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -68,40 +68,17 @@ func (bt *BackTest) RunLive() error {
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) {
-	startDate := time.Now().Add(-cfg.DataSettings.Interval.Duration() * 2)
-	dates, err := gctkline.CalculateCandleDateRanges(
-		startDate,
-		startDate.AddDate(1, 0, 0),
-		cfg.DataSettings.Interval,
-		0)
-	if err != nil {
-		log.Errorf(common.Backtester, "%v. Please check your GoCryptoTrader configuration", err)
-		return
-	}
-	candles, err := live.LoadData(context.TODO(),
-		exch,
-		dataType,
-		cfg.DataSettings.Interval.Duration(),
-		fPair,
-		a)
-	if err != nil {
-		log.Errorf(common.Backtester, "%v. Please check your GoCryptoTrader configuration", err)
-		return
-	}
-	dates.SetHasDataFromCandles(candles.Candles)
-	resp.RangeHolder = dates
-	resp.KLine = *candles
-
-	loadNewDataTimer := time.NewTimer(time.Second * 5)
+func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, checkInterval time.Duration) {
+	var err error
+	loadNewDataTimer := time.NewTimer(0)
 	for {
 		select {
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
 			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
-			loadNewDataTimer.Reset(time.Second * 15)
-			err = bt.loadLiveData(resp, cfg, exch, fPair, a, dataType)
+			loadNewDataTimer.Reset(checkInterval)
+			err = bt.loadLiveData(resp, cfg, exch, fPair, a)
 			if err != nil {
 				log.Error(common.Backtester, err)
 				return
@@ -110,7 +87,7 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, 
 	}
 }
 
-func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, dataType int64) error {
+func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) error {
 	if resp == nil {
 		return errNilData
 	}
@@ -120,20 +97,13 @@ func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch
 	if exch == nil {
 		return errNilExchange
 	}
-	candles, err := live.LoadData(context.TODO(),
+	t, err := live.LoadData(context.TODO(),
 		exch,
-		dataType,
-		cfg.DataSettings.Interval.Duration(),
 		fPair,
 		a)
 	if err != nil {
 		return err
 	}
-	if len(candles.Candles) == 0 {
-		return nil
-	}
-	resp.AppendKLine(candles)
-	bt.Reports.UpdateItem(&resp.KLine)
-	log.Info(common.Backtester, "sleeping for 30 seconds before checking for new candle data")
+	resp.AppendTicker(strings.ToLower(exch.GetName()), a, fPair, t)
 	return nil
 }

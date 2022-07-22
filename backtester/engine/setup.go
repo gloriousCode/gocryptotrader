@@ -731,14 +731,14 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return nil, err
 		}
-		resp.AppendKLine()
+		resp.AppendTicker(strings.ToLower(exch.GetName()), a, fPair, t)
 		go bt.loadLiveDataLoop(
 			resp,
 			cfg,
 			exch,
 			fPair,
 			a,
-			dataType)
+			time.Second*5)
 		return resp, nil
 	}
 	if resp == nil {
