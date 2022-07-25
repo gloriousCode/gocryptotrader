@@ -501,6 +501,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 
 		realOrders := false
 		if cfg.DataSettings.LiveData != nil {
+			bt.isLive = true
 			realOrders = cfg.DataSettings.LiveData.RealOrders
 		}
 

@@ -14,8 +14,9 @@ var errNoCandleData = errors.New("no candle data provided")
 // It holds candle data for a specified range with helper functions
 type PriceData struct {
 	data.Base
-	addedTimes  map[int64]bool
-	KLine       gctkline.Item
-	TickerStuff []ticker.Price
-	RangeHolder *gctkline.IntervalRangeHolder
+	addedTimes      map[int64]bool
+	KLine           gctkline.Item
+	TickerStuff     []ticker.Price
+	usingTickerData bool
+	RangeHolder     *gctkline.IntervalRangeHolder
 }

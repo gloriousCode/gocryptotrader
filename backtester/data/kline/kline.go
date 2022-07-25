@@ -18,6 +18,9 @@ import (
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
 func (d *PriceData) HasDataAtTime(t time.Time) bool {
+	if d.usingTickerData {
+		return true
+	}
 	if d.RangeHolder == nil {
 		return false
 	}
@@ -68,6 +71,7 @@ func (d *PriceData) AppendTicker(exch string, a asset.Item, cp currency.Pair, t 
 	if _, ok := d.addedTimes[t.LastUpdated.UnixNano()]; ok {
 		return
 	}
+	d.usingTickerData = true
 	d.addedTimes[t.LastUpdated.UnixNano()] = true
 	offset := int64(len(d.List())) + 1
 	d.AppendStream(&ticker.Ticker{

@@ -7,6 +7,9 @@ import (
 
 // GetClosePrice returns the closing price of a kline
 func (t *Ticker) GetClosePrice() decimal.Decimal {
+	if t.Close.IsZero() {
+		return t.Last
+	}
 	return t.Close
 }
 

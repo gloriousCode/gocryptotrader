@@ -80,6 +80,7 @@ type DataEventHandler interface {
 	GetHighPrice() decimal.Decimal
 	GetLowPrice() decimal.Decimal
 	GetOpenPrice() decimal.Decimal
+	GetLastPrice() decimal.Decimal
 }
 
 // Directioner dictates the side of an order

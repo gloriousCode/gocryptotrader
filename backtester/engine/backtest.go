@@ -49,7 +49,6 @@ func (bt *BackTest) Reset() {
 // Run will iterate over loaded data events
 // save them and then handle the event based on its type
 func (bt *BackTest) Run() {
-	log.Info(common.Backtester, "running backtester against pre-defined data")
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
@@ -131,6 +130,7 @@ func (bt *BackTest) handleEvent(ev common.EventHandler) error {
 	}
 
 	bt.Funding.CreateSnapshot(ev.GetTime())
+	bt.printEventIfLive(ev)
 	return nil
 }
 
@@ -426,6 +426,16 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 		return bt.processFuturesFillEvent(ev, funds)
 	}
 	return nil
+}
+
+func (bt *BackTest) printEventIfLive(ev common.EventHandler) {
+	if bt.isLive {
+		msg, err := statistics.CreatePrintableEvent(ev)
+		if err != nil {
+			log.Error(common.Backtester, err)
+		}
+		log.Infoln(common.Backtester, msg)
+	}
 }
 
 func (bt *BackTest) processFuturesFillEvent(ev fill.Event, funds funding.IFundReleaser) error {

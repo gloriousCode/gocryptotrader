@@ -7,7 +7,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -25,7 +24,6 @@ func (bt *BackTest) RunLive() error {
 	// a frequent timer so that when a new candle is released by an exchange
 	// that it can be processed quickly
 	processEventTicker := time.NewTicker(time.Second)
-	doneARun := false
 	for {
 		select {
 		case <-bt.shutdown:
@@ -33,35 +31,7 @@ func (bt *BackTest) RunLive() error {
 		case <-timeoutTimer.C:
 			return errLiveDataTimeout
 		case <-processEventTicker.C:
-			for e := bt.EventQueue.NextEvent(); ; e = bt.EventQueue.NextEvent() {
-				if e == nil {
-					// as live only supports singular currency, just get the proper reference manually
-					var d data.Handler
-					dd := bt.Datas.GetAllData()
-					for k1, v1 := range dd {
-						for k2, v2 := range v1 {
-							for k3 := range v2 {
-								d = dd[k1][k2][k3]
-							}
-						}
-					}
-					de := d.Next()
-					if de == nil {
-						break
-					}
-
-					bt.EventQueue.AppendEvent(de)
-					doneARun = true
-					continue
-				}
-				err := bt.handleEvent(e)
-				if err != nil {
-					return err
-				}
-			}
-			if doneARun {
-				timeoutTimer = time.NewTimer(time.Minute * 5)
-			}
+			bt.Run()
 		}
 	}
 }
