@@ -259,10 +259,10 @@ func CalculateIndividualFundingStatistics(disableUSDTracking bool, reportItem *f
 			}
 		}
 	}
-	if item.ReportItem.USDPairCandle == nil && !reportItem.IsCollateral {
+	if item.ReportItem.USDPairData == nil && !reportItem.IsCollateral {
 		return nil, fmt.Errorf("%w usd candles missing", errMissingSnapshots)
 	}
-	s := item.ReportItem.USDPairCandle.GetStream()
+	s := item.ReportItem.USDPairData.GetStream()
 	if len(s) == 0 {
 		return nil, fmt.Errorf("%w stream missing", errMissingSnapshots)
 	}

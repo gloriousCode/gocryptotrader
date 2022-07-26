@@ -230,32 +230,32 @@ func TestExists(t *testing.T) {
 	// demonstration that you don't need the original *Items
 	// to check for existence, just matching fields
 	baseCopy := Item{
-		exchange:          baseItem.exchange,
-		asset:             baseItem.asset,
-		currency:          baseItem.currency,
-		initialFunds:      baseItem.initialFunds,
-		available:         baseItem.available,
-		reserved:          baseItem.reserved,
-		transferFee:       baseItem.transferFee,
-		pairedWith:        baseItem.pairedWith,
-		trackingCandles:   baseItem.trackingCandles,
-		snapshot:          baseItem.snapshot,
-		isCollateral:      baseItem.isCollateral,
-		collateralCandles: baseItem.collateralCandles,
+		exchange:       baseItem.exchange,
+		asset:          baseItem.asset,
+		currency:       baseItem.currency,
+		initialFunds:   baseItem.initialFunds,
+		available:      baseItem.available,
+		reserved:       baseItem.reserved,
+		transferFee:    baseItem.transferFee,
+		pairedWith:     baseItem.pairedWith,
+		trackingData:   baseItem.trackingData,
+		snapshot:       baseItem.snapshot,
+		isCollateral:   baseItem.isCollateral,
+		collateralData: baseItem.collateralData,
 	}
 	quoteCopy := Item{
-		exchange:          quoteItem.exchange,
-		asset:             quoteItem.asset,
-		currency:          quoteItem.currency,
-		initialFunds:      quoteItem.initialFunds,
-		available:         quoteItem.available,
-		reserved:          quoteItem.reserved,
-		transferFee:       quoteItem.transferFee,
-		pairedWith:        quoteItem.pairedWith,
-		trackingCandles:   quoteItem.trackingCandles,
-		snapshot:          quoteItem.snapshot,
-		isCollateral:      quoteItem.isCollateral,
-		collateralCandles: quoteItem.collateralCandles,
+		exchange:       quoteItem.exchange,
+		asset:          quoteItem.asset,
+		currency:       quoteItem.currency,
+		initialFunds:   quoteItem.initialFunds,
+		available:      quoteItem.available,
+		reserved:       quoteItem.reserved,
+		transferFee:    quoteItem.transferFee,
+		pairedWith:     quoteItem.pairedWith,
+		trackingData:   quoteItem.trackingData,
+		snapshot:       quoteItem.snapshot,
+		isCollateral:   quoteItem.isCollateral,
+		collateralData: quoteItem.collateralData,
 	}
 	quoteCopy.pairedWith = &baseCopy
 	if !f.Exists(&baseCopy) {
@@ -447,7 +447,7 @@ func TestGenerateReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dfk := &kline.PriceData{
+	dfk := &kline.Data{
 		KLine: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(currency.BTC, currency.USD),
@@ -468,7 +468,7 @@ func TestGenerateReport(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	f.items[0].trackingCandles = dfk
+	f.items[0].trackingData = dfk
 	f.CreateSnapshot(dfk.KLine.Candles[0].Time)
 
 	report = f.GenerateReport()
@@ -490,7 +490,7 @@ func TestCreateSnapshot(t *testing.T) {
 	f.items = append(f.items, &Item{})
 	f.CreateSnapshot(time.Time{})
 
-	dfk := &kline.PriceData{
+	dfk := &kline.Data{
 		KLine: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
@@ -503,14 +503,14 @@ func TestCreateSnapshot(t *testing.T) {
 		t.Error(err)
 	}
 	f.items = append(f.items, &Item{
-		exchange:        "test",
-		asset:           asset.Spot,
-		currency:        currency.BTC,
-		initialFunds:    decimal.NewFromInt(1337),
-		available:       decimal.NewFromInt(1337),
-		reserved:        decimal.NewFromInt(1337),
-		transferFee:     decimal.NewFromInt(1337),
-		trackingCandles: dfk,
+		exchange:     "test",
+		asset:        asset.Spot,
+		currency:     currency.BTC,
+		initialFunds: decimal.NewFromInt(1337),
+		available:    decimal.NewFromInt(1337),
+		reserved:     decimal.NewFromInt(1337),
+		transferFee:  decimal.NewFromInt(1337),
+		trackingData: dfk,
 	})
 	f.CreateSnapshot(dfk.KLine.Candles[0].Time)
 }
@@ -523,12 +523,12 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
-	err = f.AddUSDTrackingData(&kline.PriceData{})
+	err = f.AddUSDTrackingData(&kline.Data{})
 	if !errors.Is(err, common.ErrNilArguments) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilArguments)
 	}
 
-	dfk := &kline.PriceData{
+	dfk := &kline.Data{
 		KLine: gctkline.Item{
 			Candles: []gctkline.Candle{
 				{
@@ -562,7 +562,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotMatchTrackingToItem)
 	}
 
-	dfk = &kline.PriceData{
+	dfk = &kline.Data{
 		KLine: gctkline.Item{
 			Exchange: exchName,
 			Pair:     currency.NewPair(pair.Quote, currency.USD),

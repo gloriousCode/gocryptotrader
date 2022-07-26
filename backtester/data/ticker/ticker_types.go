@@ -1,21 +1,22 @@
-package kline
+package ticker
 
 import (
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
-var errNoCandleData = errors.New("no candle data provided")
+var errNoTickerData = errors.New("no ticker data provided")
 
 // Data is a struct which implements the data.Streamer interface
 // It holds candle data for a specified range with helper functions
 type Data struct {
 	data.Base
 	addedTimes     map[int64]bool
-	KLine          gctkline.Item
+	PollTime       kline.Interval
+	Tickers        []ticker.Price
 	UnderlyingPair currency.Pair
-	RangeHolder    *gctkline.IntervalRangeHolder
 }

@@ -1,4 +1,4 @@
-package kline
+package ticker
 
 import (
 	"errors"
@@ -26,8 +26,8 @@ func TestLoad(t *testing.T) {
 	tt := time.Now()
 	d := Data{}
 	err := d.Load()
-	if !errors.Is(err, errNoCandleData) {
-		t.Errorf("received: %v, expected: %v", err, errNoCandleData)
+	if !errors.Is(err, errNoTickerData) {
+		t.Errorf("received: %v, expected: %v", err, errNoTickerData)
 	}
 	d.KLine = gctkline.Item{
 		Exchange: exch,

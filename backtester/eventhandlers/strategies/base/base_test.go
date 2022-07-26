@@ -24,7 +24,7 @@ func TestGetBase(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilArguments)
 	}
 
-	_, err = s.GetBaseData(&datakline.PriceData{})
+	_, err = s.GetBaseData(&datakline.Data{})
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -49,7 +49,7 @@ func TestGetBase(t *testing.T) {
 	}})
 
 	d.Next()
-	_, err = s.GetBaseData(&datakline.PriceData{
+	_, err = s.GetBaseData(&datakline.Data{
 		KLine:       gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},

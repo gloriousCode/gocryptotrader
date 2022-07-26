@@ -62,7 +62,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 			},
 		},
 	}
-	dfk := &kline.PriceData{
+	dfk := &kline.Data{
 		KLine: usdKline,
 	}
 	err = dfk.Load()
@@ -160,7 +160,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
 
-	ri.USDPairCandle = &kline.PriceData{
+	ri.USDPairData = &kline.Data{
 		KLine: gctkline.Item{
 			Interval: gctkline.OneHour,
 			Candles: []gctkline.Candle{
@@ -173,7 +173,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 			},
 		},
 	}
-	err = ri.USDPairCandle.Load()
+	err = ri.USDPairData.Load()
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}

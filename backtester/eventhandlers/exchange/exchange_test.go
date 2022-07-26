@@ -274,7 +274,7 @@ func TestExecuteOrder(t *testing.T) {
 			},
 		},
 	}
-	d := &kline.PriceData{
+	d := &kline.Data{
 		KLine: item,
 	}
 	err = d.Load()
@@ -377,7 +377,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
-	d := &kline.PriceData{
+	d := &kline.Data{
 		KLine: gctkline.Item{
 			Exchange: "",
 			Pair:     currency.EMPTYPAIR,

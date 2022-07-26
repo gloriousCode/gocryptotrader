@@ -125,7 +125,7 @@ func TestOnSignals(t *testing.T) {
 		Volume: decimal.NewFromInt(1337),
 	}})
 	d.Next()
-	da := &kline.PriceData{
+	da := &kline.Data{
 		KLine:       gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},

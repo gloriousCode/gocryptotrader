@@ -66,7 +66,7 @@ We welcome pull requests on any feature for the Backtester! We will be especiall
   - Start & end dates
   - The strategy to run
   - The candle interval
-  - Where the data is to be sourced ([API](/backtester/data/kline/api/README.md), [CSV](/backtester/data/kline/csv/README.md), [database](/backtester/data/kline/database/README.md), [live](/backtester/data/kline/live/README.md))
+  - Where the data is to be sourced ([API](/backtester/data/kline/api/README.md), [CSV](/backtester/data/kline/csv/README.md), [database](/backtester/data/kline/database/README.md), [live](/backtester/data/ticker/live/README.md))
   - Whether to use trade or candle data ([readme](/backtester/data/kline/README.md))
   - A nickname for the strategy (to help differentiate between runs/configs using the same strategy)
   - The currency/currencies to use

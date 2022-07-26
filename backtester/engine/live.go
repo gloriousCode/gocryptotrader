@@ -2,13 +2,11 @@ package engine
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/ticker"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/ticker/live"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -38,7 +36,7 @@ func (bt *BackTest) RunLive() error {
 
 // loadLiveDataLoop is an incomplete function to continuously retrieve exchange data on a loop
 // from live. Its purpose is to be able to perform strategy analysis against current data
-func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, checkInterval time.Duration) {
+func (bt *BackTest) loadLiveDataLoop(resp *ticker.Data, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, checkInterval time.Duration) {
 	var err error
 	loadNewDataTimer := time.NewTimer(0)
 	for {
@@ -46,9 +44,9 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, 
 		case <-bt.shutdown:
 			return
 		case <-loadNewDataTimer.C:
-			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, cfg.DataSettings.Interval)
+			log.Infof(common.Backtester, "fetching data for %v %v %v %v", exch.GetName(), a, fPair, checkInterval)
 			loadNewDataTimer.Reset(checkInterval)
-			err = bt.loadLiveData(resp, cfg, exch, fPair, a)
+			err = bt.loadLiveData(resp, exch, fPair, a)
 			if err != nil {
 				log.Error(common.Backtester, err)
 				return
@@ -57,12 +55,9 @@ func (bt *BackTest) loadLiveDataLoop(resp *kline.PriceData, cfg *config.Config, 
 	}
 }
 
-func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) error {
+func (bt *BackTest) loadLiveData(resp *ticker.Data, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) error {
 	if resp == nil {
 		return errNilData
-	}
-	if cfg == nil {
-		return errNilConfig
 	}
 	if exch == nil {
 		return errNilExchange
@@ -74,6 +69,6 @@ func (bt *BackTest) loadLiveData(resp *kline.PriceData, cfg *config.Config, exch
 	if err != nil {
 		return err
 	}
-	resp.AppendTicker(strings.ToLower(exch.GetName()), a, fPair, t)
+	resp.AppendTicker(resp.UnderlyingPair, t)
 	return nil
 }

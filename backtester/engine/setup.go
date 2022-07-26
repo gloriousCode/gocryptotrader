@@ -13,11 +13,13 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/database"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/live"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/ticker"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data/ticker/live"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange/slippage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -39,7 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	gctticker "github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -611,7 +613,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.PriceData, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (data.Handler, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -637,7 +639,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	log.Infof(common.Setup, "loading data for %v %v %v...\n", exch.GetName(), a, fPair)
-	resp := &kline.PriceData{}
+	var resp *kline.Data
 	switch {
 	case cfg.DataSettings.CSVData != nil:
 		if cfg.DataSettings.Interval <= 0 {
@@ -728,23 +730,31 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			return resp, err
 		}
 	case cfg.DataSettings.LiveData != nil:
-		t, err := loadLiveData(cfg, exch, fPair, a)
+		var t *gctticker.Price
+		t, err = loadLiveData(cfg, exch, fPair, a)
 		if err != nil {
 			return nil, err
 		}
-		resp.AppendTicker(strings.ToLower(exch.GetName()), a, fPair, t)
+		var tickerResp *ticker.Data
+		tickerResp.AppendTicker(currency.EMPTYPAIR, t)
 		go bt.loadLiveDataLoop(
-			resp,
-			cfg,
+			tickerResp,
 			exch,
 			fPair,
 			a,
 			time.Second*5)
-		return resp, nil
+		return tickerResp, nil
 	}
 	if resp == nil {
 		return nil, fmt.Errorf("processing error, response returned nil")
 	}
+
+	type IButts interface {
+		SetUnderlyingPair(cp currency.Pair)
+		ValidateData
+	}
+
+	respyInterface := IButts(resp)
 
 	if a.IsFutures() {
 		// returning the collateral currency along with using the
@@ -758,7 +768,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		if err != nil {
 			return resp, err
 		}
-		resp.KLine.UnderlyingPair = currency.NewPair(fPair.Base, curr)
+		resp.UnderlyingPair = currency.NewPair(fPair.Base, curr)
 	}
 
 	err = b.ValidateKline(fPair, a, resp.KLine.Interval)
@@ -772,11 +782,11 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	if err != nil {
 		return nil, err
 	}
-	bt.Reports.AddKlineItem(&resp.KLine)
+	bt.Reports.AddData(&resp.KLine)
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.PriceData, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.Data, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -795,7 +805,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.PriceData, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.Data, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -825,13 +835,13 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}
 	candles.FillMissingDataWithEmptyEntries(dates)
 	candles.RemoveOutsideRange(cfg.DataSettings.APIData.StartDate, cfg.DataSettings.APIData.EndDate)
-	return &kline.PriceData{
+	return &kline.Data{
 		KLine:       *candles,
 		RangeHolder: dates,
 	}, nil
 }
 
-func loadLiveData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*ticker.Price, error) {
+func loadLiveData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item) (*gctticker.Price, error) {
 	if cfg == nil || exch == nil || cfg.DataSettings.LiveData == nil {
 		return nil, common.ErrNilArguments
 	}

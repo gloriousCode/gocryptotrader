@@ -31,7 +31,7 @@ func TestGenerateReport(t *testing.T) {
 		},
 		OutputPath:   t.TempDir(),
 		TemplatePath: "tpl.gohtml",
-		OriginalCandles: []*gctkline.Item{
+		OriginalData: []*gctkline.Item{
 			{
 				Candles: []gctkline.Candle{
 					{
@@ -323,7 +323,7 @@ func TestEnhanceCandles(t *testing.T) {
 	if !errors.Is(err, errNoCandles) {
 		t.Errorf("received: %v, expected: %v", err, errNoCandles)
 	}
-	d.AddKlineItem(&gctkline.Item{})
+	d.AddData(&gctkline.Item{})
 	err = d.enhanceCandles()
 	if !errors.Is(err, errStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errStatisticsUnset)
@@ -339,7 +339,7 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[currency.Pair]*statistics.CurrencyPairStatistic)
 	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.NewPair(currency.BTC, currency.USDT)] = &statistics.CurrencyPairStatistic{}
 
-	d.AddKlineItem(&gctkline.Item{
+	d.AddData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -360,7 +360,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	d.AddKlineItem(&gctkline.Item{
+	d.AddData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,
@@ -463,10 +463,10 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if len(d.OriginalCandles) != 1 {
+	if len(d.OriginalData) != 1 {
 		t.Fatal("expected Original Candles len of 1")
 	}
-	if len(d.OriginalCandles[0].Candles) != 1 {
+	if len(d.OriginalData[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
 	d.UpdateItem(&gctkline.Item{
@@ -476,7 +476,7 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if len(d.OriginalCandles[0].Candles) != 1 {
+	if len(d.OriginalData[0].Candles) != 1 {
 		t.Error("expected one candle")
 	}
 
@@ -487,7 +487,7 @@ func TestUpdateItem(t *testing.T) {
 			},
 		},
 	})
-	if len(d.OriginalCandles[0].Candles) != 2 {
+	if len(d.OriginalData[0].Candles) != 2 {
 		t.Error("expected two candles")
 	}
 }

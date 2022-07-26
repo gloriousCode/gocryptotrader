@@ -10,6 +10,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -133,10 +134,10 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 
 		if !f.disableUSDTracking {
 			var usdClosePrice decimal.Decimal
-			if f.items[i].trackingCandles == nil {
+			if f.items[i].trackingData == nil {
 				continue
 			}
-			usdCandles := f.items[i].trackingCandles.GetStream()
+			usdCandles := f.items[i].trackingData.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
 					usdClosePrice = usdCandles[j].GetClosePrice()
@@ -153,7 +154,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 
 // AddUSDTrackingData adds USD tracking data to a funding item
 // only in the event that it is not USD and there is data
-func (f *FundManager) AddUSDTrackingData(k *kline.PriceData) error {
+func (f *FundManager) AddUSDTrackingData(d data.Streamer) error {
 	if f == nil || f.items == nil {
 		return common.ErrNilArguments
 	}
@@ -167,25 +168,25 @@ func (f *FundManager) AddUSDTrackingData(k *kline.PriceData) error {
 		if baseSet && quoteSet {
 			return nil
 		}
-		if f.items[i].asset.IsFutures() && k.KLine.Asset.IsFutures() {
+		if f.items[i].asset.IsFutures() && d.KLine.Asset.IsFutures() {
 			if f.items[i].isCollateral {
-				err := f.setUSDCandles(k, i)
+				err := f.setUSDCandles(d, i)
 				if err != nil {
 					return err
 				}
 			} else {
-				f.items[i].trackingCandles = k
+				f.items[i].trackingData = d
 				baseSet = true
 			}
 			continue
 		}
 
-		if strings.EqualFold(f.items[i].exchange, k.KLine.Exchange) &&
-			f.items[i].asset == k.KLine.Asset {
-			if f.items[i].currency.Equal(k.KLine.Pair.Base) {
-				if f.items[i].trackingCandles == nil &&
-					trackingcurrencies.CurrencyIsUSDTracked(k.KLine.Pair.Quote) {
-					f.items[i].trackingCandles = k
+		if strings.EqualFold(f.items[i].exchange, d.KLine.Exchange) &&
+			f.items[i].asset == d.KLine.Asset {
+			if f.items[i].currency.Equal(d.KLine.Pair.Base) {
+				if f.items[i].trackingData == nil &&
+					trackingcurrencies.CurrencyIsUSDTracked(d.KLine.Pair.Quote) {
+					f.items[i].trackingData = d
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
 					}
@@ -196,8 +197,8 @@ func (f *FundManager) AddUSDTrackingData(k *kline.PriceData) error {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
-				if f.items[i].trackingCandles == nil {
-					err := f.setUSDCandles(k, i)
+				if f.items[i].trackingData == nil {
+					err := f.setUSDCandles(d, i)
 					if err != nil {
 						return err
 					}
@@ -209,14 +210,14 @@ func (f *FundManager) AddUSDTrackingData(k *kline.PriceData) error {
 	if baseSet {
 		return nil
 	}
-	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, k.KLine.Exchange, k.KLine.Asset, k.KLine.Pair)
+	return fmt.Errorf("%w %v %v %v", errCannotMatchTrackingToItem, d.KLine.Exchange, d.KLine.Asset, d.KLine.Pair)
 }
 
 // setUSDCandles sets usd tracking candles
 // usd stablecoins do not always match in value,
 // this is a simplified implementation that can allow
 // USD tracking for many currencies across many exchanges
-func (f *FundManager) setUSDCandles(k *kline.PriceData, i int) error {
+func (f *FundManager) setUSDCandles(k *kline.Data, i int) error {
 	usdCandles := gctkline.Item{
 		Exchange: k.KLine.Exchange,
 		Pair:     currency.Pair{Delimiter: k.KLine.Pair.Delimiter, Base: f.items[i].currency, Quote: currency.USD},
@@ -238,7 +239,7 @@ func (f *FundManager) setUSDCandles(k *kline.PriceData, i int) error {
 	if err := cpy.Load(); err != nil {
 		return err
 	}
-	f.items[i].trackingCandles = &cpy
+	f.items[i].trackingData = &cpy
 	return nil
 }
 
@@ -311,13 +312,13 @@ func (f *FundManager) GenerateReport() *Report {
 		}
 
 		if !f.disableUSDTracking &&
-			f.items[x].trackingCandles != nil {
-			usdStream := f.items[x].trackingCandles.GetStream()
+			f.items[x].trackingData != nil {
+			usdStream := f.items[x].trackingData.GetStream()
 			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
 			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
 			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
-			item.USDPairCandle = f.items[x].trackingCandles
+			item.USDPairData = f.items[x].trackingData
 		}
 
 		// create a breakdown of USD values and currency contributions over the span of run
@@ -532,8 +533,8 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	result := make([]BasicItem, len(f.items))
 	for i := range f.items {
 		var usd decimal.Decimal
-		if f.items[i].trackingCandles != nil {
-			latest := f.items[i].trackingCandles.Latest()
+		if f.items[i].trackingData != nil {
+			latest := f.items[i].trackingData.Latest()
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}
@@ -579,8 +580,8 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 			exchMap[f.items[i].exchange] = exch
 		}
 		var usd decimal.Decimal
-		if f.items[i].trackingCandles != nil {
-			latest := f.items[i].trackingCandles.Latest()
+		if f.items[i].trackingData != nil {
+			latest := f.items[i].trackingData.Latest()
 			if latest != nil {
 				usd = latest.GetClosePrice()
 			}

@@ -7,20 +7,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/ticker"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	gctticker "github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
-func (d *PriceData) HasDataAtTime(t time.Time) bool {
-	if d.usingTickerData {
-		return true
-	}
+func (d *Data) HasDataAtTime(t time.Time) bool {
 	if d.RangeHolder == nil {
 		return false
 	}
@@ -28,7 +21,7 @@ func (d *PriceData) HasDataAtTime(t time.Time) bool {
 }
 
 // Load sets the candle data to the stream for processing
-func (d *PriceData) Load() error {
+func (d *Data) Load() error {
 	d.addedTimes = make(map[int64]bool)
 	if len(d.KLine.Candles) == 0 {
 		return errNoCandleData
@@ -62,42 +55,8 @@ func (d *PriceData) Load() error {
 	return nil
 }
 
-// AppendTicker is used to append ticker data for live data or something
-func (d *PriceData) AppendTicker(exch string, a asset.Item, cp currency.Pair, t *gctticker.Price) {
-	if d.addedTimes == nil {
-		d.addedTimes = make(map[int64]bool)
-	}
-
-	if _, ok := d.addedTimes[t.LastUpdated.UnixNano()]; ok {
-		return
-	}
-	d.usingTickerData = true
-	d.addedTimes[t.LastUpdated.UnixNano()] = true
-	offset := int64(len(d.List())) + 1
-	d.AppendStream(&ticker.Ticker{
-		Base: &event.Base{
-			Offset:       offset,
-			Exchange:     exch,
-			Time:         t.LastUpdated,
-			CurrencyPair: cp,
-			AssetType:    a,
-			Interval:     gctkline.Interval(time.Second * 5),
-		},
-		Last:        decimal.NewFromFloat(t.Last),
-		High:        decimal.NewFromFloat(t.High),
-		Low:         decimal.NewFromFloat(t.Low),
-		Bid:         decimal.NewFromFloat(t.Bid),
-		Ask:         decimal.NewFromFloat(t.Ask),
-		Volume:      decimal.NewFromFloat(t.Volume),
-		QuoteVolume: decimal.NewFromFloat(t.QuoteVolume),
-		Open:        decimal.NewFromFloat(t.Open),
-		Close:       decimal.NewFromFloat(t.Close),
-	})
-	d.SortStream()
-}
-
 // AppendKLine adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *PriceData) AppendKLine(ki *gctkline.Item) {
+func (d *Data) AppendKLine(ki *gctkline.Item) {
 	if d.addedTimes == nil {
 		d.addedTimes = make(map[int64]bool)
 	}
@@ -142,7 +101,7 @@ func (d *PriceData) AppendKLine(ki *gctkline.Item) {
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration
-func (d *PriceData) StreamOpen() []decimal.Decimal {
+func (d *Data) StreamOpen() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -157,8 +116,12 @@ func (d *PriceData) StreamOpen() []decimal.Decimal {
 	return ret
 }
 
+func (d *Data) GetDataType() uint8 {
+	return 0
+}
+
 // StreamHigh returns all High prices from the beginning until the current iteration
-func (d *PriceData) StreamHigh() []decimal.Decimal {
+func (d *Data) StreamHigh() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -174,7 +137,7 @@ func (d *PriceData) StreamHigh() []decimal.Decimal {
 }
 
 // StreamLow returns all Low prices from the beginning until the current iteration
-func (d *PriceData) StreamLow() []decimal.Decimal {
+func (d *Data) StreamLow() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -190,7 +153,7 @@ func (d *PriceData) StreamLow() []decimal.Decimal {
 }
 
 // StreamClose returns all Close prices from the beginning until the current iteration
-func (d *PriceData) StreamClose() []decimal.Decimal {
+func (d *Data) StreamClose() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 
@@ -206,7 +169,7 @@ func (d *PriceData) StreamClose() []decimal.Decimal {
 }
 
 // StreamVol returns all Volume prices from the beginning until the current iteration
-func (d *PriceData) StreamVol() []decimal.Decimal {
+func (d *Data) StreamVol() []decimal.Decimal {
 	s := d.GetStream()
 	o := d.Offset()
 

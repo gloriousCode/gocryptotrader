@@ -4,7 +4,9 @@ import (
 	"errors"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -24,14 +26,14 @@ var (
 // Handler contains all functions required to generate statistical reporting for backtesting results
 type Handler interface {
 	GenerateReport() error
-	AddKlineItem(*kline.Item)
-	UpdateItem(*kline.Item)
+	AddData(streamer data.Streamer)
+	UpdateItem(streamer data.Streamer)
 	UseDarkMode(bool)
 }
 
 // Data holds all statistical information required to output detailed backtesting results
 type Data struct {
-	OriginalCandles       []*kline.Item
+	OriginalData          []common.DataEventHandler
 	EnhancedCandles       []EnhancedKline
 	Statistics            *statistics.Statistic
 	Config                *config.Config

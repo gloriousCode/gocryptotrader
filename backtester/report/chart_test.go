@@ -128,7 +128,7 @@ func TestCreatePNLCharts(t *testing.T) {
 		},
 	}
 
-	d.AddKlineItem(&gctkline.Item{
+	d.AddData(&gctkline.Item{
 		Exchange: testExchange,
 		Pair:     currency.NewPair(currency.BTC, currency.USDT),
 		Asset:    asset.Spot,

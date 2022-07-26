@@ -5,7 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -19,7 +19,7 @@ type IFundingManager interface {
 	GetFundingForEvent(common.EventHandler) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() *Report
-	AddUSDTrackingData(*kline.PriceData) error
+	AddUSDTrackingData(data.Streamer) error
 	CreateSnapshot(time.Time)
 	USDTrackingDisabled() bool
 	Liquidate(common.EventHandler)
@@ -124,19 +124,19 @@ type FundManager struct {
 
 // Item holds funding data per currency item
 type Item struct {
-	exchange          string
-	asset             asset.Item
-	currency          currency.Code
-	initialFunds      decimal.Decimal
-	available         decimal.Decimal
-	reserved          decimal.Decimal
-	transferFee       decimal.Decimal
-	pairedWith        *Item
-	trackingCandles   *kline.PriceData
-	snapshot          map[int64]ItemSnapshot
-	isCollateral      bool
-	isLiquidated      bool
-	collateralCandles map[currency.Code]kline.PriceData
+	exchange       string
+	asset          asset.Item
+	currency       currency.Code
+	initialFunds   decimal.Decimal
+	available      decimal.Decimal
+	reserved       decimal.Decimal
+	transferFee    decimal.Decimal
+	pairedWith     *Item
+	trackingData   data.Handler
+	snapshot       map[int64]ItemSnapshot
+	isCollateral   bool
+	isLiquidated   bool
+	collateralData map[currency.Code]data.Handler
 }
 
 // SpotPair holds two currencies that are associated with each other
@@ -187,7 +187,7 @@ type ReportItem struct {
 	USDFinalFunds        decimal.Decimal
 	USDFinalCostForOne   decimal.Decimal
 	Snapshots            []ItemSnapshot
-	USDPairCandle        *kline.PriceData
+	USDPairData          data.Handler
 	Difference           decimal.Decimal
 	ShowInfinite         bool
 	PairedWith           currency.Code
