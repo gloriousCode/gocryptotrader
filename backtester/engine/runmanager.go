@@ -93,6 +93,9 @@ func (r *RunManager) StopRun(id uuid.UUID) error {
 			continue
 		case r.runs[i].IsRunning():
 			r.runs[i].Stop()
+			if r.runs[i].MetaData.ClosePositionsOnStop {
+				return r.runs[i].CloseAllPositions()
+			}
 			return nil
 		case r.runs[i].HasRan():
 			return fmt.Errorf("%w %v", errAlreadyRan, id)

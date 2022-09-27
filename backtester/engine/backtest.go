@@ -28,20 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// New returns a new BackTest instance
-func New() (*BackTest, error) {
-	bt := &BackTest{
-		shutdown:   make(chan struct{}),
-		Datas:      &data.HandlerPerCurrency{},
-		EventQueue: &eventholder.Holder{},
-	}
-	err := bt.SetupMetaData()
-	if err != nil {
-		return nil, err
-	}
-	return bt, nil
-}
-
 // Reset BackTest values to default
 func (bt *BackTest) Reset() {
 	if bt == nil {
@@ -153,7 +139,7 @@ func (bt *BackTest) Run() {
 dataLoadingIssue:
 	for ev := bt.EventQueue.NextEvent(); ; ev = bt.EventQueue.NextEvent() {
 		if ev == nil {
-			if bt.hasShutdown {
+			if bt.MetaData.Closed {
 				break
 			}
 			if doubleNil {
@@ -566,7 +552,8 @@ func (bt *BackTest) Stop() {
 		return
 	}
 	close(bt.shutdown)
-	bt.hasShutdown = true
+	bt.MetaData.Closed = true
+	bt.MetaData.DateEnded = time.Now()
 }
 
 func (bt *BackTest) triggerLiquidationsForExchange(ev data.Event, pnl *portfolio.PNLSummary) error {
@@ -678,18 +665,17 @@ func (bt *BackTest) CloseAllPositions() error {
 			return err
 		}
 	}
-	return nil
 	bt.MetaData.Closed = true
 	bt.MetaData.DateEnded = time.Now()
-	err := bt.Statistic.CalculateAllResults()
+	err = bt.Statistic.CalculateAllResults()
 	if err != nil {
-		log.Error(log.Global, err)
-		return
+		return err
 	}
 	err = bt.Reports.GenerateReport()
 	if err != nil {
 		log.Error(log.Global, err)
 	}
+	return nil
 }
 
 // GenerateSummary creates a summary of a backtesting/livestrategy run

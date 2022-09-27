@@ -555,7 +555,7 @@ func TestStop(t *testing.T) {
 	}
 	bt.Stop()
 	tt := bt.MetaData.DateEnded
-
+	bt.shutdown = make(chan struct{})
 	bt.Stop()
 	if !tt.Equal(bt.MetaData.DateEnded) {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateEnded, tt)
@@ -1365,11 +1365,14 @@ func TestCloseAllPositions(t *testing.T) {
 	bt.Portfolio = &fakeFolio{}
 	bt.Strategy = &fakeStrat{}
 	bt.Exchange = &exchange.Exchange{}
-	bt.Statistic = &statistics.Statistic{}
 	bt.Funding = &fakeFunding{}
+	bt.Statistic = &statistics.Statistic{
+		FundManager: bt.Funding,
+	}
+	bt.Reports = &report.Data{}
 	bt.DataHolder = &fakeDataHolder{}
 	dc.dataHolder = bt.DataHolder
-	dc.report = &report.Data{}
+	dc.report = bt.Reports
 	dc.funding = bt.Funding
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	dc.sourcesToCheck = append(dc.sourcesToCheck, &liveDataSourceDataHandler{
@@ -1624,7 +1627,9 @@ func (f fakeFunding) Transfer(d decimal.Decimal, item, item2 *funding.Item, b bo
 }
 
 func (f fakeFunding) GenerateReport() *funding.Report {
-	return nil
+	return &funding.Report{
+		DisableUSDTracking: true,
+	}
 }
 
 func (f fakeFunding) AddUSDTrackingData(fromKline *kline.DataFromKline) error {
@@ -1986,10 +1991,15 @@ func TestExecuteStrategy(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
-	bt, err = NewFromConfig(cfg, "", "", false)
+	bt, err = NewBacktester()
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
+	err = bt.SetupFromConfig(cfg, "", "", false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	bt.Run()
 	bt.Stop()
 
 	err = bt.ExecuteStrategy(true)
@@ -2002,7 +2012,11 @@ func TestExecuteStrategy(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	bt, err = NewFromConfig(cfg, "", "", false)
+	bt, err = NewBacktester()
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

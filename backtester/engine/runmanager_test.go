@@ -2,6 +2,8 @@ package engine
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"testing"
 	"time"
 
@@ -172,6 +174,27 @@ func TestStopRun(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errAlreadyRan)
 	}
 
+	bt.MetaData.Closed = false
+	bt.MetaData.DateEnded = time.Time{}
+	bt.MetaData.ClosePositionsOnStop = true
+	bt.MetaData.LiveTesting = true
+	bt.Funding = &fakeFunding{}
+	bt.LiveDataHandler = &dataChecker{
+		funding: bt.Funding,
+	}
+	bt.Statistic = &statistics.Statistic{FundManager: bt.Funding}
+	bt.Reports = &report.Data{}
+	bt.Exchange = &exchange.Exchange{}
+	bt.DataHolder = &fakeDataHolder{}
+	bt.Strategy = &fakeStrat{}
+	bt.Portfolio = &fakeFolio{}
+	bt.EventQueue = &eventholder.Holder{}
+	bt.shutdown = make(chan struct{})
+	err = rm.StopRun(bt.MetaData.ID)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+
 	rm = nil
 	err = rm.StopRun(id)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -238,7 +261,7 @@ func TestStartRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -285,7 +308,7 @@ func TestStartAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -324,7 +347,7 @@ func TestClearRun(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}
@@ -377,7 +400,7 @@ func TestClearAllRuns(t *testing.T) {
 	bt := &BackTest{
 		Strategy:   &ftxcashandcarry.Strategy{},
 		EventQueue: &eventholder.Holder{},
-		Datas:      &data.HandlerPerCurrency{},
+		DataHolder: &data.HandlerPerCurrency{},
 		Statistic:  &statistics.Statistic{},
 		shutdown:   make(chan struct{}),
 	}

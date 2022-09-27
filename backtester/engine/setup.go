@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -12,7 +14,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
-	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/api"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline/csv"
@@ -69,6 +70,12 @@ func NewBacktester() (*BackTest, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = bt.SetupMetaData()
+	if err != nil {
+		return nil, err
+	}
+
 	return bt, nil
 }
 
@@ -473,6 +480,9 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 	realOrders := false
 	if cfg.DataSettings.LiveData != nil {
 		realOrders = cfg.DataSettings.LiveData.RealOrders
+		bt.MetaData.LiveTesting = true
+		bt.MetaData.RealOrders = realOrders
+		bt.MetaData.ClosePositionsOnStop = cfg.DataSettings.LiveData.ClosePositionsOnExit
 	}
 
 	for i := range cfg.CurrencySettings {
@@ -549,13 +559,6 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (exchange.Exchange
 		}
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(cfg.CurrencySettings[i].MinimumSlippagePercent) {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
-		}
-
-		realOrders := false
-		if cfg.DataSettings.LiveData != nil {
-			realOrders = cfg.DataSettings.LiveData.RealOrders
-			bt.MetaData.LiveTesting = true
-			bt.MetaData.RealOrders = realOrders
 		}
 
 		buyRule := exchange.MinMax{
@@ -943,9 +946,13 @@ func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.
 	if err := strategyCfg.Validate(); err != nil {
 		return nil, err
 	}
-	bt, err := NewFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	bt, err := NewBacktester()
 	if err != nil {
-		return err
+		return nil, err
+	}
+	err = bt.SetupFromConfig(strategyCfg, backtesterCfg.Report.TemplatePath, backtesterCfg.Report.OutputPath, backtesterCfg.Verbose)
+	if err != nil {
+		return nil, err
 	}
 	if strategyCfg.DataSettings.LiveData != nil {
 		go func() {
@@ -961,9 +968,6 @@ func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.
 	} else {
 		bt.Run()
 	}
-	err = bt.SetupMetaData()
-	if err != nil {
-		return nil, err
-	}
+
 	return bt, nil
 }

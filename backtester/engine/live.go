@@ -386,7 +386,6 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 	defer d.m.Unlock()
 	var err error
 
-	setData := false
 	for x := range s {
 		if s[x] == nil {
 			return fmt.Errorf("%w signal events", errNilData)
@@ -414,11 +413,7 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 			if err != nil && !errors.Is(err, funding.ErrUSDTrackingDisabled) {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue processing USD tracking data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 			}
-			setData = true
 		}
-	}
-	if !setData {
-		return errNoDataSetForClosingPositions
 	}
 
 	return nil

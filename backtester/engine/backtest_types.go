@@ -18,34 +18,31 @@ import (
 )
 
 var (
-	errNilConfig                   = errors.New("unable to setup backtester with nil config")
-	errAmbiguousDataSource         = errors.New("ambiguous settings received. Only one data type can be set")
-	errNoDataSource                = errors.New("no data settings set in config")
-	errIntervalUnset               = errors.New("candle interval unset")
-	errUnhandledDatatype           = errors.New("unhandled datatype")
-	errLiveDataTimeout             = errors.New("no data returned in 5 minutes, shutting down")
-	errNilData                     = errors.New("nil data received")
-	errNilExchange                 = errors.New("nil exchange received")
-	errLiveUSDTrackingNotSupported = errors.New("USD tracking not supported for live data")
-	errNotSetup                    = errors.New("backtesting run not setup")
+	errNilConfig           = errors.New("unable to setup backtester with nil config")
+	errAmbiguousDataSource = errors.New("ambiguous settings received. Only one data type can be set")
+	errNoDataSource        = errors.New("no data settings set in config")
+	errIntervalUnset       = errors.New("candle interval unset")
+	errUnhandledDatatype   = errors.New("unhandled datatype")
+	errNilData             = errors.New("nil data received")
+	errNotSetup            = errors.New("backtesting run not setup")
 	errLiveOnly            = errors.New("close all positions is only supported by live data type")
 )
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
-	m               sync.Mutex
-	MetaData        RunMetaData
-	shutdown        chan struct{}
-	Strategy        strategies.Handler
-	Portfolio       portfolio.Handler
-	Exchange        exchange.ExecutionHandler
-	Statistic       statistics.Handler
-	EventQueue      eventholder.EventHolder
-	Reports         report.Handler
-	Funding         funding.IFundingManager
-	exchangeManager *engine.ExchangeManager
-	orderManager    *engine.OrderManager
-	databaseManager *engine.DatabaseConnectionManager
+	m                        sync.Mutex
+	MetaData                 RunMetaData
+	shutdown                 chan struct{}
+	Strategy                 strategies.Handler
+	Portfolio                portfolio.Handler
+	Exchange                 exchange.ExecutionHandler
+	Statistic                statistics.Handler
+	EventQueue               eventholder.EventHolder
+	Reports                  report.Handler
+	Funding                  funding.IFundingManager
+	exchangeManager          *engine.ExchangeManager
+	orderManager             *engine.OrderManager
+	databaseManager          *engine.DatabaseConnectionManager
 	verbose                  bool
 	hasProcessedAnEvent      bool
 	hasShutdown              bool
@@ -62,14 +59,15 @@ type RunSummary struct {
 
 // RunMetaData contains details about a run such as when it was loaded
 type RunMetaData struct {
-	ID          uuid.UUID
-	Strategy    string
-	DateLoaded  time.Time
-	DateStarted time.Time
-	DateEnded   time.Time
-	Closed      bool
-	LiveTesting bool
-	RealOrders  bool
+	ID                   uuid.UUID
+	Strategy             string
+	DateLoaded           time.Time
+	DateStarted          time.Time
+	DateEnded            time.Time
+	Closed               bool
+	LiveTesting          bool
+	RealOrders           bool
+	ClosePositionsOnStop bool
 }
 
 // RunManager contains all backtesting/livestrategy runs

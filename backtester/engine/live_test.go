@@ -96,7 +96,7 @@ func TestStart(t *testing.T) {
 	}
 }
 
-func TestIsRunning(t *testing.T) {
+func TestDataCheckerIsRunning(t *testing.T) {
 	t.Parallel()
 	dataHandler := &dataChecker{}
 	if dataHandler.IsRunning() {
@@ -461,29 +461,6 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-
-	err = dataHandler.SetDataForClosingAllPositions(&signal.Signal{
-		Base: &event.Base{
-			Offset:         3,
-			Exchange:       "binance",
-			Time:           time.Now(),
-			Interval:       kline.OneHour,
-			CurrencyPair:   cp,
-			UnderlyingPair: cp,
-			AssetType:      asset.Spot,
-		},
-		OpenPrice:  leet,
-		HighPrice:  leet,
-		LowPrice:   leet,
-		ClosePrice: leet,
-		Volume:     leet,
-		BuyLimit:   leet,
-		SellLimit:  leet,
-		Amount:     leet,
-	})
-	if !errors.Is(err, errNoDataSetForClosingPositions) {
-		t.Errorf("received '%v' expected '%v'", err, errNoDataSetForClosingPositions)
 	}
 
 	dataHandler = nil
