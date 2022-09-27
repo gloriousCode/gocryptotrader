@@ -660,8 +660,8 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 					continue
 				}
 				currData := account.Balance{
-					CurrencyName: currency.NewCode(resp.Data[i].List[0].Currency),
-					Total:        resp.Data[i].List[0].Balance,
+					Currency: currency.NewCode(resp.Data[i].List[0].Currency),
+					Total:    resp.Data[i].List[0].Balance,
 				}
 				if len(resp.Data[i].List) > 1 && resp.Data[i].List[1].Type == "frozen" {
 					currData.Hold = resp.Data[i].List[1].Balance
@@ -689,7 +689,7 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 				for j := range balances {
 					frozen := balances[j].Type == "frozen"
 					for i := range currencyDetails {
-						if currencyDetails[i].CurrencyName.String() == balances[j].Currency {
+						if currencyDetails[i].Currency.String() == balances[j].Currency {
 							if frozen {
 								currencyDetails[i].Hold = balances[j].Balance
 							} else {
@@ -702,14 +702,14 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 					if frozen {
 						currencyDetails = append(currencyDetails,
 							account.Balance{
-								CurrencyName: currency.NewCode(balances[j].Currency),
-								Hold:         balances[j].Balance,
+								Currency: currency.NewCode(balances[j].Currency),
+								Hold:     balances[j].Balance,
 							})
 					} else {
 						currencyDetails = append(currencyDetails,
 							account.Balance{
-								CurrencyName: currency.NewCode(balances[j].Currency),
-								Total:        balances[j].Balance,
+								Currency: currency.NewCode(balances[j].Currency),
+								Total:    balances[j].Balance,
 							})
 					}
 				}
@@ -727,10 +727,10 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		var mainAcctBalances []account.Balance
 		for x := range acctInfo.Data {
 			mainAcctBalances = append(mainAcctBalances, account.Balance{
-				CurrencyName: currency.NewCode(acctInfo.Data[x].Symbol),
-				Total:        acctInfo.Data[x].MarginBalance,
-				Hold:         acctInfo.Data[x].MarginFrozen,
-				Free:         acctInfo.Data[x].MarginAvailable,
+				Currency: currency.NewCode(acctInfo.Data[x].Symbol),
+				Total:    acctInfo.Data[x].MarginBalance,
+				Hold:     acctInfo.Data[x].MarginFrozen,
+				Free:     acctInfo.Data[x].MarginAvailable,
 			})
 		}
 
@@ -754,10 +754,10 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			}
 			for y := range a.Data {
 				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(a.Data[y].Symbol),
-					Total:        a.Data[y].MarginBalance,
-					Hold:         a.Data[y].MarginFrozen,
-					Free:         a.Data[y].MarginAvailable,
+					Currency: currency.NewCode(a.Data[y].Symbol),
+					Total:    a.Data[y].MarginBalance,
+					Hold:     a.Data[y].MarginFrozen,
+					Free:     a.Data[y].MarginAvailable,
 				})
 			}
 		}
@@ -772,10 +772,10 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 		var mainAcctBalances []account.Balance
 		for x := range mainAcctData.AccData {
 			mainAcctBalances = append(mainAcctBalances, account.Balance{
-				CurrencyName: currency.NewCode(mainAcctData.AccData[x].Symbol),
-				Total:        mainAcctData.AccData[x].MarginBalance,
-				Hold:         mainAcctData.AccData[x].MarginFrozen,
-				Free:         mainAcctData.AccData[x].MarginAvailable,
+				Currency: currency.NewCode(mainAcctData.AccData[x].Symbol),
+				Total:    mainAcctData.AccData[x].MarginBalance,
+				Hold:     mainAcctData.AccData[x].MarginFrozen,
+				Free:     mainAcctData.AccData[x].MarginAvailable,
 			})
 		}
 
@@ -799,10 +799,10 @@ func (h *HUOBI) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 			}
 			for y := range a.AssetsData {
 				currencyDetails = append(currencyDetails, account.Balance{
-					CurrencyName: currency.NewCode(a.AssetsData[y].Symbol),
-					Total:        a.AssetsData[y].MarginBalance,
-					Hold:         a.AssetsData[y].MarginFrozen,
-					Free:         a.AssetsData[y].MarginAvailable,
+					Currency: currency.NewCode(a.AssetsData[y].Symbol),
+					Total:    a.AssetsData[y].MarginBalance,
+					Hold:     a.AssetsData[y].MarginFrozen,
+					Free:     a.AssetsData[y].MarginAvailable,
 				})
 			}
 		}

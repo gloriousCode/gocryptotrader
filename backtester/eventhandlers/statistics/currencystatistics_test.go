@@ -123,8 +123,8 @@ func TestCalculateResults(t *testing.T) {
 
 	cs.Events = append(cs.Events, ev, ev2)
 	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
 		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
@@ -143,16 +143,16 @@ func TestCalculateResults(t *testing.T) {
 		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	cs.Events[1].DataEvent = &kline.Kline{
 		Base: even2,
 	}
 	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -311,7 +311,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{
 			Exchange: e,
-			Item:     a,
+			Asset:    a,
 			Pair:     p,
 			Offset:   0,
 			Result: order.PNLResult{
@@ -333,7 +333,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 	c.Events = append(c.Events,
 		DataAtOffset{PNL: &portfolio.PNLSummary{
 			Exchange: e,
-			Item:     a,
+			Asset:    a,
 			Pair:     p,
 			Offset:   0,
 			Result: order.PNLResult{

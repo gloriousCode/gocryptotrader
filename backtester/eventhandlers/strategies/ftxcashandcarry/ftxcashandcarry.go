@@ -4,14 +4,17 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -53,10 +56,10 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		return nil, errNoSignals
 	}
 	if f == nil {
-		return nil, fmt.Errorf("%w missing funding transferred", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing funding transferred", gctcommon.ErrNilPointer)
 	}
 	if p == nil {
-		return nil, fmt.Errorf("%w missing portfolio handler", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing portfolio handler", gctcommon.ErrNilPointer)
 	}
 	var response []signal.Event
 	sortedSignals, err := sortSignals(d)
@@ -64,52 +67,97 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		return nil, err
 	}
 
-	for _, v := range sortedSignals {
-		pos, err := p.GetPositions(v.futureSignal.Latest())
-		if err != nil {
-			return nil, err
-		}
-		spotSignal, err := s.GetBaseData(v.spotSignal)
-		if err != nil {
-			return nil, err
-		}
-		futuresSignal, err := s.GetBaseData(v.futureSignal)
-		if err != nil {
-			return nil, err
-		}
+	for _, b := range sortedSignals {
+		for _, v := range b {
+			pos, err := p.GetPositions(v.futureSignal.Latest())
+			if err != nil {
+				return nil, err
+			}
+			spotSignal, err := s.GetBaseData(v.spotSignal)
+			if err != nil {
+				return nil, err
+			}
+			futuresSignal, err := s.GetBaseData(v.futureSignal)
+			if err != nil {
+				return nil, err
+			}
 
-		spotSignal.SetDirection(order.DoNothing)
-		futuresSignal.SetDirection(order.DoNothing)
-		fp := v.futureSignal.Latest().GetClosePrice()
-		sp := v.spotSignal.Latest().GetClosePrice()
-		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
-		futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
-		if len(pos) > 0 && pos[len(pos)-1].Status == order.Open {
-			futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].CollateralCurrency)
+			spotSignal.SetDirection(order.DoNothing)
+			futuresSignal.SetDirection(order.DoNothing)
+			fp := v.futureSignal.Latest().GetClosePrice()
+			sp := v.spotSignal.Latest().GetClosePrice()
+			diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
+			futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
+			if len(pos) > 0 && pos[len(pos)-1].Status == order.Open {
+				futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].CollateralCurrency)
+			}
+			if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
+				spotSignal.AppendReason("cannot transact, has been liquidated")
+				futuresSignal.AppendReason("cannot transact, has been liquidated")
+				response = append(response, &spotSignal, &futuresSignal)
+				continue
+			}
+			signals, err := s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
+			if err != nil {
+				return nil, err
+			}
+			response = append(response, signals...)
 		}
-		if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
-			spotSignal.AppendReason("cannot transact, has been liquidated")
-			futuresSignal.AppendReason("cannot transact, has been liquidated")
-			response = append(response, &spotSignal, &futuresSignal)
-			continue
-		}
-		signals, err := s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
-		if err != nil {
-			return nil, err
-		}
-		response = append(response, signals...)
 	}
 	return response, nil
+}
+
+// CloseAllPositions is this strategy's implementation on how to
+// unwind all positions in the event of a closure
+func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.Event) ([]signal.Event, error) {
+	var spotSignals, futureSignals []signal.Event
+	signalTime := time.Now().UTC()
+	for i := range holdings {
+		for j := range prices {
+			if prices[j].GetExchange() != holdings[i].Exchange ||
+				prices[j].GetAssetType() != holdings[i].Asset ||
+				!prices[j].Pair().Equal(holdings[i].Pair) {
+				continue
+			}
+			sig := &signal.Signal{
+				Base: &event.Base{
+					Offset:         holdings[i].Offset + 1,
+					Exchange:       holdings[i].Exchange,
+					Time:           signalTime,
+					Interval:       prices[j].GetInterval(),
+					CurrencyPair:   holdings[i].Pair,
+					UnderlyingPair: prices[j].GetUnderlyingPair(),
+					AssetType:      holdings[i].Asset,
+					Reasons:        []string{"closing position on close"},
+				},
+				OpenPrice:          prices[j].GetOpenPrice(),
+				HighPrice:          prices[j].GetHighPrice(),
+				LowPrice:           prices[j].GetLowPrice(),
+				ClosePrice:         prices[j].GetClosePrice(),
+				Volume:             prices[j].GetVolume(),
+				Amount:             holdings[i].BaseSize,
+				Direction:          order.ClosePosition,
+				CollateralCurrency: holdings[i].Pair.Base,
+			}
+			if prices[j].GetAssetType().IsFutures() {
+				futureSignals = append(futureSignals, sig)
+			} else {
+				spotSignals = append(spotSignals, sig)
+			}
+		}
+	}
+	// close out future positions first
+	return append(futureSignals, spotSignals...), nil
 }
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
 func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
-		return nil, fmt.Errorf("%w missing spot signal", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing spot signal", gctcommon.ErrNilPointer)
 	}
 	if futuresSignal == nil {
-		return nil, fmt.Errorf("%w missing futures signal", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w missing futures signal", gctcommon.ErrNilPointer)
 	}
 	var response []signal.Event
 	switch {
@@ -159,11 +207,11 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 
 // sortSignals links spot and futures signals in order to create cash
 // and carry signals
-func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
+func sortSignals(d []data.Handler) (map[*currency.Item]map[*currency.Item]cashCarrySignals, error) {
 	if len(d) == 0 {
 		return nil, errNoSignals
 	}
-	var response = make(map[currency.Pair]cashCarrySignals, len(d))
+	var response = make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
 	for i := range d {
 		l := d[i].Latest()
 		if !strings.EqualFold(l.GetExchange(), exchangeName) {
@@ -172,25 +220,35 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 		a := l.GetAssetType()
 		switch {
 		case a == asset.Spot:
-			entry := response[l.Pair().Format(currency.EMPTYFORMAT)]
+			b := response[l.Pair().Base.Item]
+			if b == nil {
+				response[l.Pair().Base.Item] = make(map[*currency.Item]cashCarrySignals)
+			}
+			entry := response[l.Pair().Base.Item][l.Pair().Quote.Item]
 			entry.spotSignal = d[i]
-			response[l.Pair().Format(currency.EMPTYFORMAT)] = entry
+			response[l.Pair().Base.Item][l.Pair().Quote.Item] = entry
 		case a.IsFutures():
 			u := l.GetUnderlyingPair()
-			entry := response[u.Format(currency.EMPTYFORMAT)]
+			b := response[u.Base.Item]
+			if b == nil {
+				response[u.Base.Item] = make(map[*currency.Item]cashCarrySignals)
+			}
+			entry := response[u.Base.Item][u.Quote.Item]
 			entry.futureSignal = d[i]
-			response[u.Format(currency.EMPTYFORMAT)] = entry
+			response[u.Base.Item][u.Quote.Item] = entry
 		default:
 			return nil, errFuturesOnly
 		}
 	}
 	// validate that each set of signals is matched
-	for _, v := range response {
-		if v.futureSignal == nil {
-			return nil, fmt.Errorf("%w missing future signal", errNotSetup)
-		}
-		if v.spotSignal == nil {
-			return nil, fmt.Errorf("%w missing spot signal", errNotSetup)
+	for _, b := range response {
+		for _, v := range b {
+			if v.futureSignal == nil {
+				return nil, fmt.Errorf("%w missing future signal", errNotSetup)
+			}
+			if v.spotSignal == nil {
+				return nil, fmt.Errorf("%w missing spot signal", errNotSetup)
+			}
 		}
 	}
 

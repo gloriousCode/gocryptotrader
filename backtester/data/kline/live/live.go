@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -15,17 +16,27 @@ import (
 )
 
 // LoadData retrieves data from a GoCryptoTrader exchange wrapper which calls the exchange's API for the latest interval
-func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair currency.Pair, a asset.Item) (*kline.Item, error) {
+// note: this is not in a state to utilise with realOrders = true
+func LoadData(ctx context.Context, timeToRetrieve time.Time, exch exchange.IBotExchange, dataType int64, interval time.Duration, fPair, underlyingPair currency.Pair, a asset.Item, verbose bool) (*kline.Item, error) {
+	if exch == nil {
+		return nil, fmt.Errorf("%w IBotExchange", gctcommon.ErrNilPointer)
+	}
 	var candles kline.Item
 	var err error
+	var b *exchange.Base
+	if verbose {
+		b = exch.GetBase()
+		b.Verbose = verbose
+	}
 	switch dataType {
 	case common.DataCandle:
 		candles, err = exch.GetHistoricCandles(ctx,
 			fPair,
 			a,
-			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
-			time.Now(),
-			kline.Interval(interval))
+			timeToRetrieve.Truncate(interval).Add(-interval*2),
+			timeToRetrieve,
+			kline.Interval(interval),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve live candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}
@@ -34,8 +45,9 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,
-			time.Now().Add(-interval*2), // multiplied by 2 to ensure the latest candle is always included
-			time.Now())
+			timeToRetrieve.Truncate(interval).Add(-interval*2),
+			timeToRetrieve,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -49,8 +61,9 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 			trades, err = exch.GetHistoricTrades(ctx,
 				fPair,
 				a,
-				time.Now().Add(-interval),
-				time.Now())
+				timeToRetrieve.Add(-interval*2),
+				timeToRetrieve,
+			)
 			if err != nil {
 				return nil, fmt.Errorf("could not retrieve live trade data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 			}
@@ -61,8 +74,12 @@ func LoadData(ctx context.Context, exch exchange.IBotExchange, dataType int64, i
 			}
 		}
 	default:
-		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w", exch.GetName(), a, fPair, common.ErrInvalidDataType)
+		return nil, fmt.Errorf("could not retrieve live data for %v %v %v, %w: '%v'", exch.GetName(), a, fPair, common.ErrInvalidDataType, dataType)
+	}
+	if verbose && b != nil {
+		b.Verbose = false
 	}
 	candles.Exchange = strings.ToLower(exch.GetName())
+	candles.UnderlyingPair = underlyingPair
 	return &candles, nil
 }

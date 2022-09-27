@@ -1,10 +1,11 @@
 package statistics
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,19 +24,15 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	lastPrice := last.ClosePrice
 	for i := range last.Transactions.Orders {
 		switch last.Transactions.Orders[i].Order.Side {
-		case gctorder.Buy, gctorder.Bid:
+		case gctorder.Buy, gctorder.Bid, gctorder.Long:
 			c.BuyOrders++
-		case gctorder.Sell, gctorder.Ask:
+		case gctorder.Sell, gctorder.Ask, gctorder.Short:
 			c.SellOrders++
-		case gctorder.Long:
-			c.LongOrders++
-		case gctorder.Short:
-			c.ShortOrders++
 		}
 	}
 	for i := range c.Events {
 		price := c.Events[i].ClosePrice
-		if price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set {
+		if (price.LessThan(c.LowestClosePrice.Value) || !c.LowestClosePrice.Set) && !price.IsZero() {
 			c.LowestClosePrice.Value = price
 			c.LowestClosePrice.Time = c.Events[i].Time
 			c.LowestClosePrice.Set = true
@@ -51,7 +48,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	if !firstPrice.IsZero() {
 		c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
 	}
-	if first.Holdings.TotalValue.GreaterThan(decimal.Zero) {
+	if !first.Holdings.TotalValue.IsZero() {
 		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
@@ -62,7 +59,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
 	benchmarkRates := make([]decimal.Decimal, len(c.Events))
 
-	allDataEvents := make([]common.DataEventHandler, len(c.Events))
+	allDataEvents := make([]data.Event, len(c.Events))
 	for i := range c.Events {
 		returnsPerCandle[i] = c.Events[i].Holdings.ChangeInTotalValuePercent
 		allDataEvents[i] = c.Events[i].DataEvent
@@ -109,7 +106,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 			decimal.NewFromFloat(intervalsPerYear),
 			decimal.NewFromInt(int64(len(c.Events))),
 		)
-		if err != nil {
+		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			errs = append(errs, err)
 		}
 		c.CompoundAnnualGrowthRate = cagr

@@ -33,6 +33,9 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 
 // Reset returns the portfolio manager to its default state
 func (p *Portfolio) Reset() {
+	if p == nil {
+		return
+	}
 	p.exchangeAssetPairSettings = nil
 }
 
@@ -51,16 +54,19 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		return errCurrencyPairUnset
 	}
 	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[currency.Pair]*Settings)
+		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
 	if p.exchangeAssetPairSettings[name] == nil {
-		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[currency.Pair]*Settings)
+		p.exchangeAssetPairSettings[name] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	if p.exchangeAssetPairSettings[name][setup.Asset] == nil {
-		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[currency.Pair]*Settings)
+		p.exchangeAssetPairSettings[name][setup.Asset] = make(map[*currency.Item]map[*currency.Item]*Settings)
 	}
-	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
+	if p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item] == nil {
+		p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item] = make(map[*currency.Item]*Settings)
+	}
+	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item]; ok {
 		return nil
 	}
 	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
@@ -94,6 +100,6 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair] = settings
+	p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair.Base.Item][setup.Pair.Quote.Item] = settings
 	return nil
 }

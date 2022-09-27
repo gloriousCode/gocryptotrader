@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -39,6 +40,12 @@ var (
 		MaximumSize:  decimal.NewFromInt(2),
 		MaximumTotal: decimal.NewFromInt(40000),
 	}
+	// strictMinMax used for live order restrictions
+	strictMinMax = MinMax{
+		MinimumSize:  decimal.NewFromFloat(0.001),
+		MaximumSize:  decimal.NewFromFloat(0.05),
+		MaximumTotal: decimal.NewFromInt(100),
+	}
 	initialFunds1000000 *decimal.Decimal
 	initialFunds100000  *decimal.Decimal
 	initialFunds10      *decimal.Decimal
@@ -58,8 +65,8 @@ func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
 	err := c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	c.DataSettings = DataSettings{
 		DatabaseData: &DatabaseData{},
@@ -76,8 +83,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
@@ -92,8 +99,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -127,9 +134,88 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
+
+	c.CurrencySettings[0].Asset = asset.PerpetualSwap
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errPerpetualsUnsupported) {
+		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
+	}
+
+	c.CurrencySettings[0].Asset = asset.Futures
+	c.CurrencySettings[0].Quote = currency.NewCode("PERP")
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errPerpetualsUnsupported) {
+		t.Errorf("received: %v, expected: %v", err, errPerpetualsUnsupported)
+	}
+
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
+	c.CurrencySettings[0].Quote = currency.NewCode("USD")
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errFeatureIncompatible) {
+		t.Errorf("received: %v, expected: %v", err, errFeatureIncompatible)
+	}
+
+	c.CurrencySettings[0].Asset = asset.Spot
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
+	}
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
+	}
+	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadSlippageRates) {
+		t.Errorf("received: %v, expected: %v", err, errBadSlippageRates)
+	}
+
+	c.CurrencySettings[0].SpotDetails = &SpotDetails{}
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	z := decimal.Zero
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
+	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
+	c.FundingSettings.UseExchangeLevelFunding = true
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+
+	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
+	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
+	c.FundingSettings.UseExchangeLevelFunding = true
+	err = c.validateCurrencySettings()
+	if !errors.Is(err, errBadInitialFunds) {
+		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
+	}
+}
+
+func TestValidateMinMaxes(t *testing.T) {
+	t.Parallel()
+	c := &Config{}
+	err := c.validateMinMaxes()
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
+	}
+
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
@@ -308,27 +394,15 @@ func TestPrintSettings(t *testing.T) {
 			CSVData: &CSVData{
 				FullPath: "fake",
 			},
-			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
-			},
+			LiveData: &LiveData{},
 			DatabaseData: &DatabaseData{
-				StartDate:        startDate,
-				EndDate:          endDate,
-				Config:           database.Config{},
-				InclusiveEndDate: false,
+				StartDate: startDate,
+				EndDate:   endDate,
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -371,8 +445,8 @@ func TestValidate(t *testing.T) {
 
 	c = nil
 	err = c.Validate()
-	if !errors.Is(err, common.ErrNilArguments) {
-		t.Errorf("received %v expected %v", err, common.ErrNilArguments)
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received %v expected %v", err, gctcommon.ErrNilPointer)
 	}
 }
 
@@ -383,16 +457,16 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
 	_, err = passFile.WriteString("{}")
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = passFile.Close()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	_, err = ReadStrategyConfigFromFile(passFile.Name())
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	_, err = ReadStrategyConfigFromFile("test")
@@ -438,9 +512,6 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -455,7 +526,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -516,7 +587,7 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "custom-plugin-strategy.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -580,9 +651,6 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -597,7 +665,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-exchange-level-funding.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -650,9 +718,6 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 				MaximumSize:  decimal.NewFromInt(1),
 				MaximumTotal: decimal.NewFromInt(10000),
 			},
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -667,7 +732,7 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-trades.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -724,9 +789,6 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -741,7 +803,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-multiple-currencies.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -799,9 +861,6 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -816,7 +875,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-api-candles-simultaneous-processing.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -839,12 +898,12 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         currency.BTC,
-				Quote:        currency.USDT,
+				Quote:        currency.USD,
 				SpotDetails: &SpotDetails{
 					InitialQuoteFunds: initialFunds100000,
 				},
-				BuySide:  minMax,
-				SellSide: minMax,
+				BuySide:  strictMinMax,
+				SellSide: strictMinMax,
 				MakerFee: &makerFee,
 				TakerFee: &takerFee,
 			},
@@ -853,20 +912,25 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			Interval: kline.OneMin,
 			DataType: common.CandleStr,
 			LiveData: &LiveData{
-				APIKeyOverride:        "",
-				APISecretOverride:     "",
-				APIClientIDOverride:   "",
-				API2FAOverride:        "",
-				APISubAccountOverride: "",
-				RealOrders:            false,
+				NewEventTimeout:           time.Minute * 2,
+				DataCheckTimer:            time.Second,
+				RealOrders:                false,
+				DataRequestRetryTolerance: 3,
+				DataRequestRetryWaitTime:  time.Millisecond * 500,
+				ExchangeCredentials: []Credentials{
+					{
+						Exchange: "ftx",
+						Credentials: account.Credentials{
+							Key:    "",
+							Secret: "",
+						},
+					},
+				},
 			},
 		},
 		PortfolioSettings: PortfolioSettings{
-			BuySide:  minMax,
-			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
+			BuySide:  strictMinMax,
+			SellSide: strictMinMax,
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -881,7 +945,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-candles-live.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -930,9 +994,6 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -947,7 +1008,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -991,9 +1052,6 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1008,7 +1066,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-csv-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1047,11 +1105,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 				FullPath: fp,
 			},
 		},
-		PortfolioSettings: PortfolioSettings{
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
-		},
+		PortfolioSettings: PortfolioSettings{},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
 		},
@@ -1065,7 +1119,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-csv-trades.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1118,9 +1172,6 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1135,7 +1186,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "dca-database-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1249,7 +1300,6 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1264,7 +1314,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "t2b2-api-candles-exchange-funding.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1301,6 +1351,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Quote:        currency.NewCode("20210924"),
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
+				BuySide:      minMax,
+				SellSide:     minMax,
 			},
 			{
 				ExchangeName: "ftx",
@@ -1309,6 +1361,8 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				Quote:        currency.USD,
 				MakerFee:     &makerFee,
 				TakerFee:     &takerFee,
+				BuySide:      minMax,
+				SellSide:     minMax,
 			},
 		},
 		DataSettings: DataSettings{
@@ -1318,11 +1372,6 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 				StartDate:        time.Date(2021, 1, 14, 0, 0, 0, 0, time.UTC),
 				EndDate:          time.Date(2021, 9, 24, 0, 0, 0, 0, time.UTC),
 				InclusiveEndDate: false,
-			},
-		},
-		PortfolioSettings: PortfolioSettings{
-			Leverage: Leverage{
-				CanUseLeverage: true,
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -1338,7 +1387,95 @@ func TestGenerateFTXCashAndCarryStrategy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "ftx-cash-carry.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleFTXLiveCashAndCarry",
+		Goal:     "To demonstrate a cash and carry strategy using a live data source",
+		StrategySettings: StrategySettings{
+			Name:                         "ftx-cash-carry",
+			SimultaneousSignalProcessing: true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: "ftx",
+					Asset:        asset.Spot,
+					Currency:     currency.USD,
+					InitialFunds: *initialFunds100000,
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName:            "ftx",
+				Asset:                   asset.Futures,
+				Base:                    currency.BTC,
+				Quote:                   currency.NewCode("1230"),
+				MakerFee:                &makerFee,
+				TakerFee:                &takerFee,
+				SkipCandleVolumeFitting: true,
+				BuySide:                 strictMinMax,
+				SellSide:                strictMinMax,
+			},
+			{
+				ExchangeName:            "ftx",
+				Asset:                   asset.Spot,
+				Base:                    currency.BTC,
+				Quote:                   currency.USD,
+				MakerFee:                &makerFee,
+				TakerFee:                &takerFee,
+				SkipCandleVolumeFitting: true,
+				BuySide:                 strictMinMax,
+				SellSide:                strictMinMax,
+			},
+		},
+		DataSettings: DataSettings{
+			Interval: kline.FifteenSecond,
+			DataType: common.CandleStr,
+			LiveData: &LiveData{
+				NewEventTimeout:           time.Minute,
+				DataCheckTimer:            time.Second,
+				RealOrders:                false,
+				DataRequestRetryTolerance: 3,
+				ClosePositionsOnExit:      true,
+				DataRequestRetryWaitTime:  time.Millisecond * 500,
+				ExchangeCredentials: []Credentials{
+					{
+						Exchange: "ftx",
+						Credentials: account.Credentials{
+							Key:        "",
+							Secret:     "",
+							SubAccount: "",
+						},
+					},
+				},
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

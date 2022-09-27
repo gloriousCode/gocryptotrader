@@ -1,23 +1,29 @@
 {
- "nickname": "ExampleStrategyDCAAPICandlesMultipleCurrencies",
- "goal": "To demonstrate running the DCA strategy using the API against multiple currencies candle data",
+ "nickname": "ExampleCashAndCarry",
+ "goal": "To demonstrate a cash and carry strategy",
  "strategy-settings": {
-  "name": "dollarcostaverage",
-  "use-simultaneous-signal-processing": false,
+  "name": "ftx-cash-carry",
+  "use-simultaneous-signal-processing": true,
   "disable-usd-tracking": false
  },
  "funding-settings": {
-  "use-exchange-level-funding": false
+  "use-exchange-level-funding": true,
+  "exchange-level-funding": [
+   {
+    "exchange-name": "ftx",
+    "asset": "spot",
+    "currency": "USD",
+    "initial-funds": "100000",
+    "transfer-fee": "0"
+   }
+  ]
  },
  "currency-settings": [
   {
    "exchange-name": "ftx",
-   "asset": "spot",
+   "asset": "futures",
    "base": "BTC",
-   "quote": "USDT",
-   "spot-details": {
-    "initial-quote-funds": "100000"
-   },
+   "quote": "20210924",
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
@@ -40,11 +46,8 @@
   {
    "exchange-name": "ftx",
    "asset": "spot",
-   "base": "ETH",
-   "quote": "USDT",
-   "spot-details": {
-    "initial-quote-funds": "100000"
-   },
+   "base": "BTC",
+   "quote": "USD",
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
@@ -70,8 +73,8 @@
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2021-08-01T00:00:00+10:00",
-   "end-date": "2021-12-01T00:00:00+11:00",
+   "start-date": "2021-01-14T00:00:00Z",
+   "end-date": "2021-09-24T00:00:00Z",
    "inclusive-end-date": false
   }
  },
@@ -83,14 +86,14 @@
    "maximum-collateral-leverage-rate": "0"
   },
   "buy-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   },
   "sell-side": {
-   "minimum-size": "0.005",
-   "maximum-size": "2",
-   "maximum-total": "40000"
+   "minimum-size": "0",
+   "maximum-size": "0",
+   "maximum-total": "0"
   }
  },
  "statistic-settings": {

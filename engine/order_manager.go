@@ -465,7 +465,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if err != nil {
 		return nil, err
 	}
-
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
 	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
@@ -478,7 +477,6 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 			newOrder.Exchange,
 			err)
 	}
-
 	// Determines if current trading activity is turned off by the exchange for
 	// the currency pair
 	err = exch.CanTradePair(newOrder.Pair, newOrder.AssetType)

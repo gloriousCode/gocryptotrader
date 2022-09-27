@@ -168,6 +168,14 @@ func (f *FTX) SetDefaults() {
 	f.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	f.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	f.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+
+	err = f.LoadCollateralWeightings(context.TODO())
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to store collateral weightings. Err: %s",
+			f.Name,
+			err)
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -206,15 +214,6 @@ func (f *FTX) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	if err = f.CurrencyPairs.IsAssetEnabled(asset.Futures); err == nil {
-		err = f.LoadCollateralWeightings(context.TODO())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to store collateral weightings. Err: %s",
-				f.Name,
-				err)
-		}
-	}
 	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -495,7 +494,7 @@ func (f *FTX) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.Hold
 			hold := balances[x].Total - balances[x].AvailableWithoutBorrow
 			acc.Currencies = append(acc.Currencies,
 				account.Balance{
-					CurrencyName:           balances[x].Coin,
+					Currency:               balances[x].Coin,
 					Total:                  balances[x].Total,
 					Hold:                   hold,
 					AvailableWithoutBorrow: balances[x].AvailableWithoutBorrow,
@@ -653,10 +652,10 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	if s.Side == order.Ask {
+	if s.Side == order.Ask || s.Side == order.Short {
 		s.Side = order.Sell
 	}
-	if s.Side == order.Bid {
+	if s.Side == order.Bid || s.Side == order.Long {
 		s.Side = order.Buy
 	}
 
@@ -679,7 +678,43 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 		return nil, err
 	}
 
-	return s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	resp, err := s.DeriveSubmitResponse(strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		return nil, err
+	}
+	if !s.RetrieveFees {
+		return resp, nil
+	}
+	time.Sleep(s.RetrieveFeeDelay)
+	fills, err := f.GetFills(ctx, s.Pair, s.AssetType, time.Time{}, time.Time{}, strconv.FormatInt(tempResp.ID, 10))
+	if err != nil {
+		// choosing to return with no error so that a valid order is still returned to caller
+		log.Errorf(log.ExchangeSys, "could not retrieve fees for order %v: %v", tempResp.ID, err)
+		return resp, nil
+	}
+	for i := range fills {
+		resp.Fee += fills[i].Fee
+		var side order.Side
+		side, err = order.StringToOrderSide(fills[i].Side)
+		if err != nil {
+			return nil, err
+		}
+		if resp.FeeAsset.IsEmpty() {
+			resp.FeeAsset = fills[i].FeeCurrency
+		}
+		resp.Trades = append(resp.Trades, order.TradeHistory{
+			Price:     fills[i].Price,
+			Amount:    fills[i].Size,
+			Fee:       fills[i].Fee,
+			Exchange:  f.Name,
+			TID:       strconv.FormatInt(fills[i].TradeID, 10),
+			Side:      side,
+			Timestamp: fills[i].Time,
+			IsMaker:   fills[i].Liquidity == "maker",
+			FeeAsset:  fills[i].FeeCurrency.String(),
+		})
+	}
+	return resp, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -1241,7 +1276,7 @@ func (f *FTX) GetHistoricCandlesExtended(ctx context.Context, p currency.Pair, a
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", f.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
@@ -1667,7 +1702,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 	allPositions:
 		for {
 			var fills []FillsData
-			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime)
+			fills, err = f.GetFills(ctx, request.Pairs[x], request.Asset, request.StartDate, endTime, "")
 			if err != nil {
 				return nil, err
 			}

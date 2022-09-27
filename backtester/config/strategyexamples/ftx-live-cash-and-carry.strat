@@ -1,6 +1,6 @@
 {
- "nickname": "ExampleCashAndCarry",
- "goal": "To demonstrate a cash and carry strategy",
+ "nickname": "ExampleFTXLiveCashAndCarry",
+ "goal": "To demonstrate a cash and carry strategy using a live data source",
  "strategy-settings": {
   "name": "ftx-cash-carry",
   "use-simultaneous-signal-processing": true,
@@ -23,23 +23,23 @@
    "exchange-name": "ftx",
    "asset": "futures",
    "base": "BTC",
-   "quote": "20210924",
+   "quote": "1230",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.0002",
    "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   },
@@ -49,37 +49,54 @@
    "base": "BTC",
    "quote": "USD",
    "buy-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "sell-side": {
-    "minimum-size": "0",
-    "maximum-size": "0",
-    "maximum-total": "0"
+    "minimum-size": "0.001",
+    "maximum-size": "0.05",
+    "maximum-total": "100"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
    "maker-fee-override": "0.0002",
    "taker-fee-override": "0.0007",
    "maximum-holdings-ratio": "0",
-   "skip-candle-volume-fitting": false,
+   "skip-candle-volume-fitting": true,
    "use-exchange-order-limits": false,
    "use-exchange-pnl-calculation": false
   }
  ],
  "data-settings": {
-  "interval": 86400000000000,
+  "interval": 15000000000,
   "data-type": "candle",
-  "api-data": {
-   "start-date": "2021-01-14T00:00:00Z",
-   "end-date": "2021-09-24T00:00:00Z",
-   "inclusive-end-date": false
+  "verbose-exchange-requests": false,
+  "live-data": {
+   "new-event-timeout": 60000000000,
+   "data-check-timer": 1000000000,
+   "real-orders": false,
+   "close-positions-on-exit": true,
+   "data-request-retry-tolerance": 3,
+   "data-request-retry-wait-time": 500000000,
+   "exchange-credentials": [
+    {
+     "exchange": "ftx",
+     "credentials": {
+      "Key": "",
+      "Secret": "",
+      "ClientID": "",
+      "PEMKey": "",
+      "SubAccount": "",
+      "OneTimePassword": ""
+     }
+    }
+   ]
   }
  },
  "portfolio-settings": {
   "leverage": {
-   "can-use-leverage": true,
+   "can-use-leverage": false,
    "maximum-orders-with-leverage-ratio": "0",
    "maximum-leverage-rate": "0",
    "maximum-collateral-leverage-rate": "0"

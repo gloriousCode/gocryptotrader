@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ftx"
@@ -33,8 +33,8 @@ func TestSizingAccuracy(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	amountWithoutFee, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	totalWithFee := (price.Mul(amountWithoutFee)).Add(globalMinMax.MaximumTotal.Mul(feeRate))
 	if !totalWithFee.Equal(globalMinMax.MaximumTotal) {
@@ -57,8 +57,8 @@ func TestSizingOverMaxSize(t *testing.T) {
 	feeRate := decimal.NewFromFloat(0.02)
 	buyLimit := decimal.NewFromInt(1)
 	amount, _, err := sizer.calculateBuySize(price, availableFunds, feeRate, buyLimit, globalMinMax)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if amount.GreaterThan(globalMinMax.MaximumSize) {
 		t.Error("greater than max")
@@ -173,8 +173,8 @@ func TestCalculateSellSize(t *testing.T) {
 	price = decimal.NewFromInt(12)
 	availableFunds = decimal.NewFromInt(1339)
 	amount, fee, err := sizer.calculateSellSize(price, availableFunds, feeRate, sellLimit, globalMinMax)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if !amount.Equal(sellLimit) {
 		t.Errorf("received '%v' expected '%v'", amount, sellLimit)
@@ -188,7 +188,7 @@ func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
 	_, _, err := s.SizeOrder(nil, decimal.Zero, nil)
-	if !errors.Is(err, common.ErrNilArguments) {
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
 	o := &order.Order{
@@ -221,28 +221,28 @@ func TestSizeOrder(t *testing.T) {
 	s.BuySide.MaximumSize = decimal.NewFromInt(1)
 	s.BuySide.MinimumSize = decimal.NewFromInt(1)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	o.Amount = decimal.NewFromInt(1)
 	o.Direction = gctorder.Sell
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	s.SellSide.MaximumSize = decimal.NewFromInt(1)
 	s.SellSide.MinimumSize = decimal.NewFromInt(1)
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	o.Direction = gctorder.ClosePosition
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	// spot futures sizing
@@ -253,13 +253,13 @@ func TestSizeOrder(t *testing.T) {
 	}
 	exch := ftx.FTX{}
 	err = exch.LoadCollateralWeightings(context.Background())
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	cs.Exchange = &exch
 	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	o.ClosePrice = decimal.NewFromInt(1000000000)

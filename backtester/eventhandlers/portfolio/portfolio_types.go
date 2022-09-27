@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -43,27 +44,29 @@ type Portfolio struct {
 	riskFreeRate              decimal.Decimal
 	sizeManager               SizeHandler
 	riskManager               risk.Handler
-	exchangeAssetPairSettings map[string]map[asset.Item]map[currency.Pair]*Settings
+	exchangeAssetPairSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
 }
 
 // Handler contains all functions expected to operate a portfolio manager
 type Handler interface {
 	OnSignal(signal.Event, *exchange.Settings, funding.IFundReserver) (*order.Order, error)
 	OnFill(fill.Event, funding.IFundReleaser) (fill.Event, error)
-	GetLatestOrderSnapshotForEvent(common.EventHandler) (compliance.Snapshot, error)
+	GetLatestOrderSnapshotForEvent(common.Event) (compliance.Snapshot, error)
 	GetLatestOrderSnapshots() ([]compliance.Snapshot, error)
-	ViewHoldingAtTimePeriod(common.EventHandler) (*holdings.Holding, error)
-	setHoldingsForOffset(*holdings.Holding, bool) error
-	UpdateHoldings(common.DataEventHandler, funding.IFundReleaser) error
+	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
+	SetHoldingsForOffset(*holdings.Holding, bool) error
+	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetComplianceManager(string, asset.Item, currency.Pair) (*compliance.Manager, error)
-	GetPositions(common.EventHandler) ([]gctorder.Position, error)
+	GetPositions(common.Event) ([]gctorder.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
-	UpdatePNL(common.EventHandler, decimal.Decimal) error
-	GetLatestPNLForEvent(common.EventHandler) (*PNLSummary, error)
+	UpdatePNL(common.Event, decimal.Decimal) error
+	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
 	GetLatestPNLs() []PNLSummary
-	CheckLiquidationStatus(common.DataEventHandler, funding.ICollateralReader, *PNLSummary) error
-	CreateLiquidationOrdersForExchange(common.DataEventHandler, funding.IFundingManager) ([]order.Event, error)
+	CheckLiquidationStatus(data.Event, funding.ICollateralReader, *PNLSummary) error
+	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
+	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset()
+	SetHoldingsForEvent(funding.IFundReader, common.Event) error
 }
 
 // SizeHandler is the interface to help size orders
@@ -87,7 +90,7 @@ type Settings struct {
 // exchange details
 type PNLSummary struct {
 	Exchange           string
-	Item               asset.Item
+	Asset              asset.Item
 	Pair               currency.Pair
 	CollateralCurrency currency.Code
 	Offset             int64

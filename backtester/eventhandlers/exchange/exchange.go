@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
@@ -14,15 +15,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 // Reset returns the exchange to initial settings
 func (e *Exchange) Reset() {
+	if e == nil {
+		return
+	}
 	*e = Exchange{}
 }
 
@@ -31,7 +35,7 @@ var ErrCannotTransact = errors.New("cannot transact")
 
 // ExecuteOrder assesses the portfolio manager's order event and if it passes validation
 // will send an order to the exchange/fake order manager to be stored and raise a fill event
-func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
+func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, om *engine.OrderManager, funds funding.IFundReleaser) (fill.Event, error) {
 	f := &fill.Fill{
 		Base:               o.GetBase(),
 		Direction:          o.GetDirection(),
@@ -78,18 +82,9 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 			}
 			return f, nil
 		}
-		// get current orderbook
-		var ob *orderbook.Base
-		ob, err = orderbook.Get(f.Exchange, f.CurrencyPair, f.AssetType)
-		if err != nil {
-			return f, err
-		}
-		// calculate an estimated slippage rate
-		price, amount = slippage.CalculateSlippageByOrderbook(ob, o.GetDirection(), allocatedFunds, f.ExchangeFee)
-		f.Slippage = price.Sub(f.ClosePrice).Div(f.ClosePrice).Mul(decimal.NewFromInt(100))
 	} else {
 		slippageRate := slippage.EstimateSlippagePercentage(cs.MinimumSlippageRate, cs.MaximumSlippageRate)
-		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() {
+		if cs.SkipCandleVolumeFitting || o.GetAssetType().IsFutures() || o.GetDirection() == gctorder.ClosePosition {
 			f.VolumeAdjustedPrice = f.ClosePrice
 			amount = f.Amount
 		} else {
@@ -145,14 +140,14 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		amount = adjustedAmount
 	}
 
-	if cs.CanUseExchangeLimits {
+	if cs.CanUseExchangeLimits || cs.UseRealOrders {
 		// Conforms the amount to the exchange order defined step amount
 		// reducing it when needed
 		adjustedAmount = cs.Limits.ConformToDecimalAmount(amount)
-		if !adjustedAmount.Equal(amount) {
+		if !adjustedAmount.Equal(amount) && !adjustedAmount.IsZero() {
 			f.AppendReasonf("Order size shrunk from %v to %v to remain within exchange step amount limits",
-				adjustedAmount,
-				amount)
+				amount,
+				adjustedAmount)
 			amount = adjustedAmount
 		}
 	}
@@ -162,12 +157,13 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 	}
 
 	fee = calculateExchangeFee(price, amount, cs.TakerFee)
-	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, orderManager)
+
+	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
 	if err != nil {
+		f.AppendReasonf("could not place order: %v", err)
 		return f, err
 	}
-
-	ords := orderManager.GetOrdersSnapshot(gctorder.UnknownStatus)
+	ords := om.GetOrdersSnapshot(gctorder.UnknownStatus)
 	for i := range ords {
 		if ords[i].OrderID != orderID {
 			continue
@@ -184,16 +180,15 @@ func (e *Exchange) ExecuteOrder(o order.Event, data data.Handler, orderManager *
 		f.Total = f.PurchasePrice.Mul(f.Amount).Add(f.ExchangeFee)
 	}
 	if !o.IsLiquidating() {
-		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), allocatedFunds, amount, adjustedPrice, fee)
+		err = allocateFundsPostOrder(f, funds, err, o.GetAmount(), allocatedFunds, amount, price, fee)
 		if err != nil {
 			return f, err
 		}
 	}
-
 	if f.Order == nil {
 		return nil, fmt.Errorf("placed order %v not found in order manager", orderID)
 	}
-
+	f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
 	return f, nil
 }
 
@@ -202,7 +197,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		return fmt.Errorf("%w: fill event", common.ErrNilEvent)
 	}
 	if funds == nil {
-		return fmt.Errorf("%w: funding", common.ErrNilArguments)
+		return fmt.Errorf("%w: funding", gctcommon.ErrNilPointer)
 	}
 
 	switch f.AssetType {
@@ -247,7 +242,6 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		default:
 			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 		}
-		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, currency.EMPTYPAIR))
 	case asset.Futures:
 		cr, err := funds.CollateralReleaser()
 		if err != nil {
@@ -259,16 +253,15 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 				return err
 			}
 			switch f.GetDirection() {
-			case gctorder.Short:
+			case gctorder.Short, gctorder.Sell, gctorder.Ask:
 				f.SetDirection(gctorder.CouldNotShort)
-			case gctorder.Long:
+			case gctorder.Long, gctorder.Buy, gctorder.Bid:
 				f.SetDirection(gctorder.CouldNotLong)
 			default:
 				return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 			}
 			return orderError
 		}
-		f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
 	default:
 		return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.AssetType)
 	}
@@ -375,13 +368,15 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 	}
 
 	submit := &gctorder.Submit{
-		Price:     price.InexactFloat64(),
-		Amount:    amount.InexactFloat64(),
-		Exchange:  f.GetExchange(),
-		Side:      f.GetDirection(),
-		AssetType: f.GetAssetType(),
-		Pair:      f.Pair(),
-		Type:      gctorder.Market,
+		Price:            price.InexactFloat64(),
+		Amount:           amount.InexactFloat64(),
+		Exchange:         f.GetExchange(),
+		Side:             f.GetDirection(),
+		AssetType:        f.GetAssetType(),
+		Pair:             f.Pair(),
+		Type:             gctorder.Market,
+		RetrieveFees:     true,
+		RetrieveFeeDelay: time.Millisecond * 500,
 	}
 
 	var resp *engine.OrderSubmitResponse

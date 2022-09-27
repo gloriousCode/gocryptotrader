@@ -9,13 +9,13 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -121,7 +121,12 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 	}
 
 	go func() {
-		if err = http.ListenAndServe(s.config.GRPC.GRPCProxyListenAddress, mux); err != nil {
+		server := &http.Server{
+			Addr:        s.config.GRPC.GRPCProxyListenAddress,
+			ReadTimeout: time.Minute,
+		}
+
+		if err = server.ListenAndServe(); err != nil {
 			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
 		}
 	}()
@@ -191,7 +196,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil {
-		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
 		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
@@ -255,7 +260,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w run manager", gctcommon.ErrNilPointer)
 	}
 	if request == nil || request.Config == nil {
-		return nil, fmt.Errorf("%w nil request", common.ErrNilArguments)
+		return nil, fmt.Errorf("%w nil request", gctcommon.ErrNilPointer)
 	}
 	if request.DoNotRunImmediately && request.DoNotStore {
 		return nil, fmt.Errorf("%w cannot manage a run with both dnr and dns", errCannotHandleRequest)
@@ -519,12 +524,14 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	var liveData *config.LiveData
 	if request.Config.DataSettings.LiveData != nil {
 		liveData = &config.LiveData{
-			APIKeyOverride:        request.Config.DataSettings.LiveData.ApiKeyOverride,
-			APISecretOverride:     request.Config.DataSettings.LiveData.ApiSecretOverride,
-			APIClientIDOverride:   request.Config.DataSettings.LiveData.ApiClientIdOverride,
-			API2FAOverride:        request.Config.DataSettings.LiveData.Api_2FaOverride,
-			APISubAccountOverride: request.Config.DataSettings.LiveData.ApiSubAccountOverride,
-			RealOrders:            request.Config.DataSettings.LiveData.UseRealOrders,
+			// TODO FIXXXX
+			NewEventTimeout:           0,
+			DataCheckTimer:            0,
+			RealOrders:                request.Config.DataSettings.LiveData.UseRealOrders,
+			ClosePositionsOnExit:      false,
+			DataRequestRetryTolerance: 0,
+			DataRequestRetryWaitTime:  0,
+			ExchangeCredentials:       nil,
 		}
 	}
 	var csvData *config.CSVData

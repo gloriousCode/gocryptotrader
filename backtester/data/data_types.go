@@ -15,24 +15,25 @@ var ErrHandlerNotFound = errors.New("handler not found")
 
 // HandlerPerCurrency stores an event handler per exchange asset pair
 type HandlerPerCurrency struct {
-	data map[string]map[asset.Item]map[currency.Pair]Handler
+	data map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
 }
 
 // Holder interface dictates what a data holder is expected to do
 type Holder interface {
 	Setup()
 	SetDataForCurrency(string, asset.Item, currency.Pair, Handler)
-	GetAllData() map[string]map[asset.Item]map[currency.Pair]Handler
-	GetDataForCurrency(ev common.EventHandler) (Handler, error)
+	GetAllData() map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
+	GetDataForCurrency(ev common.Event) (Handler, error)
 	Reset()
 }
 
 // Base is the base implementation of some interface functions
-// where further specific functions are implmented in DataFromKline
+// where further specific functions are implemented in DataFromKline
 type Base struct {
-	latest common.DataEventHandler
-	stream []common.DataEventHandler
-	offset int
+	latest     Event
+	stream     []Event
+	offset     int64
+	isLiveData bool
 }
 
 // Handler interface for Loading and Streaming data
@@ -45,17 +46,18 @@ type Handler interface {
 // Loader interface for Loading data into backtest supported format
 type Loader interface {
 	Load() error
+	AppendStream(s ...Event)
 }
 
 // Streamer interface handles loading, parsing, distributing BackTest data
 type Streamer interface {
-	Next() common.DataEventHandler
-	GetStream() []common.DataEventHandler
-	History() []common.DataEventHandler
-	Latest() common.DataEventHandler
-	List() []common.DataEventHandler
+	Next() Event
+	GetStream() []Event
+	History() []Event
+	Latest() Event
+	List() []Event
 	IsLastEvent() bool
-	Offset() int
+	Offset() int64
 
 	StreamOpen() []decimal.Decimal
 	StreamHigh() []decimal.Decimal
@@ -64,4 +66,15 @@ type Streamer interface {
 	StreamVol() []decimal.Decimal
 
 	HasDataAtTime(time.Time) bool
+}
+
+// Event interface used for loading and interacting with Data
+type Event interface {
+	common.Event
+	GetUnderlyingPair() currency.Pair
+	GetClosePrice() decimal.Decimal
+	GetHighPrice() decimal.Decimal
+	GetLowPrice() decimal.Decimal
+	GetOpenPrice() decimal.Decimal
+	GetVolume() decimal.Decimal
 }

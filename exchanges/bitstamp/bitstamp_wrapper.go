@@ -444,10 +444,10 @@ func (b *Bitstamp) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	currencies := make([]account.Balance, 0, len(accountBalance))
 	for k, v := range accountBalance {
 		currencies = append(currencies, account.Balance{
-			CurrencyName: currency.NewCode(k),
-			Total:        v.Balance,
-			Hold:         v.Reserved,
-			Free:         v.Available,
+			Currency: currency.NewCode(k),
+			Total:    v.Balance,
+			Hold:     v.Reserved,
+			Free:     v.Available,
 		})
 	}
 	response.Accounts = append(response.Accounts, account.SubAccount{
@@ -966,7 +966,7 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil

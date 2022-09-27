@@ -10,11 +10,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -49,8 +51,8 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	float14 := float64(14)
 	mappalopalous := make(map[string]interface{})
@@ -58,8 +60,8 @@ func TestSetCustomSettings(t *testing.T) {
 	mappalopalous[closeShortDistancePercentageString] = float14
 
 	err = s.SetCustomSettings(mappalopalous)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	mappalopalous[openShortDistancePercentageString] = "14"
@@ -113,7 +115,7 @@ func TestSortSignals(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := data.Base{}
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -139,7 +141,7 @@ func TestSortSignals(t *testing.T) {
 	}
 
 	d2 := data.Base{}
-	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exch,
 			Time:           dInsert,
@@ -169,7 +171,7 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	var expectedError = common.ErrNilArguments
+	var expectedError = gctcommon.ErrNilPointer
 	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
@@ -289,7 +291,7 @@ type funderino struct {
 }
 
 // HasExchangeBeenLiquidated overrides default implementation
-func (f funderino) HasExchangeBeenLiquidated(_ common.EventHandler) bool {
+func (f funderino) HasExchangeBeenLiquidated(_ common.Event) bool {
 	return f.hasBeenLiquidated
 }
 
@@ -299,7 +301,7 @@ type portfolerino struct {
 }
 
 // GetPositions overrides default implementation
-func (p portfolerino) GetPositions(common.EventHandler) ([]gctorder.Position, error) {
+func (p portfolerino) GetPositions(common.Event) ([]gctorder.Position, error) {
 	return []gctorder.Position{
 		{
 			Exchange:           exchangeName,
@@ -320,7 +322,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		t.Errorf("received '%v' expected '%v", err, expectedError)
 	}
 
-	expectedError = common.ErrNilArguments
+	expectedError = gctcommon.ErrNilPointer
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	d := &datakline.DataFromKline{
 		Base: data.Base{},
@@ -332,7 +334,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		},
 	}
 	tt := time.Now()
-	d.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exchangeName,
 			Time:         tt,
@@ -374,7 +376,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			UnderlyingPair: cp,
 		},
 	}
-	d2.SetStream([]common.DataEventHandler{&eventkline.Kline{
+	d2.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:       exchangeName,
 			Time:           tt,
@@ -412,5 +414,85 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 	if resp[0].GetDirection() != gctorder.DoNothing {
 		t.Errorf("received '%v' expected '%v", resp[0].GetDirection(), gctorder.DoNothing)
+	}
+}
+
+func TestCloseAllPositions(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	_, err := s.CloseAllPositions(nil, nil)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	leet := decimal.NewFromInt(1337)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	h := []holdings.Holding{
+		{
+			Offset:   1,
+			Item:     cp.Base,
+			Pair:     cp,
+			Asset:    asset.Spot,
+			Exchange: "ftx",
+		},
+		{
+			Offset:   1,
+			Item:     cp.Base,
+			Pair:     cp,
+			Asset:    asset.Futures,
+			Exchange: "ftx",
+		},
+	}
+
+	p := []data.Event{
+		&signal.Signal{
+			Base: &event.Base{
+				Offset:         1,
+				Exchange:       "ftx",
+				Time:           time.Now(),
+				Interval:       gctkline.OneDay,
+				CurrencyPair:   cp,
+				UnderlyingPair: cp,
+				AssetType:      asset.Spot,
+			},
+			OpenPrice:  leet,
+			HighPrice:  leet,
+			LowPrice:   leet,
+			ClosePrice: leet,
+			Volume:     leet,
+			BuyLimit:   leet,
+			SellLimit:  leet,
+			Amount:     leet,
+			Direction:  gctorder.Buy,
+		},
+		&signal.Signal{
+			Base: &event.Base{
+				Offset:         1,
+				Exchange:       "ftx",
+				Time:           time.Now(),
+				Interval:       gctkline.OneDay,
+				CurrencyPair:   cp,
+				UnderlyingPair: cp,
+				AssetType:      asset.Futures,
+			},
+			OpenPrice:  leet,
+			HighPrice:  leet,
+			LowPrice:   leet,
+			ClosePrice: leet,
+			Volume:     leet,
+			BuyLimit:   leet,
+			SellLimit:  leet,
+			Amount:     leet,
+			Direction:  gctorder.Buy,
+		},
+	}
+	positionsToClose, err := s.CloseAllPositions(h, p)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v", err, nil)
+	}
+	if len(positionsToClose) != 2 {
+		t.Errorf("received '%v' expected '%v", len(positionsToClose), 2)
+	}
+	if !positionsToClose[0].GetAssetType().IsFutures() {
+		t.Errorf("received '%v' expected '%v", positionsToClose[0].GetAssetType(), asset.Futures)
 	}
 }

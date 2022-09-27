@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -46,8 +46,8 @@ func TestLoad(t *testing.T) {
 		},
 	}
 	err = d.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -91,11 +91,20 @@ func TestHasDataAtTime(t *testing.T) {
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	d.RangeHolder = ranger
 	d.RangeHolder.SetHasDataFromCandles(d.Item.Candles)
+	has = d.HasDataAtTime(dInsert)
+	if !has {
+		t.Error("expected true")
+	}
+	d.SetLive(true)
+	has = d.HasDataAtTime(time.Time{})
+	if has {
+		t.Error("expected false")
+	}
 	has = d.HasDataAtTime(dInsert)
 	if !has {
 		t.Error("expected true")
@@ -104,16 +113,17 @@ func TestHasDataAtTime(t *testing.T) {
 
 func TestAppend(t *testing.T) {
 	t.Parallel()
-	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := DataFromKline{
+		Item: gctkline.Item{
+			Exchange: testExchange,
+			Asset:    a,
+			Pair:     p,
+		},
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	item := gctkline.Item{
-		Exchange: exch,
-		Pair:     p,
-		Asset:    a,
 		Interval: gctkline.OneDay,
 		Candles: []gctkline.Candle{
 			{
@@ -127,6 +137,13 @@ func TestAppend(t *testing.T) {
 		},
 	}
 	d.AppendResults(&item)
+
+	item.Exchange = testExchange
+	item.Pair = p
+	item.Asset = a
+	d.AppendResults(&item)
+	d.AppendResults(&item)
+	d.AppendResults(nil)
 }
 
 func TestStreamOpen(t *testing.T) {
@@ -138,7 +155,7 @@ func TestStreamOpen(t *testing.T) {
 	if bad := d.StreamOpen(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -169,7 +186,7 @@ func TestStreamVolume(t *testing.T) {
 	if bad := d.StreamVol(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -200,7 +217,7 @@ func TestStreamClose(t *testing.T) {
 	if bad := d.StreamClose(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -231,7 +248,7 @@ func TestStreamHigh(t *testing.T) {
 	if bad := d.StreamHigh(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,
@@ -264,7 +281,7 @@ func TestStreamLow(t *testing.T) {
 	if bad := d.StreamLow(); len(bad) > 0 {
 		t.Error("expected no stream")
 	}
-	d.SetStream([]common.DataEventHandler{
+	d.SetStream([]data.Event{
 		&kline.Kline{
 			Base: &event.Base{
 				Exchange:     exch,

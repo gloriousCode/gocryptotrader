@@ -12,12 +12,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
+	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -41,7 +44,7 @@ var (
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking bool) (*FundManager, error) {
+func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking, verbose bool) (*FundManager, error) {
 	if exchManager == nil {
 		return nil, errExchangeManagerRequired
 	}
@@ -49,6 +52,7 @@ func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevel
 		usingExchangeLevelFunding: usingExchangeLevelFunding,
 		disableUSDTracking:        disableUSDTracking,
 		exchangeManager:           exchManager,
+		verbose:                   verbose,
 	}, nil
 }
 
@@ -85,10 +89,10 @@ func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, trans
 // for collateral purposes
 func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) error {
 	if item == nil {
-		return fmt.Errorf("%w missing item", common.ErrNilArguments)
+		return fmt.Errorf("%w missing item", gctcommon.ErrNilPointer)
 	}
 	if code.IsEmpty() {
-		return fmt.Errorf("%w unset currency", common.ErrNilArguments)
+		return fmt.Errorf("%w unset currency", gctcommon.ErrNilPointer)
 	}
 	if !item.asset.IsFutures() {
 		return errNotFutures
@@ -125,17 +129,18 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 		if f.items[i].snapshot == nil {
 			f.items[i].snapshot = make(map[int64]ItemSnapshot)
 		}
-
-		iss := ItemSnapshot{
-			Available: f.items[i].available,
-			Time:      t,
+		iss, ok := f.items[i].snapshot[t.UnixNano()]
+		if !ok {
+			iss = ItemSnapshot{
+				Time: t,
+			}
 		}
-
+		iss.Available = f.items[i].available
 		if !f.disableUSDTracking {
-			var usdClosePrice decimal.Decimal
 			if f.items[i].trackingCandles == nil {
 				continue
 			}
+			var usdClosePrice decimal.Decimal
 			usdCandles := f.items[i].trackingCandles.GetStream()
 			for j := range usdCandles {
 				if usdCandles[j].GetTime().Equal(t) {
@@ -155,7 +160,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) {
 // only in the event that it is not USD and there is data
 func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 	if f == nil || f.items == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
 	}
 	if f.disableUSDTracking {
 		return ErrUSDTrackingDisabled
@@ -183,8 +188,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 		if strings.EqualFold(f.items[i].exchange, k.Item.Exchange) &&
 			f.items[i].asset == k.Item.Asset {
 			if f.items[i].currency.Equal(k.Item.Pair.Base) {
-				if f.items[i].trackingCandles == nil &&
-					trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
+				if trackingcurrencies.CurrencyIsUSDTracked(k.Item.Pair.Quote) {
 					f.items[i].trackingCandles = k
 					if f.items[i].pairedWith != nil {
 						basePairedWith = f.items[i].pairedWith.currency
@@ -196,11 +200,9 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 				if f.items[i].pairedWith != nil && !f.items[i].currency.Equal(basePairedWith) {
 					continue
 				}
-				if f.items[i].trackingCandles == nil {
-					err := f.setUSDCandles(k, i)
-					if err != nil {
-						return err
-					}
+				err := f.setUSDCandles(k, i)
+				if err != nil {
+					return err
 				}
 				quoteSet = true
 			}
@@ -248,10 +250,10 @@ func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i int) error {
 // USDT level funding
 func CreatePair(base, quote *Item) (*SpotPair, error) {
 	if base == nil {
-		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("base %w", gctcommon.ErrNilPointer)
 	}
 	if quote == nil {
-		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("quote %w", gctcommon.ErrNilPointer)
 	}
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
@@ -268,10 +270,10 @@ func CreatePair(base, quote *Item) (*SpotPair, error) {
 // USDT level funding
 func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 	if contract == nil {
-		return nil, fmt.Errorf("base %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("base %w", gctcommon.ErrNilPointer)
 	}
 	if collateral == nil {
-		return nil, fmt.Errorf("quote %w", common.ErrNilArguments)
+		return nil, fmt.Errorf("quote %w", gctcommon.ErrNilPointer)
 	}
 	// copy to prevent the off chance of sending in the same base OR quote
 	// to create a new pair with a new base OR quote
@@ -284,6 +286,9 @@ func CreateCollateral(contract, collateral *Item) (*CollateralPair, error) {
 
 // Reset clears all settings
 func (f *FundManager) Reset() {
+	if f == nil {
+		return
+	}
 	*f = FundManager{}
 }
 
@@ -308,15 +313,25 @@ func (f *FundManager) GenerateReport() *Report {
 			TransferFee:  f.items[x].transferFee,
 			FinalFunds:   f.items[x].available,
 			IsCollateral: f.items[x].isCollateral,
+			WasAppended:  f.items[x].wasAppended,
 		}
 
 		if !f.disableUSDTracking &&
 			f.items[x].trackingCandles != nil {
 			usdStream := f.items[x].trackingCandles.GetStream()
-			item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
-			item.USDFinalFunds = f.items[x].available.Mul(usdStream[len(usdStream)-1].GetClosePrice())
+			if usdStream == nil {
+				log.Errorf(common.FundManager, "usd tracking data is nil for %v %v %v, please ensure data is present", f.items[x].exchange, f.items[x].asset, f.items[x].currency)
+				continue
+			}
+
+			lastClosePrice := usdStream[len(usdStream)-1].GetClosePrice()
+			if !item.IsCollateral {
+				item.USDInitialFunds = f.items[x].initialFunds.Mul(usdStream[0].GetClosePrice())
+				item.USDFinalFunds = f.items[x].available.Mul(lastClosePrice)
+			}
+
 			item.USDInitialCostForOne = usdStream[0].GetClosePrice()
-			item.USDFinalCostForOne = usdStream[len(usdStream)-1].GetClosePrice()
+			item.USDFinalCostForOne = lastClosePrice
 			item.USDPairCandle = f.items[x].trackingCandles
 		}
 
@@ -331,14 +346,15 @@ func (f *FundManager) GenerateReport() *Report {
 				continue
 			}
 			for y := range report.USDTotalsOverTime {
-				if report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
-					report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
-					report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
-						Currency:        f.items[x].currency,
-						USDContribution: snapshot.USDValue,
-					})
-					continue snaps
+				if !report.USDTotalsOverTime[y].Time.Equal(snapshot.Time) {
+					continue
 				}
+				report.USDTotalsOverTime[y].USDValue = report.USDTotalsOverTime[y].USDValue.Add(snapshot.USDValue)
+				report.USDTotalsOverTime[y].Breakdown = append(report.USDTotalsOverTime[y].Breakdown, CurrencyContribution{
+					Currency:        f.items[x].currency,
+					USDContribution: snapshot.USDValue,
+				})
+				continue snaps
 			}
 			report.USDTotalsOverTime = append(report.USDTotalsOverTime, ItemSnapshot{
 				Time:     snapshot.Time,
@@ -384,7 +400,7 @@ func (f *FundManager) GenerateReport() *Report {
 // Transfer allows transferring funds from one pretend exchange to another
 func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
 	if sender == nil || receiver == nil {
-		return common.ErrNilArguments
+		return gctcommon.ErrNilPointer
 	}
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return errZeroAmountReceived
@@ -464,7 +480,7 @@ func (f *FundManager) IsUsingExchangeLevelFunding() bool {
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
-func (f *FundManager) GetFundingForEvent(ev common.EventHandler) (IFundingPair, error) {
+func (f *FundManager) GetFundingForEvent(ev common.Event) (IFundingPair, error) {
 	return f.getFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
@@ -513,7 +529,7 @@ func (f *FundManager) getFundingForEAC(exch string, a asset.Item, c currency.Cod
 }
 
 // Liquidate will remove all funding for all items belonging to an exchange
-func (f *FundManager) Liquidate(ev common.EventHandler) {
+func (f *FundManager) Liquidate(ev common.Event) {
 	if ev == nil {
 		return
 	}
@@ -551,22 +567,137 @@ func (f *FundManager) GetAllFunding() []BasicItem {
 	return result
 }
 
-// UpdateCollateral will recalculate collateral for an exchange
+// UpdateFundingFromLiveData forcefully updates funding from a live source
+func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
+	exchanges, err := f.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
+	for x := range exchanges {
+		var creds *account.Credentials
+		creds, err = exchanges[x].GetCredentials(context.TODO())
+		if err != nil {
+			return err
+		}
+		assets := exchanges[x].GetAssetTypes(false)
+		for y := range assets {
+			if assets[y].IsFutures() {
+				// we set all holdings as spot
+				// futures currency holdings are collateral in the collateral currency
+				continue
+			}
+			var acc account.Holdings
+			acc, err = exchanges[x].UpdateAccountInfo(context.TODO(), assets[y])
+			if err != nil {
+				return err
+			}
+			for z := range acc.Accounts {
+				if !acc.Accounts[z].Credentials.Equal(creds) {
+					continue
+				}
+				for i := range acc.Accounts[z].Currencies {
+					err = f.SetFunding(exchanges[x].GetName(), assets[y], &acc.Accounts[z].Currencies[i], initialFundsSet)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// UpdateAllCollateral will update the collateral values
+// of all stored exchanges
+func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
+	exchanges, err := f.exchangeManager.GetExchanges()
+	if err != nil {
+		return err
+	}
+
+	for x := range exchanges {
+		exchName := strings.ToLower(exchanges[x].GetName())
+		exchangeCollateralCalculator := &gctorder.TotalCollateralCalculator{
+			CalculateOffline: !isLive,
+		}
+		for y := range f.items {
+			if f.items[y].exchange != exchName {
+				continue
+			}
+			if f.items[y].asset.IsFutures() {
+				// futures positions aren't collateral, they utilise it
+				continue
+			}
+			var usd decimal.Decimal
+			if f.items[y].trackingCandles != nil {
+				latest := f.items[y].trackingCandles.Latest()
+				if latest != nil {
+					usd = latest.GetClosePrice()
+				}
+			}
+			if usd.IsZero() && exchangeCollateralCalculator.CalculateOffline {
+				continue
+			}
+			var side = gctorder.Buy
+			if !f.items[y].available.GreaterThan(decimal.Zero) {
+				side = gctorder.Sell
+			}
+
+			exchangeCollateralCalculator.CollateralAssets = append(exchangeCollateralCalculator.CollateralAssets, gctorder.CollateralCalculator{
+				CalculateOffline:   !isLive,
+				CollateralCurrency: f.items[y].currency,
+				Asset:              f.items[y].asset,
+				Side:               side,
+				FreeCollateral:     f.items[y].available,
+				LockedCollateral:   f.items[y].reserved,
+				USDPrice:           usd,
+			})
+		}
+
+		var collateral *gctorder.TotalCollateralResponse
+		collateral, err = exchanges[x].CalculateTotalCollateral(context.TODO(), exchangeCollateralCalculator)
+		if err != nil {
+			return err
+		}
+		for y := range f.items {
+			if f.items[y].exchange == exchName &&
+				f.items[y].isCollateral {
+				if f.verbose {
+					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[y].exchange, f.items[y].asset, f.items[y].currency, collateral.AvailableCollateral)
+				}
+				f.items[y].available = collateral.AvailableCollateral
+				if !initialFundsSet {
+					f.items[y].initialFunds = collateral.AvailableCollateral
+				}
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
+// UpdateCollateralForEvent will recalculate collateral for an exchange
 // based on the event passed in
-func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
+func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) error {
 	if ev == nil {
 		return common.ErrNilEvent
 	}
+	if !f.HasFutures() {
+		// no collateral, no need to update
+		return nil
+	}
+
 	exchMap := make(map[string]exchange.IBotExchange)
 	var collateralAmount decimal.Decimal
 	var err error
 	calculator := gctorder.TotalCollateralCalculator{
-		CalculateOffline: true,
+		CalculateOffline: !isLive,
 	}
 
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
-			// futures positions aren't collateral, they use it
+			// futures positions aren't collateral, they utilise it
 			continue
 		}
 		_, ok := exchMap[f.items[i].exchange]
@@ -594,7 +725,7 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 		}
 
 		calculator.CollateralAssets = append(calculator.CollateralAssets, gctorder.CollateralCalculator{
-			CalculateOffline:   true,
+			CalculateOffline:   !isLive,
 			CollateralCurrency: f.items[i].currency,
 			Asset:              f.items[i].asset,
 			Side:               side,
@@ -621,6 +752,9 @@ func (f *FundManager) UpdateCollateral(ev common.EventHandler) error {
 		if f.items[i].exchange == ev.GetExchange() &&
 			f.items[i].asset == futureAsset &&
 			f.items[i].currency.Equal(futureCurrency) {
+			if f.verbose {
+				log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.AvailableCollateral)
+			}
 			f.items[i].available = collat.AvailableCollateral
 			return nil
 		}
@@ -652,11 +786,64 @@ func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.
 
 // HasExchangeBeenLiquidated checks for any items with a matching exchange
 // and returns whether it has been liquidated
-func (f *FundManager) HasExchangeBeenLiquidated(ev common.EventHandler) bool {
+func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 	for i := range f.items {
 		if ev.GetExchange() == f.items[i].exchange {
 			return f.items[i].isLiquidated
 		}
 	}
 	return false
+}
+
+// SetFunding overwrites a funding setting. This is for live trading
+// where external wallet amounts need to be synced
+// As external sources may have additional currencies and balances
+// versus the strategy currencies, they must be appended to
+// help calculate collateral
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, initialFundsSet bool) error {
+	if exchName == "" {
+		return engine.ErrExchangeNameIsEmpty
+	}
+	if !item.IsValid() {
+		return asset.ErrNotSupported
+	}
+	if balance == nil {
+		return gctcommon.ErrNilPointer
+	}
+	if balance.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+
+	exchName = strings.ToLower(exchName)
+	amount := decimal.NewFromFloat(balance.Total)
+	for i := range f.items {
+		if f.items[i].asset.IsFutures() {
+			continue
+		}
+		if f.items[i].exchange != exchName ||
+			f.items[i].asset != item ||
+			!f.items[i].currency.Equal(balance.Currency) {
+			continue
+		}
+		if f.verbose {
+			log.Infof(common.FundManager, "Setting %v %v %v balance to %v", exchName, item, balance.Currency, balance.Total)
+		}
+		if !initialFundsSet {
+			f.items[i].initialFunds = amount
+		}
+		f.items[i].available = amount
+		return nil
+	}
+	if f.verbose {
+		log.Debugf(common.FundManager, "Appending balance %v %v %v to %v", exchName, item, balance.Currency, balance.Total)
+	}
+	f.items = append(f.items, &Item{
+		exchange:     exchName,
+		asset:        item,
+		currency:     balance.Currency,
+		initialFunds: amount,
+		available:    amount,
+		wasAppended:  true,
+	})
+	return nil
 }

@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
@@ -17,8 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
-var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath string
-var printLogo, generateReport, darkReport, colourOutput, logSubHeader bool
+var singleRunStrategyPath, templatePath, outputPath, btConfigDir, strategyPluginPath, pprofURL string
+var printLogo, generateReport, darkReport, colourOutput, logSubHeader, enablePProf bool
 
 func main() {
 	wd, err := os.Getwd()
@@ -33,6 +35,18 @@ func main() {
 		btConfigDir = config.DefaultBTConfigDir
 		log.Infof(log.Global, "Blank config received, using default path '%v'", btConfigDir)
 	}
+
+	if enablePProf {
+		go func() {
+			server := &http.Server{
+				Addr:        pprofURL,
+				ReadTimeout: time.Minute,
+			}
+
+			fmt.Println(server.ListenAndServe())
+		}()
+	}
+
 	fe := file.Exists(btConfigDir)
 	switch {
 	case fe:
@@ -254,7 +268,7 @@ func parseFlags(wd string) map[string]bool {
 	flag.BoolVar(
 		&colourOutput,
 		"colouroutput",
-		false,
+		true,
 		"if enabled, will print in colours, if your terminal supports \033[38;5;99m[colours like this]\u001b[0m")
 	flag.BoolVar(
 		&logSubHeader,
@@ -271,6 +285,16 @@ func parseFlags(wd string) map[string]bool {
 		"strategypluginpath",
 		"",
 		"example path: "+filepath.Join(wd, "plugins", "strategies", "example", "example.so"))
+	flag.BoolVar(
+		&enablePProf,
+		"enablepprof",
+		false,
+		"if enabled, runs a pprof server for debugging")
+	flag.StringVar(
+		&pprofURL,
+		"pprofurl",
+		"http://localhost:6060",
+		"")
 	flag.Parse()
 	// collect flags
 	flags := make(map[string]bool)

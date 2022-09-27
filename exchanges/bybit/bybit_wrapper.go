@@ -698,10 +698,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		currencyBalance := make([]account.Balance, len(balances))
 		for i := range balances {
 			currencyBalance[i] = account.Balance{
-				CurrencyName: currency.NewCode(balances[i].CoinName),
-				Total:        balances[i].Total,
-				Hold:         balances[i].Locked,
-				Free:         balances[i].Total - balances[i].Locked,
+				Currency: currency.NewCode(balances[i].CoinName),
+				Total:    balances[i].Total,
+				Hold:     balances[i].Locked,
+				Free:     balances[i].Total - balances[i].Locked,
 			}
 		}
 
@@ -717,10 +717,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		currencyBalance := make([]account.Balance, len(balances))
 		for coinName, data := range balances {
 			currencyBalance[i] = account.Balance{
-				CurrencyName: currency.NewCode(coinName),
-				Total:        data.WalletBalance,
-				Hold:         data.WalletBalance - data.AvailableBalance,
-				Free:         data.AvailableBalance,
+				Currency: currency.NewCode(coinName),
+				Total:    data.WalletBalance,
+				Hold:     data.WalletBalance - data.AvailableBalance,
+				Free:     data.AvailableBalance,
 			}
 			i++
 		}
@@ -735,10 +735,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 
 		acc.Currencies = []account.Balance{
 			{
-				CurrencyName: currency.USD,
-				Total:        balance.WalletBalance,
-				Hold:         balance.WalletBalance - balance.AvailableBalance,
-				Free:         balance.AvailableBalance,
+				Currency: currency.USD,
+				Total:    balance.WalletBalance,
+				Hold:     balance.WalletBalance - balance.AvailableBalance,
+				Free:     balance.AvailableBalance,
 			},
 		}
 
@@ -2035,7 +2035,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", by.Name, summary)
 	}
-	klineItem.RemoveDuplicates()
+	klineItem.RemoveDuplicateCandlesByTime()
 	klineItem.RemoveOutsideRange(start, end)
 	klineItem.SortCandlesByTimestamp(false)
 	return klineItem, nil

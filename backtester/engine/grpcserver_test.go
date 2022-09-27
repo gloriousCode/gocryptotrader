@@ -27,7 +27,6 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	_, err := s.ExecuteStrategyFromFile(context.Background(), nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
-	}
 
 	s.config, err = config.GenerateDefaultConfig()
 	if !errors.Is(err, nil) {
@@ -53,6 +52,14 @@ func TestExecuteStrategyFromFile(t *testing.T) {
 	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
 		StrategyFilePath: dcaConfigPath,
 	})
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
+	}
+
+	s.BacktesterConfig = &config.BacktesterConfig{}
+	_, err = s.ExecuteStrategyFromFile(context.Background(), &btrpc.ExecuteStrategyFromFileRequest{
+		StrategyFilePath: dcaConfigPath,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
@@ -74,6 +81,11 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
+
+	s.BacktesterConfig = &config.BacktesterConfig{}
+	_, err = s.ExecuteStrategyFromConfig(context.Background(), &btrpc.ExecuteStrategyFromConfigRequest{})
+	if !errors.Is(err, gctcommon.ErrNilPointer) {
+		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 
 	s.config, err = config.GenerateDefaultConfig()
 	if !errors.Is(err, nil) {
@@ -189,12 +201,9 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	}
 	if defaultConfig.DataSettings.LiveData != nil {
 		dataSettings.LiveData = &btrpc.LiveData{
-			ApiKeyOverride:        defaultConfig.DataSettings.LiveData.APIKeyOverride,
-			ApiSecretOverride:     defaultConfig.DataSettings.LiveData.APISecretOverride,
-			ApiClientIdOverride:   defaultConfig.DataSettings.LiveData.APIClientIDOverride,
-			Api_2FaOverride:       defaultConfig.DataSettings.LiveData.API2FAOverride,
-			ApiSubAccountOverride: defaultConfig.DataSettings.LiveData.APISubAccountOverride,
-			UseRealOrders:         defaultConfig.DataSettings.LiveData.RealOrders,
+			// TODO FIIIIIX
+
+			UseRealOrders: defaultConfig.DataSettings.LiveData.RealOrders,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {

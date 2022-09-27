@@ -28,15 +28,14 @@ var (
 	errNilExchange                 = errors.New("nil exchange received")
 	errLiveUSDTrackingNotSupported = errors.New("USD tracking not supported for live data")
 	errNotSetup                    = errors.New("backtesting run not setup")
+	errLiveOnly            = errors.New("close all positions is only supported by live data type")
 )
 
 // BackTest is the main holder of all backtesting functionality
 type BackTest struct {
 	m               sync.Mutex
-	hasHandledEvent bool
 	MetaData        RunMetaData
 	shutdown        chan struct{}
-	Datas           data.Holder
 	Strategy        strategies.Handler
 	Portfolio       portfolio.Handler
 	Exchange        exchange.ExecutionHandler
@@ -47,6 +46,12 @@ type BackTest struct {
 	exchangeManager *engine.ExchangeManager
 	orderManager    *engine.OrderManager
 	databaseManager *engine.DatabaseConnectionManager
+	verbose                  bool
+	hasProcessedAnEvent      bool
+	hasShutdown              bool
+	DataHolder               data.Holder
+	LiveDataHandler          Handler
+	hasProcessedDataAtOffset map[int64]bool
 }
 
 // RunSummary holds details of a BackTest

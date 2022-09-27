@@ -207,10 +207,10 @@ func (o *OKGroup) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		}
 		currencyAccount.Currencies = append(currencyAccount.Currencies,
 			account.Balance{
-				CurrencyName: currency.NewCode(currencies[i].Currency),
-				Total:        totalValue,
-				Hold:         hold,
-				Free:         totalValue - hold,
+				Currency: currency.NewCode(currencies[i].Currency),
+				Total:    totalValue,
+				Hold:     hold,
+				Free:     totalValue - hold,
 			})
 	}
 
@@ -801,7 +801,7 @@ func (o *OKGroup) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", o.Base.Name, summary)
 	}
-	ret.RemoveDuplicates()
+	ret.RemoveDuplicateCandlesByTime()
 	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
