@@ -2784,12 +2784,66 @@ func TestAThing(t *testing.T) {
 	t.Log(collat)
 	t.Log(marginFraction * 100)
 
-	newPositionSize := float64(500)
+	newPositionSize := float64(1)
 	positionCost := tick.Last * newPositionSize
 	leverage := acc.TotalPositionSize / acc.TotalAccountValue
 	t.Log(leverage)
-	newMarginFraction := (acc.TotalAccountValue + positionCost) / (acc.TotalPositionSize + newPositionSize)
-	t.Log(newMarginFraction)
-	t.Log((acc.TotalPositionSize + newPositionSize) / (acc.TotalAccountValue + positionCost))
+	newMarginFraction := (acc.TotalAccountValue + positionCost) / (acc.TotalPositionSize + positionCost)
+	t.Log(newMarginFraction * 100)
+	t.Log((acc.TotalPositionSize + positionCost) / (acc.TotalAccountValue + positionCost))
 
 }
+
+func TestAThing2(t *testing.T) {
+	t.Parallel()
+	tick, err := f.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("1230")), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	//leverage := 2.0
+	collat, err := f.GetCollateral(context.Background(), false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	cost := 0.0
+	t.Log(collat.CollateralAvailable)
+	for i := range collat.Positions {
+		t.Logf("%+v", collat.Positions[i])
+		cost += collat.Positions[i].Size.Mul(collat.Positions[i].MarkPrice).InexactFloat64()
+	}
+	t.Log(cost)
+
+	marginFraction := collat.CollateralAvailable.InexactFloat64() / cost
+	t.Log(tick.Last)
+	t.Log(collat)
+	t.Log(marginFraction * 100)
+
+	newPositionSize := float64(500)
+	positionCost := tick.Last * newPositionSize
+	leverage := cost / collat.CollateralAvailable.InexactFloat64()
+	t.Log(leverage)
+	newMarginFraction := (collat.CollateralAvailable.InexactFloat64() + positionCost) / (cost + positionCost)
+	t.Log(newMarginFraction)
+	t.Log((cost + positionCost) / (collat.CollateralAvailable.InexactFloat64() + positionCost))
+}
+
+/*
+func TestGetMyDesiredLeverage(t *testing.T) {
+	desiredLeverage := 5.0
+	tick, err := f.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.NewCode("1230")), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	/
+	//leverage := 2.0
+	collat, err := f.GetCollateral(context.Background(), false)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	currentLeverage := 0.00020468746353582761
+	butts := desiredLeverage - currentLeverage
+	minimisedLeverage := positionSize * tick.Last / positionSize * tick.Last * 1
+}
+
+
+*/
