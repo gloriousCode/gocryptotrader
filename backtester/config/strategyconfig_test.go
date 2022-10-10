@@ -378,11 +378,10 @@ func TestPrintSettings(t *testing.T) {
 					InitialQuoteFunds: initialFunds1000000,
 					InitialBaseFunds:  initialFunds1000000,
 				},
-				BuySide:        minMax,
-				SellSide:       minMax,
-				MakerFee:       &makerFee,
-				TakerFee:       &takerFee,
-				FuturesDetails: &FuturesDetails{},
+				BuySide:  minMax,
+				SellSide: minMax,
+				MakerFee: &makerFee,
+				TakerFee: &takerFee,
 			},
 		},
 		DataSettings: DataSettings{
@@ -572,9 +571,6 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 		PortfolioSettings: PortfolioSettings{
 			BuySide:  minMax,
 			SellSide: minMax,
-			Leverage: Leverage{
-				CanUseLeverage: false,
-			},
 		},
 		StatisticSettings: StatisticSettings{
 			RiskFreeRate: decimal.NewFromFloat(0.03),
@@ -1478,6 +1474,71 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			t.Fatal(err)
 		}
 		err = os.WriteFile(filepath.Join(p, "strategyexamples", "binance-live-cash-and-carry.strat"), result, file.DefaultPermissionOctal)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+func TestGenerateConfigForLeveragedRSI(t *testing.T) {
+	if !saveConfig {
+		t.Skip()
+	}
+	cfg := Config{
+		Nickname: "ExampleFTXLeveragedRSI",
+		Goal:     "To demonstrate an RSI strategy using leverage to maximise gains (and maybe losses)",
+		StrategySettings: StrategySettings{
+			Name:                         "ftx-leveraged-rsi",
+			SimultaneousSignalProcessing: true,
+		},
+		FundingSettings: FundingSettings{
+			UseExchangeLevelFunding: true,
+			ExchangeLevelFunding: []ExchangeLevelFunding{
+				{
+					ExchangeName: "ftx",
+					Asset:        asset.Spot,
+					Currency:     currency.USD,
+					InitialFunds: *initialFunds100000,
+				},
+			},
+		},
+		CurrencySettings: []CurrencySettings{
+			{
+				ExchangeName:            "ftx",
+				Asset:                   asset.Futures,
+				Base:                    currency.BTC,
+				Quote:                   currency.NewCode("20190329"),
+				MakerFee:                &makerFee,
+				TakerFee:                &takerFee,
+				SkipCandleVolumeFitting: true,
+			},
+		},
+		PortfolioSettings: PortfolioSettings{
+			CanUseLeverage: true,
+			TargetLeverage: 5,
+		},
+		DataSettings: DataSettings{
+			Interval: kline.OneDay,
+			DataType: common.CandleStr,
+			APIData: &APIData{
+				StartDate: time.Date(2019, 3, 29, 12, 0, 0, 0, time.UTC),
+				EndDate:   time.Date(2019, 9, 29, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		StatisticSettings: StatisticSettings{
+			RiskFreeRate: decimal.NewFromFloat(0.03),
+		},
+	}
+	if saveConfig {
+		result, err := json.MarshalIndent(cfg, "", " ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-leveraged-rsi.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

@@ -291,16 +291,16 @@ func (c *Config) PrintSetting() {
 		log.Infof(common.Config, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
 		log.Infof(common.Config, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(common.Config, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
-		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures {
-			log.Infof(common.Config, "Leverage rules: %+v", c.CurrencySettings[i].FuturesDetails.Leverage)
-		}
 		log.Infof(common.Config, "Can use exchange defined order execution limits: %+v", c.CurrencySettings[i].CanUseExchangeLimits)
 	}
 
 	log.Info(common.Config, common.CMDColours.H2+"------------------Portfolio Settings-------------------------"+common.CMDColours.Default)
 	log.Infof(common.Config, "Buy rules: %+v", c.PortfolioSettings.BuySide)
 	log.Infof(common.Config, "Sell rules: %+v", c.PortfolioSettings.SellSide)
-	log.Infof(common.Config, "Leverage rules: %+v", c.PortfolioSettings.Leverage)
+	log.Infof(common.Config, "Can use leverage: %v", c.PortfolioSettings.CanUseLeverage)
+	if c.PortfolioSettings.CanUseLeverage {
+		log.Infof(common.Config, "Target leverage: %v", c.PortfolioSettings.TargetLeverage)
+	}
 	if c.DataSettings.LiveData != nil {
 		log.Info(common.Config, common.CMDColours.H2+"------------------Live Settings------------------------------"+common.CMDColours.Default)
 		log.Infof(common.Config, "Data type: %v", c.DataSettings.DataType)

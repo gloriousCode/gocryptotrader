@@ -25,6 +25,8 @@ var (
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
+	// ErrExcessiveLeverage is returned when supplied leverage exceeds an exchange's maximum leverage
+	ErrExcessiveLeverage = errors.New("leverage exceeds exchange's maximum leverage")
 
 	errCannotLiquidate = errors.New("cannot liquidate position")
 )

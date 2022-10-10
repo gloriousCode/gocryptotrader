@@ -96,22 +96,10 @@ type StatisticSettings struct {
 // these settings will override ExchangeSettings that go against it
 // and assess the bigger picture
 type PortfolioSettings struct {
-	Leverage Leverage `json:"leverage"`
-	BuySide  MinMax   `json:"buy-side"`
-	SellSide MinMax   `json:"sell-side"`
-}
-
-// Leverage rules are used to allow or limit the use of leverage in orders
-// when supported
-type Leverage struct {
-	CanUseLeverage                 bool            `json:"can-use-leverage"`
-	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
-	// MaximumOrderLeverageRate allows for orders to be placed with higher leverage rate. eg have $100 in collateral,
-	// but place an order for $200 using 2x leverage
-	MaximumOrderLeverageRate decimal.Decimal `json:"maximum-leverage-rate"`
-	// MaximumCollateralLeverageRate allows for orders to be placed at `1x leverage, but utilise collateral as leverage to place more.
-	// eg if this is 2x, and collateral is $100 I can place two long/shorts of $100
-	MaximumCollateralLeverageRate decimal.Decimal `json:"maximum-collateral-leverage-rate"`
+	CanUseLeverage bool    `json:"can-use-leverage"`
+	TargetLeverage float64 `json:"account-level-leverage"`
+	BuySide        MinMax  `json:"buy-side"`
+	SellSide       MinMax  `json:"sell-side"`
 }
 
 // MinMax are the rules which limit the placement of orders.
@@ -126,33 +114,25 @@ type MinMax struct {
 // you wish to trade with
 // Backtester will load the data of the currencies specified here
 type CurrencySettings struct {
-	ExchangeName string        `json:"exchange-name"`
-	Asset        asset.Item    `json:"asset"`
-	Base         currency.Code `json:"base"`
-	Quote        currency.Code `json:"quote"`
-	// USDTrackingPair is used for price tracking data only
-	USDTrackingPair bool `json:"-"`
-
-	SpotDetails    *SpotDetails    `json:"spot-details,omitempty"`
-	FuturesDetails *FuturesDetails `json:"futures-details,omitempty"`
-
-	BuySide  MinMax `json:"buy-side"`
-	SellSide MinMax `json:"sell-side"`
-
-	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
-	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
-
-	UsingExchangeMakerFee bool             `json:"-"`
-	MakerFee              *decimal.Decimal `json:"maker-fee-override,omitempty"`
-	UsingExchangeTakerFee bool             `json:"-"`
-	TakerFee              *decimal.Decimal `json:"taker-fee-override,omitempty"`
-
-	MaximumHoldingsRatio    decimal.Decimal `json:"maximum-holdings-ratio"`
-	SkipCandleVolumeFitting bool            `json:"skip-candle-volume-fitting"`
-
-	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
-	ShowExchangeOrderLimitWarning bool `json:"-"`
-	UseExchangePNLCalculation     bool `json:"use-exchange-pnl-calculation"`
+	ExchangeName                  string           `json:"exchange-name"`
+	Asset                         asset.Item       `json:"asset"`
+	Base                          currency.Code    `json:"base"`
+	Quote                         currency.Code    `json:"quote"`
+	USDTrackingPair               bool             `json:"-"`
+	SpotDetails                   *SpotDetails     `json:"spot-details,omitempty"`
+	BuySide                       MinMax           `json:"buy-side"`
+	SellSide                      MinMax           `json:"sell-side"`
+	MinimumSlippagePercent        decimal.Decimal  `json:"min-slippage-percent"`
+	MaximumSlippagePercent        decimal.Decimal  `json:"max-slippage-percent"`
+	UsingExchangeMakerFee         bool             `json:"-"`
+	MakerFee                      *decimal.Decimal `json:"maker-fee-override,omitempty"`
+	UsingExchangeTakerFee         bool             `json:"-"`
+	TakerFee                      *decimal.Decimal `json:"taker-fee-override,omitempty"`
+	MaximumHoldingsRatio          decimal.Decimal  `json:"maximum-holdings-ratio"`
+	SkipCandleVolumeFitting       bool             `json:"skip-candle-volume-fitting"`
+	CanUseExchangeLimits          bool             `json:"use-exchange-order-limits"`
+	ShowExchangeOrderLimitWarning bool             `json:"-"`
+	UseExchangePNLCalculation     bool             `json:"use-exchange-pnl-calculation"`
 }
 
 // SpotDetails contains funding information that cannot be shared with another
@@ -160,11 +140,6 @@ type CurrencySettings struct {
 type SpotDetails struct {
 	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
 	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`
-}
-
-// FuturesDetails contains data relevant to futures currency pairs
-type FuturesDetails struct {
-	Leverage Leverage `json:"leverage"`
 }
 
 // APIData defines all fields to configure API based data
