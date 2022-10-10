@@ -132,6 +132,7 @@ func (f *FTX) SetDefaults() {
 				DateRanges: true,
 				Intervals:  true,
 			},
+			MaximumLeverage: 20.0,
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
@@ -646,7 +647,9 @@ func (f *FTX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitRe
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-
+	if s.Leverage > f.Features.Supports.MaximumLeverage {
+		return nil, fmt.Errorf("%w supplied %f", order.ErrExcessiveLeverage, s.Leverage)
+	}
 	if s.Side.IsShort() {
 		s.Side = order.Sell
 	}

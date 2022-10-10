@@ -170,6 +170,7 @@ type FeaturesSupported struct {
 	WebsocketCapabilities protocol.Features
 	WithdrawPermissions   uint32
 	Kline                 kline.ExchangeCapabilitiesSupported
+	MaximumLeverage       float64 `json:"-"`
 }
 
 // Endpoints stores running url endpoints for exchanges
