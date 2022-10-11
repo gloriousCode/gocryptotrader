@@ -52,8 +52,6 @@ type Settings struct {
 	BuySide  MinMax
 	SellSide MinMax
 
-	Leverage Leverage
-
 	MinimumSlippageRate decimal.Decimal
 	MaximumSlippageRate decimal.Decimal
 
@@ -69,12 +67,4 @@ type MinMax struct {
 	MinimumSize  decimal.Decimal
 	MaximumSize  decimal.Decimal
 	MaximumTotal decimal.Decimal
-}
-
-// Leverage rules are used to allow or limit the use of leverage in orders
-// when supported
-type Leverage struct {
-	CanUseLeverage                 bool
-	MaximumOrdersWithLeverageRatio decimal.Decimal
-	MaximumLeverageRate            decimal.Decimal
 }
