@@ -1,8 +1,7 @@
 package portfolio
 
 import (
-	"strings"
-
+	"fmt"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -11,10 +10,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"strings"
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal, canUseLeverage bool, leverage float64) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -24,12 +24,13 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portf
 	if r == nil {
 		return nil, errRiskManagerUnset
 	}
-	p := &Portfolio{}
-	p.sizeManager = sh
-	p.riskManager = r
-	p.riskFreeRate = riskFreeRate
-
-	return p, nil
+	return &Portfolio{
+		riskFreeRate:   riskFreeRate,
+		sizeManager:    sh,
+		riskManager:    r,
+		canUseLeverage: canUseLeverage,
+		targetLeverage: leverage,
+	}, nil
 }
 
 // Reset returns the portfolio manager to its default state
@@ -37,15 +38,32 @@ func (p *Portfolio) Reset() error {
 	if p == nil {
 		return gctcommon.ErrNilPointer
 	}
-	p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.m.Lock()
+	defer p.m.Unlock()
+	p.exchangeAssetPairSettings =  make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
 	return nil
 }
 
-// SetCurrencySettingsMap ensures a map is created and no panics happen
-func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
+// AdjustLeverage allows leverage to be changed via GRPC
+func (p *Portfolio) AdjustLeverage(canUseLeverage bool, leverage float64) error {
+	if p == nil {
+		return fmt.Errorf("%w portfolio", gctcommon.ErrNilPointer)
+	}
+	p.m.Lock()
+	defer p.m.Unlock()
+	p.canUseLeverage = canUseLeverage
+	p.targetLeverage = leverage
+	return nil
+}
+
+// SetupCurrencySettingsMap ensures a map is created and no panics happen
+func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
+	if p == nil {
+		return fmt.Errorf("%w portfolio", gctcommon.ErrNilPointer)
+	}
 	if setup == nil {
 		return errNoPortfolioSettings
 	}
@@ -59,14 +77,16 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		return errCurrencyPairUnset
 	}
 
-	if p.exchangeAssetPairPortfolioSettings == nil {
-		p.exchangeAssetPairPortfolioSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.exchangeAssetPairSettings == nil {
+		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
-	m, ok := p.exchangeAssetPairPortfolioSettings[name]
+	m, ok := p.exchangeAssetPairSettings[name]
 	if !ok {
 		m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
-		p.exchangeAssetPairPortfolioSettings[name] = m
+		p.exchangeAssetPairSettings[name] = m
 	}
 	m2, ok := m[setup.Asset]
 	if !ok {
@@ -85,7 +105,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		pair:              setup.Pair,
 		BuySideSizing:     setup.BuySide,
 		SellSideSizing:    setup.SellSide,
-		Leverage:          setup.Leverage,
+		ComplianceManager: compliance.Manager{},
 		HoldingsSnapshots: make(map[int64]*holdings.Holding),
 	}
 	if setup.Asset.IsFutures() {

@@ -3,6 +3,7 @@ package portfolio
 import (
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"strings"
 	"time"
 
@@ -35,6 +36,11 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	if exchangeSettings == nil {
 		return nil, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
 	}
+	// for leverage numbers
+	p.m.Lock()
+	canUseLeverage := p.canUseLeverage
+	leverage := p.targetLeverage
+	p.m.Unlock()
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -119,7 +125,22 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o)
 	}
-	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds)
+	var req := &size.Request{
+		OrderEvent:      nil,
+		AmountAvailable: sizingFunds,
+		Settings:        nil,
+		CanUseLeverage:  false,
+		Leverage:        0,
+	}
+	if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
+		mmf, err := cs.Exchange.GetMinimumMarginFraction(ev.GetAssetType(), ev.Pair())
+		if err != nil {
+			return nil, err
+		}
+		req.MinimumMarginFraction = mmf
+
+	}
+	sizedOrder, err := p.sizeOrder(ev, cs, o, sizingFunds, funds, canUseLeverage, leverage)
 	if err != nil {
 		return sizedOrder, err
 	}
@@ -186,9 +207,16 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) (*order.Order, error) {
-	sizedOrder, estFee, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
-	if err != nil || sizedOrder.Amount.IsZero() {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver, canUseLeverage bool, leverage float64) (*order.Order, error) {
+	sizeRequest := &size.Request{
+		OrderEvent:      originalOrderSignal,
+		AmountAvailable: sizingFunds,
+		Settings:        cs,
+		CanUseLeverage:  canUseLeverage,
+		Leverage:        leverage,
+	}
+	sizeResponse, err := p.sizeManager.SizeOrder(sizeRequest)
+	if err != nil || sizeResponse.Order.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
 		case gctorder.Buy, gctorder.Bid:
 			originalOrderSignal.Direction = gctorder.CouldNotBuy
@@ -213,20 +241,20 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 		gctorder.Bid,
 		gctorder.Short,
 		gctorder.Long:
-		sizedOrder.AllocatedFunds = sizedOrder.Amount.Mul(sizedOrder.ClosePrice).Add(estFee)
+		sizeResponse.Order.AllocatedFunds = sizeResponse.Order.Amount.Mul(sizeResponse.Order.ClosePrice).Add(sizeResponse.Fee)
 	case gctorder.Sell,
 		gctorder.Ask,
 		gctorder.ClosePosition:
-		sizedOrder.AllocatedFunds = sizedOrder.Amount
+		sizeResponse.Order.AllocatedFunds = sizeResponse.Order.Amount
 	default:
 		return nil, errInvalidDirection
 	}
-	err = funds.Reserve(sizedOrder.AllocatedFunds, d.GetDirection())
+	err = funds.Reserve(sizeResponse.Order.AllocatedFunds, d.GetDirection())
 	if err != nil {
-		sizedOrder.Direction = gctorder.DoNothing
-		return sizedOrder, err
+		sizeResponse.Order.Direction = gctorder.DoNothing
+		return sizeResponse.Order, err
 	}
-	return sizedOrder, nil
+	return sizeResponse.Order, nil
 }
 
 // OnFill processes the event after an order has been placed by the exchange. Its purpose is to track holdings for future portfolio decisions.

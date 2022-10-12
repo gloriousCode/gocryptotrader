@@ -44,10 +44,6 @@ message SpotDetails {
   string initial_quote_funds = 2;
 }
 
-message FuturesDetails {
-  Leverage leverage = 1;
-}
-
 message CurrencySettings {
   string exchange_name = 1;
   string asset = 2;
@@ -64,7 +60,6 @@ message CurrencySettings {
   bool use_exchange_order_limits = 13;
   bool use_exchange_pnl_calculation = 14;
   SpotDetails spot_details = 15;
-  FuturesDetails futures_details = 16;
 }
 
 message ApiData {
@@ -159,17 +154,11 @@ message DataSettings {
   LiveData live_data = 6;
 }
 
-message Leverage {
-  bool can_use_leverage = 1;
-  string maximum_orders_with_leverage_ratio = 2;
-  string maximum_leverage_rate = 3;
-  string maximum_collateral_leverage_rate = 4;
-}
-
 message PortfolioSettings {
-  Leverage leverage = 1;
-  PurchaseSide buy_side = 2;
-  PurchaseSide sell_side = 3;
+  PurchaseSide buy_side = 1;
+  PurchaseSide sell_side = 2;
+  bool can_use_leverage = 3;
+  double leverage = 4;
 }
 
 message StatisticSettings {
@@ -267,6 +256,18 @@ message ClearAllTasksResponse {
   repeated TaskSummary remaining_tasks = 2;
 }
 
+message SetLeverageForTaskRequest {
+  string id = 1;
+  bool can_use_leverage = 2;
+  double leverage = 3;
+}
+
+message SetLeverageForTaskResponse {
+  TaskSummary task_summary = 1;
+  bool can_use_leverage = 2;
+  double leverage = 3;
+}
+
 service BacktesterService {
   rpc ExecuteStrategyFromFile(ExecuteStrategyFromFileRequest) returns (ExecuteStrategyResponse) {
     option (google.api.http) = {post: "/v1/executestrategyfromfile"};
@@ -294,5 +295,10 @@ service BacktesterService {
   }
   rpc ClearAllTasks(ClearAllTasksRequest) returns (ClearAllTasksResponse) {
     option (google.api.http) = {delete: "/v1/clearalltasks"};
+  }
+  rpc SetLeverageForTask(SetLeverageForTaskRequest) returns (SetLeverageForTaskResponse) {
+    option (google.api.http) = {
+      post: "/v1/setleveragefortask"
+    };
   }
 }

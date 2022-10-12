@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"net"
 	"net/url"
 	"strconv"
@@ -1577,4 +1578,8 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 	}
 
 	return &kline.ExtendedRequest{Request: r, RangeHolder: dates}, nil
+}
+
+func (b *Base) GetMinimumMarginFraction(asset.Item, currency.Pair) (decimal.Decimal, error) {
+	return decimal.Zero, common.ErrNotYetImplemented
 }

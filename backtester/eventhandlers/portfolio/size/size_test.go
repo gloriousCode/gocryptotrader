@@ -186,7 +186,7 @@ func TestCalculateSellSize(t *testing.T) {
 func TestSizeOrder(t *testing.T) {
 	t.Parallel()
 	s := Size{}
-	_, _, err := s.SizeOrder(nil, decimal.Zero, nil)
+	_, _, err := s.SizeOrder(nil, decimal.Zero, nil, false, 0)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Error(err)
 	}
@@ -201,17 +201,17 @@ func TestSizeOrder(t *testing.T) {
 		},
 	}
 	cs := &exchange.Settings{}
-	_, _, err = s.SizeOrder(o, decimal.Zero, cs)
+	_, _, err = s.SizeOrder(o, decimal.Zero, cs, false, 0)
 	if !errors.Is(err, errNoFunds) {
 		t.Errorf("received: %v, expected: %v", err, errNoFunds)
 	}
 
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
 	o.Direction = gctorder.Buy
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received: %v, expected: %v", err, errCannotAllocate)
 	}
@@ -219,27 +219,27 @@ func TestSizeOrder(t *testing.T) {
 	o.ClosePrice = decimal.NewFromInt(1)
 	s.BuySide.MaximumSize = decimal.NewFromInt(1)
 	s.BuySide.MinimumSize = decimal.NewFromInt(1)
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	o.Amount = decimal.NewFromInt(1)
 	o.Direction = gctorder.Sell
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	s.SellSide.MaximumSize = decimal.NewFromInt(1)
 	s.SellSide.MinimumSize = decimal.NewFromInt(1)
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
 	o.Direction = gctorder.ClosePosition
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -253,14 +253,14 @@ func TestSizeOrder(t *testing.T) {
 	exch := binance.Binance{}
 	// TODO adjust when Binance futures wrappers are implemented
 	cs.Exchange = &exch
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}
 
 	o.ClosePrice = decimal.NewFromInt(1000000000)
 	o.Amount = decimal.NewFromInt(1000000000)
-	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs)
+	_, _, err = s.SizeOrder(o, decimal.NewFromInt(1337), cs, false, 0)
 	if !errors.Is(err, gctcommon.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}

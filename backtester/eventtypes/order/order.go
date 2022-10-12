@@ -64,17 +64,17 @@ func (o *Order) GetID() string {
 
 // IsLeveraged returns if it is leveraged
 func (o *Order) IsLeveraged() bool {
-	return o.Leverage.GreaterThan(decimal.NewFromFloat(1))
+	return o.EstimatedLeverage.GreaterThan(decimal.NewFromFloat(1))
 }
 
 // GetLeverage returns leverage rate
 func (o *Order) GetLeverage() decimal.Decimal {
-	return o.Leverage
+	return o.EstimatedLeverage
 }
 
 // SetLeverage sets leverage
 func (o *Order) SetLeverage(l decimal.Decimal) {
-	o.Leverage = l
+	o.EstimatedLeverage = l
 }
 
 // GetAllocatedFunds returns the amount of funds the portfolio manager
