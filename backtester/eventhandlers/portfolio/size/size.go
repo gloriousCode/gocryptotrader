@@ -3,75 +3,85 @@ package size
 import (
 	"context"
 	"fmt"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // SizeOrder is responsible for ensuring that the order size is within config limits
-func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exchange.Settings) (*order.Order, decimal.Decimal, error) {
-	if o == nil {
-		return nil, decimal.Zero, fmt.Errorf("%w order event", gctcommon.ErrNilPointer)
+func (s *Size) SizeOrder(req *Request) (*Response, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w Request", gctcommon.ErrNilPointer)
 	}
-	if cs == nil {
-		return nil, decimal.Zero, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
+	if req.AmountAvailable.LessThanOrEqual(decimal.Zero) {
+		return nil, errNoFunds
 	}
-	if amountAvailable.LessThanOrEqual(decimal.Zero) {
-		return nil, decimal.Zero, errNoFunds
-	}
-	retOrder, ok := o.(*order.Order)
+	retOrder, ok := req.OrderEvent.(*order.Order)
 	if !ok {
-		return nil, decimal.Zero, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
+		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
 
-	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
-		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
-			CalculateOffline:   true,
-			CollateralCurrency: o.Pair().Base,
-			Asset:              fde.GetAssetType(),
-			Side:               gctorder.Short,
-			USDPrice:           fde.GetClosePrice(),
-			IsForNewPosition:   true,
-			FreeCollateral:     amountAvailable,
-		})
-		if err != nil {
-			return nil, decimal.Zero, err
-		}
-
-		sizedPrice := o.GetClosePrice()
-		if fde.GetClosePrice().GreaterThan(o.GetClosePrice()) {
-			// ensure limits are respected by using the largest price
-			sizedPrice = fde.GetClosePrice()
-		}
-
-		initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
-		oNotionalPosition := initialAmount.Mul(sizedPrice)
-		sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), sizedPrice, oNotionalPosition, cs, o)
-		if err != nil {
-			return nil, decimal.Zero, err
-		}
-		scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
-		excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
-		if excess.IsNegative() {
-			return nil, decimal.Zero, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
-		}
-		retOrder.SetAmount(sizedAmount)
-		fde.SetAmount(sizedAmount)
-
-		return retOrder, estFee, nil
+	if fde := req.OrderEvent.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
+		return s.sizeTwoOrders(req, fde, retOrder)
 	}
-
-	amount, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)
+	sizedAmount, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, req.AmountAvailable, req.Settings, req.OrderEvent)
 	if err != nil {
-		return nil, decimal.Zero, err
+		return nil, err
 	}
-	retOrder.SetAmount(amount)
+	retOrder.SetAmount(sizedAmount)
+	return &Response{
+		Order: retOrder,
+		Fee:   estFee,
+	}, nil
+}
 
-	return retOrder, estFee, nil
+func (s *Size) sizeTwoOrders(req *Request, fde signal.Event, retOrder *order.Order) (*Response, error) {
+	if req.CanUseLeverage && req.Leverage > 1 &&
+		(!fde.GetAssetType().IsFutures() || !retOrder.AssetType.IsFutures()) {
+		return nil, ErrCantUseLeverageAndMatchOrderAmount
+	}
+
+	var scalingInfo *gctorder.CollateralByCurrency
+	scalingInfo, err := req.Settings.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+		CalculateOffline:   true,
+		CollateralCurrency: req.OrderEvent.Pair().Base,
+		Asset:              fde.GetAssetType(),
+		Side:               gctorder.Short,
+		USDPrice:           fde.GetClosePrice(),
+		IsForNewPosition:   true,
+		FreeCollateral:     req.AmountAvailable,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sizedPrice := req.OrderEvent.GetClosePrice()
+	if fde.GetClosePrice().GreaterThan(req.OrderEvent.GetClosePrice()) {
+		// ensure limits are respected by using the largest price
+		sizedPrice = fde.GetClosePrice()
+	}
+
+	initialAmount := req.AmountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
+	oNotionalPosition := initialAmount.Mul(sizedPrice)
+	sizedAmount, estFee, err := s.calculateAmount(req.OrderEvent.GetDirection(), sizedPrice, oNotionalPosition, req.Settings, req.OrderEvent)
+	if err != nil {
+		return nil, err
+	}
+	scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
+	excess := req.AmountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
+	if excess.IsNegative() {
+		return nil, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
+	}
+	retOrder.SetAmount(sizedAmount)
+	fde.SetAmount(sizedAmount)
+	return &Response{
+		Order: retOrder,
+		Fee:   estFee,
+	}, nil
 }
 
 func (s *Size) calculateAmount(direction gctorder.Side, price, amountAvailable decimal.Decimal, cs *exchange.Settings, o order.Event) (amount, fee decimal.Decimal, err error) {

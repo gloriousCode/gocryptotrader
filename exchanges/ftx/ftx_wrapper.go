@@ -2281,3 +2281,11 @@ func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, e
 	}
 	return cp.Quote.Equal(currency.PERP) && a.IsFutures(), nil
 }
+
+func (f *FTX) GetMinimumMarginFraction(item *currency.Item) (decimal.Decimal, error) {
+	weight, ok := f.collateralWeight[item]
+	if !ok {
+		return decimal.Zero, fmt.Errorf("%w %v", errCollateralCurrencyNotFound, item
+	}
+	return weight.Initial, nil
+}

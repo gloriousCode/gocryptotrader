@@ -31,6 +31,7 @@ type BacktesterServiceClient interface {
 	StopAllTasks(ctx context.Context, in *StopAllTasksRequest, opts ...grpc.CallOption) (*StopAllTasksResponse, error)
 	ClearTask(ctx context.Context, in *ClearTaskRequest, opts ...grpc.CallOption) (*ClearTaskResponse, error)
 	ClearAllTasks(ctx context.Context, in *ClearAllTasksRequest, opts ...grpc.CallOption) (*ClearAllTasksResponse, error)
+	SetLeverageForTask(ctx context.Context, in *SetLeverageForTaskRequest, opts ...grpc.CallOption) (*SetLeverageForTaskResponse, error)
 }
 
 type backtesterServiceClient struct {
@@ -122,6 +123,15 @@ func (c *backtesterServiceClient) ClearAllTasks(ctx context.Context, in *ClearAl
 	return out, nil
 }
 
+func (c *backtesterServiceClient) SetLeverageForTask(ctx context.Context, in *SetLeverageForTaskRequest, opts ...grpc.CallOption) (*SetLeverageForTaskResponse, error) {
+	out := new(SetLeverageForTaskResponse)
+	err := c.cc.Invoke(ctx, "/btrpc.BacktesterService/SetLeverageForTask", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BacktesterServiceServer is the server API for BacktesterService service.
 // All implementations must embed UnimplementedBacktesterServiceServer
 // for forward compatibility
@@ -135,6 +145,7 @@ type BacktesterServiceServer interface {
 	StopAllTasks(context.Context, *StopAllTasksRequest) (*StopAllTasksResponse, error)
 	ClearTask(context.Context, *ClearTaskRequest) (*ClearTaskResponse, error)
 	ClearAllTasks(context.Context, *ClearAllTasksRequest) (*ClearAllTasksResponse, error)
+	SetLeverageForTask(context.Context, *SetLeverageForTaskRequest) (*SetLeverageForTaskResponse, error)
 	mustEmbedUnimplementedBacktesterServiceServer()
 }
 
@@ -168,6 +179,9 @@ func (UnimplementedBacktesterServiceServer) ClearTask(context.Context, *ClearTas
 }
 func (UnimplementedBacktesterServiceServer) ClearAllTasks(context.Context, *ClearAllTasksRequest) (*ClearAllTasksResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClearAllTasks not implemented")
+}
+func (UnimplementedBacktesterServiceServer) SetLeverageForTask(context.Context, *SetLeverageForTaskRequest) (*SetLeverageForTaskResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLeverageForTask not implemented")
 }
 func (UnimplementedBacktesterServiceServer) mustEmbedUnimplementedBacktesterServiceServer() {}
 
@@ -344,6 +358,24 @@ func _BacktesterService_ClearAllTasks_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BacktesterService_SetLeverageForTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetLeverageForTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BacktesterServiceServer).SetLeverageForTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/btrpc.BacktesterService/SetLeverageForTask",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BacktesterServiceServer).SetLeverageForTask(ctx, req.(*SetLeverageForTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // BacktesterService_ServiceDesc is the grpc.ServiceDesc for BacktesterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -386,6 +418,10 @@ var BacktesterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ClearAllTasks",
 			Handler:    _BacktesterService_ClearAllTasks_Handler,
+		},
+		{
+			MethodName: "SetLeverageForTask",
+			Handler:    _BacktesterService_SetLeverageForTask_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

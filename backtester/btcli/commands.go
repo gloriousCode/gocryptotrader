@@ -384,15 +384,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				sd.InitialQuoteFunds = defaultConfig.CurrencySettings[i].SpotDetails.InitialQuoteFunds.String()
 			}
 		}
-		var fd btrpc.FuturesDetails
-		if defaultConfig.CurrencySettings[i].FuturesDetails != nil {
-			fd.Leverage = &btrpc.Leverage{
-				CanUseLeverage:                 defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
-				MaximumOrdersWithLeverageRatio: defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio.String(),
-				MaximumLeverageRate:            defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate.String(),
-				MaximumCollateralLeverageRate:  defaultConfig.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate.String(),
-			}
-		}
 		currencySettings[i] = &btrpc.CurrencySettings{
 			ExchangeName: defaultConfig.CurrencySettings[i].ExchangeName,
 			Asset:        defaultConfig.CurrencySettings[i].Asset.String(),
@@ -514,12 +505,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		CurrencySettings: currencySettings,
 		DataSettings:     dataSettings,
 		PortfolioSettings: &btrpc.PortfolioSettings{
-			Leverage: &btrpc.Leverage{
-				CanUseLeverage:                 defaultConfig.PortfolioSettings.Leverage.CanUseLeverage,
-				MaximumOrdersWithLeverageRatio: defaultConfig.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio.String(),
-				MaximumLeverageRate:            defaultConfig.PortfolioSettings.Leverage.MaximumOrderLeverageRate.String(),
-				MaximumCollateralLeverageRate:  defaultConfig.PortfolioSettings.Leverage.MaximumCollateralLeverageRate.String(),
-			},
 			BuySide: &btrpc.PurchaseSide{
 				MinimumSize:  defaultConfig.PortfolioSettings.BuySide.MinimumSize.String(),
 				MaximumSize:  defaultConfig.PortfolioSettings.BuySide.MaximumSize.String(),
@@ -530,6 +515,8 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				MaximumSize:  defaultConfig.PortfolioSettings.SellSide.MaximumSize.String(),
 				MaximumTotal: defaultConfig.PortfolioSettings.SellSide.MaximumTotal.String(),
 			},
+			CanUseLeverage: defaultConfig.PortfolioSettings.CanUseLeverage,
+			Leverage:       defaultConfig.PortfolioSettings.TargetLeverage,
 		},
 		StatisticSettings: &btrpc.StatisticSettings{
 			RiskFreeRate: defaultConfig.StatisticSettings.RiskFreeRate.String(),

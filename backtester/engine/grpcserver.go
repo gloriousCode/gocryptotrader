@@ -272,18 +272,6 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 	if err != nil {
 		return nil, err
 	}
-	maximumOrdersWithLeverageRatio, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio)
-	if err != nil {
-		return nil, err
-	}
-	maximumOrderLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumLeverageRate)
-	if err != nil {
-		return nil, err
-	}
-	maximumCollateralLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumCollateralLeverageRate)
-	if err != nil {
-		return nil, err
-	}
 
 	buySideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MinimumSize)
 	if err != nil {
@@ -434,39 +422,12 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			}
 		}
 
-		var futuresDetails *config.FuturesDetails
-		if request.Config.CurrencySettings[i].FuturesDetails != nil &&
-			request.Config.CurrencySettings[i].FuturesDetails.Leverage != nil {
-			futuresDetails = &config.FuturesDetails{}
-			var mowlr, mlr, mclr decimal.Decimal
-			mowlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
-			if err != nil {
-				return nil, err
-			}
-			mlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate)
-			if err != nil {
-				return nil, err
-			}
-			mclr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate)
-			if err != nil {
-				return nil, err
-			}
-
-			futuresDetails.Leverage = config.Leverage{
-				CanUseLeverage:                 request.Config.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
-				MaximumOrdersWithLeverageRatio: mowlr,
-				MaximumOrderLeverageRate:       mlr,
-				MaximumCollateralLeverageRate:  mclr,
-			}
-		}
-
 		configSettings[i] = config.CurrencySettings{
-			ExchangeName:   request.Config.CurrencySettings[i].ExchangeName,
-			Asset:          a,
-			Base:           currency.NewCode(request.Config.CurrencySettings[i].Base),
-			Quote:          currency.NewCode(request.Config.CurrencySettings[i].Quote),
-			SpotDetails:    spotDetails,
-			FuturesDetails: futuresDetails,
+			ExchangeName: request.Config.CurrencySettings[i].ExchangeName,
+			Asset:        a,
+			Base:         currency.NewCode(request.Config.CurrencySettings[i].Base),
+			Quote:        currency.NewCode(request.Config.CurrencySettings[i].Quote),
+			SpotDetails:  spotDetails,
 			BuySide: config.MinMax{
 				MinimumSize:  currencySettingBuySideMinimumSize,
 				MaximumSize:  currencySettingBuySideMaximumSize,
@@ -579,12 +540,8 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			CSVData:      csvData,
 		},
 		PortfolioSettings: config.PortfolioSettings{
-			Leverage: config.Leverage{
-				CanUseLeverage:                 request.Config.PortfolioSettings.Leverage.CanUseLeverage,
-				MaximumOrdersWithLeverageRatio: maximumOrdersWithLeverageRatio,
-				MaximumOrderLeverageRate:       maximumOrderLeverageRate,
-				MaximumCollateralLeverageRate:  maximumCollateralLeverageRate,
-			},
+			CanUseLeverage: request.Config.PortfolioSettings.CanUseLeverage,
+			TargetLeverage: request.Config.PortfolioSettings.Leverage,
 			BuySide: config.MinMax{
 				MinimumSize:  buySideMinimumSize,
 				MaximumSize:  buySideMaximumSize,
@@ -781,5 +738,25 @@ func (s *GRPCServer) ClearAllTasks(_ context.Context, _ *btrpc.ClearAllTasksRequ
 	return &btrpc.ClearAllTasksResponse{
 		ClearedTasks:   clearedResponse,
 		RemainingTasks: remainingResponse,
+	}, nil
+}
+
+// SetTaskLeverage sets the leverage for a task
+func (s *GRPCServer) SetTaskLeverage(_ context.Context, req *btrpc.SetLeverageForTaskRequest) (*btrpc.SetLeverageForTaskResponse, error) {
+	if s.manager == nil {
+		return nil, fmt.Errorf("%w task manager", gctcommon.ErrNilPointer)
+	}
+	id, err := uuid.FromString(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	summary, err := s.manager.SetTaskLeverage(id, req.CanUseLeverage, req.Leverage)
+	if err != nil {
+		return nil, err
+	}
+	return &btrpc.SetLeverageForTaskResponse{
+		TaskSummary:    convertSummary(summary),
+		CanUseLeverage: req.CanUseLeverage,
+		Leverage:       req.Leverage,
 	}, nil
 }

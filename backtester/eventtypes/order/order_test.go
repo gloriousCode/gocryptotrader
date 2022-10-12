@@ -67,7 +67,7 @@ func TestSetID(t *testing.T) {
 func TestLeverage(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		Leverage: decimal.NewFromInt(1),
+		EstimatedLeverage: decimal.NewFromInt(1),
 	}
 	o.SetLeverage(decimal.NewFromInt(1337))
 	if !o.GetLeverage().Equal(decimal.NewFromInt(1337)) || !o.IsLeveraged() {

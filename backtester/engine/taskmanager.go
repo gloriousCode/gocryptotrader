@@ -14,6 +14,7 @@ var (
 	errAlreadyRan           = errors.New("task already ran")
 	errTaskHasNotRan        = errors.New("task hasn't ran yet")
 	errTaskIsRunning        = errors.New("task is already running")
+	errTaskNotRunning       = errors.New("task is not running")
 	errCannotClear          = errors.New("cannot clear task")
 )
 
@@ -213,4 +214,28 @@ func (r *TaskManager) ClearAllTasks() (clearedRuns, remainingRuns []*TaskSummary
 		}
 	}
 	return clearedRuns, remainingRuns, nil
+}
+
+// SetTaskLeverage allows the leverage to be modified during the running of a task
+func (r *TaskManager) SetTaskLeverage(id uuid.UUID, canUseLeverage bool, leverage float64) (*TaskSummary, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w TaskManager", gctcommon.ErrNilPointer)
+	}
+	r.m.Lock()
+	defer r.m.Unlock()
+	for i := range r.tasks {
+		if !r.tasks[i].MatchesID(id) {
+			continue
+		}
+		if !r.tasks[i].IsRunning() {
+			return nil, fmt.Errorf("%w %v, currently running. Stop it first", errTaskNotRunning, r.tasks[i].MetaData.ID)
+		}
+
+		err := r.tasks[i].AdjustLeverage(canUseLeverage, leverage)
+		if err != nil {
+			return nil, err
+		}
+		return r.tasks[i].GenerateSummary()
+	}
+	return nil, fmt.Errorf("%s %w", id, errTaskNotFound)
 }

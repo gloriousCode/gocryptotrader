@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"net"
 	"net/url"
 	"strconv"
@@ -1495,4 +1496,8 @@ func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesR
 // differs by exchange
 func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
 	return false, common.ErrNotYetImplemented
+}
+
+func (b *Base) GetMinimumMarginFraction(asset.Item, currency.Pair) (decimal.Decimal, error) {
+	return decimal.Zero, common.ErrNotYetImplemented
 }

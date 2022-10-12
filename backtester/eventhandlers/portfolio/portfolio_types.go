@@ -2,6 +2,8 @@ package portfolio
 
 import (
 	"errors"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -40,10 +42,13 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	riskFreeRate                       decimal.Decimal
-	sizeManager                        SizeHandler
-	riskManager                        risk.Handler
-	exchangeAssetPairPortfolioSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
+	riskFreeRate              decimal.Decimal
+	sizeManager               SizeHandler
+	riskManager               risk.Handler
+	exchangeAssetPairSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
+	m                         sync.Mutex
+	canUseLeverage            bool
+	targetLeverage            float64
 }
 
 // Handler contains all functions expected to operate a portfolio manager
@@ -64,12 +69,13 @@ type Handler interface {
 	GetLatestHoldingsForAllCurrencies() []holdings.Holding
 	Reset() error
 	SetHoldingsForEvent(funding.IFundReader, common.Event) error
+	AdjustLeverage(canUseLeverage bool, leverage float64) error
 	GetLatestComplianceSnapshot(string, asset.Item, currency.Pair) (*compliance.Snapshot, error)
 }
 
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
-	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, decimal.Decimal, error)
+	SizeOrder(*size.Request) (*size.Response, error)
 }
 
 // Settings holds all important information for the portfolio manager

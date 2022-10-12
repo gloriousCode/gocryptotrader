@@ -174,14 +174,14 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	err = s.SetEventForOffset(&order.Order{
-		Base:       b,
-		ID:         "elite",
-		Direction:  gctorder.Buy,
-		Status:     gctorder.New,
-		ClosePrice: eleet,
-		Amount:     eleet,
-		OrderType:  gctorder.Stop,
-		Leverage:   eleet,
+		Base:              b,
+		ID:                "elite",
+		Direction:         gctorder.Buy,
+		Status:            gctorder.New,
+		ClosePrice:        eleet,
+		Amount:            eleet,
+		OrderType:         gctorder.Stop,
+		EstimatedLeverage: eleet,
 	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)

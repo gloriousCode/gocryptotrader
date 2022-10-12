@@ -842,3 +842,13 @@ func (bt *BackTest) MatchesID(id uuid.UUID) bool {
 	}
 	return bt.MetaData.ID == id
 }
+
+// AdjustLeverage adjusts the leverage for the portfolio
+func (bt *BackTest) AdjustLeverage(canUseLeverage bool, leverage float64) error {
+	if bt == nil {
+		return gctcommon.ErrNilPointer
+	}
+	bt.m.Lock()
+	defer bt.m.Unlock()
+	return bt.Portfolio.AdjustLeverage(canUseLeverage, leverage)
+}
