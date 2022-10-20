@@ -3145,12 +3145,3 @@ type FundingOrder struct {
 	RedeemedTime  time.Time `json:"redeemedTime"`
 	EarningCcy    []string  `json:"earningCcy,omitempty"`
 }
-
-// wsRequestDataChannelsMultiplexer a single multiplexer instance to multiplex websocket messages multiplexer channels
-type wsRequestDataChannelsMultiplexer struct {
-	// To Synchronize incoming messages coming through the websocket channel
-	WsResponseChannelsMap map[string]*wsRequestInfo
-	Register              chan *wsRequestInfo
-	Unregister            chan string
-	Message               chan *wsIncomingData
-}
