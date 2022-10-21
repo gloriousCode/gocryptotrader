@@ -2,6 +2,8 @@ package order
 
 import (
 	"errors"
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -366,6 +368,19 @@ type ClassificationError struct {
 	Exchange string
 	OrderID  string
 	Err      error
+}
+
+type Sized struct {
+	Exchange string
+	Asset    asset.Item
+	Pair     currency.Pair
+
+	CalculationDate    time.Time
+	Size               decimal.Decimal
+	Leverage           decimal.Decimal
+	MarginRequirements *margin.Requirements
+	EstimatedCost      decimal.Decimal
+	PriceAtCalculation decimal.Decimal
 }
 
 // FilteredOrders defines orders that have been filtered at the wrapper level

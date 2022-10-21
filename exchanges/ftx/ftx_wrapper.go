@@ -1430,9 +1430,9 @@ func (f *FTX) ScaleCollateral(ctx context.Context, calc *order.CollateralCalcula
 			}
 			var scaling decimal.Decimal
 			if calc.IsForNewPosition {
-				scaling = decimal.NewFromFloat(collateralWeight.Initial)
+				scaling = decimal.NewFromFloat(collateralWeight.OpeningPosition)
 			} else {
-				scaling = decimal.NewFromFloat(collateralWeight.Total)
+				scaling = decimal.NewFromFloat(collateralWeight.MaintenancePosition)
 			}
 			if scaling.IsZero() {
 				result.SkipContribution = true
@@ -2282,10 +2282,18 @@ func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, e
 	return cp.Quote.Equal(currency.PERP) && a.IsFutures(), nil
 }
 
-func (f *FTX) GetMinimumMarginFraction(item *currency.Item) (decimal.Decimal, error) {
-	weight, ok := f.collateralWeight[item]
+func (f *FTX) GetMarginRequirements(item asset.Item, currencyItem *currency.Item) (*margin.Requirements, error) {
+	weight, ok := f.collateralWeight[currencyItem]
+
 	if !ok {
-		return decimal.Zero, fmt.Errorf("%w %v", errCollateralCurrencyNotFound, item
+		return nil, fmt.Errorf("%w %v", errCollateralCurrencyNotFound, item
 	}
-	return weight.Initial, nil
+	return &margin.Requirements{
+		Exchange:                     f.Name,
+		Asset:                        item,
+		CurrencyItem:                         currencyItem,
+		InitialMarginRequirement:     weight.OpeningPosition,
+		MaintenanceMarginRequirement: weight.MaintenancePosition,
+		CollateralScaling:            weight.OpeningPosition,
+	}, nil
 }

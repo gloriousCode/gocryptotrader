@@ -133,7 +133,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		Leverage:        0,
 	}
 	if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
-		mmf, err := cs.Exchange.GetMinimumMarginFraction(ev.GetAssetType(), ev.Pair())
+		mmf, err := cs.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair())
 		if err != nil {
 			return nil, err
 		}

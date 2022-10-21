@@ -65,3 +65,13 @@ type BorrowCost struct {
 	Cost decimal.Decimal
 	Size decimal.Decimal
 }
+
+// Requirements contains what is needed to open or hold a position
+type Requirements struct {
+	Exchange                     string
+	Asset                        asset.Item
+	CurrencyItem                 *currency.Item
+	InitialMarginRequirement     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	CollateralScaling            decimal.Decimal
+}

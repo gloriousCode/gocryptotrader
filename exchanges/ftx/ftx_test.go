@@ -2196,17 +2196,17 @@ func TestLoadCollateralWeightings(t *testing.T) {
 func TestLoadTotalIMF(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.loadTotal("BTC", 1)
+	c.storeTotal("BTC", 1)
 	if _, ok := c[currency.BTC.Item]; !ok {
 		t.Error("expected entry")
 	}
-	c.loadInitialMarginFraction("btc", 1)
+	c.storeInitialMarginFraction("btc", 1)
 	cw, ok := c[currency.BTC.Item]
 	if !ok {
 		t.Error("expected entry")
 	}
-	if cw.Total != 1 {
-		t.Errorf("expected '1', received '%v'", cw.Total)
+	if cw.MaintenancePosition != 1 {
+		t.Errorf("expected '1', received '%v'", cw.MaintenancePosition)
 	}
 	if cw.InitialMarginFractionFactor != 1 {
 		t.Errorf("expected '1', received '%v'", cw.InitialMarginFractionFactor)
@@ -2216,16 +2216,16 @@ func TestLoadTotalIMF(t *testing.T) {
 func TestLoadCollateralWeight(t *testing.T) {
 	t.Parallel()
 	c := CollateralWeightHolder{}
-	c.load("DOGE", 1, 2, 3)
+	c.store("DOGE", 1, 2, 3)
 	cw, ok := c[currency.DOGE.Item]
 	if !ok {
 		t.Fatal("expected loaded collateral weight")
 	}
-	if cw.Total != 1 {
-		t.Errorf("expected '1', received '%v'", cw.Total)
+	if cw.MaintenancePosition != 1 {
+		t.Errorf("expected '1', received '%v'", cw.MaintenancePosition)
 	}
-	if cw.Initial != 2 {
-		t.Errorf("expected '2', received '%v'", cw.Initial)
+	if cw.OpeningPosition != 2 {
+		t.Errorf("expected '2', received '%v'", cw.OpeningPosition)
 	}
 	if cw.InitialMarginFractionFactor != 3 {
 		t.Errorf("expected '3', received '%v'", cw.InitialMarginFractionFactor)
@@ -2238,7 +2238,7 @@ func TestCollateralWeightHasData(t *testing.T) {
 	if c.hasData() {
 		t.Error("expected false")
 	}
-	c.load("test", 1, 2, 3)
+	c.store("test", 1, 2, 3)
 	if !c.hasData() {
 		t.Error("expected true")
 	}

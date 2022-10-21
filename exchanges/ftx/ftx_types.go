@@ -899,8 +899,8 @@ type CollateralWeightHolder map[*currency.Item]CollateralWeight
 // CollateralWeight holds collateral information provided by FTX
 // it is used to scale collateral when the currency is not in USD
 type CollateralWeight struct {
-	Initial                     float64
-	Total                       float64
+	OpeningPosition             float64
+	MaintenancePosition         float64
 	InitialMarginFractionFactor float64
 }
 
