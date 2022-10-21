@@ -138,6 +138,7 @@ type FuturesManagement interface {
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
-	GetMinimumMarginFraction(asset.Item, currency.Pair) (decimal.Decimal, error)
+	GetMarginRequirements(asset.Item, currency.Pair) (*margin.Requirements, error)
+	CalculatePosition(item asset.Item, pair currency.Pair, size, targetLeverage decimal.Decimal) (*order.Sized, error)
 	order.PNLCalculation
 }
