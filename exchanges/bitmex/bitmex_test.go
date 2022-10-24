@@ -28,6 +28,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -49,6 +50,7 @@ func TestMain(m *testing.M) {
 	bitmexConfig.API.AuthenticatedWebsocketSupport = true
 	bitmexConfig.API.Credentials.Key = apiKey
 	bitmexConfig.API.Credentials.Secret = apiSecret
+	bitmexConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitmexConfig)
 	if err != nil {

@@ -20,6 +20,7 @@ const (
 	onlineTest              = false
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 

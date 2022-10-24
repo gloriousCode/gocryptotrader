@@ -530,6 +530,9 @@ func (b *Bithumb) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, path); err != nil {
+		return err
+	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

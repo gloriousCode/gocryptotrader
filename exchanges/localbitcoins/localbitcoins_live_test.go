@@ -1,4 +1,5 @@
-//+build mock_test_off
+//go:build mock_test_off
+// +build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -28,6 +29,7 @@ func TestMain(m *testing.M) {
 	localbitcoinsConfig.API.AuthenticatedSupport = true
 	localbitcoinsConfig.API.Credentials.Key = apiKey
 	localbitcoinsConfig.API.Credentials.Secret = apiSecret
+	localbitcoinsConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	l.SetDefaults()
 	err = l.Setup(localbitcoinsConfig)
 	if err != nil {

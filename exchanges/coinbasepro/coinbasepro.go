@@ -753,6 +753,9 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	if err != nil {
 		return err
 	}
+	if err = c.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 
 	newRequest := func() (*request.Item, error) {
 		payload := []byte("")

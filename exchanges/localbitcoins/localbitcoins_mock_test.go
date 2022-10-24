@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	localbitcoinsConfig.API.AuthenticatedSupport = true
 	localbitcoinsConfig.API.Credentials.Key = apiKey
 	localbitcoinsConfig.API.Credentials.Secret = apiSecret
+	localbitcoinsConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	l.SetDefaults()
 	err = l.Setup(localbitcoinsConfig)
 	if err != nil {

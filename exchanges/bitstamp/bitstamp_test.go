@@ -24,6 +24,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	customerID              = "" // This is the customer id you use to log in
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 

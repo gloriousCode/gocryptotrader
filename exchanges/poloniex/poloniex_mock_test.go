@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	poloniexConfig.API.AuthenticatedSupport = true
 	poloniexConfig.API.Credentials.Key = apiKey
 	poloniexConfig.API.Credentials.Secret = apiSecret
+	poloniexConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	p.SetDefaults()
 	p.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = p.Setup(poloniexConfig)

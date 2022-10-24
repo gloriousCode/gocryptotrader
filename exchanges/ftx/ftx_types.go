@@ -488,15 +488,21 @@ type LTRedemptionRequestData struct {
 
 // OptionData stores options' data
 type OptionData struct {
+	ID         int64     `json:"id"`
 	Underlying string    `json:"underlying"`
-	OptionType string    `json:"type"`
+	Type       string    `json:"type"`
 	Strike     float64   `json:"strike"`
 	Expiry     time.Time `json:"expiry"`
 }
 
+type QuoteResponse struct {
+	ID     string     `json:"id"`
+	Option OptionData `json:"option"`
+}
+
 // QuoteRequestData stores option's quote request data
 type QuoteRequestData struct {
-	ID            int64      `json:"id"`
+	ID            string     `json:"id"`
 	Option        OptionData `json:"option"`
 	Side          string     `json:"side"`
 	Size          float64    `json:"size"`

@@ -96,6 +96,9 @@ func (i *ItBit) CreateWallet(ctx context.Context, walletName string) (Wallet, er
 		return Wallet{}, err
 	}
 	resp := Wallet{}
+	if creds.IsReadOnly {
+		return resp, exchange.ErrReadOnlyCredentials
+	}
 	params := make(map[string]interface{})
 	params["userId"] = creds.ClientID
 	params["name"] = walletName
@@ -314,6 +317,9 @@ func (i *ItBit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 	}
 	endpoint, err := i.API.Endpoints.GetURL(ep)
 	if err != nil {
+		return err
+	}
+	if err = i.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
 		return err
 	}
 	req := make(map[string]interface{})

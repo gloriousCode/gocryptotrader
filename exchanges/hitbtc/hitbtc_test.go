@@ -31,6 +31,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -49,6 +50,7 @@ func TestMain(m *testing.M) {
 	hitbtcConfig.API.AuthenticatedWebsocketSupport = true
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
+	hitbtcConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = h.Setup(hitbtcConfig)
 	if err != nil {

@@ -1130,6 +1130,9 @@ func (h *HUOBI) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	if err = h.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 	if ep == exchange.RestFutures && ePoint[len(ePoint)-1] == '/' {
 		// prevent signature errors for non-standard paths until we can
 		// have a method to force update endpoints

@@ -1816,6 +1816,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 
 	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
@@ -1868,6 +1871,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 func (b *Bitfinex) SendAuthenticatedHTTPRequestV2(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, endpoint request.EndpointLimit) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
 		return err
 	}
 	ePoint, err := b.API.Endpoints.GetURL(ep)

@@ -21,6 +21,8 @@ var (
 	// completely empty but an attempt at retrieving credentials was made to
 	// undertake an authenticated HTTP request.
 	ErrCredentialsAreEmpty = errors.New("credentials are empty")
+	// ErrReadOnlyCredentials returned when attempting to make a submit request with readonly keys
+	ErrReadOnlyCredentials = errors.New("unable to make request, supplied readonly credentials")
 
 	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
 	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")

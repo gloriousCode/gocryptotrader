@@ -591,6 +591,10 @@ func (o *OKGroup) SendHTTPRequest(ctx context.Context, ep exchange.URL, httpMeth
 			if err != nil {
 				return nil, err
 			}
+			if err = o.CanMakeRequestToEndpoint(creds.IsReadOnly, httpMethod, path); err != nil {
+				return nil, err
+			}
+
 			signPath := fmt.Sprintf("/%v%v%v%v", OKGroupAPIPath,
 				requestType, o.APIVersion, requestPath)
 

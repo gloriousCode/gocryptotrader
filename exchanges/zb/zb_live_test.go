@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
 	zbConfig.API.AuthenticatedSupport = true
 	zbConfig.API.Credentials.Key = apiKey
 	zbConfig.API.Credentials.Secret = apiSecret
+	zbConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	z.SetDefaults()
 	z.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = z.Setup(zbConfig)

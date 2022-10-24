@@ -125,6 +125,7 @@ type FunctionalityChecker interface {
 	SupportsAutoPairUpdates() bool
 	IsWebsocketAuthenticationSupported() bool
 	IsRESTAuthenticationSupported() bool
+	EndpointRequiresWritePermissions(method, path string) error
 }
 
 // FuturesManagement manages futures orders, pnl and collateral calculations

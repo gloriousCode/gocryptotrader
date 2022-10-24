@@ -292,6 +292,10 @@ func (k *Kraken) SendFuturesAuthRequest(ctx context.Context, method, path string
 	if err != nil {
 		return err
 	}
+	if err = k.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
+
 	if data == nil {
 		data = url.Values{}
 	}

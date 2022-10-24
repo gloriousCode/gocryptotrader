@@ -547,6 +547,9 @@ func (h *HitBTC) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
+	if err = h.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 	headers := make(map[string]string)
 	headers["Authorization"] = "Basic " + crypto.Base64Encode([]byte(creds.Key+":"+creds.Secret))
 

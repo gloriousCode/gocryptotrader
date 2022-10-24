@@ -31,6 +31,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	canManipulateRealOrders = false
+	readOnlyCredentials     = false
 	testSymbol              = "btcusdt"
 )
 
@@ -55,6 +56,7 @@ func TestMain(m *testing.M) {
 	hConfig.API.AuthenticatedWebsocketSupport = true
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
+	hConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
 	request.MaxRequestJobs = 100
 	err = h.Setup(hConfig)

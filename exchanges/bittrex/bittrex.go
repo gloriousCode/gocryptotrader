@@ -380,6 +380,9 @@ func (b *Bittrex) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, meth
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, action); err != nil {
+		return err
+	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

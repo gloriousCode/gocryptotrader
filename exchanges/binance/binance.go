@@ -789,6 +789,9 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 
 	endpointPath, err := b.API.Endpoints.GetURL(ePath)
 	if err != nil {
@@ -1106,6 +1109,9 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, userAccountStream); err != nil {
+		return "", err
+	}
 
 	var resp UserAccountStream
 	headers := make(map[string]string)
@@ -1143,6 +1149,9 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPut, userAccountStream); err != nil {
 		return err
 	}
 

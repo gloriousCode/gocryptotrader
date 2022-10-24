@@ -371,9 +371,11 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
-
 	endpoint, err := g.API.Endpoints.GetURL(ep)
 	if err != nil {
+		return err
+	}
+	if err = g.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
 		return err
 	}
 

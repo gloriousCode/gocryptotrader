@@ -455,6 +455,9 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 
 	ePoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {

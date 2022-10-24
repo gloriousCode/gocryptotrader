@@ -32,6 +32,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
+	readOnlyCredentials     = false
 	OKGroupExchange         = "OKCOIN International"
 	canManipulateRealOrders = false
 )
@@ -70,6 +71,7 @@ func TestMain(m *testing.M) {
 	okcoinConfig.API.Credentials.Key = apiKey
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
+	okcoinConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okcoinConfig)
 	if err != nil {

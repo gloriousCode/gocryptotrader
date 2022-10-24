@@ -26,6 +26,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	testCurrency            = "btc_usdt"
 )

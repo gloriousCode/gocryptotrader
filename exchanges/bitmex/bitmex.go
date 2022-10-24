@@ -859,6 +859,9 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, verb, path); err != nil {
+		return err
+	}
 	endpoint, err := b.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

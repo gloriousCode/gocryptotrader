@@ -824,7 +824,9 @@ func (b *BTCMarkets) SendAuthenticatedRequest(ctx context.Context, method, path 
 	if err != nil {
 		return err
 	}
-
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 	newRequest := func() (*request.Item, error) {
 		strTime := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		var body io.Reader

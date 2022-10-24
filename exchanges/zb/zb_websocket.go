@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -358,6 +359,9 @@ func (z *ZB) wsAddSubUser(ctx context.Context, username, password string) (*WsGe
 	if err != nil {
 		return nil, err
 	}
+	if creds.IsReadOnly {
+		return nil, exchange.ErrReadOnlyCredentials
+	}
 	request := WsAddSubUserRequest{
 		Memo:        "memo",
 		Password:    password,
@@ -444,6 +448,9 @@ func (z *ZB) wsDoTransferFunds(ctx context.Context, pair currency.Code, amount f
 	if err != nil {
 		return nil, err
 	}
+	if creds.IsReadOnly {
+		return nil, exchange.ErrReadOnlyCredentials
+	}
 
 	request := WsDoTransferFundsRequest{
 		Amount:       amount,
@@ -487,6 +494,9 @@ func (z *ZB) wsCreateSubUserKey(ctx context.Context, assetPerm, entrustPerm, lev
 	creds, err := z.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if creds.IsReadOnly {
+		return nil, exchange.ErrReadOnlyCredentials
 	}
 	request := WsCreateSubUserKeyRequest{
 		AssetPerm:   assetPerm,
@@ -534,6 +544,9 @@ func (z *ZB) wsSubmitOrder(ctx context.Context, pair currency.Pair, amount, pric
 	if err != nil {
 		return nil, err
 	}
+	if creds.IsReadOnly {
+		return nil, exchange.ErrReadOnlyCredentials
+	}
 	request := WsSubmitOrderRequest{
 		Amount:    amount,
 		Price:     price,
@@ -575,6 +588,9 @@ func (z *ZB) wsCancelOrder(ctx context.Context, pair currency.Pair, orderID int6
 	creds, err := z.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if creds.IsReadOnly {
+		return nil, exchange.ErrReadOnlyCredentials
 	}
 
 	request := WsCancelOrderRequest{
@@ -618,6 +634,7 @@ func (z *ZB) wsGetOrder(ctx context.Context, pair currency.Pair, orderID int64) 
 	if err != nil {
 		return nil, err
 	}
+
 	request := WsGetOrderRequest{
 		ID: orderID,
 		No: z.Websocket.Conn.GenerateMessageID(true),

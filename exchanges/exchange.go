@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -523,6 +524,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		b.API.credentials = &account.Credentials{}
 	}
 	b.API.credentials.SubAccount = exch.API.Credentials.Subaccount
+	b.API.credentials.IsReadOnly = exch.API.Credentials.IsReadOnly
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		b.SetCredentials(exch.API.Credentials.Key,
 			exch.API.Credentials.Secret,
@@ -1484,4 +1486,34 @@ func (b *Base) GetFundingRates(ctx context.Context, request *order.FundingRatesR
 // differs by exchange
 func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error) {
 	return false, common.ErrNotYetImplemented
+}
+
+// CanMakeRequestToEndpoint is a way of preventing requests with readonly access
+// override in exchange wrappers to achieve more specific results
+func (b *Base) CanMakeRequestToEndpoint(isReadOnly bool, method, path string) error {
+	if !isReadOnly {
+		return nil
+	}
+	if method == http.MethodDelete {
+		// A PUT isn't necessarily a write request eg Binance
+		// A GET isn't necessarily a read request eg ZB
+		// A POST isn't necessarily a write request eg EXMO, Poloniex
+		return fmt.Errorf("%w %v %v %v", ErrReadOnlyCredentials, b.Name, method, path)
+	}
+	authKeywords := []string{
+		"submit",
+		"create",
+		"modify",
+		"cancel",
+		"delete",
+		"update",
+	}
+	path = strings.ToLower(path)
+	for i := range authKeywords {
+		if strings.Contains(path, authKeywords[i]) {
+			return fmt.Errorf("%w %v %v %v", ErrReadOnlyCredentials, b.Name, method, path)
+		}
+	}
+
+	return nil
 }

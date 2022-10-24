@@ -259,3 +259,9 @@ type TradeHistory []struct {
 	TradeType string  `json:"trade_type"`
 	Type      string  `json:"type"`
 }
+
+var writePermissionEndpoints = map[string]bool{
+	"cancelOrder": true,
+	"order":       true,
+	"withdraw":    true,
+}

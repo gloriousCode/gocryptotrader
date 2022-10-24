@@ -297,6 +297,9 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 	if err != nil {
 		return err
 	}
+	if err = y.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, path); err != nil {
+		return err
+	}
 	if params == nil {
 		params = url.Values{}
 	}

@@ -26,6 +26,7 @@ var b BTCMarkets
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	BTCAUD                  = "BTC-AUD"
 	LTCAUD                  = "LTC-AUD"
@@ -48,6 +49,7 @@ func TestMain(m *testing.M) {
 	bConfig.API.Credentials.Key = apiKey
 	bConfig.API.Credentials.Secret = apiSecret
 	bConfig.API.AuthenticatedSupport = true
+	bConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bConfig)
 	if err != nil {

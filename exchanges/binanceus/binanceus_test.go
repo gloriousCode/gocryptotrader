@@ -28,6 +28,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.IsReadOnly = readOnlyCredentials
 	bi.SetDefaults()
 	bi.Websocket = sharedtestvalues.NewTestWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

@@ -1020,3 +1020,15 @@ func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency curr
 	}
 	return availableChains, nil
 }
+
+// CanMakeRequestToEndpoint is a way of preventing requests with readonly access
+// override in exchange wrappers to achieve more specific results
+func (z *ZB) CanMakeRequestToEndpoint(isReadOnly bool, method, path string) error {
+	if !isReadOnly {
+		return nil
+	}
+	if writePermissionEndpoints[method] {
+		return fmt.Errorf("%w %v %v %v", exchange.ErrReadOnlyCredentials, z.Name, method, path)
+	}
+	return nil
+}

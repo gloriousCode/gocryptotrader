@@ -34,6 +34,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
+	readOnlyCredentials     = false
 	OKGroupExchange         = "OKEX"
 	canManipulateRealOrders = false
 )
@@ -71,6 +72,7 @@ func TestMain(m *testing.M) {
 	okexConfig.API.Credentials.Key = apiKey
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
+	okexConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okexConfig)
 	if err != nil {

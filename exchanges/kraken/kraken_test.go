@@ -35,6 +35,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.AuthenticatedSupport = true
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
+	krakenConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	k.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = k.Setup(krakenConfig)
 	if err != nil {

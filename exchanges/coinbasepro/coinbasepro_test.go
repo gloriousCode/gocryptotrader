@@ -36,6 +36,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	clientID                = "" // passphrase you made at API CREATION
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -52,6 +53,7 @@ func TestMain(m *testing.M) {
 	}
 	gdxConfig.API.Credentials.Key = apiKey
 	gdxConfig.API.Credentials.Secret = apiSecret
+	gdxConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	gdxConfig.API.Credentials.ClientID = clientID
 	gdxConfig.API.AuthenticatedSupport = true
 	gdxConfig.API.AuthenticatedWebsocketSupport = true

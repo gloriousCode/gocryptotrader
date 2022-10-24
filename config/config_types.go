@@ -299,6 +299,7 @@ type APICredentialsConfig struct {
 	OTPSecret     string `json:"otpSecret,omitempty"`
 	TradePassword string `json:"tradePassword,omitempty"`
 	PIN           string `json:"pin,omitempty"`
+	IsReadOnly    bool   `json:"isReadOnly"`
 }
 
 // APICredentialsValidatorConfig stores the API credentials validator settings

@@ -50,6 +50,7 @@ type Credentials struct {
 	SubAccount      string
 	OneTimePassword string
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
+	IsReadOnly bool
 }
 
 // GetMetaData returns the credentials for metadata context deployment

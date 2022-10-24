@@ -25,6 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -47,6 +48,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = false
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(exchCfg)
 	if err != nil {

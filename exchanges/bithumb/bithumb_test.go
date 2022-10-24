@@ -24,6 +24,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	testCurrency            = "btc"
 )
@@ -45,6 +46,7 @@ func TestMain(m *testing.M) {
 	bitConfig.API.AuthenticatedSupport = true
 	bitConfig.API.Credentials.Key = apiKey
 	bitConfig.API.Credentials.Secret = apiSecret
+	bitConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 
 	err = b.Setup(bitConfig)
 	if err != nil {

@@ -33,6 +33,7 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.AuthenticatedSupport = true
 	geminiConfig.API.Credentials.Key = apiKey
 	geminiConfig.API.Credentials.Secret = apiSecret
+	geminiConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	g.SetDefaults()
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(geminiConfig)

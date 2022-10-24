@@ -30,6 +30,7 @@ func TestMain(m *testing.M) {
 	bitstampConfig.API.Credentials.Key = apiKey
 	bitstampConfig.API.Credentials.Secret = apiSecret
 	bitstampConfig.API.Credentials.ClientID = customerID
+	bitstampConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.SetDefaults()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitstampConfig)

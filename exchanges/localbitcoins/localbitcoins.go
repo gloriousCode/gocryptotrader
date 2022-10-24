@@ -757,6 +757,9 @@ func (l *LocalBitcoins) SendAuthenticatedHTTPRequest(ctx context.Context, ep exc
 	if err != nil {
 		return err
 	}
+	if err = l.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 
 	return l.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		n := l.Requester.GetNonce(true).String()

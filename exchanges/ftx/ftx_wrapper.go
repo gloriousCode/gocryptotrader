@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -1678,6 +1679,15 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 				return fills[i].ID < (fills[j].ID)
 			})
 			for y := range fills {
+				var curr currency.Pair
+				curr, err = currency.NewPairFromString(fills[y].Market)
+				if err != nil {
+					return nil, err
+				}
+				if !curr.Equal(request.Pairs[x]) {
+					continue
+				}
+
 				if request.StartDate.Equal(fills[y].Time) || fills[y].Time.Before(request.StartDate) {
 					// reached end of trades to crawl
 					break allPositions
@@ -1723,7 +1733,7 @@ func (f *FTX) GetFuturesPositions(ctx context.Context, request *order.PositionsR
 		positionsDetails[x] = order.PositionDetails{
 			Exchange: f.Name,
 			Asset:    request.Asset,
-			Pair:     enabledPairs[x],
+			Pair:     request.Pairs[x],
 			Orders:   ods,
 		}
 	}
@@ -2210,4 +2220,21 @@ func (f *FTX) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, e
 		return false, fmt.Errorf("%w '%v'", currency.ErrPairNotFound, cp)
 	}
 	return cp.Quote.Equal(currency.PERP) && a.IsFutures(), nil
+}
+
+// CanMakeRequestToEndpoint is a way of preventing requests with readonly access
+// override in exchange wrappers to achieve more specific results
+func (f *FTX) CanMakeRequestToEndpoint(isReadOnly bool, method, path string) error {
+	if !isReadOnly {
+		return nil
+	}
+	if method == http.MethodDelete ||
+		method == http.MethodPost ||
+		method == http.MethodPut {
+		// A PUT isn't necessarily a write request eg Binance
+		// A POST isn't necessarily a write request eg EXMO, Poloniex
+		return fmt.Errorf("%w %v %v %v", exchange.ErrReadOnlyCredentials, f.Name, method, path)
+	}
+
+	return nil
 }

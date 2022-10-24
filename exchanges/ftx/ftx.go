@@ -1278,9 +1278,11 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, ep exchange.URL, method, 
 	if err != nil {
 		return err
 	}
-
 	endpoint, err := f.API.Endpoints.GetURL(ep)
 	if err != nil {
+		return err
+	}
+	if err = f.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
 		return err
 	}
 

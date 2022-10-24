@@ -30,6 +30,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -51,6 +52,7 @@ func TestMain(m *testing.M) {
 	gConf.API.AuthenticatedWebsocketSupport = true
 	gConf.API.Credentials.Key = apiKey
 	gConf.API.Credentials.Secret = apiSecret
+	gConf.API.Credentials.IsReadOnly = readOnlyCredentials
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = g.Setup(gConf)
 	if err != nil {

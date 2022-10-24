@@ -829,7 +829,9 @@ func (by *Bybit) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, me
 	if err != nil {
 		return err
 	}
-
+	if err = by.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 	if result == nil {
 		result = &Error{}
 	}

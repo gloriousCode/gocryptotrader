@@ -333,9 +333,11 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 	if err != nil {
 		return err
 	}
-
 	urlPath, err := e.API.Endpoints.GetURL(epath)
 	if err != nil {
+		return err
+	}
+	if err = e.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
 		return err
 	}
 

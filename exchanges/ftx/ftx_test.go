@@ -28,6 +28,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	subaccount              = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	spotPairStr             = "FTT/BTC"
 	futuresPair             = "DOGE-PERP"
@@ -62,6 +63,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.Subaccount = subaccount
+	exchCfg.API.Credentials.IsReadOnly = readOnlyCredentials
 	if apiKey != "" && apiSecret != "" {
 		// Only set auth to true when keys present as fee online calculation requires authentication
 		exchCfg.API.AuthenticatedSupport = true
@@ -1248,6 +1250,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	request.Crypto = cryptoData
 	request.OneTimePassword = 123456
 	request.TradePassword = "incorrectTradePassword"
+	request.Exchange = f.Name
 	_, err := f.WithdrawCryptocurrencyFunds(context.Background(), request)
 	if err != nil {
 		t.Error(err)
@@ -2058,7 +2061,8 @@ func TestCalculatePNL(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test, api keys not set")
 	}
-	pair := currency.NewPair(currency.BTC, currency.NewCode("20211231"))
+	pair := currency.NewPair(currency.BTC, currency.PERP)
+
 	positions, err := f.GetFuturesPositions(context.Background(), &order.PositionsRequest{
 		Asset:     asset.Futures,
 		Pairs:     currency.Pairs{pair},
@@ -2067,10 +2071,10 @@ func TestCalculatePNL(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(positions) != 1 {
-		t.Fatal("expected 1 position")
+	if len(positions) == 0 {
+		t.Skip("no positions")
 	}
-	orders := make([]order.Detail, len(positions))
+	orders := make([]order.Detail, len(positions[0].Orders))
 	for i := range positions[0].Orders {
 		orders[i] = order.Detail{
 			Side:      positions[0].Orders[i].Side,
@@ -2533,9 +2537,6 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 	if len(positions) == 0 {
 		t.Skip("no positions to get summary")
-	}
-	if len(positions) != 1 {
-		t.Fatal("expected 1 position")
 	}
 	if len(positions[0].Orders) == 0 {
 		t.Skip("no positions to get summary")

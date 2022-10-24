@@ -1830,6 +1830,9 @@ func (bi *Binanceus) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	if err != nil {
 		return err
 	}
+	if err = b.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 	endpointPath, err := bi.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1900,6 +1903,9 @@ func (bi *Binanceus) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err = bi.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, userAccountStream); err != nil {
+		return "", err
+	}
 
 	var resp UserAccountStream
 	headers := make(map[string]string)
@@ -1943,6 +1949,9 @@ func (bi *Binanceus) MaintainWsAuthStreamKey(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err = bi.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPut, userAccountStream); err != nil {
+		return err
+	}
 
 	path := endpointPath + userAccountStream
 	params := url.Values{}
@@ -1978,6 +1987,9 @@ func (bi *Binanceus) CloseUserDataStream(ctx context.Context) error {
 
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
+		return err
+	}
+	if err = bi.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodDelete, path); err != nil {
 		return err
 	}
 

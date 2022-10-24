@@ -575,7 +575,9 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 	if err != nil {
 		return err
 	}
-
+	if err = a.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 	endpoint, err := a.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

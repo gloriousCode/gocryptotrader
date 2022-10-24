@@ -52,6 +52,9 @@ func (z *ZB) SpotNewOrder(ctx context.Context, arg SpotNewOrderRequestParams) (i
 	if err != nil {
 		return 0, err
 	}
+	if creds.IsReadOnly {
+		return -1, exchange.ErrReadOnlyCredentials
+	}
 
 	var result SpotNewOrderResponse
 
@@ -82,6 +85,9 @@ func (z *ZB) CancelExistingOrder(ctx context.Context, orderID int64, symbol stri
 	creds, err := z.GetCredentials(ctx)
 	if err != nil {
 		return err
+	}
+	if creds.IsReadOnly {
+		return exchange.ErrReadOnlyCredentials
 	}
 
 	type response struct {
@@ -373,6 +379,10 @@ func (z *ZB) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, 
 	if err != nil {
 		return err
 	}
+	if err = z.CanMakeRequestToEndpoint(creds.IsReadOnly, httpMethod, params.Get("method")); err != nil {
+		return err
+	}
+
 	params.Set("accesskey", creds.Key)
 
 	hex, err := crypto.Sha1ToHex(creds.Secret)
@@ -499,6 +509,9 @@ func (z *ZB) Withdraw(ctx context.Context, currency, address, safepassword strin
 	creds, err := z.GetCredentials(ctx)
 	if err != nil {
 		return "", err
+	}
+	if creds.IsReadOnly {
+		return "", exchange.ErrReadOnlyCredentials
 	}
 
 	type response struct {

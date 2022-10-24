@@ -25,6 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	testSPOTPair            = "BTC-USD"
 	testFUTURESPair         = "BTCPFC"
@@ -47,6 +48,7 @@ func TestMain(m *testing.M) {
 	btseConfig.API.AuthenticatedSupport = true
 	btseConfig.API.Credentials.Key = apiKey
 	btseConfig.API.Credentials.Secret = apiSecret
+	btseConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(btseConfig)
 	if err != nil {

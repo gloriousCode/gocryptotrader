@@ -423,6 +423,9 @@ func (g *Gateio) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
+	if err = g.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["key"] = creds.Key

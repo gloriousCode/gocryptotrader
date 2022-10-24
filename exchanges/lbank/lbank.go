@@ -537,7 +537,9 @@ func (l *Lbank) SendAuthHTTPRequest(ctx context.Context, method, endpoint string
 	if err != nil {
 		return err
 	}
-
+	if err = l.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 	if vals == nil {
 		vals = url.Values{}
 	}

@@ -27,6 +27,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	clientID                = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -45,6 +46,7 @@ func TestMain(m *testing.M) {
 	itbitConfig.API.Credentials.Key = apiKey
 	itbitConfig.API.Credentials.Secret = apiSecret
 	itbitConfig.API.Credentials.ClientID = clientID
+	itbitConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 
 	err = i.Setup(itbitConfig)
 	if err != nil {

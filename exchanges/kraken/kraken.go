@@ -1032,6 +1032,9 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	if err != nil {
 		return err
 	}
+	if err = k.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, method); err != nil {
+		return err
+	}
 	path := fmt.Sprintf("/%s/private/%s", krakenAPIVersion, method)
 
 	interim := json.RawMessage{}

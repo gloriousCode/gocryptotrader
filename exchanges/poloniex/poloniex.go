@@ -894,6 +894,9 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	if err = p.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 
 	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		headers := make(map[string]string)

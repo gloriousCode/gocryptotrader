@@ -31,6 +31,7 @@ var wsSetupRan bool
 const (
 	apiKey                  = ""
 	clientID                = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 

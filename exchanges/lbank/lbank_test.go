@@ -24,6 +24,7 @@ import (
 const (
 	testAPIKey              = ""
 	testAPISecret           = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 	testCurrencyPair        = "btc_usdt"
 )
@@ -44,6 +45,7 @@ func TestMain(m *testing.M) {
 	lbankConfig.API.AuthenticatedSupport = true
 	lbankConfig.API.Credentials.Key = testAPIKey
 	lbankConfig.API.Credentials.Secret = testAPISecret
+	lbankConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	err = l.Setup(lbankConfig)
 	if err != nil {
 		log.Fatal(err)

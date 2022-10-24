@@ -23,6 +23,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -42,6 +43,7 @@ func TestMain(m *testing.M) {
 	bitflyerConfig.API.AuthenticatedSupport = true
 	bitflyerConfig.API.Credentials.Key = apiKey
 	bitflyerConfig.API.Credentials.Secret = apiSecret
+	bitflyerConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.SetDefaults()
 	err = b.Setup(bitflyerConfig)
 	if err != nil {

@@ -281,6 +281,9 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 			if err != nil {
 				return nil, err
 			}
+			if err = c.CanMakeRequestToEndpoint(creds.IsReadOnly, http.MethodPost, string(payload)); err != nil {
+				return nil, err
+			}
 			headers["X-USER"] = creds.ClientID
 			var hmac []byte
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,

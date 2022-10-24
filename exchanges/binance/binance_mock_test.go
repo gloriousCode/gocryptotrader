@@ -34,6 +34,7 @@ func TestMain(m *testing.M) {
 	binanceConfig.API.AuthenticatedSupport = true
 	binanceConfig.API.Credentials.Key = apiKey
 	binanceConfig.API.Credentials.Secret = apiSecret
+	binanceConfig.API.Credentials.IsReadOnly = readOnlyCredentials
 	b.SetDefaults()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(binanceConfig)

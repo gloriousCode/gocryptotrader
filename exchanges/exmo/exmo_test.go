@@ -22,6 +22,7 @@ import (
 const (
 	APIKey                  = ""
 	APISecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 

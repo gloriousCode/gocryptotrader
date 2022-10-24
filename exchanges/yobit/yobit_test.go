@@ -26,6 +26,7 @@ var y Yobit
 const (
 	apiKey                  = ""
 	apiSecret               = ""
+	readOnlyCredentials     = false
 	canManipulateRealOrders = false
 )
 
@@ -43,6 +44,7 @@ func TestMain(m *testing.M) {
 	conf.API.Credentials.Key = apiKey
 	conf.API.Credentials.Secret = apiSecret
 	conf.API.AuthenticatedSupport = true
+	conf.API.Credentials.IsReadOnly = readOnlyCredentials
 
 	err = y.Setup(conf)
 	if err != nil {

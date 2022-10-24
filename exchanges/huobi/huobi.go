@@ -863,6 +863,9 @@ func (h *HUOBI) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 	if err != nil {
 		return err
 	}
+	if err = h.CanMakeRequestToEndpoint(creds.IsReadOnly, method, endpoint); err != nil {
+		return err
+	}
 	if values == nil {
 		values = url.Values{}
 	}

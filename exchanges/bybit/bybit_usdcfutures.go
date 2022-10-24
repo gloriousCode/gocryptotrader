@@ -1043,7 +1043,9 @@ func (by *Bybit) SendUSDCAuthHTTPRequest(ctx context.Context, ePath exchange.URL
 	if err != nil {
 		return err
 	}
-
+	if err = by.CanMakeRequestToEndpoint(creds.IsReadOnly, method, path); err != nil {
+		return err
+	}
 	if result == nil {
 		result = &USDCError{}
 	}
