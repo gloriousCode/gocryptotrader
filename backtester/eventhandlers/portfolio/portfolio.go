@@ -61,7 +61,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, errInvalidDirection
 	}
 
-	lookup := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
+	lookup := p.settingsHolder[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v",
 			errNoPortfolioSettings,
@@ -125,7 +125,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o)
 	}
-	var req := &size.Request{
+	req := &size.Request{
 		OrderEvent:      nil,
 		AmountAvailable: sizingFunds,
 		Settings:        nil,
@@ -133,14 +133,14 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		Leverage:        0,
 	}
 	if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
-		mmf, err := cs.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair())
+		marginRequirements, err := exchangeSettings.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair().Base.Item)
 		if err != nil {
 			return nil, err
 		}
-		req.MinimumMarginFraction = mmf
+		req.MarginRequirements = marginRequirements
 
 	}
-	sizedOrder, err := p.sizeOrder(ev, cs, o, sizingFunds, funds, canUseLeverage, leverage)
+	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds, canUseLeverage, leverage)
 	if err != nil {
 		return sizedOrder, err
 	}
@@ -262,7 +262,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
+	lookup := p.settingsHolder[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
@@ -327,7 +327,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
 func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.Event) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[e.GetExchange()][e.GetAssetType()][e.Pair().Base.Item][e.Pair().Quote.Item]
+	eapSettings, ok := p.settingsHolder[e.GetExchange()][e.GetAssetType()][e.Pair().Base.Item][e.Pair().Quote.Item]
 	if !ok {
 		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
@@ -337,7 +337,7 @@ func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.Event) (compliance.S
 // GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
 func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
 	var resp []compliance.Snapshot
-	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
+	for _, exchangeMap := range p.settingsHolder {
 		for _, assetMap := range exchangeMap {
 			for _, baseMap := range assetMap {
 				for _, quoteMap := range baseMap {
@@ -365,7 +365,7 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
-	lookup := p.exchangeAssetPairPortfolioSettings[exchangeName][a][cp.Base.Item][cp.Quote.Item]
+	lookup := p.settingsHolder[exchangeName][a][cp.Base.Item][cp.Quote.Item]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
@@ -531,7 +531,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 		return nil, fmt.Errorf("%w, requires funding manager", gctcommon.ErrNilPointer)
 	}
 	var closingOrders []order.Event
-	assetPairSettings, ok := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()]
+	assetPairSettings, ok := p.settingsHolder[ev.GetExchange()]
 	if !ok {
 		return nil, config.ErrExchangeNotFound
 	}
@@ -633,7 +633,7 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
 	exch = strings.ToLower(exch)
-	settings, ok := p.exchangeAssetPairPortfolioSettings[exch][item][pair.Base.Item][pair.Quote.Item]
+	settings, ok := p.settingsHolder[exch][item][pair.Base.Item][pair.Quote.Item]
 	if !ok {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, exch, item, pair)
 	}
@@ -686,7 +686,7 @@ func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) er
 // this is useful to assess the position of your entire portfolio in order to help with risk decisions
 func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
 	var resp []holdings.Holding
-	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
+	for _, exchangeMap := range p.settingsHolder {
 		for _, assetMap := range exchangeMap {
 			for _, baseMap := range assetMap {
 				for _, quoteMap := range baseMap {

@@ -28,4 +28,5 @@ type Handler interface {
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
 	CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error)
+	SupportsLeverage() bool
 }

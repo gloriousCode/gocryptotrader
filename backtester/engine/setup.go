@@ -446,7 +446,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	bt.Exchange = e
 	for i := range e.CurrencySettings {
-		err = p.SetCurrencySettingsMap(&e.CurrencySettings[i])
+		err = p.SetupCurrencySettingsMap(&e.CurrencySettings[i])
 		if err != nil {
 			return err
 		}

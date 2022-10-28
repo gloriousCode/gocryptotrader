@@ -42,6 +42,12 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 	return true
 }
 
+// SupportsLeverage sets whether the strategy can support leverage
+func (s *Strategy) SupportsLeverage() bool {
+	// false until margin borrowing is supported
+	return false
+}
+
 type cashCarrySignals struct {
 	spotSignal   data.Handler
 	futureSignal data.Handler

@@ -39,6 +39,11 @@ func (s *Strategy) UsingSimultaneousProcessing() bool {
 	return s.useSimultaneousProcessing
 }
 
+// SupportsLeverage sets whether the strategy can support leverage
+func (s *Strategy) SupportsLeverage() bool {
+	return true
+}
+
 // SetSimultaneousProcessing sets whether multiple currencies can be assessed in one go
 func (s *Strategy) SetSimultaneousProcessing(b bool) {
 	s.useSimultaneousProcessing = b
