@@ -42,13 +42,13 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	riskFreeRate              decimal.Decimal
-	sizeManager               SizeHandler
-	riskManager               risk.Handler
-	exchangeAssetPairSettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
-	m                         sync.Mutex
-	canUseLeverage            bool
-	targetLeverage            float64
+	riskFreeRate   decimal.Decimal
+	sizeManager    SizeHandler
+	riskManager    risk.Handler
+	settingsHolder map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
+	m              sync.Mutex
+	canUseLeverage bool
+	targetLeverage float64
 }
 
 // Handler contains all functions expected to operate a portfolio manager
@@ -87,7 +87,6 @@ type Settings struct {
 
 	BuySideSizing     exchange.MinMax
 	SellSideSizing    exchange.MinMax
-	Leverage          exchange.Leverage
 	HoldingsSnapshots map[int64]*holdings.Holding
 	ComplianceManager compliance.Manager
 	Exchange          gctexchange.IBotExchange

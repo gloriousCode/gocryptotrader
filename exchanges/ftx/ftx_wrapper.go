@@ -2286,14 +2286,14 @@ func (f *FTX) GetMarginRequirements(item asset.Item, currencyItem *currency.Item
 	weight, ok := f.collateralWeight[currencyItem]
 
 	if !ok {
-		return nil, fmt.Errorf("%w %v", errCollateralCurrencyNotFound, item
+		return nil, fmt.Errorf("%w %v", errCollateralCurrencyNotFound, item)
 	}
 	return &margin.Requirements{
 		Exchange:                     f.Name,
 		Asset:                        item,
-		CurrencyItem:                         currencyItem,
-		InitialMarginRequirement:     weight.OpeningPosition,
-		MaintenanceMarginRequirement: weight.MaintenancePosition,
-		CollateralScaling:            weight.OpeningPosition,
+		CurrencyItem:                 currencyItem,
+		InitialMarginRequirement:     decimal.NewFromFloat(weight.OpeningPosition),
+		MaintenanceMarginRequirement: decimal.NewFromFloat(weight.MaintenancePosition),
+		CollateralScaling:            decimal.NewFromFloat(weight.OpeningPosition),
 	}, nil
 }

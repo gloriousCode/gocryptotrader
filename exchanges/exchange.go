@@ -1498,8 +1498,8 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 	return false, common.ErrNotYetImplemented
 }
 
-func (b *Base) GetMarginRequirements(asset.Item, currency.Pair) (decimal.Decimal, error) {
-	return decimal.Zero, common.ErrNotYetImplemented
+func (b *Base) GetMarginRequirements(asset.Item, *currency.Item) (*margin.Requirements, error) {
+	return nil, common.ErrNotYetImplemented
 }
 
 func (b *Base) CalculatePosition(item asset.Item, pair currency.Pair, size, targetLeverage decimal.Decimal) (*order.Sized, error) {

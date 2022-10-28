@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -40,7 +41,7 @@ func (p *Portfolio) Reset() error {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	p.exchangeAssetPairSettings =  make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	p.settingsHolder = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
@@ -79,14 +80,14 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 
 	p.m.Lock()
 	defer p.m.Unlock()
-	if p.exchangeAssetPairSettings == nil {
-		p.exchangeAssetPairSettings = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
+	if p.settingsHolder == nil {
+		p.settingsHolder = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
-	m, ok := p.exchangeAssetPairSettings[name]
+	m, ok := p.settingsHolder[name]
 	if !ok {
 		m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
-		p.exchangeAssetPairSettings[name] = m
+		p.settingsHolder[name] = m
 	}
 	m2, ok := m[setup.Asset]
 	if !ok {
