@@ -95,6 +95,7 @@ type CollateralByCurrency struct {
 	AvailableForUseAsCollateral decimal.Decimal
 	CollateralContribution      decimal.Decimal
 	AdditionalCollateralUsed    decimal.Decimal
+	LeverageRatio               decimal.Decimal
 	FairMarketValue             decimal.Decimal
 	Weighting                   decimal.Decimal
 	ScaledCurrency              currency.Code
