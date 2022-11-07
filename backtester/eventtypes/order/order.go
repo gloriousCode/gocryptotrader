@@ -103,3 +103,10 @@ func (o *Order) IsLiquidating() bool {
 func (o *Order) GetClosePrice() decimal.Decimal {
 	return o.ClosePrice
 }
+
+// IsAddingToPosition returns whether this is adding tp an existing position
+// this is utilised for futures. Leverage and asset weighting can be different vs
+// initial position
+func (o *Order) IsAddingToPosition() bool {
+	return o.AddingToExistingPosition
+}

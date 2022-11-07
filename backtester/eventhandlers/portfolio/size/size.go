@@ -17,16 +17,23 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w Request", gctcommon.ErrNilPointer)
 	}
-	if req.AmountAvailable.LessThanOrEqual(decimal.Zero) {
-		return nil, errNoFunds
-	}
 	retOrder, ok := req.OrderEvent.(*order.Order)
 	if !ok {
 		return nil, fmt.Errorf("%w expected order event", common.ErrInvalidDataType)
 	}
+	if req.AmountAvailable.LessThanOrEqual(decimal.Zero) {
+		return nil, errNoFunds
+	}
+
+	if req.CanUseLeverage && req.Leverage > 1 {
+		err := s.determineLeverage(req)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	if fde := req.OrderEvent.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
-		return s.sizeTwoOrders(req, fde, retOrder)
+		return s.sizeOrderAndFillDependentEvent(req, fde, retOrder)
 	}
 	sizedAmount, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, req.AmountAvailable, req.Settings, req.OrderEvent)
 	if err != nil {
@@ -39,16 +46,47 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}, nil
 }
 
-func (s *Size) sizeTwoOrders(req *Request, fde signal.Event, retOrder *order.Order) (*Response, error) {
+func (s *Size) determineLeverage(req *Request) (*Response, error) {
+	if req.CanUseLeverage && req.Leverage > 1 && !req.OrderEvent.GetAssetType().IsFutures() {
+		return nil, ErrCantUseLeverageAndMatchOrderAmount
+	}
+	collateralCurrency, _, err := req.Settings.Exchange.GetCollateralCurrencyForContract(req.Settings.Asset, req.Settings.Pair)
+	if err != nil {
+		return nil, err
+	}
+
+	collateral, err := req.Settings.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+		CalculateOffline:   true,
+		CollateralCurrency: collateralCurrency,
+		Asset:              req.Settings.Asset,
+		Side:               0,
+		USDPrice:           decimal.Decimal{},
+		IsLiquidating:      req.OrderEvent.IsLiquidating(),
+		IsForNewPosition:   req.OrderEvent.IsAddingToPosition(),
+		FreeCollateral:     req.AmountAvailable,
+		LockedCollateral:   decimal.Decimal{},
+		UnrealisedPNL:      decimal.Decimal{},
+	})
+	if err != nil {
+		return nil, err
+	}
+	lev := decimal.NewFromFloat(req.Leverage)
+	letsDoIt := collateral.AvailableForUseAsCollateral.Mul(lev.Sub(collateral.LeverageRatio)).Mul(req.OrderEvent.GetClosePrice())
+	return nil, nil
+}
+
+func (s *Size) sizeOrderAndFillDependentEvent(req *Request, fde signal.Event, retOrder *order.Order) (*Response, error) {
 	if req.CanUseLeverage && req.Leverage > 1 &&
 		(!fde.GetAssetType().IsFutures() || !retOrder.AssetType.IsFutures()) {
 		return nil, ErrCantUseLeverageAndMatchOrderAmount
 	}
-
-	var scalingInfo *gctorder.CollateralByCurrency
+	collateralCurrency, _, err := req.Settings.Exchange.GetCollateralCurrencyForContract(req.Settings.Asset, req.Settings.Pair)
+	if err != nil {
+		return nil, err
+	}
 	scalingInfo, err := req.Settings.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
 		CalculateOffline:   true,
-		CollateralCurrency: req.OrderEvent.Pair().Base,
+		CollateralCurrency: collateralCurrency,
 		Asset:              fde.GetAssetType(),
 		Side:               gctorder.Short,
 		USDPrice:           fde.GetClosePrice(),

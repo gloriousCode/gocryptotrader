@@ -25,6 +25,7 @@ type Order struct {
 	FillDependentEvent       signal.Event
 	ClosingPosition          bool
 	LiquidatingPosition      bool
+	AddingToExistingPosition bool
 }
 
 // Event inherits common event interfaces along with extra functions related to handling orders
@@ -45,4 +46,5 @@ type Event interface {
 	GetFillDependentEvent() signal.Event
 	IsClosingPosition() bool
 	IsLiquidating() bool
+	IsAddingToPosition() bool
 }
