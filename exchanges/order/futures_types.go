@@ -215,9 +215,10 @@ type PositionTrackerSetup struct {
 // TotalCollateralCalculator holds many collateral calculators
 // to calculate total collateral standing with one struct
 type TotalCollateralCalculator struct {
-	CollateralAssets []CollateralCalculator
-	CalculateOffline bool
-	FetchPositions   bool
+	CollateralAssets   []CollateralCalculator
+	CalculateOffline   bool
+	FetchPositions     bool
+	IsSingleCollateral bool //idk yet
 }
 
 // CollateralCalculator is used to determine
