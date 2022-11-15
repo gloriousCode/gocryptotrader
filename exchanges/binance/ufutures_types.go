@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -430,3 +432,5 @@ type UFuturesNewOrderRequest struct {
 	CallbackRate     float64       `json:"callback_rate"`
 	ReduceOnly       bool          `json:"reduce_only"`
 }
+
+type positionRequirementsMap map[asset.Item]map[currency.Code]order.PositionRequirements

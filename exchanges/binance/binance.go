@@ -74,9 +74,25 @@ const (
 	withdrawHistory  = "/sapi/v1/capital/withdraw/history"
 	depositAddress   = "/sapi/v1/capital/deposit/address"
 
+	// idk
+	collateralRateEndpoint = "/sapi/v1/portfolio/collateralRate"
+
 	defaultRecvWindow     = 5 * time.Second
 	binanceSAPITimeLayout = "2006-01-02 15:04:05"
 )
+
+type CollateralRateResponse struct {
+	CurrencyCode   currency.Code `json:"asset"`
+	CollateralRate float64       `json:"collateralRate,string"`
+}
+
+func (b *Binance) GetCollateralRate(ctx context.Context) ([]CollateralRateResponse, error) {
+	var resp []CollateralRateResponse
+	if err := b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, collateralRateEndpoint, nil, collateralRateRate, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
 
 // GetInterestHistory gets interest history for currency/currencies provided
 func (b *Binance) GetInterestHistory(ctx context.Context) (MarginInfoData, error) {

@@ -226,16 +226,18 @@ type TotalCollateralCalculator struct {
 // eg on FTX, the collateral is scaled depending on what
 // currency it is
 type CollateralCalculator struct {
-	CalculateOffline   bool
-	CollateralCurrency currency.Code
-	Asset              asset.Item
-	Side               Side
-	USDPrice           decimal.Decimal
-	IsLiquidating      bool
-	IsForNewPosition   bool
-	FreeCollateral     decimal.Decimal
-	LockedCollateral   decimal.Decimal
-	UnrealisedPNL      decimal.Decimal
+	CalculateOffline        bool
+	CollateralCurrency      currency.Code
+	Asset                   asset.Item
+	Side                    Side
+	USDPrice                decimal.Decimal
+	IsLiquidating           bool
+	IsForNewPosition        bool
+	FreeCollateral          decimal.Decimal
+	LockedCollateral        decimal.Decimal
+	UnrealisedPNL           decimal.Decimal
+	IsSingleAssetCollateral bool
+	IsIsolatedCollateral    bool
 }
 
 // PNLCalculator implements the PNLCalculation interface
@@ -389,4 +391,14 @@ type PositionsRequest struct {
 	Asset     asset.Item
 	Pairs     currency.Pairs
 	StartDate time.Time
+}
+
+// PositionRequirements returns all data necessary
+// to help scale collateral before opening a position
+type PositionRequirements struct {
+	Currency          currency.Code
+	Asset             asset.Item
+	CollateralScaling decimal.Decimal
+	InitialMargin     decimal.Decimal
+	MaintenanceMargin decimal.Decimal
 }

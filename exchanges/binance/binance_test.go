@@ -226,9 +226,13 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUExchangeInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.UExchangeInfo(context.Background())
+
+	hi, err := b.UExchangeInfo(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+	for i := range hi.Symbols {
+		t.Log(hi.Symbols[i].Symbol)
 	}
 }
 
@@ -2854,4 +2858,17 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	if len(limits) == 0 {
 		t.Error("expected a response")
 	}
+}
+
+func TestGetCollateralRate(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	b.Verbose = true
+	resp, err := b.GetCollateralRate(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	t.Log(resp)
 }

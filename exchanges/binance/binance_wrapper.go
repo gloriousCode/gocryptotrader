@@ -1951,3 +1951,23 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
+
+func (b *Binance) ScaleCollateral(ctx context.Context, calculator *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+
+	if calculator.IsSingleAssetCollateral {
+
+	} else {
+
+	}
+	return nil, nil
+}
+
+func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	if a == asset.USDTMarginedFutures {
+		return !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD), nil
+	}
+	if a == asset.CoinMarginedFutures {
+		return !cp.Quote.Equal(currency.USD), nil
+	}
+	return false, nil
+}

@@ -46,6 +46,7 @@ const (
 	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
+	collateralRateRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
 	uFuturesSymbolOrdersRate
@@ -123,7 +124,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
-	case spotOrderbookDepth5000Rate:
+	case spotOrderbookDepth5000Rate, collateralRateRate:
 		limiter, tokens = r.SpotRate, 50
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
