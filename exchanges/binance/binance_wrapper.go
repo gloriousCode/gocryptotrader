@@ -1963,11 +1963,14 @@ func (b *Binance) ScaleCollateral(ctx context.Context, calculator *order.Collate
 }
 
 func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	if cp.Quote.Equal(currency.PERP) {
+		return true, nil
+	}
 	if a == asset.USDTMarginedFutures {
-		return !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD), nil
+		return cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD), nil
 	}
 	if a == asset.CoinMarginedFutures {
-		return !cp.Quote.Equal(currency.USD), nil
+		return cp.Quote.Equal(currency.USD), nil
 	}
 	return false, nil
 }

@@ -2872,3 +2872,49 @@ func TestGetCollateralRate(t *testing.T) {
 	}
 	t.Log(resp)
 }
+
+func TestAssetIndex(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	b.Verbose = true
+	resp, err := b.Butts(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	tick, _ := b.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.BUSD), asset.Spot)
+	var lhkasdfhfsd AssetIndex
+	for i := range resp {
+		if resp[i].Symbol == "BTCUSD" {
+			lhkasdfhfsd = resp[i]
+			t.Log(0.00294000 * resp[i].BidRate)
+		}
+	}
+	t.Log((1 - lhkasdfhfsd.BidBuffer) * tick.Last * 0.00294000)
+
+	resp, err = b.Butts(context.Background())
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
+	}
+	for i := range resp {
+		if resp[i].Symbol == "BTCUSD" {
+			t.Log(0.00294000 * resp[i].BidRate)
+		}
+	}
+	/*
+		tick2, _ := b.FetchTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.USDTMarginedFutures)
+		t.Log((1 - lhkasdfhfsd.BidBuffer) * tick.Close * 0.00294000)
+		t.Log((1 - lhkasdfhfsd.BidBuffer) * tick2.Last * 0.00294000)
+		t.Log((1 - lhkasdfhfsd.BidBuffer) * tick2.Close * 0.00294000)
+		t.Log(tick.Last * 0.00294000)
+		t.Log(tick.Close * 0.00294000)
+		t.Log(tick2.Last * 0.00294000)
+		t.Log(tick2.Close * 0.00294000)
+		yoyo, _ := b.UGetMarkPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+		t.Log(yoyo[0].MarkPrice * 0.00294000)
+		t.Log(yoyo[0].IndexPrice * 0.00294000)
+
+	*/
+
+}

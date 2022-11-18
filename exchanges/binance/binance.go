@@ -76,6 +76,7 @@ const (
 
 	// idk
 	collateralRateEndpoint = "/sapi/v1/portfolio/collateralRate"
+	assetIndexEndpoint     = "/fapi/v1/assetIndex"
 
 	defaultRecvWindow     = 5 * time.Second
 	binanceSAPITimeLayout = "2006-01-02 15:04:05"
@@ -84,6 +85,28 @@ const (
 type CollateralRateResponse struct {
 	CurrencyCode   currency.Code `json:"asset"`
 	CollateralRate float64       `json:"collateralRate,string"`
+}
+
+type AssetIndex struct {
+	Symbol                string  `json:"symbol"`
+	Time                  int64   `json:"time"`
+	Index                 string  `json:"index"`
+	BidBuffer             float64 `json:"bidBuffer,string"`
+	AskBuffer             float64 `json:"askBuffer,string"`
+	BidRate               float64 `json:"bidRate,string"`
+	AskRate               float64 `json:"askRate,string"`
+	AutoExchangeBidBuffer float64 `json:"autoExchangeBidBuffer,string"`
+	AutoExchangeAskBuffer float64 `json:"autoExchangeAskBuffer,string"`
+	AutoExchangeBidRate   float64 `json:"autoExchangeBidRate,string"`
+	AutoExchangeAskRate   float64 `json:"autoExchangeAskRate,string"`
+}
+
+func (b *Binance) Butts(ctx context.Context) ([]AssetIndex, error) {
+	var resp []AssetIndex
+	if err := b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, assetIndexEndpoint, nil, collateralRateRate, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 func (b *Binance) GetCollateralRate(ctx context.Context) ([]CollateralRateResponse, error) {
