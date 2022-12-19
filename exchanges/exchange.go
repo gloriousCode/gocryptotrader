@@ -1423,30 +1423,10 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
-// CalculatePNL is an overridable function to allow PNL to be calculated on an
-// open position
-// It will also determine whether the position is considered to be liquidated
-// For live trading, an overriding function may wish to confirm the liquidation by
-// requesting the status of the asset
-func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// ScaleCollateral is an overridable function to determine how much
-// collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// CalculateTotalCollateral takes in n collateral calculators to determine an overall
-// standing in a singular currency. See FTX's implementation
-func (b *Base) CalculateTotalCollateral(ctx context.Context, calculator *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+	return currency.USDT, a, nil
+	//return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
@@ -1467,23 +1447,14 @@ func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
-// GetMarginRatesHistory returns the margin rate history for the supplied currency
-func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *order.FundingRatesRequest) (*order.FundingRates, error) {
+func (b *Base) GetFundingPaymentDetails(ctx context.Context, request *order.FundingRatesRequest) (*order.FundingRates, error) {
+
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFuturesPositions returns futures positions for all currencies
-func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (b *Base) GetFuturesPositions(ctx context.Context, request *order.PositionsRequest) ([]order.PositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1503,5 +1474,56 @@ func (b *Base) GetMarginRequirements(asset.Item, *currency.Item) (*margin.Requir
 }
 
 func (b *Base) CalculatePosition(item asset.Item, pair currency.Pair, size, targetLeverage decimal.Decimal) (*order.Sized, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetMarginRatesHistory returns the margin rate history for the supplied currency
+func (b *Base) GetMarginRatesHistory(ctx context.Context, request *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if request.CalculateOffline {
+		log.Info(log.ExchangeSys, "hi")
+		return &margin.RateHistoryResponse{}, nil
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetPositionSummary returns stats for a future position
+func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	if request.CalculateOffline {
+		log.Info(log.ExchangeSys, "hi")
+		return &order.PositionSummary{}, nil
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculatePNL is an overridable function to allow PNL to be calculated on an
+// open position
+// It will also determine whether the position is considered to be liquidated
+// For live trading, an overriding function may wish to confirm the liquidation by
+// requesting the status of the asset
+func (b *Base) CalculatePNL(ctx context.Context, request *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+	if request.CalculateOffline {
+		log.Info(log.ExchangeSys, "hi")
+		return &order.PNLResult{}, nil
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
+func (b *Base) ScaleCollateral(ctx context.Context, request *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+	if request.CalculateOffline {
+		log.Info(log.ExchangeSys, "hi")
+		return &order.CollateralByCurrency{}, nil
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency. See FTX's implementation
+func (b *Base) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	if request.CalculateOffline {
+		log.Info(log.ExchangeSys, "hi")
+		return &order.TotalCollateralResponse{}, nil
+	}
 	return nil, common.ErrNotYetImplemented
 }

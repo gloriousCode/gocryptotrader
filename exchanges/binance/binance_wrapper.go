@@ -1725,9 +1725,10 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		return kline.Item{}, err
 	}
 
+	fPair, err := b.FormatExchangeCurrency(pair, a)
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     pair,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
@@ -1735,36 +1736,61 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	if err != nil {
 		return kline.Item{}, err
 	}
-	var candles []CandleStick
 	for x := range dates.Ranges {
 		req := KlinesRequestParams{
 			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    pair,
+			Symbol:    fPair,
 			StartTime: dates.Ranges[x].Start.Time,
 			EndTime:   dates.Ranges[x].End.Time,
 			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 		}
 
-		candles, err = b.GetSpotKline(ctx, &req)
-		if err != nil {
-			return kline.Item{}, err
+		switch a {
+		case asset.Spot:
+			var candles []CandleStick
+			candles, err = b.GetSpotKline(ctx, &req)
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			for i := range candles {
+				for j := range ret.Candles {
+					if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
+						continue
+					}
+				}
+				ret.Candles = append(ret.Candles, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		case asset.USDTMarginedFutures:
+			candles, err := b.UKlineData(ctx, fPair, b.FormatExchangeKlineInterval(interval), int64(b.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			if err != nil {
+				return kline.Item{}, err
+			}
+
+			for i := range candles {
+				for j := range ret.Candles {
+					if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
+						continue
+					}
+				}
+				ret.Candles = append(ret.Candles, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
 		}
 
-		for i := range candles {
-			for j := range ret.Candles {
-				if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
-					continue
-				}
-			}
-			ret.Candles = append(ret.Candles, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
-			})
-		}
 	}
 
 	dates.SetHasDataFromCandles(ret.Candles)
