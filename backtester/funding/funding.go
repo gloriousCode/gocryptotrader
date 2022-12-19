@@ -43,7 +43,7 @@ func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevel
 // would cause an increase in funds for BTC, when it is an increase in contracts
 // This function is basic, but is important be explicit in why this is occurring
 func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
-	return currency.NewCode(fmt.Sprintf("%s-%s", b, q))
+	return currency.NewCode(fmt.Sprintf("%s_%s", b, q))
 }
 
 // CreateItem creates a new funding item
@@ -485,7 +485,11 @@ func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pai
 	if a.IsFutures() {
 		var collat CollateralPair
 		for i := range f.items {
-			if f.items[i].MatchesCurrency(currency.NewCode(p.String())) {
+			if !f.items[i].asset.IsFutures() {
+				continue
+			}
+			fcc := CreateFuturesCurrencyCode(p.Base, p.Quote)
+			if f.items[i].MatchesCurrency(fcc) {
 				collat.contract = f.items[i]
 				collat.collateral = f.items[i].pairedWith
 				return &collat, nil
@@ -494,6 +498,9 @@ func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pai
 	} else {
 		var resp SpotPair
 		for i := range f.items {
+			if f.items[i].asset.IsFutures() {
+				continue
+			}
 			if f.items[i].BasicEqual(exch, a, p.Base, p.Quote) {
 				resp.base = f.items[i]
 				continue

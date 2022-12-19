@@ -1728,10 +1728,6 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		return nil, err
 	}
 
-	if a != asset.Spot {
-		// TODO: Add support for other asset types.
-		return nil, common.ErrNotYetImplemented
-	}
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
