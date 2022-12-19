@@ -22,8 +22,8 @@
   {
    "exchange-name": "binance",
    "asset": "usdtmarginedfutures",
-   "base": "BTC",
-   "quote": "USDT",
+   "base": "BTCUSDT",
+   "quote": "quarter",
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
@@ -73,8 +73,8 @@
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2021-01-14T00:00:00Z",
-   "end-date": "2021-09-24T00:00:00Z",
+   "start-date": "2021-09-01T00:00:00Z",
+   "end-date": "2021-12-30T00:00:00Z",
    "inclusive-end-date": false
   }
  },
