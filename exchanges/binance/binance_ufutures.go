@@ -3,11 +3,13 @@ package binance
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -15,7 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -1160,4 +1164,110 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		})
 	}
 	return limits, nil
+}
+
+type FuturesAWSXML struct {
+	XMLName        xml.Name `xml:"ListBucketResult"`
+	Text           string   `xml:",chardata"`
+	Xmlns          string   `xml:"xmlns,attr"`
+	Name           string   `xml:"Name"`
+	Prefix         string   `xml:"Prefix"`
+	Marker         string   `xml:"Marker"`
+	MaxKeys        string   `xml:"MaxKeys"`
+	Delimiter      string   `xml:"Delimiter"`
+	IsTruncated    string   `xml:"IsTruncated"`
+	CommonPrefixes []struct {
+		Text   string `xml:",chardata"`
+		Prefix string `xml:"Prefix"`
+	} `xml:"CommonPrefixes"`
+}
+
+func (b *Binance) ParseBinanceCurrencyStorage(ctx context.Context, path, subPrefix string) ([]string, error) {
+	var result FuturesAWSXML
+	res, err := http.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	decoder := xml.NewDecoder(res.Body)
+	err = decoder.Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	currs := make([]string, 0, len(result.CommonPrefixes))
+	for i := range result.CommonPrefixes {
+		currStr := result.CommonPrefixes[i].Prefix
+		currStr = strings.Replace(currStr, "data/futures/"+subPrefix+"/daily/klines/", "", -1)
+		currStr = strings.Replace(currStr, "/", "", -1)
+		if !strings.Contains(currStr, "_2") {
+			continue
+		}
+
+		currs = append(currs, currStr)
+		// data/futures/um/daily/klines/1000BTTCUSDT/
+		log.Debug(log.ExchangeSys, currStr)
+	}
+	return currs, nil
+}
+
+type LongDatedContractDetails struct {
+	Name       string
+	Currency   currency.Pair
+	StartDate  time.Time
+	EndDate    time.Time
+	HasExpired bool
+}
+
+func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
+	pairs, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/um/daily/klines/", "um")
+	if err != nil {
+		return nil, err
+	}
+	pFmt, err := b.GetPairFormat(asset.USDTMarginedFutures, true)
+	if err != nil {
+		return nil, err
+	}
+	pFmt.Delimiter = "_"
+	response := make([]LongDatedContractDetails, len(pairs))
+	for i := range pairs {
+		curr, err := currency.NewPairFromString(pairs[i])
+		if err != nil {
+			return nil, err
+		}
+		curr = curr.Format(pFmt)
+		currDate := strings.Split(pairs[i], currency.UnderscoreDelimiter)
+		if len(currDate) == 1 {
+			continue
+		}
+		expDate, err := time.Parse("060102", currDate[1])
+		if err != nil {
+			return nil, err
+		}
+		bb := b.GetBase()
+		currPairs, _ := bb.CurrencyPairs.Get(asset.USDTMarginedFutures)
+		currPairs.Enabled.Add(curr)
+		bb.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currPairs.Enabled, true)
+		resp, err := b.GetHistoricCandlesExtended(ctx, curr, asset.USDTMarginedFutures, expDate.AddDate(0, 0, -320), expDate, kline.OneMonth)
+		if err != nil {
+			return nil, err
+		}
+
+		response[i] = LongDatedContractDetails{
+			Name:       pairs[i],
+			Currency:   curr,
+			StartDate:  resp.Candles[0].Time,
+			EndDate:    expDate,
+			HasExpired: time.Since(expDate) > 0,
+		}
+	}
+	return response, nil
+}
+
+func (b *Binance) CGetSettledContractDetails(ctx context.Context) ([]currency.Pair, error) {
+	_, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/", "cm")
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }

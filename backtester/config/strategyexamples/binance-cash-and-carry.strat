@@ -23,7 +23,7 @@
    "exchange-name": "binance",
    "asset": "usdtmarginedfutures",
    "base": "BTCUSDT",
-   "quote": "quarter",
+   "quote": " 210326",
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
