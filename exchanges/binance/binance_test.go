@@ -255,15 +255,14 @@ func TestUCompressedTrades(t *testing.T) {
 
 func TestUKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := b.UKlineData(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "1d", 5, time.Time{}, time.Time{})
+	b.Verbose = true
+	cp := currency.NewPairWithDelimiter("BTCUSDT", "210326", "_")
+	resp, err := b.UKlineData(context.Background(), cp, "1d", 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	start, end := getTime()
-	_, err = b.UKlineData(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "5m", 0, start, end)
-	if err != nil {
-		t.Error(err)
-	}
+	t.Log(resp[0].OpenTime.String())
+	t.Log(resp[len(resp)-1].OpenTime.String())
 }
 
 func TestUGetMarkPrice(t *testing.T) {
@@ -749,6 +748,7 @@ func TestGetAggregatedTradesList(t *testing.T) {
 
 func TestGetPerpsExchangeInfo(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetPerpMarkets(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -2579,10 +2579,11 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	cp, err := currency.NewPairFromString("BTCUSDT")
+	cp, err := currency.NewPairFromString("BTCUSDT_210326")
 	if err != nil {
 		t.Error(err)
 	}
+	b.Verbose = true
 	_, err = b.UFuturesHistoricalTrades(context.Background(), cp, "", 5)
 	if err != nil {
 		t.Error(err)
@@ -2843,5 +2844,15 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 	}
 	if len(limits) == 0 {
 		t.Error("expected a response")
+	}
+}
+
+func TestUGetAllLongDatedContractDetails(t *testing.T) {
+	resp, err := b.UGetAllLongDatedContractDetails(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Logf("%+v", resp[i])
 	}
 }
