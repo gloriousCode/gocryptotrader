@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1411,10 +1412,14 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 	return nil, common.ErrFunctionNotSupported
 }
 
+// GetBaseCurrencyForContract returns the base currency for an asset and contract pair
+func (b *Base) GetBaseCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+}
+
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Base) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
-	return currency.USDT, a, nil
-	//return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
+	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
@@ -1460,7 +1465,7 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 // GetMarginRatesHistory returns the margin rate history for the supplied currency
 func (b *Base) GetMarginRatesHistory(ctx context.Context, request *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "hi")
+		log.Info(log.ExchangeSys, "GetMarginRatesHistory")
 		return &margin.RateHistoryResponse{}, nil
 	}
 	return nil, common.ErrNotYetImplemented
@@ -1469,7 +1474,7 @@ func (b *Base) GetMarginRatesHistory(ctx context.Context, request *margin.RateHi
 // GetPositionSummary returns stats for a future position
 func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "hi")
+		log.Info(log.ExchangeSys, "GetPositionSummary")
 		return &order.PositionSummary{}, nil
 	}
 	return nil, common.ErrNotYetImplemented
@@ -1482,7 +1487,7 @@ func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSu
 // requesting the status of the asset
 func (b *Base) CalculatePNL(ctx context.Context, request *order.PNLCalculatorRequest) (*order.PNLResult, error) {
 	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "hi")
+		log.Info(log.ExchangeSys, "CalculatePNL")
 		return &order.PNLResult{}, nil
 	}
 	return nil, common.ErrNotYetImplemented
@@ -1492,8 +1497,23 @@ func (b *Base) CalculatePNL(ctx context.Context, request *order.PNLCalculatorReq
 // collateral is usable in futures positions
 func (b *Base) ScaleCollateral(ctx context.Context, request *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
 	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "hi")
-		return &order.CollateralByCurrency{}, nil
+		leet := decimal.NewFromInt(1337)
+		log.Info(log.ExchangeSys, "ScaleCollateral")
+		return &order.CollateralByCurrency{
+			Currency:                    request.CollateralCurrency,
+			SkipContribution:            false,
+			TotalFunds:                  leet,
+			AvailableForUseAsCollateral: leet,
+			CollateralContribution:      leet,
+			AdditionalCollateralUsed:    leet,
+			FairMarketValue:             leet,
+			Weighting:                   leet,
+			ScaledCurrency:              currency.Code{},
+			UnrealisedPNL:               leet,
+			ScaledUsed:                  leet,
+			ScaledUsedBreakdown:         nil,
+			Error:                       nil,
+		}, nil
 	}
 	return nil, common.ErrNotYetImplemented
 }
@@ -1502,8 +1522,19 @@ func (b *Base) ScaleCollateral(ctx context.Context, request *order.CollateralCal
 // standing in a singular currency. See FTX's implementation
 func (b *Base) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "hi")
-		return &order.TotalCollateralResponse{}, nil
+		log.Info(log.ExchangeSys, "CalculateTotalCollateral")
+		return &order.TotalCollateralResponse{
+			CollateralCurrency:                          request.CollateralAssets[0].CollateralCurrency,
+			TotalValueOfPositiveSpotBalances:            decimal.Decimal{},
+			CollateralContributedByPositiveSpotBalances: decimal.Decimal{},
+			UsedCollateral:                              decimal.Decimal{},
+			UsedBreakdown:                               nil,
+			AvailableCollateral:                         decimal.Decimal{},
+			AvailableMaintenanceCollateral:              decimal.Decimal{},
+			UnrealisedPNL:                               decimal.Decimal{},
+			BreakdownByCurrency:                         nil,
+			BreakdownOfPositions:                        nil,
+		}, nil
 	}
 	return nil, common.ErrNotYetImplemented
 }

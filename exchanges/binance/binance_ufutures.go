@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -1203,10 +1202,7 @@ func (b *Binance) ParseBinanceCurrencyStorage(ctx context.Context, path, subPref
 		if !strings.Contains(currStr, "_2") {
 			continue
 		}
-
 		currs = append(currs, currStr)
-		// data/futures/um/daily/klines/1000BTTCUSDT/
-		log.Debug(log.ExchangeSys, currStr)
 	}
 	return currs, nil
 }
@@ -1224,12 +1220,25 @@ func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDa
 	if err != nil {
 		return nil, err
 	}
-	pFmt, err := b.GetPairFormat(asset.USDTMarginedFutures, true)
+	return b.parseLongDatedContractData(ctx, pairs, asset.USDTMarginedFutures)
+}
+
+func (b *Binance) CGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
+	pairs, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/", "cm")
+	if err != nil {
+		return nil, err
+	}
+	return b.parseLongDatedContractData(ctx, pairs, asset.CoinMarginedFutures)
+
+}
+
+func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string, a asset.Item) ([]LongDatedContractDetails, error) {
+	pFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
 	pFmt.Delimiter = "_"
-	response := make([]LongDatedContractDetails, len(pairs))
+	response := make([]LongDatedContractDetails, 0, len(pairs))
 	for i := range pairs {
 		curr, err := currency.NewPairFromString(pairs[i])
 		if err != nil {
@@ -1245,29 +1254,28 @@ func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDa
 			return nil, err
 		}
 		bb := b.GetBase()
-		currPairs, _ := bb.CurrencyPairs.Get(asset.USDTMarginedFutures)
+		currPairs, _ := bb.CurrencyPairs.Get(a)
 		currPairs.Enabled.Add(curr)
-		bb.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currPairs.Enabled, true)
-		resp, err := b.GetHistoricCandlesExtended(ctx, curr, asset.USDTMarginedFutures, expDate.AddDate(0, 0, -320), expDate, kline.OneMonth)
+		bb.CurrencyPairs.StorePairs(a, currPairs.Enabled, true)
+		// quarterlyContractLength is a rough 6-month contract duration
+		// Binance applies no consistency to the length of their contracts
+		// retrieving candle data is the only way to know its start date accurately
+		var quarterlyContractLength = -100
+		resp, err := b.GetHistoricCandlesExtended(ctx, curr, a, expDate.AddDate(0, 0, quarterlyContractLength), expDate, kline.OneDay)
 		if err != nil {
 			return nil, err
 		}
+		if len(resp.Candles) == 0 {
+			continue
+		}
 
-		response[i] = LongDatedContractDetails{
+		response = append(response, LongDatedContractDetails{
 			Name:       pairs[i],
 			Currency:   curr,
-			StartDate:  resp.Candles[0].Time,
-			EndDate:    expDate,
+			StartDate:  resp.Candles[0].Time.UTC(),
+			EndDate:    expDate.UTC(),
 			HasExpired: time.Since(expDate) > 0,
-		}
+		})
 	}
 	return response, nil
-}
-
-func (b *Binance) CGetSettledContractDetails(ctx context.Context) ([]currency.Pair, error) {
-	_, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/", "cm")
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
 }

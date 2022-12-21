@@ -135,6 +135,7 @@ type FuturesManagement interface {
 	GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
+	GetBaseCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	order.PNLCalculation
