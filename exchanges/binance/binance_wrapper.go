@@ -82,6 +82,7 @@ func (b *Binance) SetDefaults() {
 	usdtFutures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -1734,17 +1735,16 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		return kline.Item{}, err
 	}
 	for x := range dates.Ranges {
-		req := KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(interval),
-			Symbol:    fPair,
-			StartTime: dates.Ranges[x].Start.Time,
-			EndTime:   dates.Ranges[x].End.Time,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-		}
-
 		switch a {
 		case asset.Spot:
 			var candles []CandleStick
+			req := KlinesRequestParams{
+				Interval:  b.FormatExchangeKlineInterval(interval),
+				Symbol:    fPair,
+				StartTime: dates.Ranges[x].Start.Time,
+				EndTime:   dates.Ranges[x].End.Time,
+				Limit:     int(b.Features.Enabled.Kline.ResultLimit),
+			}
 			candles, err = b.GetSpotKline(ctx, &req)
 			if err != nil {
 				return kline.Item{}, err
@@ -1765,9 +1765,35 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Volume: candles[i].Volume,
 				})
 			}
+		case asset.CoinMarginedFutures:
+			candles, err := b.GetFuturesKlineData(ctx, fPair, b.FormatExchangeKlineInterval(interval), int64(b.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
+			if err != nil {
+				if strings.Contains(err.Error(), "-4088") {
+					continue
+				}
+				return kline.Item{}, err
+			}
+			for i := range candles {
+				for j := range ret.Candles {
+					if ret.Candles[j].Time.Equal(candles[i].OpenTime) {
+						continue
+					}
+				}
+				ret.Candles = append(ret.Candles, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
 		case asset.USDTMarginedFutures:
 			candles, err := b.UKlineData(ctx, fPair, b.FormatExchangeKlineInterval(interval), int64(b.Features.Enabled.Kline.ResultLimit), dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time)
 			if err != nil {
+				if strings.Contains(err.Error(), "-4088") {
+					continue
+				}
 				return kline.Item{}, err
 			}
 
@@ -1787,17 +1813,17 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				})
 			}
 		}
-
 	}
 
+	ret.RemoveDuplicateCandlesByTime()
+	ret.RemoveOutsideRange(start, end)
+	ret.SortCandlesByTimestamp(false)
 	dates.SetHasDataFromCandles(ret.Candles)
 	summary := dates.DataSummary(false)
 	if len(summary) > 0 {
 		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
 	}
-	ret.RemoveDuplicateCandlesByTime()
-	ret.RemoveOutsideRange(start, end)
-	ret.SortCandlesByTimestamp(false)
+
 	return ret, nil
 }
 
@@ -1950,4 +1976,17 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		return time.UnixMilli(info.ServerTime), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+}
+
+// GetBaseCurrencyForContract returns the base currency for an asset and contract pair
+func (b *Binance) GetBaseCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	bS := cp.Base.String()
+	bS = strings.Replace(bS, currency.USDT.String(), "", -1)
+
+	return currency.NewCode(bS), a, nil
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Binance) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USDT, a, nil
 }
