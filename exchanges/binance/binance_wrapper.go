@@ -82,6 +82,7 @@ func (b *Binance) SetDefaults() {
 	usdtFutures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -1906,4 +1907,17 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		return time.UnixMilli(info.ServerTime), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
+}
+
+// GetBaseCurrencyForContract returns the base currency for an asset and contract pair
+func (b *Binance) GetBaseCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	bS := cp.Base.String()
+	bS = strings.Replace(bS, currency.USDT.String(), "", -1)
+
+	return currency.NewCode(bS), a, nil
+}
+
+// GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
+func (b *Binance) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	return currency.USDT, a, nil
 }

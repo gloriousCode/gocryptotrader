@@ -2843,11 +2843,23 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 }
 
 func TestUGetAllLongDatedContractDetails(t *testing.T) {
+	t.Parallel()
 	resp, err := b.UGetAllLongDatedContractDetails(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 	for i := range resp {
-		t.Logf("%+v", resp[i])
+		t.Log(resp[i])
+	}
+}
+
+func TestCGetAllLongDatedContractDetails(t *testing.T) {
+	t.Parallel()
+	resp, err := b.CGetAllLongDatedContractDetails(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Log(resp[i])
 	}
 }

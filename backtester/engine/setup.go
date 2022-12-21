@@ -705,12 +705,16 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		// eg BTCUSDT-PERP on Binance has a collateral currency of USDT
 		// taking the BTC base and USDT as quote, allows linking
 		// BTC-USDT and BTCUSDT-PERP
-		var curr currency.Code
-		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		var underlyingBase, underlyingQuote currency.Code
+		underlyingBase, _, err = exch.GetBaseCurrencyForContract(a, fPair)
 		if err != nil {
 			return resp, err
 		}
-		underlyingPair = currency.NewPair(fPair.Base, curr)
+		underlyingQuote, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		if err != nil {
+			return resp, err
+		}
+		underlyingPair = currency.NewPair(underlyingBase, underlyingQuote)
 	}
 
 	switch {
