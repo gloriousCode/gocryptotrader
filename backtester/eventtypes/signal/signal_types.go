@@ -27,6 +27,7 @@ type Event interface {
 	GetFillDependentEvent() Event
 	GetCollateralCurrency() currency.Code
 	SetAmount(decimal.Decimal)
+	SetLeverage(float64)
 	MatchOrderAmount() bool
 	IsNil() bool
 }

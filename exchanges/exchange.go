@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1602,45 +1601,11 @@ func (b *Base) CalculatePNL(ctx context.Context, request *order.PNLCalculatorReq
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
 func (b *Base) ScaleCollateral(ctx context.Context, request *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
-	if request.CalculateOffline {
-		leet := decimal.NewFromInt(1337)
-		log.Info(log.ExchangeSys, "ScaleCollateral")
-		return &order.CollateralByCurrency{
-			Currency:                    request.CollateralCurrency,
-			SkipContribution:            false,
-			TotalFunds:                  leet,
-			AvailableForUseAsCollateral: leet,
-			CollateralContribution:      leet,
-			AdditionalCollateralUsed:    leet,
-			FairMarketValue:             leet,
-			Weighting:                   leet,
-			ScaledCurrency:              currency.Code{},
-			UnrealisedPNL:               leet,
-			ScaledUsed:                  leet,
-			ScaledUsedBreakdown:         nil,
-			Error:                       nil,
-		}, nil
-	}
 	return nil, common.ErrNotYetImplemented
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency. See FTX's implementation
 func (b *Base) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
-	if request.CalculateOffline {
-		log.Info(log.ExchangeSys, "CalculateTotalCollateral")
-		return &order.TotalCollateralResponse{
-			CollateralCurrency:                          request.CollateralAssets[0].CollateralCurrency,
-			TotalValueOfPositiveSpotBalances:            decimal.Decimal{},
-			CollateralContributedByPositiveSpotBalances: decimal.Decimal{},
-			UsedCollateral:                              decimal.Decimal{},
-			UsedBreakdown:                               nil,
-			AvailableCollateral:                         decimal.Decimal{},
-			AvailableMaintenanceCollateral:              decimal.Decimal{},
-			UnrealisedPNL:                               decimal.Decimal{},
-			BreakdownByCurrency:                         nil,
-			BreakdownOfPositions:                        nil,
-		}, nil
-	}
 	return nil, common.ErrNotYetImplemented
 }

@@ -51,7 +51,6 @@ type Base struct {
 
 // Handler interface for Loading and Streaming Data
 type Handler interface {
-	Loader
 	Streamer
 	GetDetails() (string, asset.Item, currency.Pair, error)
 	Reset() error

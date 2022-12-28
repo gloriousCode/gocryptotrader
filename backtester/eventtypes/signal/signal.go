@@ -128,3 +128,7 @@ func (s *Signal) ToKline() kline.Event {
 		Volume: s.Volume,
 	}
 }
+
+func (s *Signal) SetLeverage(l float64) {
+	s.Leverage = l
+}

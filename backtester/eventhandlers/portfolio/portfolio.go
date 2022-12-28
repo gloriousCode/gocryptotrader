@@ -76,7 +76,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, nil
 	}
 	if !funds.CanPlaceOrder(ev.GetDirection()) {
-		return cannotPurchase(ev, o)
+		return cannotPurchase(ev, o, decimal.Zero)
 	}
 
 	o.OrderType = gctorder.Market
@@ -123,7 +123,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		}
 	}
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
-		return cannotPurchase(ev, o)
+		return cannotPurchase(ev, o, sizingFunds)
 	}
 	req := &size.Request{
 		OrderEvent:      nil,
@@ -153,14 +153,14 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	return p.evaluateOrder(ev, o, sizedOrder)
 }
 
-func cannotPurchase(ev signal.Event, o *order.Order) (*order.Order, error) {
+func cannotPurchase(ev signal.Event, o *order.Order, fundRequest decimal.Decimal) (*order.Order, error) {
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
 	if o == nil {
 		return nil, fmt.Errorf("%w received nil order for %v %v %v", gctcommon.ErrNilPointer, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
-	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower())
+	o.AppendReason(notEnoughFundsTo + " " + ev.GetDirection().Lower() + " requested " + fundRequest.String())
 	switch ev.GetDirection() {
 	case gctorder.Buy, gctorder.Bid:
 		o.SetDirection(gctorder.CouldNotBuy)
