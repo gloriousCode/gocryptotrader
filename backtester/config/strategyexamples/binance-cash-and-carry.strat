@@ -27,12 +27,12 @@
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1337"
    },
    "sell-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1337"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -51,12 +51,12 @@
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1337"
    },
    "sell-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "40000"
+    "maximum-total": "1337"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",

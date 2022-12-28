@@ -199,7 +199,7 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 		// only appending spotSignal as futuresSignal will be raised later
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
-		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage) && !s.closeShortDistancePercentage.IsZero():
 		// closing positions when custom threshold met
 		spotSignal.SetDirection(order.ClosePosition)
 		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.closeShortDistancePercentage)

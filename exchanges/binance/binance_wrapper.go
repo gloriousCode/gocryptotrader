@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"sort"
 	"strconv"
 	"strings"
@@ -2000,4 +2001,53 @@ func (b *Binance) GetBaseCurrencyForContract(a asset.Item, cp currency.Pair) (cu
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
 func (b *Binance) GetCollateralCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.USDT, a, nil
+}
+
+func (b *Binance) GetCurrencyForRealisedPNL(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	return b.GetCollateralCurrencyForContract(a, cp)
+}
+
+// ScaleCollateral is an overridable function to determine how much
+// collateral is usable in futures positions
+func (b *Binance) ScaleCollateral(ctx context.Context, request *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+	if request.CalculateOffline {
+		// binance does not use scaling, but instead just their pricing
+		return &order.CollateralByCurrency{
+			Currency:                    request.CollateralCurrency,
+			SkipContribution:            false,
+			TotalFunds:                  request.FreeCollateral.Add(request.LockedCollateral),
+			AvailableForUseAsCollateral: request.FreeCollateral,
+			CollateralContribution:      request.FreeCollateral,
+			AdditionalCollateralUsed:    decimal.Zero,
+			FairMarketValue:             request.USDPrice,
+			Weighting:                   decimal.NewFromInt(1),
+			ScaledCurrency:              request.CollateralCurrency,
+			UnrealisedPNL:               request.UnrealisedPNL,
+			ScaledUsed:                  request.LockedCollateral,
+		}, nil
+	}
+	return nil, common.ErrNotYetImplemented
+}
+
+// CalculateTotalCollateral takes in n collateral calculators to determine an overall
+// standing in a singular currency. See FTX's implementation
+func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	if request.CalculateOffline {
+		resp := &order.TotalCollateralResponse{}
+		for i := range request.CollateralAssets {
+			scaled, err := b.ScaleCollateral(ctx, &request.CollateralAssets[i])
+			if err != nil {
+				return nil, err
+			}
+			resp.CollateralCurrency = scaled.Currency
+			resp.AvailableCollateral = resp.AvailableCollateral.Add(scaled.CollateralContribution)
+			resp.AvailableMaintenanceCollateral = resp.AvailableMaintenanceCollateral.Add(scaled.CollateralContribution)
+			resp.UnrealisedPNL = resp.UnrealisedPNL.Add(scaled.UnrealisedPNL)
+			resp.BreakdownByCurrency = append(resp.BreakdownByCurrency, *scaled)
+			resp.UsedBreakdown = scaled.ScaledUsedBreakdown
+			resp.CollateralContributedByPositiveSpotBalances = resp.CollateralContributedByPositiveSpotBalances.Add(scaled.CollateralContribution)
+		}
+		return resp, nil
+	}
+	return nil, common.ErrNotYetImplemented
 }

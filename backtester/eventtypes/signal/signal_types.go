@@ -27,6 +27,7 @@ type Event interface {
 	GetFillDependentEvent() Event
 	GetCollateralCurrency() currency.Code
 	SetAmount(decimal.Decimal)
+	SetLeverage(float64)
 	MatchOrderAmount() bool
 	IsNil() bool
 }
@@ -66,4 +67,5 @@ type Signal struct {
 	// MatchOrderAmount flags to other event handlers
 	// that the order amount must match the set Amount property
 	MatchesOrderAmount bool
+	Leverage           float64
 }

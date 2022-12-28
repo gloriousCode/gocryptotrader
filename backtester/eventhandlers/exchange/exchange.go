@@ -178,8 +178,8 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		return fmt.Errorf("%w: funding", gctcommon.ErrNilPointer)
 	}
 
-	switch f.AssetType {
-	case asset.Spot:
+	switch {
+	case f.AssetType == asset.Spot, f.AssetType == asset.Margin:
 		pr, err := funds.PairReleaser()
 		if err != nil {
 			return err
@@ -220,7 +220,7 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 		default:
 			return fmt.Errorf("%w asset type %v", common.ErrInvalidDataType, f.GetDirection())
 		}
-	case asset.Futures:
+	case f.AssetType.IsFutures():
 		cr, err := funds.CollateralReleaser()
 		if err != nil {
 			return err
