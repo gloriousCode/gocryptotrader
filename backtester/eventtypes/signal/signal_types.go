@@ -67,7 +67,7 @@ type Signal struct {
 	// MatchOrderAmount flags to other event handlers
 	// that the order amount must match the set Amount property
 	MatchesOrderAmount bool
-	// MaxLeverage for this signal, is the maximum allowable leverage to be used
+	// Leverage for this signal, is the maximum allowable leverage to be used
 	// if an order can be placed
-	MaxLeverage float64
+	Leverage float64
 }

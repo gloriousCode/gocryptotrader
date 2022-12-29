@@ -3,6 +3,7 @@ package size
 import (
 	"context"
 	"fmt"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -26,7 +27,7 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}
 
 	if req.CanUseLeverage && req.Leverage > 1 {
-		err := s.determineLeverage(req)
+		_, err := s.determineLeverage(req)
 		if err != nil {
 			return nil, err
 		}
@@ -72,6 +73,7 @@ func (s *Size) determineLeverage(req *Request) (*Response, error) {
 	}
 	lev := decimal.NewFromFloat(req.Leverage)
 	letsDoIt := collateral.AvailableForUseAsCollateral.Mul(lev.Sub(collateral.LeverageRatio)).Mul(req.OrderEvent.GetClosePrice())
+	fmt.Println(letsDoIt)
 	return nil, nil
 }
 

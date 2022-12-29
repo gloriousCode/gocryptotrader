@@ -477,9 +477,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		if sd.InitialQuoteFunds != "" || sd.InitialBaseFunds != "" {
 			currencySettings[i].SpotDetails = &sd
 		}
-		if fd.Leverage != nil {
-			currencySettings[i].FuturesDetails = &fd
-		}
 	}
 
 	exchangeLevelFunding := make([]*btrpc.ExchangeLevelFunding, len(defaultConfig.FundingSettings.ExchangeLevelFunding))
