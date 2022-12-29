@@ -289,7 +289,7 @@ func main() {
 			},
 			{
 				Login:         "if1live",
-				URL:           "https://github.com/soxipy",
+				URL:           "https://github.com/if1live",
 				Contributions: 2,
 			},
 		}...)
