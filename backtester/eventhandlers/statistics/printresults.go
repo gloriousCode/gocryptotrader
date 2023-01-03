@@ -139,7 +139,7 @@ func (s *Statistic) PrintAllEventsChronologically() {
 						msg += common.CMDColours.Default
 						results = addEventOutputToTime(results, currencyStatistic.Events[i].DataEvent.GetTime(), msg)
 					default:
-						errs = append(errs, fmt.Errorf(common.CMDColours.Error+"%v%v%v unexpected data received %+v"+common.CMDColours.Default, exch, a, fSIL(pair.String(), limit14), currencyStatistic.Events[i]))
+						errs = append(errs, fmt.Errorf(common.CMDColours.Error+"%v%v%v unexpected data received %+v"+common.CMDColours.Default, exch, a, fSIL(pair, limit14), currencyStatistic.Events[i]))
 					}
 				}
 			}

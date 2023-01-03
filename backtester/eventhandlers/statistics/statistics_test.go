@@ -1,6 +1,7 @@
 package statistics
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -77,6 +78,11 @@ func TestAddDataEventForTime(t *testing.T) {
 	if len(s.ExchangeAssetPairStatistics[exch][a][p].Events) != 1 {
 		t.Error("expected 1 event")
 	}
+	output, err := json.Marshal(s.ExchangeAssetPairStatistics[exch][a])
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%s", output)
 }
 
 func TestAddSignalEventForTime(t *testing.T) {
@@ -910,4 +916,25 @@ func TestCalculateBiggestValueAtTimeDrawdown(t *testing.T) {
 	if !errors.Is(err, errReceivedNoData) {
 		t.Errorf("received %v expected %v", err, errReceivedNoData)
 	}
+}
+
+type Silly struct {
+	Hello string `json:"hello"`
+}
+
+type Butts struct {
+	Hi map[string]interface{} `json:"hello"`
+}
+
+func TestButts(t *testing.T) {
+	t.Parallel()
+	hello := Butts{
+		Hi: make(map[string]interface{}),
+	}
+	hello.Hi["yo"] = Silly{Hello: testExchange}
+	output, err := json.Marshal(hello)
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%s", output)
 }
