@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	testExchange = "ftx"
+	testExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -919,10 +919,10 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			},
 		},
 		DataSettings: DataSettings{
-			Interval: kline.OneDay,
+			Interval: kline.Interval(time.Minute * 2),
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate:        time.Date(2021, 5, 1, 0, 0, 0, 0, time.Local),
+				StartDate:        endDate.Add(-time.Hour),
 				EndDate:          endDate,
 				InclusiveEndDate: false,
 			},
@@ -947,7 +947,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "examples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "rsi-api-candles.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

@@ -63,10 +63,6 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 	if _, ok := p.exchangeAssetPairSettings[name][setup.Asset][setup.Pair]; ok {
 		return nil
 	}
-	collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
-	if err != nil {
-		return err
-	}
 	settings := &Settings{
 		BuySideSizing:     setup.BuySide,
 		SellSideSizing:    setup.SellSide,
@@ -75,6 +71,10 @@ func (p *Portfolio) SetupCurrencySettingsMap(setup *exchange.Settings) error {
 		ComplianceManager: compliance.Manager{},
 	}
 	if setup.Asset.IsFutures() {
+		collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
+		if err != nil {
+			return err
+		}
 		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
 			Exchange:                  name,
 			Asset:                     setup.Asset,
