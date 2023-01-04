@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -65,8 +66,12 @@ type StrategySettings struct {
 
 	// If true, won't track USD values against currency pair
 	// bool language is opposite to encourage use by default
-	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
-	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
+	DisableUSDTracking bool `json:"disable-usd-tracking"`
+	// CustomSettings is a custom json object. It is translated to
+	// custom variables at the strategy level. For example RSI strategy can customise
+	// the entry and exit points
+	// A strategy may also support calculating multiple candle values instead of just the supplied one
+	CustomSettings json.RawMessage `json:"custom-settings,omitempty"`
 }
 
 // ExchangeLevelFunding allows the portfolio manager to access

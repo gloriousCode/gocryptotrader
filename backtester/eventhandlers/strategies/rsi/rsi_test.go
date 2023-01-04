@@ -43,42 +43,29 @@ func TestSetCustomSettings(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	float14 := float64(14)
-	mappalopalous := make(map[string]interface{})
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = float14
+	coolJSON := []byte(`{
+		"rsi-low": 30,
+		"rsi-high": 70,
+		"rsi-period": 14
+	}`)
 
-	err = s.SetCustomSettings(mappalopalous)
+	err = s.SetCustomSettings(coolJSON)
 	if err != nil {
 		t.Error(err)
 	}
 
-	mappalopalous[rsiPeriodKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	err = s.SetCustomSettings(nil)
+	if err != nil {
+		t.Error(err)
 	}
 
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiHighKey] = float14
-	mappalopalous["lol"] = float14
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	coolJSON = []byte(`{
+		"made-up": 30,
+		"how-do-i-json": [{},{}]
+	}`)
+	err = s.SetCustomSettings(coolJSON)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -124,7 +111,7 @@ func TestOnSignal(t *testing.T) {
 		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
 	}
 
-	s.rsiPeriod = decimal.NewFromInt(1)
+	s.settings.RSIPeriod = 1
 	_, err = s.OnSignal(da, nil, nil)
 	if err != nil {
 		t.Error(err)
@@ -209,13 +196,13 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
+	if s.settings.RSIHigh != 70 {
 		t.Error("expected 70")
 	}
-	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
+	if s.settings.RSILow != 30 {
 		t.Error("expected 30")
 	}
-	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
+	if s.settings.RSIPeriod != 14 {
 		t.Error("expected 14")
 	}
 }

@@ -1,6 +1,7 @@
 package rsi
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -13,24 +14,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
 	// Name is the strategy name
-	Name         = "rsi"
-	rsiPeriodKey = "rsi-period"
-	rsiLowKey    = "rsi-low"
-	rsiHighKey   = "rsi-high"
-	description  = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
+	Name        = "rsi"
+	description = `The relative strength index is a technical indicator used in the analysis of financial markets. It is intended to chart the current and historical strength or weakness of a stock or market based on the closing prices of a recent trading period`
 )
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod decimal.Decimal
-	rsiLow    decimal.Decimal
-	rsiHigh   decimal.Decimal
+	settings CustomSettings
 }
 
 // Name returns the name of the strategy
@@ -57,7 +54,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	}
 	es.SetPrice(d.Latest().GetClosePrice())
 
-	if offset := d.Offset(); offset <= int(s.rsiPeriod.IntPart()) {
+	if offset := d.Offset(); offset <= int(s.settings.RSIPeriod) {
 		es.AppendReason("Not enough data for signal generation")
 		es.SetDirection(order.DoNothing)
 		return &es, nil
@@ -69,8 +66,8 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	if err != nil {
 		return nil, err
 	}
-	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
-	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
+	rsi := indicators.RSI(massagedData, int(s.settings.RSIPeriod))
+	latestRSIValue := int64(rsi[len(rsi)-1])
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(order.MissingData)
 		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue)
@@ -78,9 +75,9 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	}
 
 	switch {
-	case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
+	case latestRSIValue >= s.settings.RSIHigh:
 		es.SetDirection(order.Sell)
-	case latestRSIValue.LessThanOrEqual(s.rsiLow):
+	case latestRSIValue <= s.settings.RSILow:
 		es.SetDirection(order.Buy)
 	default:
 		es.SetDirection(order.DoNothing)
@@ -117,41 +114,66 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 	return resp, nil
 }
 
+type CustomSettings struct {
+	rsiSettings
+	AdditionalCandles []rsiSettings `json:"additional-candles"`
+}
+
+type rsiSettings struct {
+	CandleInterval kline.Interval `json:"candle-interval"`
+	RSILow         int64          `json:"rsi-low"`
+	RSIHigh        int64          `json:"rsi-high"`
+	RSIPeriod      int64          `json:"rsi-period"`
+	Data           interface{}    `json:"-"`
+}
+
 // SetCustomSettings allows a user to modify the RSI limits in their config
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	for k, v := range customSettings {
-		switch k {
-		case rsiHighKey:
-			rsiHigh, ok := v.(float64)
-			if !ok || rsiHigh <= 0 {
-				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.rsiHigh = decimal.NewFromFloat(rsiHigh)
-		case rsiLowKey:
-			rsiLow, ok := v.(float64)
-			if !ok || rsiLow <= 0 {
-				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.rsiLow = decimal.NewFromFloat(rsiLow)
-		case rsiPeriodKey:
-			rsiPeriod, ok := v.(float64)
-			if !ok || rsiPeriod <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
-		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
-		}
+func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
+	s.SetDefaults()
+	if len(customSettings) == 0 {
+		return nil
+	}
+	var customData CustomSettings
+	err := json.Unmarshal(customSettings, &customData)
+	if err != nil {
+		return err
+	}
+	err = customData.validate()
+	if err != nil {
+		return err
+	}
+	if customData.RSILow > 0 {
+		s.settings.RSILow = customData.RSILow
+	}
+	if customData.RSIHigh > 0 {
+		s.settings.RSIHigh = customData.RSIHigh
+	}
+	if customData.RSIPeriod > 0 {
+		s.settings.RSIPeriod = customData.RSIPeriod
 	}
 
+	for i := range customData.AdditionalCandles {
+		err = customData.AdditionalCandles[i].validate()
+		if err != nil {
+			return err
+		}
+		s.settings.AdditionalCandles = append(s.settings.AdditionalCandles, customData.AdditionalCandles[i])
+	}
 	return nil
+}
+
+func (r *rsiSettings) validate() error {
+	if r.RSIHigh == 0 && r.RSILow == 0 && r.RSIPeriod == 0 {
+		return base.ErrInvalidCustomSettings
+	}
+
 }
 
 // SetDefaults sets the custom settings to their default values
 func (s *Strategy) SetDefaults() {
-	s.rsiHigh = decimal.NewFromInt(70)
-	s.rsiLow = decimal.NewFromInt(30)
-	s.rsiPeriod = decimal.NewFromInt(14)
+	s.settings.RSIHigh = 70
+	s.settings.RSILow = 30
+	s.settings.RSIPeriod = 14
 }
 
 // massageMissingData will replace missing data with the previous candle's data
@@ -162,15 +184,15 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
-		if data[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
+		if data[i].IsZero() && i > int(s.settings.RSIPeriod) {
 			data[i] = data[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
 		}
-		if missingDataStreak >= s.rsiPeriod.IntPart() {
+		if missingDataStreak >= s.settings.RSIPeriod {
 			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w",
-				s.rsiPeriod,
+				s.settings.RSIPeriod,
 				t.Format(gctcommon.SimpleTimeFormat),
 				base.ErrTooMuchBadData)
 		}

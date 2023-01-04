@@ -1,6 +1,7 @@
 package strategies
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -24,6 +25,6 @@ type Handler interface {
 	UsingSimultaneousProcessing() bool
 	SupportsSimultaneousProcessing() bool
 	SetSimultaneousProcessing(bool)
-	SetCustomSettings(map[string]interface{}) error
+	SetCustomSettings([]json.RawMessage) error
 	SetDefaults()
 }

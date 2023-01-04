@@ -1,6 +1,8 @@
 package base
 
 import (
+	"encoding/json"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -10,6 +12,16 @@ import (
 type Strategy struct {
 	useSimultaneousProcessing bool
 	usingExchangeLevelFunding bool
+}
+
+// SetCustomSettings converts json structs into custom types
+// defined inside individual strategies to allow for more fine-tuned
+// customised strategies
+func (s *Strategy) SetCustomSettings(settings json.RawMessage) error {
+	if len(settings) == 0 {
+		return nil
+	}
+	return ErrCustomSettingsUnsupported
 }
 
 // GetBaseData returns the non-interface version of the Handler
