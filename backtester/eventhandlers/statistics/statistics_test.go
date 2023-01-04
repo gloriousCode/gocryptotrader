@@ -68,8 +68,8 @@ func TestAddDataEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
@@ -116,16 +116,16 @@ func TestAddSignalEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base:       b,
 		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -166,8 +166,8 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&order.Order{
 		Base:       b,
@@ -179,8 +179,8 @@ func TestAddExchangeEventForTime(t *testing.T) {
 		OrderType:  gctorder.Stop,
 		Leverage:   eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -223,8 +223,8 @@ func TestAddFillEventForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&fill.Fill{
 		Base:                b,
@@ -236,8 +236,8 @@ func TestAddFillEventForTime(t *testing.T) {
 		ExchangeFee:         eleet,
 		Slippage:            eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -272,8 +272,8 @@ func TestAddHoldingsForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.AddHoldingsForTime(&holdings.Holding{
 		Pair:                         p,
@@ -295,8 +295,8 @@ func TestAddHoldingsForTime(t *testing.T) {
 		TotalValueLostToSlippage:     eleet,
 		TotalValueLost:               eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -336,16 +336,16 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.AddComplianceSnapshotForTime(compliance.Snapshot{
 		Timestamp: tt,
 	}, &fill.Fill{
 		Base: b,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -506,8 +506,8 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetEventForOffset(&fill.Fill{
@@ -526,8 +526,8 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		ExchangeFee:         eleet,
 		Slippage:            eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetEventForOffset(&signal.Signal{
@@ -541,8 +541,8 @@ func TestPrintAllEventsChronologically(t *testing.T) {
 		ClosePrice: eleet,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	s.PrintAllEventsChronologically()
@@ -581,8 +581,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleet,
 		Volume: eleet,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
@@ -600,8 +600,8 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetupEventForTime(&kline.Kline{
 		Base: &event.Base{
@@ -618,8 +618,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetEventForOffset(&signal.Signal{
@@ -638,8 +638,8 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleet,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -657,8 +657,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
@@ -676,8 +676,8 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleeb,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetupEventForTime(&kline.Kline{
@@ -695,8 +695,8 @@ func TestCalculateTheResults(t *testing.T) {
 		High:   eleeb,
 		Volume: eleeb,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: &event.Base{
@@ -714,8 +714,8 @@ func TestCalculateTheResults(t *testing.T) {
 		Volume:     eleeb,
 		Direction:  gctorder.Buy,
 	})
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	s.ExchangeAssetPairStatistics[exch][a][p].Events[1].Holdings.QuoteInitialFunds = eleet

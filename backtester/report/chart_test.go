@@ -145,8 +145,8 @@ func TestCreatePNLCharts(t *testing.T) {
 		},
 	})
 	err = d.enhanceCandles()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = createPNLCharts(d.Statistics.ExchangeAssetPairStatistics)

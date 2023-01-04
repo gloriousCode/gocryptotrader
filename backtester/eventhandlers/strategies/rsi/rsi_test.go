@@ -40,8 +40,8 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	coolJSON := []byte(`{
 		"rsi-low": 30,
@@ -50,13 +50,13 @@ func TestSetCustomSettings(t *testing.T) {
 	}`)
 
 	err = s.SetCustomSettings(coolJSON)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	err = s.SetCustomSettings(nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	coolJSON = []byte(`{
@@ -64,8 +64,17 @@ func TestSetCustomSettings(t *testing.T) {
 		"how-do-i-json": [{},{}]
 	}`)
 	err = s.SetCustomSettings(coolJSON)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, base.ErrInvalidCustomSettings) {
+		t.Errorf("received '%v' expected '%v'", err, base.ErrInvalidCustomSettings)
+	}
+
+	coolJSON = []byte(`{
+		"rsi-high": 70,
+		"rsi-period": 14
+	}`)
+	err = s.SetCustomSettings(coolJSON)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -113,8 +122,8 @@ func TestOnSignal(t *testing.T) {
 
 	s.settings.RSIPeriod = 1
 	_, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	da.Item = &gctkline.Item{
@@ -134,19 +143,19 @@ func TestOnSignal(t *testing.T) {
 		},
 	}
 	err = da.Load()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	ranger, err := gctkline.CalculateCandleDateRanges(dStart, dEnd, gctkline.OneDay, 100000)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	da.RangeHolder = ranger
 	da.RangeHolder.SetHasDataFromCandles(da.Item.Candles)
 	resp, err = s.OnSignal(da, nil, nil)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if resp.GetDirection() != order.DoNothing {
 		t.Error("expected do nothing")

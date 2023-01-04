@@ -58,8 +58,8 @@ func TestValidateDate(t *testing.T) {
 	t.Parallel()
 	c := Config{}
 	err := c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	c.DataSettings = DataSettings{
 		DatabaseData: &DatabaseData{},
@@ -76,8 +76,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.DatabaseData.EndDate = c.DataSettings.DatabaseData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	c.DataSettings.APIData = &APIData{}
 	err = c.validateDate()
@@ -92,8 +92,8 @@ func TestValidateDate(t *testing.T) {
 	}
 	c.DataSettings.APIData.EndDate = c.DataSettings.APIData.StartDate.Add(time.Minute)
 	err = c.validateDate()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -127,8 +127,8 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 	c.CurrencySettings[0].ExchangeName = "lol"
 	err = c.validateCurrencySettings()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	c.CurrencySettings = []CurrencySettings{
 		{
@@ -274,11 +274,11 @@ func TestPrintSettings(t *testing.T) {
 		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
-			CustomSettings: map[string]interface{}{
+			CustomSettings: json.RawMessage(`{
 				"dca-dummy1": 30.0,
 				"dca-dummy2": 30.0,
 				"dca-dummy3": 30.0,
-			},
+			}`),
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -383,16 +383,16 @@ func TestReadStrategyConfigFromFile(t *testing.T) {
 		t.Fatalf("Problem creating temp file at %v: %s\n", passFile, err)
 	}
 	_, err = passFile.WriteString("{}")
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	err = passFile.Close()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	_, err = ReadStrategyConfigFromFile(passFile.Name())
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = ReadStrategyConfigFromFile("test")
@@ -897,11 +897,11 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
 			Name: "rsi",
-			CustomSettings: map[string]interface{}{
+			CustomSettings: json.RawMessage(`{
 				"rsi-low":    30.0,
 				"rsi-high":   70.0,
 				"rsi-period": 14,
-			},
+			}`),
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1153,11 +1153,11 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			Name:                         top2bottom2.Name,
 			SimultaneousSignalProcessing: true,
 
-			CustomSettings: map[string]interface{}{
+			CustomSettings: json.RawMessage(`{
 				"mfi-low":    32,
 				"mfi-high":   68,
 				"mfi-period": 14,
-			},
+			}`),
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,

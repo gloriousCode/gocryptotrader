@@ -13,22 +13,22 @@ import (
 func TestLoadBacktesterConfig(t *testing.T) {
 	t.Parallel()
 	cfg, err := GenerateDefaultConfig()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	testConfig, err := json.Marshal(cfg)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	dir := t.TempDir()
 	f := filepath.Join(dir, "test.config")
 	err = file.Write(f, testConfig)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	_, err = ReadBacktesterConfigFromPath(f)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	_, err = ReadBacktesterConfigFromPath("test")
@@ -40,8 +40,8 @@ func TestLoadBacktesterConfig(t *testing.T) {
 func TestGenerateDefaultConfig(t *testing.T) {
 	t.Parallel()
 	cfg, err := GenerateDefaultConfig()
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if !cfg.PrintLogo {
 		t.Errorf("received '%v' expected '%v'", cfg.PrintLogo, true)

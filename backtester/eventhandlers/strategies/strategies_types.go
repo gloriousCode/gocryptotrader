@@ -25,6 +25,6 @@ type Handler interface {
 	UsingSimultaneousProcessing() bool
 	SupportsSimultaneousProcessing() bool
 	SetSimultaneousProcessing(bool)
-	SetCustomSettings([]json.RawMessage) error
+	SetCustomSettings(json.RawMessage) error
 	SetDefaults()
 }

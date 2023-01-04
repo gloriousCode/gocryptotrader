@@ -135,8 +135,8 @@ func TestGetDataForCurrency(t *testing.T) {
 		CurrencyPair: p,
 	}}
 	result, err := d.GetDataForCurrency(ev)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	if result != nil {
 		t.Error("expected nil")

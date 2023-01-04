@@ -1,6 +1,7 @@
 package rsi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -134,9 +135,15 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 		return nil
 	}
 	var customData CustomSettings
-	err := json.Unmarshal(customSettings, &customData)
+
+	decoder := json.NewDecoder(bytes.NewReader(customSettings))
+	// can't trust custom settings with extra fields
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&customData)
 	if err != nil {
-		return err
+		// json decoder does not have an exported recognisable error
+		// wrap it in something we can verify
+		return fmt.Errorf("%w %s", base.ErrInvalidCustomSettings, err)
 	}
 	err = customData.validate()
 	if err != nil {
@@ -166,7 +173,7 @@ func (r *rsiSettings) validate() error {
 	if r.RSIHigh == 0 && r.RSILow == 0 && r.RSIPeriod == 0 {
 		return base.ErrInvalidCustomSettings
 	}
-
+	return nil
 }
 
 // SetDefaults sets the custom settings to their default values

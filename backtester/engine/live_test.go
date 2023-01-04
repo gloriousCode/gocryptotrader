@@ -44,8 +44,8 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.Interval = gctkline.OneDay
 	cfg.DataSettings.DataType = common.CandleStr
 	err = loadLiveData(cfg, b)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 
 	cfg.DataSettings.LiveData.APIKeyOverride = "1234"
@@ -54,7 +54,7 @@ func TestLoadLiveData(t *testing.T) {
 	cfg.DataSettings.LiveData.API2FAOverride = "1234"
 	cfg.DataSettings.LiveData.APISubAccountOverride = "1234"
 	err = loadLiveData(cfg, b)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }

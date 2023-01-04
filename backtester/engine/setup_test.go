@@ -180,8 +180,8 @@ func TestLoadDataAPI(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }
 
@@ -368,8 +368,8 @@ func TestLoadDataLive(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true}}
 	_, err = bt.loadData(cfg, exch, cp, asset.Spot, false)
-	if err != nil {
-		t.Error(err)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	bt.Stop()
 }
