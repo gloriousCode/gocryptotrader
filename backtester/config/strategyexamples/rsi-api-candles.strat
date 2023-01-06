@@ -6,9 +6,18 @@
   "use-simultaneous-signal-processing": false,
   "disable-usd-tracking": false,
   "custom-settings": {
+  "candle-interval":120000000000,
    "rsi-high": 70,
    "rsi-low": 30,
-   "rsi-period": 14
+   "rsi-period": 14,
+   "additional-candles": [
+    {
+        "candle-interval":240000000000,
+        "rsi-high": 77,
+        "rsi-low": 44,
+        "rsi-period": 14
+    }
+   ]
   }
  },
  "funding-settings": {

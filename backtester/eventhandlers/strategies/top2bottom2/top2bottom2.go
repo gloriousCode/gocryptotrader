@@ -1,6 +1,7 @@
 package top2bottom2
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -108,7 +109,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if offset <= int(s.mfiPeriod.IntPart()) {
 			es.AppendReason("Not enough data for signal generation")
 			es.SetDirection(order.DoNothing)
-			resp = append(resp, &es)
+			resp = append(resp, es)
 			continue
 		}
 
@@ -138,19 +139,19 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if !d[i].HasDataAtTime(d[i].Latest().GetTime()) {
 			es.SetDirection(order.MissingData)
 			es.AppendReasonf("missing data at %v, cannot perform any actions. MFI %v", d[i].Latest().GetTime(), latestMFI)
-			resp = append(resp, &es)
+			resp = append(resp, es)
 			continue
 		}
 
 		es.SetDirection(order.DoNothing)
 		es.AppendReasonf("MFI at %v", latestMFI)
 
-		funds, err := f.GetFundingForEvent(&es)
+		funds, err := f.GetFundingForEvent(es)
 		if err != nil {
 			return nil, err
 		}
 		mfiFundEvents = append(mfiFundEvents, mfiFundEvent{
-			event: &es,
+			event: es,
 			mfi:   latestMFI,
 			funds: funds.FundReader(),
 		})
@@ -192,33 +193,34 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 }
 
 // SetCustomSettings allows a user to modify the MFI limits in their config
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	for k, v := range customSettings {
-		switch k {
-		case mfiHighKey:
-			mfiHigh, ok := v.(float64)
-			if !ok || mfiHigh <= 0 {
-				return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiHigh = decimal.NewFromFloat(mfiHigh)
-		case mfiLowKey:
-			mfiLow, ok := v.(float64)
-			if !ok || mfiLow <= 0 {
-				return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiLow = decimal.NewFromFloat(mfiLow)
-		case mfiPeriodKey:
-			mfiPeriod, ok := v.(float64)
-			if !ok || mfiPeriod <= 0 {
-				return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
-		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
-		}
-	}
-
+func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 	return nil
+	//for k, v := range customSettings {
+	//	switch k {
+	//	case mfiHighKey:
+	//		mfiHigh, ok := v.(float64)
+	//		if !ok || mfiHigh <= 0 {
+	//			return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+	//		}
+	//		s.mfiHigh = decimal.NewFromFloat(mfiHigh)
+	//	case mfiLowKey:
+	//		mfiLow, ok := v.(float64)
+	//		if !ok || mfiLow <= 0 {
+	//			return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+	//		}
+	//		s.mfiLow = decimal.NewFromFloat(mfiLow)
+	//	case mfiPeriodKey:
+	//		mfiPeriod, ok := v.(float64)
+	//		if !ok || mfiPeriod <= 0 {
+	//			return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+	//		}
+	//		s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
+	//	default:
+	//		return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
+	//	}
+	//}
+	//
+	//return nil
 }
 
 // SetDefaults sets the custom settings to their default values

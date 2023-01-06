@@ -1,6 +1,7 @@
 package ftxcashandcarry
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -87,13 +88,13 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if len(pos) > 0 && pos[len(pos)-1].Status == order.Open {
 			futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].CollateralCurrency)
 		}
-		if f.HasExchangeBeenLiquidated(&spotSignal) || f.HasExchangeBeenLiquidated(&futuresSignal) {
+		if f.HasExchangeBeenLiquidated(spotSignal) || f.HasExchangeBeenLiquidated(futuresSignal) {
 			spotSignal.AppendReason("cannot transact, has been liquidated")
 			futuresSignal.AppendReason("cannot transact, has been liquidated")
-			response = append(response, &spotSignal, &futuresSignal)
+			response = append(response, spotSignal, futuresSignal)
 			continue
 		}
-		signals, err := s.createSignals(pos, &spotSignal, &futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
+		signals, err := s.createSignals(pos, spotSignal, futuresSignal, diffBetweenFuturesSpot, v.futureSignal.IsLastEvent())
 		if err != nil {
 			return nil, err
 		}
@@ -198,27 +199,28 @@ func sortSignals(d []data.Handler) (map[currency.Pair]cashCarrySignals, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	for k, v := range customSettings {
-		switch k {
-		case openShortDistancePercentageString:
-			osdp, ok := v.(float64)
-			if !ok || osdp <= 0 {
-				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
-		case closeShortDistancePercentageString:
-			csdp, ok := v.(float64)
-			if !ok || csdp <= 0 {
-				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
-		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
-		}
-	}
-
+func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 	return nil
+	//for k, v := range customSettings {
+	//	switch k {
+	//	case openShortDistancePercentageString:
+	//		osdp, ok := v.(float64)
+	//		if !ok || osdp <= 0 {
+	//			return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+	//		}
+	//		s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
+	//	case closeShortDistancePercentageString:
+	//		csdp, ok := v.(float64)
+	//		if !ok || csdp <= 0 {
+	//			return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
+	//		}
+	//		s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
+	//	default:
+	//		return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
+	//	}
+	//}
+	//
+	//return nil
 }
 
 // SetDefaults sets default values for overridable custom settings

@@ -541,7 +541,6 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			Name:                         request.Config.StrategySettings.Name,
 			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
 			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
-			CustomSettings:               customSettings,
 		},
 		FundingSettings: config.FundingSettings{
 			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,

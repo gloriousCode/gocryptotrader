@@ -25,15 +25,15 @@ func (s *Strategy) SetCustomSettings(settings json.RawMessage) error {
 }
 
 // GetBaseData returns the non-interface version of the Handler
-func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
+func (s *Strategy) GetBaseData(d data.Handler) (*signal.Signal, error) {
 	if d == nil {
-		return signal.Signal{}, common.ErrNilArguments
+		return nil, common.ErrNilArguments
 	}
 	latest := d.Latest()
 	if latest == nil {
-		return signal.Signal{}, common.ErrNilEvent
+		return nil, common.ErrNilEvent
 	}
-	return signal.Signal{
+	return &signal.Signal{
 		Base:       latest.GetBase(),
 		ClosePrice: latest.GetClosePrice(),
 		HighPrice:  latest.GetHighPrice(),

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
@@ -364,15 +363,15 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
-	x := 0
-	for k, v := range defaultConfig.StrategySettings.CustomSettings {
-		customSettings[x] = &btrpc.CustomSettings{
-			KeyField: k,
-			KeyValue: fmt.Sprintf("%v", v),
-		}
-		x++
-	}
+	//customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
+	//x := 0
+	//for k, v := range defaultConfig.StrategySettings.CustomSettings {
+	//	customSettings[x] = &btrpc.CustomSettings{
+	//		KeyField: k,
+	//		KeyValue: fmt.Sprintf("%v", v),
+	//	}
+	//	x++
+	//}
 
 	currencySettings := make([]*btrpc.CurrencySettings, len(defaultConfig.CurrencySettings))
 	for i := range defaultConfig.CurrencySettings {
@@ -483,7 +482,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			Name:                            defaultConfig.StrategySettings.Name,
 			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
 			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
-			CustomSettings:                  customSettings,
+			//	CustomSettings:                  customSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{
 			UseExchangeLevelFunding: defaultConfig.FundingSettings.UseExchangeLevelFunding,

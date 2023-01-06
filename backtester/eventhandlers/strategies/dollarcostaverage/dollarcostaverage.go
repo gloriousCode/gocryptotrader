@@ -47,13 +47,13 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(order.MissingData)
 		es.AppendReasonf("missing data at %v, cannot perform any actions", d.Latest().GetTime())
-		return &es, nil
+		return es, nil
 	}
 
 	es.SetPrice(d.Latest().GetClosePrice())
 	es.SetDirection(order.Buy)
 	es.AppendReason("DCA purchases on every iteration")
-	return &es, nil
+	return es, nil
 }
 
 // SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
@@ -80,11 +80,6 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 		return nil, errs
 	}
 	return resp, nil
-}
-
-// SetCustomSettings not required for DCA
-func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
-	return base.ErrCustomSettingsUnsupported
 }
 
 // SetDefaults not required for DCA

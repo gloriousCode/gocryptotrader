@@ -28,7 +28,7 @@ const (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	settings CustomSettings
+	settings
 }
 
 // Name returns the name of the strategy
@@ -49,6 +49,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	if d == nil {
 		return nil, common.ErrNilEvent
 	}
+
 	es, err := s.GetBaseData(d)
 	if err != nil {
 		return nil, err
@@ -58,34 +59,72 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	if offset := d.Offset(); offset <= int(s.settings.RSIPeriod) {
 		es.AppendReason("Not enough data for signal generation")
 		es.SetDirection(order.DoNothing)
-		return &es, nil
+		return es, nil
 	}
-
 	dataRange := d.StreamClose()
-	var massagedData []float64
-	massagedData, err = s.massageMissingData(dataRange, es.GetTime())
+	massagedData, err := s.massageMissingData(dataRange, es.GetTime())
 	if err != nil {
 		return nil, err
 	}
-	rsi := indicators.RSI(massagedData, int(s.settings.RSIPeriod))
-	latestRSIValue := int64(rsi[len(rsi)-1])
+	k := &kline.Item{
+		Interval: es.Interval,
+	}
+	for j := range massagedData {
+		k.Candles = append(k.Candles, kline.Candle{
+			Close: massagedData[j],
+			Time:  massagedData[j],
+		})
+	}
+	latestRSIValue, direction, err := s.calculateRSI(k, &s.settings.rsiSettings)
+	if err != nil {
+		return nil, err
+	}
 	if !d.HasDataAtTime(d.Latest().GetTime()) {
 		es.SetDirection(order.MissingData)
 		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", d.Latest().GetTime(), latestRSIValue)
-		return &es, nil
+		return es, nil
 	}
-
-	switch {
-	case latestRSIValue >= s.settings.RSIHigh:
-		es.SetDirection(order.Sell)
-	case latestRSIValue <= s.settings.RSILow:
-		es.SetDirection(order.Buy)
-	default:
+	es.AppendReasonf("RSI for %s at %v", es.Interval, latestRSIValue)
+	if direction == order.DoNothing {
 		es.SetDirection(order.DoNothing)
+		return es, nil
 	}
-	es.AppendReasonf("RSI at %v", latestRSIValue)
+	for i := range s.settings.AdditionalCandles {
+		newKline, err := k.ConvertToNewInterval(s.settings.AdditionalCandles[i].CandleInterval)
+		if err != nil {
+			return nil, err
+		}
+		otherRSI, newDirection, err := s.calculateRSI(newKline, &s.settings.AdditionalCandles[i])
+		if err != nil {
+			return nil, err
+		}
+		if direction != newDirection {
+			es.AppendReasonf("RSI for %s at %v", s.settings.AdditionalCandles[i].CandleInterval, otherRSI)
+			es.SetDirection(order.DoNothing)
+			return es, nil
+		}
+	}
 
-	return &es, nil
+	return es, nil
+}
+
+func (s *Strategy) calculateRSI(item *kline.Item, set *rsiSettings) (float64, order.Side, error) {
+	var slice []float64
+	for i := range item.Candles {
+		slice = append(slice, item.Candles[i].Close)
+	}
+	rsi := indicators.RSI(slice, int(set.RSIPeriod))
+	latestRSIValue := rsi[len(rsi)-1]
+	var direction order.Side
+	switch {
+	case latestRSIValue >= set.RSIHigh:
+		direction = order.Sell
+	case latestRSIValue <= set.RSILow:
+		direction = order.Buy
+	default:
+		direction = order.DoNothing
+	}
+	return latestRSIValue, direction, nil
 }
 
 // SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
@@ -115,15 +154,15 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 	return resp, nil
 }
 
-type CustomSettings struct {
+type settings struct {
 	rsiSettings
 	AdditionalCandles []rsiSettings `json:"additional-candles"`
 }
 
 type rsiSettings struct {
 	CandleInterval kline.Interval `json:"candle-interval"`
-	RSILow         int64          `json:"rsi-low"`
-	RSIHigh        int64          `json:"rsi-high"`
+	RSILow         float64        `json:"rsi-low"`
+	RSIHigh        float64        `json:"rsi-high"`
 	RSIPeriod      int64          `json:"rsi-period"`
 	Data           interface{}    `json:"-"`
 }
@@ -134,7 +173,7 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 	if len(customSettings) == 0 {
 		return nil
 	}
-	var customData CustomSettings
+	var customData settings
 
 	decoder := json.NewDecoder(bytes.NewReader(customSettings))
 	// can't trust custom settings with extra fields

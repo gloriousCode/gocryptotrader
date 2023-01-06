@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
@@ -81,7 +82,7 @@ func (s *CustomStrategy) createSignal(d data.Handler) (*signal.Signal, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *CustomStrategy) SetCustomSettings(map[string]interface{}) error {
+func (s *CustomStrategy) SetCustomSettings(json.RawMessage) error {
 	return base.ErrCustomSettingsUnsupported
 }
 
