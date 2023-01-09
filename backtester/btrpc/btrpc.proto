@@ -297,8 +297,6 @@ service BacktesterService {
     option (google.api.http) = {delete: "/v1/clearalltasks"};
   }
   rpc SetLeverageForTask(SetLeverageForTaskRequest) returns (SetLeverageForTaskResponse) {
-    option (google.api.http) = {
-      post: "/v1/setleveragefortask"
-    };
+    option (google.api.http) = {post: "/v1/setleveragefortask"};
   }
 }
