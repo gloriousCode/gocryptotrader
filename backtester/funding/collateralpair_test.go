@@ -239,7 +239,7 @@ func TestCollateralReserve(t *testing.T) {
 		contract: &Item{asset: asset.Futures},
 	}
 	var expectedError error
-	err := c.Reserve(decimal.NewFromInt(1), gctorder.Long)
+	err := c.Reserve(decimal.NewFromInt(1), gctorder.Long, false, 0)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -250,7 +250,7 @@ func TestCollateralReserve(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1336))
 	}
 
-	err = c.Reserve(decimal.NewFromInt(1), gctorder.Short)
+	err = c.Reserve(decimal.NewFromInt(1), gctorder.Short, false, 0)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -261,7 +261,7 @@ func TestCollateralReserve(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.NewFromInt(1335))
 	}
 
-	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition)
+	err = c.Reserve(decimal.NewFromInt(2), gctorder.ClosePosition, false, 0)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -273,7 +273,7 @@ func TestCollateralReserve(t *testing.T) {
 	}
 
 	expectedError = errCannotAllocate
-	err = c.Reserve(decimal.NewFromInt(2), gctorder.Buy)
+	err = c.Reserve(decimal.NewFromInt(2), gctorder.Buy, false, 0)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}

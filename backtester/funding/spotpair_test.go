@@ -97,23 +97,23 @@ func TestReservePair(t *testing.T) {
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Buy, false, 0)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
-	err = pairItems.Reserve(elite, gctorder.Buy)
+	err = pairItems.Reserve(elite, gctorder.Buy, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Sell, false, 0)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
-	err = pairItems.Reserve(elite, gctorder.Sell)
+	err = pairItems.Reserve(elite, gctorder.Sell, false, 0)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
-	err = pairItems.Reserve(elite, gctorder.DoNothing)
+	err = pairItems.Reserve(elite, gctorder.DoNothing, false, 0)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}
@@ -132,19 +132,19 @@ func TestReleasePair(t *testing.T) {
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Buy, false, 0)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
-	err = pairItems.Reserve(elite, gctorder.Buy)
+	err = pairItems.Reserve(elite, gctorder.Buy, false, 0)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Sell, false, 0)
 	if !errors.Is(err, errZeroAmountReceived) {
 		t.Errorf("received '%v' expected '%v'", err, errZeroAmountReceived)
 	}
-	err = pairItems.Reserve(elite, gctorder.Sell)
+	err = pairItems.Reserve(elite, gctorder.Sell, false, 0)
 	if !errors.Is(err, errCannotAllocate) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotAllocate)
 	}

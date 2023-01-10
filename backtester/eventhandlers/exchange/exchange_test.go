@@ -71,11 +71,11 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(leet, gctorder.Buy)
+	err = p.Reserve(leet, gctorder.Buy, false, 0)
 	if err != nil {
 		return nil, err
 	}
-	err = p.Reserve(leet, gctorder.Sell)
+	err = p.Reserve(leet, gctorder.Sell, false, 0)
 	if err != nil {
 		return nil, err
 	}

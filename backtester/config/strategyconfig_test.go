@@ -26,7 +26,7 @@ const (
 	mainExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -1485,29 +1485,29 @@ func TestGenerateConfigForLeveragedRSI(t *testing.T) {
 		t.Skip()
 	}
 	cfg := Config{
-		Nickname: "ExampleFTXLeveragedRSI",
-		Goal:     "To demonstrate an RSI strategy using leverage to maximise gains (and maybe losses)",
+		Nickname: "ExampleBinanceLeveragedRSI",
+		Goal:     "To demonstrate an RSI strategy using leverage to maximise gains (and likely losses)",
 		StrategySettings: StrategySettings{
-			Name:                         "ftx-leveraged-rsi",
+			Name:                         "rsi",
 			SimultaneousSignalProcessing: true,
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,
 			ExchangeLevelFunding: []ExchangeLevelFunding{
 				{
-					ExchangeName: "ftx",
-					Asset:        asset.Spot,
-					Currency:     currency.USD,
+					ExchangeName: "binance",
+					Asset:        asset.USDTMarginedFutures,
+					Currency:     currency.USDT,
 					InitialFunds: *initialFunds100000,
 				},
 			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
-				ExchangeName:            "ftx",
-				Asset:                   asset.Futures,
-				Base:                    currency.BTC,
-				Quote:                   currency.NewCode("20190329"),
+				ExchangeName:            "binance",
+				Asset:                   asset.USDTMarginedFutures,
+				Base:                    currency.NewCode("BTCUSDT"),
+				Quote:                   currency.NewCode("221230"),
 				MakerFee:                &makerFee,
 				TakerFee:                &takerFee,
 				SkipCandleVolumeFitting: true,
@@ -1521,8 +1521,8 @@ func TestGenerateConfigForLeveragedRSI(t *testing.T) {
 			Interval: kline.OneDay,
 			DataType: common.CandleStr,
 			APIData: &APIData{
-				StartDate: time.Date(2019, 3, 29, 12, 0, 0, 0, time.UTC),
-				EndDate:   time.Date(2019, 9, 29, 12, 0, 0, 0, time.UTC),
+				StartDate: time.Date(2022, 9, 23, 0, 0, 0, 0, time.UTC),
+				EndDate:   time.Date(2022, 12, 30, 0, 0, 0, 0, time.UTC),
 			},
 		},
 		StatisticSettings: StatisticSettings{
@@ -1538,7 +1538,7 @@ func TestGenerateConfigForLeveragedRSI(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = os.WriteFile(filepath.Join(p, "strategyexamples", "ftx-leveraged-rsi.strat"), result, file.DefaultPermissionOctal)
+		err = os.WriteFile(filepath.Join(p, "strategyexamples", "binance-leveraged-rsi.strat"), result, file.DefaultPermissionOctal)
 		if err != nil {
 			t.Error(err)
 		}

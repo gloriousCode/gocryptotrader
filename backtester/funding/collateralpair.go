@@ -81,10 +81,10 @@ func (c *CollateralPair) ReleaseContracts(amount decimal.Decimal) error {
 }
 
 // Reserve reserves or releases collateral based on order side
-func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) error {
+func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side, canUseLeverage bool, leverage float64) error {
 	switch side {
 	case gctorder.Long, gctorder.Short, gctorder.ClosePosition:
-		return c.collateral.Reserve(amount)
+		return c.collateral.Reserve(amount, canUseLeverage, leverage)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			errCannotAllocate,

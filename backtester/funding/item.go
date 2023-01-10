@@ -10,9 +10,12 @@ import (
 
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
-func (i *Item) Reserve(amount decimal.Decimal) error {
+func (i *Item) Reserve(amount decimal.Decimal, canUseLeverage bool, leverage float64) error {
 	if amount.LessThanOrEqual(decimal.Zero) {
 		return errZeroAmountReceived
+	}
+	if canUseLeverage && leverage > 0 {
+		amount = amount.Div(decimal.NewFromFloat(leverage))
 	}
 	if amount.GreaterThan(i.available) {
 		return fmt.Errorf("%w for %v %v %v. Requested %v Available: %v",

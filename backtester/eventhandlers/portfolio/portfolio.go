@@ -40,6 +40,10 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	p.m.Lock()
 	canUseLeverage := p.canUseLeverage
 	leverage := p.targetLeverage
+	eventLeverage := ev.GetLeverage()
+	if eventLeverage > 0 && eventLeverage != leverage {
+		leverage = eventLeverage
+	}
 	p.m.Unlock()
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
@@ -125,21 +129,21 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	if sizingFunds.LessThanOrEqual(decimal.Zero) {
 		return cannotPurchase(ev, o, sizingFunds)
 	}
-	req := &size.Request{
-		OrderEvent:      nil,
-		AmountAvailable: sizingFunds,
-		Settings:        nil,
-		CanUseLeverage:  false,
-		Leverage:        0,
-	}
-	if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
-		marginRequirements, err := exchangeSettings.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair().Base.Item)
-		if err != nil {
-			return nil, err
-		}
-		req.MarginRequirements = marginRequirements
 
-	}
+	//req := &size.Request{
+	//	OrderEvent:      o,
+	//	AmountAvailable: sizingFunds,
+	//	Settings:        exchangeSettings,
+	//	CanUseLeverage:  p.canUseLeverage,
+	//	Leverage:        ev.GetLeverage(),
+	//}
+	//if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
+	//	marginRequirements, err := exchangeSettings.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair().Base.Item)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	req.MarginRequirements = marginRequirements
+	//}
 	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds, canUseLeverage, leverage)
 	if err != nil {
 		return sizedOrder, err
@@ -249,7 +253,7 @@ func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, origi
 	default:
 		return nil, errInvalidDirection
 	}
-	err = funds.Reserve(sizeResponse.Order.AllocatedFunds, d.GetDirection())
+	err = funds.Reserve(sizeResponse.Order.AllocatedFunds, d.GetDirection(), canUseLeverage, leverage)
 	if err != nil {
 		sizeResponse.Order.Direction = gctorder.DoNothing
 		return sizeResponse.Order, err
@@ -516,6 +520,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader fundi
 	if !position.Status.IsInactive() &&
 		pnl.Result.UnrealisedPNL.IsNegative() &&
 		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
+		// TODO fix leverage understanding here
 		return gctorder.ErrPositionLiquidated
 	}
 

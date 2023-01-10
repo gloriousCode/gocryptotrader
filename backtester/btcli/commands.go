@@ -523,7 +523,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			ClosePositionsOnStop:      defaultConfig.DataSettings.LiveData.ClosePositionsOnStop,
 			DataRequestRetryTolerance: defaultConfig.DataSettings.LiveData.DataRequestRetryTolerance,
 			DataRequestRetryWaitTime:  defaultConfig.DataSettings.LiveData.DataRequestRetryWaitTime.Nanoseconds(),
-			Credentials:               creds,
+			// Credentials:               creds,
 		}
 	}
 	if defaultConfig.DataSettings.CSVData != nil {

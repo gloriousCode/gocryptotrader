@@ -90,7 +90,7 @@ type IFundReader interface {
 type IFundReserver interface {
 	IFundReader
 	CanPlaceOrder(order.Side) bool
-	Reserve(decimal.Decimal, order.Side) error
+	Reserve(decimal.Decimal, order.Side, bool, float64) error
 }
 
 // IFundReleaser can read

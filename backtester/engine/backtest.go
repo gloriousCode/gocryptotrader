@@ -518,7 +518,7 @@ func (bt *BackTest) processFillEvent(ev fill.Event, funds funding.IFundReleaser)
 	if err != nil {
 		return fmt.Errorf("OnFill %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}
-	err = bt.Funding.UpdateCollateralForEvent(ev, false)
+	err = bt.Funding.UpdateCollateralForEvent(ev, bt.LiveDataHandler != nil)
 	if err != nil {
 		return fmt.Errorf("UpdateCollateralForEvent %v %v %v %v", ev.GetExchange(), ev.GetAssetType(), ev.Pair(), err)
 	}

@@ -27,10 +27,7 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}
 
 	if req.CanUseLeverage && req.Leverage > 1 {
-		_, err := s.determineLeverage(req)
-		if err != nil {
-			return nil, err
-		}
+		return s.determineLeverage(retOrder, req)
 	}
 
 	if fde := req.OrderEvent.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
@@ -47,7 +44,7 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}, nil
 }
 
-func (s *Size) determineLeverage(req *Request) (*Response, error) {
+func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response, error) {
 	if req.CanUseLeverage && req.Leverage > 1 && !req.OrderEvent.GetAssetType().IsFutures() {
 		return nil, ErrCantUseLeverageAndMatchOrderAmount
 	}
@@ -71,10 +68,18 @@ func (s *Size) determineLeverage(req *Request) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	lev := decimal.NewFromFloat(req.Leverage)
-	letsDoIt := collateral.AvailableForUseAsCollateral.Mul(lev.Sub(collateral.LeverageRatio)).Mul(req.OrderEvent.GetClosePrice())
-	fmt.Println(letsDoIt)
-	return nil, nil
+	requestedLeverage := decimal.NewFromFloat(req.Leverage)
+	availableLeverage := collateral.AvailableForUseAsCollateral.Mul(requestedLeverage.Sub(collateral.LeverageRatio))
+	sizedLeverage, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, availableLeverage, req.Settings, retOrder)
+	if err != nil {
+		return nil, err
+	}
+
+	retOrder.SetAmount(sizedLeverage)
+	return &Response{
+		Order: retOrder,
+		Fee:   estFee,
+	}, nil
 }
 
 func (s *Size) sizeOrderAndFillDependentEvent(req *Request, fde signal.Event, retOrder *order.Order) (*Response, error) {

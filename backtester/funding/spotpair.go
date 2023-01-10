@@ -37,15 +37,20 @@ func (p *SpotPair) QuoteAvailable() decimal.Decimal {
 	return p.quote.available
 }
 
+var errNoLeverageForSpotTheDog = errors.New("margin not yet supported")
+
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
 // changes which currency to affect based on the order side
-func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side) error {
+func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side, canUseLeverage bool, leverage float64) error {
+	if canUseLeverage && leverage > 0 {
+		return errNoLeverageForSpotTheDog
+	}
 	switch side {
 	case order.Buy, order.Bid:
-		return p.quote.Reserve(amount)
+		return p.quote.Reserve(amount, canUseLeverage, leverage)
 	case order.Sell, order.Ask, order.ClosePosition:
-		return p.base.Reserve(amount)
+		return p.base.Reserve(amount, canUseLeverage, leverage)
 	default:
 		return fmt.Errorf("%w for %v %v %v. Unknown side %v",
 			errCannotAllocate,

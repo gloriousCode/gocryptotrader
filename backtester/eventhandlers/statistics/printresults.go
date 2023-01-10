@@ -167,14 +167,20 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			if ev.IsLiquidated() {
 				colour = common.CMDColours.Error
 			}
+			od := ev.GetOrder()
+			var leveraged string
+			if od.Leverage > 1 {
+				leveraged = fmt.Sprintf("%vx leverage ", od.Leverage)
+			}
 			result = fmt.Sprintf(colour+
-				"%v %v%v%v| Price: %v\tDirection %v\tOrder placed: Amount: %v\tFee: %v\tTotal: %v",
+				"%v %v%v%v| Price: %v\tDirection %v\t%vOrder placed: Amount: %v\tFee: %v\tTotal: %v",
 				ev.GetTime().Format(gctcommon.SimpleTimeFormat),
 				fSIL(ev.GetExchange(), limit12),
 				fSIL(ev.GetAssetType().String(), limit10),
 				fSIL(ev.Pair().String(), limit14),
 				ev.GetPurchasePrice().Round(8),
 				ev.GetDirection(),
+				leveraged,
 				ev.GetAmount().Round(8),
 				ev.GetExchangeFee(),
 				ev.GetTotal().Round(8))

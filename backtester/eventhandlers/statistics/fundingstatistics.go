@@ -33,15 +33,11 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 	for i := range report.Items {
 		exchangeAssetStats, ok := currStats[report.Items[i].Exchange][report.Items[i].Asset]
 		if !ok {
-			if report.Items[i].AppendedViaAPI {
-				// items added via API may not have been processed along with typical events
-				// are not relevant to calculating statistics
-				continue
-			}
-			return nil, fmt.Errorf("%w for %v %v",
-				errNoRelevantStatsFound,
-				report.Items[i].Exchange,
-				report.Items[i].Asset)
+			// items added via API may not have been processed along with typical events
+			// are not relevant to calculating statistics
+			// in addition, sometimes a currency just doesn't transact and thus has no stats
+			// its okay, it happens to every currency at some point
+			continue
 		}
 		var relevantStats []relatedCurrencyPairStatistics
 		for b, baseMap := range exchangeAssetStats {
@@ -94,7 +90,9 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		return nil, fmt.Errorf("%w and holding values", errMissingSnapshots)
 	}
 
-	usdStats.HoldingValueDifference = report.FinalFunds.Sub(report.InitialFunds).Div(report.InitialFunds).Mul(decimal.NewFromInt(100))
+	if !report.InitialFunds.IsZero() {
+		usdStats.HoldingValueDifference = report.FinalFunds.Sub(report.InitialFunds).Div(report.InitialFunds).Mul(decimal.NewFromInt(100))
+	}
 
 	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
 	returnsPerCandle := make([]decimal.Decimal, len(usdStats.HoldingValues))

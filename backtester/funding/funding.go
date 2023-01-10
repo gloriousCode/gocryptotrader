@@ -84,6 +84,7 @@ func (f *FundManager) LinkCollateralCurrency(item *Item, code currency.Code) err
 
 	for i := range f.items {
 		if f.items[i].currency.Equal(code) && f.items[i].asset == item.asset {
+			f.items[i].isCollateral = true
 			item.pairedWith = f.items[i]
 			return nil
 		}
@@ -336,8 +337,8 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 	snaps:
 		for _, snapshot := range f.items[x].snapshot {
 			pricingOverTime = append(pricingOverTime, snapshot)
-			if f.items[x].asset.IsFutures() || f.disableUSDTracking {
-				// futures contracts / collateral does not contribute to USD value
+			if (f.items[x].asset.IsFutures() && !f.items[x].isCollateral) || f.disableUSDTracking {
+				// futures contracts do not contribute to USD value
 				// no USD tracking means no USD values to breakdown
 				continue
 			}
@@ -427,7 +428,7 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 	} else {
 		sendAmount = amount.Add(sender.transferFee)
 	}
-	err := sender.Reserve(sendAmount)
+	err := sender.Reserve(sendAmount, false, 0)
 	if err != nil {
 		return err
 	}
@@ -697,7 +698,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	}
 
 	for i := range f.items {
-		if f.items[i].asset.IsFutures() {
+		if f.items[i].asset.IsFutures() && !f.items[i].isCollateral {
 			// futures positions aren't collateral, they utilise it
 			continue
 		}
@@ -721,9 +722,13 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 				usd = latest.GetClosePrice()
 			}
 		}
-		if usd.IsZero() {
+		// usdTracked := trackingcurrencies.CurrencyIsUSDTracked(f.items[i].currency)
+		if usd.IsZero() { /// && !usdTracked {
 			continue
 		}
+		//if usdTracked {
+		//	usd = decimal.NewFromInt(1)
+		//}
 		var side = gctorder.Buy
 		if !f.items[i].available.GreaterThan(decimal.Zero) {
 			side = gctorder.Sell

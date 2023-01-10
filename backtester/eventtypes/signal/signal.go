@@ -132,3 +132,7 @@ func (s *Signal) ToKline() kline.Event {
 func (s *Signal) SetLeverage(l float64) {
 	s.Leverage = l
 }
+
+func (s *Signal) GetLeverage() float64 {
+	return s.Leverage
+}

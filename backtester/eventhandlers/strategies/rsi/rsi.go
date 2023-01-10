@@ -92,9 +92,17 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 
 	switch {
 	case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
-		es.SetDirection(order.Sell)
+		if es.AssetType.IsFutures() {
+			es.SetDirection(order.Short)
+		} else {
+			es.SetDirection(order.Sell)
+		}
 	case latestRSIValue.LessThanOrEqual(s.rsiLow):
-		es.SetDirection(order.Buy)
+		if es.AssetType.IsFutures() {
+			es.SetDirection(order.Long)
+		} else {
+			es.SetDirection(order.Buy)
+		}
 	default:
 		es.SetDirection(order.DoNothing)
 	}
