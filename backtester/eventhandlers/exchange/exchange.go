@@ -356,6 +356,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		Type:             gctorder.Market,
 		RetrieveFees:     true,
 		RetrieveFeeDelay: time.Millisecond * 500,
+		Leverage:         f.GetOrder().Leverage,
 	}
 
 	var resp *engine.OrderSubmitResponse

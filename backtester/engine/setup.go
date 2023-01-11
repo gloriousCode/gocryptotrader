@@ -365,7 +365,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	var p *portfolio.Portfolio
-	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate, cfg.PortfolioSettings.CanUseLeverage, cfg.PortfolioSettings.TargetLeverage)
+	p, err = portfolio.Setup(sizeManager, portfolioRisk, cfg.StatisticSettings.RiskFreeRate, cfg.DataSettings.LiveData == nil, cfg.PortfolioSettings.CanUseLeverage, cfg.PortfolioSettings.TargetLeverage)
 	if err != nil {
 		return err
 	}

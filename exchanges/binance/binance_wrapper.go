@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"sort"
 	"strconv"
 	"strings"
@@ -1970,4 +1971,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 		return resp, nil
 	}
 	return nil, common.ErrNotYetImplemented
+}
+
+func (b *Binance) GetMarginRequirements(a asset.Item, c *currency.Item) (*margin.Requirements, error) {
+	return &margin.Requirements{
+		Exchange:                     b.Name,
+		Asset:                        a,
+		CurrencyItem:                 c,
+		InitialMarginRequirement:     decimal.Zero,
+		MaintenanceMarginRequirement: decimal.Zero,
+		CollateralScaling:            decimal.NewFromInt(1),
+	}, nil
 }

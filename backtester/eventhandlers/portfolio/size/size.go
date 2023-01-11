@@ -52,18 +52,22 @@ func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response
 	if err != nil {
 		return nil, err
 	}
+	req.MarginRequirements, err = req.Settings.Exchange.GetMarginRequirements(req.OrderEvent.GetAssetType(), req.OrderEvent.Pair().Base.Item)
+	if err != nil {
+		return nil, err
+	}
 
 	collateral, err := req.Settings.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
-		CalculateOffline:   true,
+		CalculateOffline:   req.CalculateOffline,
 		CollateralCurrency: collateralCurrency,
 		Asset:              req.Settings.Asset,
-		Side:               0,
-		USDPrice:           decimal.Decimal{},
+		Side:               req.OrderEvent.GetDirection(),
+		USDPrice:           req.OrderEvent.GetClosePrice(),
 		IsLiquidating:      req.OrderEvent.IsLiquidating(),
 		IsForNewPosition:   req.OrderEvent.IsAddingToPosition(),
 		FreeCollateral:     req.AmountAvailable,
-		LockedCollateral:   decimal.Decimal{},
-		UnrealisedPNL:      decimal.Decimal{},
+		LockedCollateral:   req.LockedCollateral,
+		UnrealisedPNL:      req.UnrealisedPNL,
 	})
 	if err != nil {
 		return nil, err
@@ -74,6 +78,7 @@ func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response
 	if err != nil {
 		return nil, err
 	}
+	retOrder.SetLeverage(sizedLeverage.Div(collateral.AvailableForUseAsCollateral))
 
 	retOrder.SetAmount(sizedLeverage)
 	return &Response{

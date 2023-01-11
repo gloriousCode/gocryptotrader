@@ -15,7 +15,7 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal, canUseLeverage bool, leverage float64) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal, calculateOffline, canUseLeverage bool, leverage float64) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -26,11 +26,12 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal, canUseL
 		return nil, errRiskManagerUnset
 	}
 	return &Portfolio{
-		riskFreeRate:   riskFreeRate,
-		sizeManager:    sh,
-		riskManager:    r,
-		canUseLeverage: canUseLeverage,
-		targetLeverage: leverage,
+		riskFreeRate:     riskFreeRate,
+		sizeManager:      sh,
+		riskManager:      r,
+		canUseLeverage:   canUseLeverage,
+		targetLeverage:   leverage,
+		calculateOffline: calculateOffline,
 	}, nil
 }
 

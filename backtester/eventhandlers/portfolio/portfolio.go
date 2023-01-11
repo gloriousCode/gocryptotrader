@@ -130,20 +130,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return cannotPurchase(ev, o, sizingFunds)
 	}
 
-	//req := &size.Request{
-	//	OrderEvent:      o,
-	//	AmountAvailable: sizingFunds,
-	//	Settings:        exchangeSettings,
-	//	CanUseLeverage:  p.canUseLeverage,
-	//	Leverage:        ev.GetLeverage(),
-	//}
-	//if canUseLeverage && leverage > 0 && ev.GetAssetType().IsFutures() {
-	//	marginRequirements, err := exchangeSettings.Exchange.GetMarginRequirements(ev.GetAssetType(), ev.Pair().Base.Item)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	req.MarginRequirements = marginRequirements
-	//}
 	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds, canUseLeverage, leverage)
 	if err != nil {
 		return sizedOrder, err
@@ -211,14 +197,16 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver, canUseLeverage bool, leverage float64) (*order.Order, error) {
+func (p *Portfolio) sizeOrder(d common.Directioner, exchangeSettings *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver, canUseLeverage bool, leverage float64) (*order.Order, error) {
 	sizeRequest := &size.Request{
-		OrderEvent:      originalOrderSignal,
-		AmountAvailable: sizingFunds,
-		Settings:        cs,
-		CanUseLeverage:  canUseLeverage,
-		Leverage:        leverage,
+		OrderEvent:       originalOrderSignal,
+		AmountAvailable:  sizingFunds,
+		Settings:         exchangeSettings,
+		CanUseLeverage:   canUseLeverage,
+		Leverage:         leverage,
+		CalculateOffline: p.calculateOffline,
 	}
+
 	sizeResponse, err := p.sizeManager.SizeOrder(sizeRequest)
 	if err != nil || sizeResponse.Order.Amount.IsZero() {
 		switch originalOrderSignal.Direction {

@@ -27,11 +27,14 @@ type Size struct {
 // Request is the request to size an order
 type Request struct {
 	OrderEvent         order.Event
-	AmountAvailable    decimal.Decimal
 	Settings           *exchange.Settings
 	CanUseLeverage     bool
+	CalculateOffline   bool
 	Leverage           float64
 	MarginRequirements *margin.Requirements
+	AmountAvailable    decimal.Decimal
+	LockedCollateral   decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
 }
 
 // Response is the response to size an order

@@ -303,6 +303,10 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.asset, dataSource.pair)
 		}
 	}
+	// TODO update this to be data-source agnostic
+	// ie there is nothing stopping live data sources being an orderbook update
+	// place this kind of logic in the data/kline/kline.go -> REtreiveLiveData() ?
+	// then you can use data.Event and also have a data/orderbook/orderbook.go
 	k := kline.NewDataFromKline()
 	k.Item = &gctkline.Item{
 		Exchange:       exchName,

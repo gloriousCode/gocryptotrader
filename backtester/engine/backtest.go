@@ -440,6 +440,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 		if bt.LiveDataHandler == nil || (bt.LiveDataHandler != nil && !bt.LiveDataHandler.IsRealOrders()) {
 			err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
 			if err != nil {
+				fmt.Sprintf("%v", pnl.Result.Exposure)
 				if errors.Is(err, gctorder.ErrPositionLiquidated) {
 					liquidErr := bt.triggerLiquidationsForExchange(ev, pnl)
 					if liquidErr != nil {
