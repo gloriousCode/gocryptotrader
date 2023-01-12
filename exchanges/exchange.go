@@ -1559,7 +1559,7 @@ func (b *Base) GetMinimumMarginFraction(asset.Item, currency.Pair) (decimal.Deci
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
-func (b *Base) GetMarginRequirements(asset.Item, *currency.Item) (*margin.Requirements, error) {
+func (b *Base) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

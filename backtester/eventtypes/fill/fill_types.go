@@ -19,7 +19,8 @@ type Fill struct {
 	Total               decimal.Decimal `json:"total"`
 	ExchangeFee         decimal.Decimal `json:"exchange-fee"`
 	Slippage            decimal.Decimal `json:"slippage"`
-	Order               *order.Detail   `json:"-"`
+	Leverage            float64
+	Order               *order.Detail `json:"-"`
 	FillDependentEvent  signal.Event
 	Liquidated          bool
 }
@@ -41,4 +42,7 @@ type Event interface {
 	GetOrder() *order.Detail
 	GetFillDependentEvent() signal.Event
 	IsLiquidated() bool
+	IsLeveraged() bool
+	GetLeverage() float64
+	SetLeverage(float64)
 }

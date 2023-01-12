@@ -95,7 +95,7 @@ func TestEvaluateOrder(t *testing.T) {
 	h = append(h, holdings.Holding{
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
-	o.EstimatedLeverage = decimal.NewFromFloat(1.1)
+	o.Leverage = decimal.NewFromFloat(1.1)
 	r.CurrencySettings[e][a][p.Base.Item][p.Quote.Item].MaximumHoldingRatio = decimal.Zero
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errLeverageNotAllowed) {

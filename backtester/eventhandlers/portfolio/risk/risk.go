@@ -25,7 +25,7 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 	ex := o.GetExchange()
 	a := o.GetAssetType()
 	p := o.Pair().Format(currency.EMPTYFORMAT)
-	lookup, ok := r.CurrencySettings[ex][a][p.Base.Item][p.Quote.Item]
+	currencySettings, ok := r.CurrencySettings[ex][a][p.Base.Item][p.Quote.Item]
 	if !ok {
 		return nil, fmt.Errorf("%v %v %v %w", ex, a, p, errNoCurrencySettings)
 	}
@@ -35,12 +35,11 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 			return nil, errLeverageNotAllowed
 		}
 		ratio := existingLeverageRatio(s)
-		if ratio.GreaterThan(lookup.MaximumOrdersWithLeverageRatio) && lookup.MaximumOrdersWithLeverageRatio.GreaterThan(decimal.Zero) {
-			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", lookup.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
+		if ratio.GreaterThan(currencySettings.MaximumOrdersWithLeverageRatio) && currencySettings.MaximumOrdersWithLeverageRatio.GreaterThan(decimal.Zero) {
+			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", currencySettings.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
 		}
-		lr := lookup.MaxLeverageRate
-		if retOrder.GetLeverage().GreaterThan(lr) && lr.GreaterThan(decimal.Zero) {
-			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
+		if retOrder.GetLeverage() > currencySettings.MaximumLeverage {
+			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", currencySettings.MaximumLeverage, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
 		}
 	}
 	if len(latestHoldings) > 1 {

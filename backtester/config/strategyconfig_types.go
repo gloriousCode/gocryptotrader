@@ -97,9 +97,10 @@ type StatisticSettings struct {
 // and assess the bigger picture
 type PortfolioSettings struct {
 	CanUseLeverage bool    `json:"can-use-leverage"`
-	TargetLeverage float64 `json:"account-level-leverage"`
-	BuySide        MinMax  `json:"buy-side"`
-	SellSide       MinMax  `json:"sell-side"`
+	TargetLeverage float64 `json:"target-leverage"`
+
+	BuySide  MinMax `json:"buy-side"`
+	SellSide MinMax `json:"sell-side"`
 }
 
 // MinMax are the rules which limit the placement of orders.

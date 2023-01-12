@@ -647,7 +647,8 @@ func TestUGetNotionalAndLeverageBrackets(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.UGetNotionalAndLeverageBrackets(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	b.Verbose = true
+	_, err := b.UGetNotionalAndLeverageBrackets(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}

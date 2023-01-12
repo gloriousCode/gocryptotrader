@@ -17,7 +17,7 @@ type Order struct {
 	ClosePrice               decimal.Decimal
 	Amount                   decimal.Decimal
 	OrderType                order.Type
-	EstimatedLeverage        decimal.Decimal
+	Leverage                 float64
 	MinimumMaintenanceMargin decimal.Decimal
 	AllocatedFunds           decimal.Decimal
 	BuyLimit                 decimal.Decimal
@@ -41,10 +41,12 @@ type Event interface {
 	GetStatus() order.Status
 	SetID(id string)
 	GetID() string
-	IsLeveraged() bool
 	GetAllocatedFunds() decimal.Decimal
 	GetFillDependentEvent() signal.Event
 	IsClosingPosition() bool
 	IsLiquidating() bool
 	IsAddingToPosition() bool
+	IsLeveraged() bool
+	GetLeverage() float64
+	SetLeverage(float64)
 }

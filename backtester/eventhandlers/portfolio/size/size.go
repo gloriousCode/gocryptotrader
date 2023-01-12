@@ -27,7 +27,7 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}
 
 	if req.CanUseLeverage && req.Leverage > 1 {
-		return s.determineLeverage(retOrder, req)
+		return s.sizeLeverage(retOrder, req)
 	}
 
 	if fde := req.OrderEvent.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
@@ -44,7 +44,7 @@ func (s *Size) SizeOrder(req *Request) (*Response, error) {
 	}, nil
 }
 
-func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response, error) {
+func (s *Size) sizeLeverage(retOrder *order.Order, req *Request) (*Response, error) {
 	if req.CanUseLeverage && req.Leverage > 1 && !req.OrderEvent.GetAssetType().IsFutures() {
 		return nil, ErrCantUseLeverageAndMatchOrderAmount
 	}
@@ -52,7 +52,7 @@ func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response
 	if err != nil {
 		return nil, err
 	}
-	req.MarginRequirements, err = req.Settings.Exchange.GetMarginRequirements(req.OrderEvent.GetAssetType(), req.OrderEvent.Pair().Base.Item)
+	req.MarginRequirements, err = req.Settings.Exchange.GetMarginRequirements(context.TODO(), req.OrderEvent.GetAssetType(), req.OrderEvent.Pair(), req.AmountAvailable.InexactFloat64()*req.Leverage, req.Leverage)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,7 @@ func (s *Size) determineLeverage(retOrder *order.Order, req *Request) (*Response
 	if err != nil {
 		return nil, err
 	}
-	retOrder.SetLeverage(sizedLeverage.Div(collateral.AvailableForUseAsCollateral))
-
+	retOrder.SetLeverage(sizedLeverage.Div(collateral.AvailableForUseAsCollateral).InexactFloat64())
 	retOrder.SetAmount(sizedLeverage)
 	return &Response{
 		Order: retOrder,

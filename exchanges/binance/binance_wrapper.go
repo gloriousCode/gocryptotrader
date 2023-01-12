@@ -1973,13 +1973,52 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 	return nil, common.ErrNotYetImplemented
 }
 
-func (b *Binance) GetMarginRequirements(a asset.Item, c *currency.Item) (*margin.Requirements, error) {
-	return &margin.Requirements{
-		Exchange:                     b.Name,
-		Asset:                        a,
-		CurrencyItem:                 c,
-		InitialMarginRequirement:     decimal.Zero,
-		MaintenanceMarginRequirement: decimal.Zero,
-		CollateralScaling:            decimal.NewFromInt(1),
-	}, nil
+func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
+	switch a {
+	case asset.USDCMarginedFutures:
+		brackets, err := b.UGetNotionalAndLeverageBrackets(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		for i := range brackets {
+			for j := range brackets[i].Brackets {
+				if intendedLeverage < brackets[i].Brackets[j].NotionalFloor || intendedLeverage > brackets[i].Brackets[j].NotionalCap {
+					continue
+				}
+				return &margin.Requirements{
+					Exchange:                     b.Name,
+					Asset:                        a,
+					Pair:                         c,
+					MaxLeverage:                  brackets[i].Brackets[j].InitialLeverage,
+					InitialMarginRequirement:     decimal.NewFromFloat(intendedPositionCost / intendedLeverage),
+					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].Brackets[j].MaintenanceMarginRatio),
+					CollateralScaling:            decimal.NewFromInt(1),
+				}, nil
+			}
+		}
+	case asset.CoinMarginedFutures:
+		brackets, err := b.FuturesNotionalBracket(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		for i := range brackets {
+			for j := range brackets[i].Brackets {
+				if intendedLeverage < brackets[i].Brackets[j].QtylFloor || intendedLeverage > brackets[i].Brackets[j].QtyCap {
+					continue
+				}
+				return &margin.Requirements{
+					Exchange:                     b.Name,
+					Asset:                        a,
+					Pair:                         c,
+					MaxLeverage:                  brackets[i].Brackets[j].InitialLeverage,
+					InitialMarginRequirement:     decimal.NewFromFloat(intendedPositionCost / intendedLeverage),
+					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].Brackets[j].MaintMarginRatio),
+					CollateralScaling:            decimal.NewFromInt(1),
+				}, nil
+			}
+		}
+	default:
+		return nil, common.ErrFunctionNotSupported
+	}
+	return nil, fmt.Errorf("%w %v %v", currency.ErrCurrencyNotFound, c, a)
 }

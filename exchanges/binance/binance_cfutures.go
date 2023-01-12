@@ -1398,11 +1398,15 @@ func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair
 }
 
 // FuturesNotionalBracket gets futures notional bracket
-func (b *Binance) FuturesNotionalBracket(ctx context.Context, pair string) ([]NotionalBracketData, error) {
+func (b *Binance) FuturesNotionalBracket(ctx context.Context, pair currency.Pair) ([]NotionalBracketData, error) {
 	var resp []NotionalBracketData
 	params := url.Values{}
-	if pair != "" {
-		params.Set("pair", pair)
+	if !pair.IsEmpty() {
+		symbolValue, err := b.FormatSymbol(pair, asset.CoinMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("pair", symbolValue)
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesNotionalBracket, params, cFuturesDefaultRate, &resp)
 }

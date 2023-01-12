@@ -70,8 +70,9 @@ type BorrowCost struct {
 type Requirements struct {
 	Exchange                     string
 	Asset                        asset.Item
-	CurrencyItem                 *currency.Item
+	Pair                         currency.Pair
 	InitialMarginRequirement     decimal.Decimal
 	MaintenanceMarginRequirement decimal.Decimal
+	MaxLeverage                  float64
 	CollateralScaling            decimal.Decimal
 }

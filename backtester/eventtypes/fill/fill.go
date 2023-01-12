@@ -77,3 +77,18 @@ func (f *Fill) GetFillDependentEvent() signal.Event {
 func (f *Fill) IsLiquidated() bool {
 	return f.Liquidated
 }
+
+// IsLeveraged returns if it is leveraged
+func (f *Fill) IsLeveraged() bool {
+	return f.Leverage > 1
+}
+
+// GetLeverage returns leverage rate
+func (f *Fill) GetLeverage() float64 {
+	return f.Leverage
+}
+
+// SetLeverage sets leverage
+func (f *Fill) SetLeverage(l float64) {
+	f.Leverage = l
+}
