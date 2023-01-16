@@ -430,3 +430,30 @@ type UFuturesNewOrderRequest struct {
 	CallbackRate     float64       `json:"callback_rate"`
 	ReduceOnly       bool          `json:"reduce_only"`
 }
+
+type hi struct {
+	Code          string      `json:"code"`
+	Message       interface{} `json:"message"`
+	MessageDetail interface{} `json:"messageDetail"`
+	Data          struct {
+		Brackets []MarginRequirementDetails `json:"brackets"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+type MarginRequirementDetails struct {
+	Symbol        currency.Pair `json:"symbol"`
+	UpdateTime    binanceTime   `json:"updateTime"`
+	NotionalLimit float64       `json:"notionalLimit"`
+	RiskBrackets  []RiskBracket `json:"riskBrackets"`
+}
+
+type RiskBracket struct {
+	BracketSeq                   float64 `json:"bracketSeq"`
+	BracketNotionalFloor         float64 `json:"bracketNotionalFloor"`
+	BracketNotionalCap           float64 `json:"bracketNotionalCap"`
+	BracketMaintenanceMarginRate float64 `json:"bracketMaintenanceMarginRate"`
+	CumFastMaintenanceAmount     float64 `json:"cumFastMaintenanceAmount"`
+	MinOpenPosLeverage           float64 `json:"minOpenPosLeverage"`
+	MaxOpenPosLeverage           float64 `json:"maxOpenPosLeverage"`
+}

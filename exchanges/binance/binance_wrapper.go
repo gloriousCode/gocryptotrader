@@ -1975,23 +1975,23 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 
 func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
 	switch a {
-	case asset.USDCMarginedFutures:
-		brackets, err := b.UGetNotionalAndLeverageBrackets(ctx, c)
+	case asset.USDTMarginedFutures:
+		brackets, err := b.getPublicLeverageBrackets(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for i := range brackets {
-			for j := range brackets[i].Brackets {
-				if intendedLeverage < brackets[i].Brackets[j].NotionalFloor || intendedLeverage > brackets[i].Brackets[j].NotionalCap {
+			for j := range brackets[i].RiskBrackets {
+				if intendedLeverage < brackets[i].RiskBrackets[j].BracketNotionalFloor || intendedLeverage > brackets[i].RiskBrackets[j].BracketNotionalCap {
 					continue
 				}
 				return &margin.Requirements{
 					Exchange:                     b.Name,
 					Asset:                        a,
 					Pair:                         c,
-					MaxLeverage:                  brackets[i].Brackets[j].InitialLeverage,
+					MaxLeverage:                  brackets[i].RiskBrackets[j].MaxOpenPosLeverage,
 					InitialMarginRequirement:     decimal.NewFromFloat(intendedPositionCost / intendedLeverage),
-					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].Brackets[j].MaintenanceMarginRatio),
+					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].RiskBrackets[j].BracketMaintenanceMarginRate),
 					CollateralScaling:            decimal.NewFromInt(1),
 				}, nil
 			}

@@ -48,5 +48,5 @@ type Event interface {
 	IsAddingToPosition() bool
 	IsLeveraged() bool
 	GetLeverage() float64
-	SetLeverage(float64)
+	SetLeverage(float64) error
 }

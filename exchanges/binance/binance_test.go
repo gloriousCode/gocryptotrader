@@ -1191,11 +1191,11 @@ func TestUGetNotionalLeverage(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.FuturesNotionalBracket(context.Background(), "BTCUSD")
+	_, err := b.FuturesNotionalBracket(context.Background(), testPairMapping)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.FuturesNotionalBracket(context.Background(), "")
+	_, err = b.FuturesNotionalBracket(context.Background(), currency.EMPTYPAIR)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2862,5 +2862,17 @@ func TestCGetAllLongDatedContractDetails(t *testing.T) {
 	}
 	for i := range resp {
 		t.Log(resp[i])
+	}
+}
+
+func TestSomething(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp, err := b.getPublicLeverageBrackets(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Logf("%s", resp[i].UpdateTime.Time().String())
 	}
 }

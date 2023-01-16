@@ -40,6 +40,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 		ClosePrice:         o.GetClosePrice(),
 		FillDependentEvent: o.GetFillDependentEvent(),
 		Liquidated:         o.IsLiquidating(),
+		Leverage:           o.GetLeverage(),
 	}
 	if !common.CanTransact(o.GetDirection()) {
 		return f, fmt.Errorf("%w order direction %v", ErrCannotTransact, o.GetDirection())
@@ -136,7 +137,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 
 	fee = calculateExchangeFee(price, amount, cs.TakerFee)
 
-	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
+	orderID, err := e.placeOrder(context.TODO(), price, amount, fee, o.GetLeverage(), cs.UseRealOrders, cs.CanUseExchangeLimits, f, om)
 	if err != nil {
 		f.AppendReasonf("could not place order: %v", err)
 		setCannotPurchaseDirection(f)
@@ -167,7 +168,7 @@ func (e *Exchange) ExecuteOrder(o order.Event, dh data.Handler, om *engine.Order
 	if f.Order == nil {
 		return nil, fmt.Errorf("placed order %v not found in order manager", orderID)
 	}
-	f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Order.Pair, f.UnderlyingPair))
+	f.AppendReason(summarisePosition(f.GetDirection(), f.Amount, f.Amount.Mul(f.PurchasePrice), f.ExchangeFee, f.Leverage, f.Order.Pair, f.UnderlyingPair))
 	return f, nil
 }
 
@@ -240,19 +241,24 @@ func allocateFundsPostOrder(f *fill.Fill, funds funding.IFundReleaser, orderErro
 	return nil
 }
 
-func summarisePosition(direction gctorder.Side, orderAmount, orderTotal, orderFee decimal.Decimal, pair, underlying currency.Pair) string {
+func summarisePosition(direction gctorder.Side, orderAmount, orderTotal, orderFee decimal.Decimal, leverage float64, pair, underlying currency.Pair) string {
 	baseCurr := pair.Base.String()
 	quoteCurr := pair.Quote
 	if !underlying.IsEmpty() {
 		baseCurr = pair.String()
 		quoteCurr = underlying.Quote
 	}
-	return fmt.Sprintf("Placed %s order of %v %v for %v %v, with %v %v in fees, totalling %v %v",
+	var levStr string
+	if leverage > 1 {
+		levStr = fmt.Sprintf(" with a leverage of %v,", leverage)
+	}
+	return fmt.Sprintf("Placed %s order of %v %v for %v %v,%v with %v %v in fees, totalling %v %v",
 		direction,
 		orderAmount.Round(8),
 		baseCurr,
 		orderTotal.Round(8),
 		quoteCurr,
+		levStr,
 		orderFee.Round(8),
 		quoteCurr,
 		orderTotal.Add(orderFee).Round(8),
@@ -337,7 +343,7 @@ func reduceAmountToFitPortfolioLimit(adjustedPrice, amount, sizedPortfolioTotal 
 	return amount
 }
 
-func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.Decimal, useRealOrders, useExchangeLimits bool, f fill.Event, orderManager *engine.OrderManager) (string, error) {
+func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.Decimal, leverage float64, useRealOrders, useExchangeLimits bool, f fill.Event, orderManager *engine.OrderManager) (string, error) {
 	if f == nil {
 		return "", common.ErrNilEvent
 	}
@@ -356,7 +362,7 @@ func (e *Exchange) placeOrder(ctx context.Context, price, amount, fee decimal.De
 		Type:             gctorder.Market,
 		RetrieveFees:     true,
 		RetrieveFeeDelay: time.Millisecond * 500,
-		Leverage:         f.GetOrder().Leverage,
+		Leverage:         leverage,
 	}
 
 	var resp *engine.OrderSubmitResponse

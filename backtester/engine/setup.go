@@ -153,10 +153,10 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					BaseCurrencies: exchBase.BaseCurrencies,
 					CurrencyPairs:  &currency.PairsManager{},
 				}
-				err = exch.UpdateTradablePairs(context.TODO(), true)
-				if err != nil {
-					return err
-				}
+				//err = exch.UpdateTradablePairs(context.TODO(), true)
+				//if err != nil {
+				//	return err
+				//}
 				if cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders {
 					exchBase.States = currencystate.NewCurrencyStates()
 				}
@@ -254,7 +254,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			}
 		}
 		portSet := &risk.CurrencySettings{
-			MaximumHoldingRatio: cfg.CurrencySettings[i].MaximumHoldingsRatio,
+			MaximumLeverage: cfg.PortfolioSettings.TargetLeverage,
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr.Base.Item][curr.Quote.Item] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&

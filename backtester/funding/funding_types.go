@@ -156,6 +156,7 @@ type Item struct {
 	available         decimal.Decimal
 	reserved          decimal.Decimal
 	transferFee       decimal.Decimal
+	leverage          float64
 	pairedWith        *Item
 	trackingCandles   *kline.DataFromKline
 	snapshot          map[int64]ItemSnapshot

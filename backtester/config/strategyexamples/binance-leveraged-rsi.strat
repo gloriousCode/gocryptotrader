@@ -56,7 +56,7 @@
  },
  "portfolio-settings": {
   "can-use-leverage": true,
-  "account-level-leverage": 5,
+  "target-leverage": 5,
   "buy-side": {
    "minimum-size": "0",
    "maximum-size": "0",

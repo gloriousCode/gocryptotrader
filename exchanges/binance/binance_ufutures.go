@@ -1,11 +1,13 @@
 package binance
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1278,4 +1280,35 @@ func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string
 		})
 	}
 	return response, nil
+}
+
+// TODO neaten this up into something that pings on startup and then once and hour?
+func (b *Binance) getPublicLeverageBrackets(ctx context.Context) ([]MarginRequirementDetails, error) {
+	urlru := "https://www.binance.com/bapi/futures/v1/friendly/future/common/brackets"
+	headers := make(map[string]string)
+	headers["Accept"] = "*/*"
+	headers["Referer"] = "https://www.binance.com/en/futures/trading-rules/perpetual/leverage-margin"
+	headers["Cache-Control"] = "no-cache"
+	headers["Connection"] = "keep-alive"
+	headers["Content-Length"] = "2"
+	headers["content-type"] = "application/json"
+	body := strings.NewReader("{}")
+	contents, err := common.SendHTTPRequest(ctx, http.MethodPost, urlru, headers, body, b.Verbose)
+	if err != nil {
+		return nil, err
+	}
+	bbbb := bytes.NewReader(contents)
+	data, err := io.ReadAll(bbbb)
+	var resp hi
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data.Brackets, nil
+}
+
+type LeverageBracketHolder struct {
+	USDTMarginFutures map[*currency.Item]map[*currency.Item]MarginRequirementDetails
+	CoinMarginFutures map[*currency.Item]map[*currency.Item]MarginRequirementDetails
 }

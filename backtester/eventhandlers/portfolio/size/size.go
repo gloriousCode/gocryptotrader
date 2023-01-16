@@ -72,6 +72,10 @@ func (s *Size) sizeLeverage(retOrder *order.Order, req *Request) (*Response, err
 	if err != nil {
 		return nil, err
 	}
+	if req.Leverage > req.MarginRequirements.MaxLeverage {
+		req.Leverage = req.MarginRequirements.MaxLeverage
+	}
+
 	requestedLeverage := decimal.NewFromFloat(req.Leverage)
 	availableLeverage := collateral.AvailableForUseAsCollateral.Mul(requestedLeverage.Sub(collateral.LeverageRatio))
 	sizedLeverage, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, availableLeverage, req.Settings, retOrder)

@@ -1,6 +1,7 @@
 package order
 
 import (
+	"errors"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -69,12 +70,21 @@ func (o *Order) IsLeveraged() bool {
 
 // GetLeverage returns leverage rate
 func (o *Order) GetLeverage() float64 {
+	if o.Leverage < 1 {
+		return 1
+	}
 	return o.Leverage
 }
 
+var ErrCmonMan = errors.New("leverage must be >= 1")
+
 // SetLeverage sets leverage
-func (o *Order) SetLeverage(l float64) {
+func (o *Order) SetLeverage(l float64) error {
+	if l < 1 {
+		return ErrCmonMan
+	}
 	o.Leverage = l
+	return nil
 }
 
 // GetAllocatedFunds returns the amount of funds the portfolio manager
