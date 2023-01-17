@@ -1,9 +1,11 @@
 package binance
 
 import (
+	"encoding/xml"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var (
@@ -431,10 +433,40 @@ type UFuturesNewOrderRequest struct {
 	ReduceOnly       bool          `json:"reduce_only"`
 }
 
-type hi struct {
-	Code          string      `json:"code"`
-	Message       interface{} `json:"message"`
-	MessageDetail interface{} `json:"messageDetail"`
+type FuturesAWSXML struct {
+	XMLName        xml.Name `xml:"ListBucketResult"`
+	Text           string   `xml:",chardata"`
+	Xmlns          string   `xml:"xmlns,attr"`
+	Name           string   `xml:"Name"`
+	Prefix         string   `xml:"Prefix"`
+	Marker         string   `xml:"Marker"`
+	MaxKeys        string   `xml:"MaxKeys"`
+	Delimiter      string   `xml:"Delimiter"`
+	IsTruncated    string   `xml:"IsTruncated"`
+	CommonPrefixes []struct {
+		Text   string `xml:",chardata"`
+		Prefix string `xml:"Prefix"`
+	} `xml:"CommonPrefixes"`
+}
+
+type LongDatedContractDetails struct {
+	Name       string
+	Currency   currency.Pair
+	StartDate  time.Time
+	EndDate    time.Time
+	HasExpired bool
+}
+
+// LeverageBracketHolder holds details on futures brackets
+type LeverageBracketHolder struct {
+	Requirements map[asset.Item]map[*currency.Item]map[*currency.Item]MarginRequirementDetails
+	LatestUpdate time.Time
+}
+
+type MarginBracketsResponse struct {
+	Code          string `json:"code"`
+	Message       string `json:"message"`
+	MessageDetail string `json:"messageDetail"`
 	Data          struct {
 		Brackets []MarginRequirementDetails `json:"brackets"`
 	} `json:"data"`

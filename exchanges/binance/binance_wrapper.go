@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -340,6 +341,14 @@ func (b *Binance) Run() {
 				}
 			}
 		}
+	}
+
+	err := b.PopulateMarginRequirements()
+	if err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to update tradable pairs. Err: %s",
+			b.Name,
+			err)
 	}
 
 	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
@@ -1976,7 +1985,7 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
 	switch a {
 	case asset.USDTMarginedFutures:
-		brackets, err := b.getPublicLeverageBrackets(ctx)
+		brackets, err := b.uGetPublicLeverageBrackets(ctx)
 		if err != nil {
 			return nil, err
 		}

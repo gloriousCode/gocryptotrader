@@ -67,6 +67,9 @@ const (
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
+
+	ufuturesAWSContractDetails = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/um/daily/klines/"
+	cfuturesAWSContractDetails = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/"
 )
 
 // UServerTime gets the server time
@@ -1167,22 +1170,6 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 	return limits, nil
 }
 
-type FuturesAWSXML struct {
-	XMLName        xml.Name `xml:"ListBucketResult"`
-	Text           string   `xml:",chardata"`
-	Xmlns          string   `xml:"xmlns,attr"`
-	Name           string   `xml:"Name"`
-	Prefix         string   `xml:"Prefix"`
-	Marker         string   `xml:"Marker"`
-	MaxKeys        string   `xml:"MaxKeys"`
-	Delimiter      string   `xml:"Delimiter"`
-	IsTruncated    string   `xml:"IsTruncated"`
-	CommonPrefixes []struct {
-		Text   string `xml:",chardata"`
-		Prefix string `xml:"Prefix"`
-	} `xml:"CommonPrefixes"`
-}
-
 func (b *Binance) ParseBinanceCurrencyStorage(ctx context.Context, path, subPrefix string) ([]string, error) {
 	var result FuturesAWSXML
 	res, err := http.Get(path)
@@ -1209,16 +1196,8 @@ func (b *Binance) ParseBinanceCurrencyStorage(ctx context.Context, path, subPref
 	return currs, nil
 }
 
-type LongDatedContractDetails struct {
-	Name       string
-	Currency   currency.Pair
-	StartDate  time.Time
-	EndDate    time.Time
-	HasExpired bool
-}
-
 func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
-	pairs, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/um/daily/klines/", "um")
+	pairs, err := b.ParseBinanceCurrencyStorage(ctx, ufuturesAWSContractDetails, "um")
 	if err != nil {
 		return nil, err
 	}
@@ -1226,7 +1205,7 @@ func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDa
 }
 
 func (b *Binance) CGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
-	pairs, err := b.ParseBinanceCurrencyStorage(ctx, "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/", "cm")
+	pairs, err := b.ParseBinanceCurrencyStorage(ctx, cfuturesAWSContractDetails, "cm")
 	if err != nil {
 		return nil, err
 	}
@@ -1283,23 +1262,18 @@ func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string
 }
 
 // TODO neaten this up into something that pings on startup and then once and hour?
-func (b *Binance) getPublicLeverageBrackets(ctx context.Context) ([]MarginRequirementDetails, error) {
-	urlru := "https://www.binance.com/bapi/futures/v1/friendly/future/common/brackets"
+func (b *Binance) uGetPublicLeverageBrackets(ctx context.Context) ([]MarginRequirementDetails, error) {
+	uFuturesBreacketsURL := "https://www.binance.com/bapi/futures/v1/friendly/future/common/brackets"
 	headers := make(map[string]string)
-	headers["Accept"] = "*/*"
-	headers["Referer"] = "https://www.binance.com/en/futures/trading-rules/perpetual/leverage-margin"
-	headers["Cache-Control"] = "no-cache"
-	headers["Connection"] = "keep-alive"
-	headers["Content-Length"] = "2"
 	headers["content-type"] = "application/json"
 	body := strings.NewReader("{}")
-	contents, err := common.SendHTTPRequest(ctx, http.MethodPost, urlru, headers, body, b.Verbose)
+	contents, err := common.SendHTTPRequest(ctx, http.MethodPost, uFuturesBreacketsURL, headers, body, b.Verbose)
 	if err != nil {
 		return nil, err
 	}
-	bbbb := bytes.NewReader(contents)
-	data, err := io.ReadAll(bbbb)
-	var resp hi
+	byteReader := bytes.NewReader(contents)
+	data, err := io.ReadAll(byteReader)
+	var resp MarginBracketsResponse
 	err = json.Unmarshal(data, &resp)
 	if err != nil {
 		return nil, err
@@ -1308,7 +1282,97 @@ func (b *Binance) getPublicLeverageBrackets(ctx context.Context) ([]MarginRequir
 	return resp.Data.Brackets, nil
 }
 
-type LeverageBracketHolder struct {
-	USDTMarginFutures map[*currency.Item]map[*currency.Item]MarginRequirementDetails
-	CoinMarginFutures map[*currency.Item]map[*currency.Item]MarginRequirementDetails
+func (b *Binance) cGetPublicLeverageBrackets(ctx context.Context) ([]MarginRequirementDetails, error) {
+	cFuturesBracketsURL := "https://www.binance.com/bapi/futures/v1/friendly/delivery/common/brackets"
+	headers := make(map[string]string)
+	headers["content-type"] = "application/json"
+	body := strings.NewReader("{}")
+	contents, err := common.SendHTTPRequest(ctx, http.MethodPost, cFuturesBracketsURL, headers, body, b.Verbose)
+	if err != nil {
+		return nil, err
+	}
+	byteReader := bytes.NewReader(contents)
+	data, err := io.ReadAll(byteReader)
+	var resp MarginBracketsResponse
+	err = json.Unmarshal(data, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Data.Brackets, nil
+}
+
+var leverageBracketHolder = LeverageBracketHolder{
+	Requirements: make(map[asset.Item]map[*currency.Item]map[*currency.Item]MarginRequirementDetails),
+}
+
+var errNoBracketFound = errors.New("not bracket found")
+
+func (m *MarginRequirementDetails) GetBracket(amount, leverage float64) (*RiskBracket, error) {
+	for i := range m.RiskBrackets {
+		if amount < m.RiskBrackets[i].BracketNotionalFloor ||
+			amount > m.RiskBrackets[i].BracketNotionalCap ||
+			leverage < m.RiskBrackets[i].MinOpenPosLeverage ||
+			leverage > m.RiskBrackets[i].MaxOpenPosLeverage {
+			continue
+		}
+		return &m.RiskBrackets[i], nil
+	}
+	return nil, fmt.Errorf("%w for amount: %v leverage: %v", errNoBracketFound, amount, leverage)
+}
+
+// PopulateMarginRequirements retrieves and stores margin bracket details for
+// binance coin margined and usdt margined futures
+func (b *Binance) PopulateMarginRequirements() error {
+	if b.leverageBrackets.Requirements == nil {
+		b.leverageBrackets.Requirements = make(map[asset.Item]map[*currency.Item]map[*currency.Item]MarginRequirementDetails)
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures); err == nil {
+		var uRequirements []MarginRequirementDetails
+		uRequirements, err = b.uGetPublicLeverageBrackets(context.TODO())
+		if err != nil {
+			return err
+		}
+
+		for i := range uRequirements {
+			m1, ok := b.leverageBrackets.Requirements[asset.USDTMarginedFutures]
+			if !ok {
+				m1 = make(map[*currency.Item]map[*currency.Item]MarginRequirementDetails)
+				b.leverageBrackets.Requirements[asset.USDTMarginedFutures] = m1
+			}
+			m2, ok := m1[uRequirements[i].Symbol.Base.Item]
+			if !ok {
+				m2 = make(map[*currency.Item]MarginRequirementDetails)
+				b.leverageBrackets.Requirements[asset.USDTMarginedFutures][uRequirements[i].Symbol.Base.Item] = m2
+			}
+			m2[uRequirements[i].Symbol.Quote.Item] = uRequirements[i]
+			if b.leverageBrackets.LatestUpdate.Before(uRequirements[i].UpdateTime.Time()) {
+				b.leverageBrackets.LatestUpdate = uRequirements[i].UpdateTime.Time()
+			}
+		}
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(asset.CoinMarginedFutures); err == nil {
+		var cRequirements []MarginRequirementDetails
+		cRequirements, err = b.cGetPublicLeverageBrackets(context.TODO())
+		if err != nil {
+			return err
+		}
+		for i := range cRequirements {
+			m1, ok := b.leverageBrackets.Requirements[asset.CoinMarginedFutures]
+			if !ok {
+				m1 = make(map[*currency.Item]map[*currency.Item]MarginRequirementDetails)
+				b.leverageBrackets.Requirements[asset.CoinMarginedFutures] = m1
+			}
+			m2, ok := m1[cRequirements[i].Symbol.Base.Item]
+			if !ok {
+				m2 = make(map[*currency.Item]MarginRequirementDetails)
+				b.leverageBrackets.Requirements[asset.CoinMarginedFutures][cRequirements[i].Symbol.Base.Item] = m2
+			}
+			m2[cRequirements[i].Symbol.Quote.Item] = cRequirements[i]
+			if b.leverageBrackets.LatestUpdate.Before(cRequirements[i].UpdateTime.Time()) {
+				b.leverageBrackets.LatestUpdate = cRequirements[i].UpdateTime.Time()
+			}
+		}
+	}
+	return nil
 }

@@ -2865,10 +2865,22 @@ func TestCGetAllLongDatedContractDetails(t *testing.T) {
 	}
 }
 
-func TestSomething(t *testing.T) {
+func TestUGetPublicLeverageBrackets(t *testing.T) {
 	t.Parallel()
 	b.Verbose = true
-	resp, err := b.getPublicLeverageBrackets(context.Background())
+	resp, err := b.uGetPublicLeverageBrackets(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Logf("%s", resp[i].UpdateTime.Time().String())
+	}
+}
+
+func TestCGetPublicLeverageBrackets(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp, err := b.cGetPublicLeverageBrackets(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
