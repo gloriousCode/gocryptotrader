@@ -29,6 +29,7 @@ import (
 // Kucoin is the overarching type across this package
 type Kucoin struct {
 	exchange.Base
+	obm *orderbookManager
 }
 
 const (
