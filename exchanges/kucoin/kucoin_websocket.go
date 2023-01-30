@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,12 +14,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -92,13 +92,7 @@ var (
 )
 
 var defaultSubscriptionChannels = []string{
-	marketTickerChannel,
-	marketTickerSnapshotForCurrencyChannel,
 	marketOrderbookLevel2Channels,
-	marginFundingbookChangeChannel,
-	marketCandlesChannel,
-
-	futuresTickerV2Channel,
 }
 
 var requiredSubscriptionIDS map[string]bool
@@ -209,6 +203,326 @@ func (ku *Kucoin) wsReadData() {
 			ku.Websocket.DataHandler <- err
 		}
 	}
+}
+
+// Subscribe sends a websocket message to receive data from the channel
+func (ku *Kucoin) Subscribe(subscriptions []stream.ChannelSubscription) error {
+	return ku.handleSubscriptions(subscriptions, "subscribe")
+}
+
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (ku *Kucoin) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
+	return ku.handleSubscriptions(subscriptions, "unsubscribe")
+}
+
+func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription, operation string) error {
+	if requiredSubscriptionIDS == nil {
+		requiredSubscriptionIDS = map[string]bool{}
+	}
+	payloads, err := ku.generatePayloads(subscriptions, operation)
+	if err != nil {
+		return err
+	}
+	var errs common.Errors
+	for x := range payloads {
+		if subscriptions[x].Channel == marketOrderbookLevel2Channels ||
+			subscriptions[x].Channel == futuresOrderbookLevel2Channel {
+			requiredSubscriptionIDSLock.Lock()
+			requiredSubscriptionIDS[payloads[x].ID] = true
+			requiredSubscriptionIDSLock.Unlock()
+			var dataDetail []byte
+			dataDetail, err = ku.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
+			if err != nil {
+				return err
+			}
+			info := &ConnectionMessage{}
+			err = json.Unmarshal(dataDetail, info)
+			if err != nil {
+				return err
+			}
+			if info.Type == "ack" {
+				if err = ku.CurrencyPairs.IsAssetEnabled(ku.getChannelsAssetType(subscriptions[x].Channel)); err != nil {
+					if ku.Verbose {
+						log.Debug(log.ExchangeSys, fmt.Sprintf("asset type %v is enabled", subscriptions[x].Asset))
+					}
+					return err
+				}
+				var base *orderbook.Base
+				base, err = ku.UpdateOrderbook(context.Background(), subscriptions[x].Currency, subscriptions[x].Asset)
+				if err != nil {
+					return err
+				}
+				return ku.Websocket.Orderbook.LoadSnapshot(base)
+			}
+		} else {
+			err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
+		}
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		ku.Websocket.AddSuccessfulSubscriptions(subscriptions[x])
+	}
+
+	return errs.Unwrap()
+}
+
+// getChannelsAssetType returns the asset type to which the subscription channel belongs to
+// or returns an error otherwise.
+func (ku *Kucoin) getChannelsAssetType(channelName string) asset.Item {
+	switch channelName {
+	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
+		return asset.Futures
+	case marketTickerChannel, marketAllTickersChannel, marketTickerSnapshotChannel, marketTickerSnapshotForCurrencyChannel, marketOrderbookLevel2Channels, marketCandlesChannel, marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel, marginFundingbookChangeChannel, privateChannel, accountBalanceChannel, marginPositionChannel, marginLoanChannel,
+		spotMarketAdvancedChannel:
+		return asset.Spot
+	default:
+		return asset.Empty
+	}
+}
+
+// GenerateDefaultSubscriptions Adds default subscriptions to websocket.
+func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+	channels := defaultSubscriptionChannels
+	subscriptions := []stream.ChannelSubscription{}
+	if ku.Websocket.CanUseAuthenticatedEndpoints() {
+		channels = append(channels,
+			accountBalanceChannel,
+			marginPositionChannel,
+			marginLoanChannel,
+			// futures authenticated channels
+			futuresTradeOrdersBySymbolChannel,
+			futuresTradeOrderChannel,
+			futuresAccountBalanceEventChannel,
+		)
+	}
+	sPairs, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	fPairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	for x := range channels {
+		switch channels[x] {
+		case accountBalanceChannel, marginPositionChannel,
+			futuresTradeOrderChannel, futuresAccountBalanceEventChannel:
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: channels[x],
+			})
+		case marketTickerSnapshotChannel, marketOrderbookLevel2Channels:
+			for b := range sPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[x],
+					Asset:    asset.Spot,
+					Currency: sPairs[b],
+				})
+			}
+		case marketMatchChannel, marketTickerChannel:
+			pairStrings := sPairs.Join()
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: channels[x],
+				Asset:   asset.Spot,
+				Params:  map[string]interface{}{"symbols": pairStrings},
+			})
+		case marketCandlesChannel:
+			for b := range sPairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  marketCandlesChannel,
+					Asset:    asset.Spot,
+					Currency: sPairs[b],
+					Params:   map[string]interface{}{"interval": kline.FifteenMin},
+				})
+			}
+		case marginLoanChannel:
+			currencyExist := map[currency.Code]bool{}
+			for b := range sPairs {
+				okay := currencyExist[sPairs[b].Base]
+				if !okay {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: currency.Pair{Base: sPairs[b].Base},
+					})
+					currencyExist[sPairs[b].Base] = true
+				}
+				okay = currencyExist[sPairs[b].Quote]
+				if !okay {
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: currency.Pair{Base: sPairs[b].Quote},
+					})
+					currencyExist[sPairs[b].Quote] = true
+				}
+			}
+		case marginFundingbookChangeChannel:
+			currencyExist := map[currency.Code]bool{}
+			for b := range sPairs {
+				okay := currencyExist[sPairs[b].Base]
+				if !okay {
+					currencyExist[sPairs[b].Base] = true
+				}
+				okay = currencyExist[sPairs[b].Quote]
+				if !okay {
+					currencyExist[sPairs[b].Quote] = true
+				}
+			}
+			currencies := ""
+			for b := range currencyExist {
+				currencies += b.String() + ","
+			}
+			currencies = strings.TrimSuffix(currencies, ",")
+			subscriptions = append(subscriptions, stream.ChannelSubscription{
+				Channel: channels[x],
+				Params:  map[string]interface{}{"currencies": currencies},
+			})
+		case futuresTickerV2Channel, futuresOrderbookLevel2Depth50Channel:
+			for b := range fPairs {
+				fPairs[b], err = ku.FormatExchangeCurrency(fPairs[b], asset.Futures)
+				if err != nil {
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[x],
+					Asset:    asset.Futures,
+					Currency: fPairs[b],
+				})
+			}
+			// For authenticated subscriptions
+		case futuresTradeOrdersBySymbolChannel:
+			for b := range fPairs {
+				fPairs[b], err = ku.FormatExchangeCurrency(fPairs[b], asset.Futures)
+				if err != nil {
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  futuresTradeOrdersBySymbolChannel,
+					Asset:    asset.Futures,
+					Currency: fPairs[b],
+				})
+			}
+		default:
+			panic(fmt.Errorf("%w unhandled subscription: %v", stream.ErrSubscriptionFailure, channels[x]))
+		}
+	}
+	return subscriptions, nil
+}
+
+func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
+	payloads := make([]WsSubscriptionInput, len(subscriptions))
+	for x := range subscriptions {
+		var err error
+		subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, ku.getChannelsAssetType(subscriptions[x].Channel))
+		if err != nil {
+			return nil, err
+		}
+		if subscriptions[x].Asset == asset.Futures {
+			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, asset.Futures)
+			if err != nil {
+				continue
+			}
+		}
+		switch subscriptions[x].Channel {
+		case marketTickerChannel,
+			marketOrderbookLevel2Channels,
+			indexPriceIndicatorChannel,
+			marketMatchChannel,
+			markPriceIndicatorChannel:
+			symbols, okay := subscriptions[x].Params["symbols"].(string)
+			if !okay {
+				if subscriptions[x].Currency.IsEmpty() {
+					return nil, errors.New("symbols not passed")
+				}
+				symbols = subscriptions[x].Currency.String()
+			}
+			payloads[x] = WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
+				Response: true,
+			}
+		case marketAllTickersChannel,
+			privateChannel,
+			accountBalanceChannel,
+			marginPositionChannel,
+			spotMarketAdvancedChannel,
+			futuresTradeOrderChannel,
+			futuresStopOrdersLifecycleEventChannel,
+			futuresAccountBalanceEventChannel, futuresSystemAnnouncementChannel:
+			input := WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    subscriptions[x].Channel,
+				Response: true,
+			}
+			switch subscriptions[x].Channel {
+			case futuresTradeOrderChannel,
+				futuresStopOrdersLifecycleEventChannel,
+				futuresAccountBalanceEventChannel:
+				input.PrivateChannel = true
+			}
+			payloads[x] = input
+		case marketTickerSnapshotChannel,
+			futuresPositionChangeEventChannel,
+			futuresTradeOrdersBySymbolChannel,
+			futuresTrasactionStatisticsTimerEventChannel,
+			futuresContractMarketDataChannel,
+			futuresOrderbookLevel2Depth50Channel,
+			futuresOrderbookLevel2Depth5Channel,
+			futuresExecutionDataChannel,
+			futuresOrderbookLevel2Channel,
+			futuresTickerChannel,
+			futuresTickerV2Channel: // Symbols
+			payloads[x] = WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.String()),
+				Response: true,
+			}
+			switch subscriptions[x].Channel {
+			case futuresPositionChangeEventChannel,
+				futuresTradeOrdersBySymbolChannel:
+				payloads[x].PrivateChannel = true
+			}
+		case marketTickerSnapshotForCurrencyChannel,
+			marginLoanChannel:
+			if subscriptions[x].Channel == marketTickerSnapshotForCurrencyChannel {
+				subscriptions[x].Channel += "%s"
+			}
+			payloads[x] = WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String()),
+				Response: true,
+			}
+		case marketCandlesChannel:
+			interval, err := ku.intervalToString(subscriptions[x].Params["interval"].(kline.Interval))
+			if err != nil {
+				return nil, err
+			}
+			payloads[x] = WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String(), interval),
+				Response: true,
+			}
+		case marginFundingbookChangeChannel:
+			currencies, okay := subscriptions[x].Params["currencies"].(string)
+			if !okay {
+				return nil, errors.New("currencies not passed")
+			}
+			payloads[x] = WsSubscriptionInput{
+				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+				Type:     operation,
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, currencies),
+				Response: true,
+			}
+		default:
+			panic(fmt.Errorf("%w unhandled subscription: %v %v", stream.ErrSubscriptionFailure, payloads[x].Topic, payloads[x].Type))
+			return nil, fmt.Errorf("%w unhandled subscription: %v %v", stream.ErrSubscriptionFailure, payloads[x].Topic, payloads[x].Type)
+		}
+	}
+	return payloads, nil
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
@@ -488,6 +802,7 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instruments str
 		Asks:            resp.Asks,
 		Bids:            resp.Bids,
 	}
+	//log.Debugln(log.WebsocketMgr, "ob official sequence ", resp.)
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -513,6 +828,7 @@ func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument stri
 		Asks:            detail.Asks,
 		Bids:            detail.Bids,
 	}
+	log.Debugln(log.WebsocketMgr, "ob official sequence ", resp.Sequence)
 	return ku.Websocket.Orderbook.LoadSnapshot(&base)
 }
 
@@ -722,6 +1038,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	return nil
 }
 
+// //////////////////////////////////////////////////////////////////////////////
 func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) error {
 	response := WsLevel2Orderbook{}
 	err := json.Unmarshal(respData, &response)
@@ -845,361 +1162,6 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) erro
 	return nil
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (ku *Kucoin) Subscribe(subscriptions []stream.ChannelSubscription) error {
-	return ku.handleSubscriptions(subscriptions, "subscribe")
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (ku *Kucoin) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
-	return ku.handleSubscriptions(subscriptions, "unsubscribe")
-}
-
-func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription, operation string) error {
-	if requiredSubscriptionIDS == nil {
-		requiredSubscriptionIDS = map[string]bool{}
-	}
-	payloads, err := ku.generatePayloads(subscriptions, operation)
-	if err != nil {
-		return err
-	}
-	var errs common.Errors
-	for x := range payloads {
-		if subscriptions[x].Channel == marketOrderbookLevel2Channels ||
-			subscriptions[x].Channel == futuresOrderbookLevel2Channel {
-			requiredSubscriptionIDSLock.Lock()
-			requiredSubscriptionIDS[payloads[x].ID] = true
-			requiredSubscriptionIDSLock.Unlock()
-			var dataDetail []byte
-			dataDetail, err = ku.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
-			if err != nil {
-				return err
-			}
-			info := &ConnectionMessage{}
-			err = json.Unmarshal(dataDetail, info)
-			if err != nil {
-				return err
-			}
-			if info.Type == "ack" {
-				if err = ku.CurrencyPairs.IsAssetEnabled(ku.getChannelsAssetType(subscriptions[x].Channel)); err != nil {
-					if ku.Verbose {
-						log.Debug(log.ExchangeSys, fmt.Sprintf("asset type %v is enabled", subscriptions[x].Asset))
-					}
-					return err
-				}
-				var base *orderbook.Base
-				base, err = ku.UpdateOrderbook(context.Background(), subscriptions[x].Currency, subscriptions[x].Asset)
-				if err != nil {
-					return err
-				}
-				return ku.Websocket.Orderbook.LoadSnapshot(base)
-			}
-		} else {
-			err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
-		}
-		if err != nil {
-			errs = append(errs, err)
-			continue
-		}
-		ku.Websocket.AddSuccessfulSubscriptions(subscriptions[x])
-	}
-
-	return errs.Unwrap()
-}
-
-// getChannelsAssetType returns the asset type to which the subscription channel belongs to
-// or returns an error otherwise.
-func (ku *Kucoin) getChannelsAssetType(channelName string) asset.Item {
-	switch channelName {
-	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
-		return asset.Futures
-	case marketTickerChannel, marketAllTickersChannel, marketTickerSnapshotChannel, marketTickerSnapshotForCurrencyChannel, marketOrderbookLevel2Channels, marketCandlesChannel, marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel, marginFundingbookChangeChannel, privateChannel, accountBalanceChannel, marginPositionChannel, marginLoanChannel,
-		spotMarketAdvancedChannel:
-		return asset.Spot
-	default:
-		return asset.Empty
-	}
-}
-
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket.
-func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	channels := defaultSubscriptionChannels
-	subscriptions := []stream.ChannelSubscription{}
-	if ku.Websocket.CanUseAuthenticatedEndpoints() {
-		channels = append(channels,
-			accountBalanceChannel,
-			marginPositionChannel,
-			marginLoanChannel,
-
-			// futures authenticated channels
-
-			futuresTradeOrdersBySymbolChannel,
-			futuresTradeOrderChannel,
-			futuresAccountBalanceEventChannel,
-		)
-	}
-	for x := range channels {
-		switch channels[x] {
-		case accountBalanceChannel, marginPositionChannel,
-			futuresTradeOrderChannel, futuresAccountBalanceEventChannel:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: channels[x],
-			})
-		case marketTickerSnapshotChannel:
-			pairs, err := ku.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  marketTickerSnapshotChannel,
-					Asset:    asset.Spot,
-					Currency: pairs[b],
-				})
-			}
-		case marketOrderbookLevel2Channels:
-			pairs, err := ku.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  marketOrderbookLevel2Channels,
-					Asset:    asset.Spot,
-					Currency: pairs[b],
-				})
-			}
-		case marketCandlesChannel:
-			pairs, err := ku.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  marketCandlesChannel,
-					Asset:    asset.Spot,
-					Currency: pairs[b],
-					Params:   map[string]interface{}{"interval": kline.FifteenMin},
-				})
-			}
-		case marginLoanChannel:
-			currencyExist := map[currency.Code]bool{}
-			pairs, err := ku.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				okay := currencyExist[pairs[b].Base]
-				if !okay {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: currency.Pair{Base: pairs[b].Base},
-					})
-					currencyExist[pairs[b].Base] = true
-				}
-				okay = currencyExist[pairs[b].Quote]
-				if !okay {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: currency.Pair{Base: pairs[b].Quote},
-					})
-					currencyExist[pairs[b].Quote] = true
-				}
-			}
-		case marginFundingbookChangeChannel:
-			currencyExist := map[currency.Code]bool{}
-			pairs, err := ku.GetEnabledPairs(asset.Spot)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				okay := currencyExist[pairs[b].Base]
-				if !okay {
-					currencyExist[pairs[b].Base] = true
-				}
-				okay = currencyExist[pairs[b].Quote]
-				if !okay {
-					currencyExist[pairs[b].Quote] = true
-				}
-			}
-			currencies := ""
-			for b := range currencyExist {
-				currencies += b.String() + ","
-			}
-			currencies = strings.TrimSuffix(currencies, ",")
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: channels[x],
-				Params:  map[string]interface{}{"currencies": currencies},
-			})
-		case futuresTickerV2Channel:
-			pairs, err := ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
-				if err != nil {
-					continue
-				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  futuresTickerV2Channel,
-					Asset:    asset.Futures,
-					Currency: pairs[b],
-				})
-			}
-		case futuresOrderbookLevel2Depth50Channel:
-			pairs, err := ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
-				if err != nil {
-					continue
-				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  futuresOrderbookLevel2Depth50Channel,
-					Asset:    asset.Futures,
-					Currency: pairs[b],
-				})
-			}
-
-			// For authenticated subscriptions
-		case futuresTradeOrdersBySymbolChannel:
-			pairs, err := ku.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				continue
-			}
-			for b := range pairs {
-				pairs[b], err = ku.FormatExchangeCurrency(pairs[b], asset.Futures)
-				if err != nil {
-					continue
-				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  futuresTradeOrdersBySymbolChannel,
-					Asset:    asset.Futures,
-					Currency: pairs[b],
-				})
-			}
-		}
-	}
-	return subscriptions, nil
-}
-
-func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
-	payloads := make([]WsSubscriptionInput, len(subscriptions))
-	for x := range subscriptions {
-		var err error
-		subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, ku.getChannelsAssetType(subscriptions[x].Channel))
-		if err != nil {
-			return nil, err
-		}
-		if subscriptions[x].Asset == asset.Futures {
-			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, asset.Futures)
-			if err != nil {
-				continue
-			}
-		}
-		switch subscriptions[x].Channel {
-		case marketTickerChannel,
-			marketOrderbookLevel2Channels,
-			indexPriceIndicatorChannel,
-			marketMatchChannel,
-			markPriceIndicatorChannel:
-			symbols, okay := subscriptions[x].Params["symbols"].(string)
-			if !okay {
-				if subscriptions[x].Currency.IsEmpty() {
-					return nil, errors.New("symbols not passed")
-				}
-				symbols = subscriptions[x].Currency.String()
-			}
-			payloads[x] = WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
-				Response: true,
-			}
-		case marketAllTickersChannel,
-			privateChannel,
-			accountBalanceChannel,
-			marginPositionChannel,
-			spotMarketAdvancedChannel,
-			futuresTradeOrderChannel,
-			futuresStopOrdersLifecycleEventChannel,
-			futuresAccountBalanceEventChannel, futuresSystemAnnouncementChannel:
-			input := WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    subscriptions[x].Channel,
-				Response: true,
-			}
-			switch subscriptions[x].Channel {
-			case futuresTradeOrderChannel,
-				futuresStopOrdersLifecycleEventChannel,
-				futuresAccountBalanceEventChannel:
-				input.PrivateChannel = true
-			}
-			payloads[x] = input
-		case marketTickerSnapshotChannel,
-			futuresPositionChangeEventChannel,
-			futuresTradeOrdersBySymbolChannel,
-			futuresTrasactionStatisticsTimerEventChannel,
-			futuresContractMarketDataChannel,
-			futuresOrderbookLevel2Depth50Channel,
-			futuresOrderbookLevel2Depth5Channel,
-			futuresExecutionDataChannel,
-			futuresOrderbookLevel2Channel,
-			futuresTickerChannel,
-			futuresTickerV2Channel: // Symbols
-			payloads[x] = WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.String()),
-				Response: true,
-			}
-			switch subscriptions[x].Channel {
-			case futuresPositionChangeEventChannel,
-				futuresTradeOrdersBySymbolChannel:
-				payloads[x].PrivateChannel = true
-			}
-		case marketTickerSnapshotForCurrencyChannel,
-			marginLoanChannel:
-			if subscriptions[x].Channel == marketTickerSnapshotForCurrencyChannel {
-				subscriptions[x].Channel += "%s"
-			}
-			payloads[x] = WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String()),
-				Response: true,
-			}
-		case marketCandlesChannel:
-			interval, err := ku.intervalToString(subscriptions[x].Params["interval"].(kline.Interval))
-			if err != nil {
-				return nil, err
-			}
-			payloads[x] = WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String(), interval),
-				Response: true,
-			}
-		case marginFundingbookChangeChannel:
-			currencies, okay := subscriptions[x].Params["currencies"].(string)
-			if !okay {
-				return nil, errors.New("currencies not passed")
-			}
-			payloads[x] = WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, currencies),
-				Response: true,
-			}
-		}
-	}
-	return payloads, nil
-}
-
 // orderbookManager defines a way of managing and maintaining synchronisation
 // across connections and assets.
 type orderbookManager struct {
@@ -1233,10 +1195,10 @@ func (ku *Kucoin) setupOrderbookManager() {
 		// Change state on reconnect for initial sync.
 		for _, m1 := range ku.obm.state {
 			for _, m2 := range m1 {
-				for _, update := range m2 {
-					update.initialSync = true
-					update.needsFetchingBook = true
-					update.lastUpdateID = 0
+				for _, idk := range m2 {
+					idk.initialSync = true
+					idk.needsFetchingBook = true
+					idk.lastUpdateID = 0
 				}
 			}
 		}
@@ -1268,7 +1230,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 	}
 
 	updateAsk := make([]orderbook.Item, len(ws.Changes.Asks))
-	for i := range ws.Changes.Bids {
+	for i := range ws.Changes.Asks {
 		p, err := strconv.ParseFloat(ws.Changes.Asks[i][0], 64)
 		if err != nil {
 			return err
@@ -1284,6 +1246,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 		updateAsk[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
 	}
 
+	log.Debugln(log.WebsocketMgr, "ob official sequence ", ws.SequenceEnd)
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
 		Bids:       updateBid,
 		Asks:       updateAsk,
@@ -1382,10 +1345,11 @@ func (ku *Kucoin) SynchroniseWebsocketOrderbook() {
 
 // SeedLocalCache seeds depth data
 func (ku *Kucoin) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := ku.GetOrderbook(ctx, p.String())
+	ob, err := ku.GetPartOrderbook100(ctx, p.String())
 	if err != nil {
 		return err
 	}
+	log.Debugln(log.WebsocketMgr, "got ob. Sequence:", ob.Sequence)
 	return ku.SeedLocalCacheWithBook(p, ob)
 }
 
@@ -1412,6 +1376,7 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 			Price:  orderbookNew.Asks[i].Price,
 		}
 	}
+	log.Debugln(log.WebsocketMgr, "ob official sequence ", orderbookNew.Sequence)
 	return ku.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 

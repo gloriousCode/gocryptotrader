@@ -213,6 +213,10 @@ func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 		return nil, err
 	}
 	s.Time = o.Time.Time()
+	s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
+	if err != nil {
+		return nil, err
+	}
 	return &s, err
 }
 

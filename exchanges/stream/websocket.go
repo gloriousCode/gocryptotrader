@@ -90,7 +90,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errExchangeConfigNameUnset
 	}
 	w.exchangeName = s.ExchangeConfig.Name
-	w.verbose = s.ExchangeConfig.Verbose
+	w.verbose = true
 
 	if s.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketFeaturesIsUnset)
