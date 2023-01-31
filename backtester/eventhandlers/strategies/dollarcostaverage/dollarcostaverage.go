@@ -90,10 +90,5 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 	return resp, nil
 }
 
-// SetCustomSettings not required for DCA
-func (s *Strategy) SetCustomSettings(_ map[string]interface{}) error {
-	return base.ErrCustomSettingsUnsupported
-}
-
 // SetDefaults not required for DCA
 func (s *Strategy) SetDefaults() {}

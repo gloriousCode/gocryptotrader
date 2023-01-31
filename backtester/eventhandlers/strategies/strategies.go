@@ -2,6 +2,7 @@ package strategies
 
 import (
 	"fmt"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
 	"reflect"
 	"strings"
 	"sync"
@@ -9,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/rsi"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -97,7 +97,7 @@ var (
 
 	supportedStrategies = StrategyHolder{
 		new(dollarcostaverage.Strategy),
-		new(rsi.Strategy),
+		new(technicalanalysis.Strategy),
 		new(top2bottom2.Strategy),
 		new(binancecashandcarry.Strategy),
 	}

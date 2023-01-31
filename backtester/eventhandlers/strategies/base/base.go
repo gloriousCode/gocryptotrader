@@ -1,6 +1,7 @@
 package base
 
 import (
+	"encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -50,4 +51,9 @@ func (s *Strategy) SetSimultaneousProcessing(b bool) {
 // a live strategy
 func (s *Strategy) CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error) {
 	return nil, gctcommon.ErrFunctionNotSupported
+}
+
+// SetCustomSettings not required for DCA
+func (s *Strategy) SetCustomSettings(json.RawMessage) error {
+	return ErrCustomSettingsUnsupported
 }
