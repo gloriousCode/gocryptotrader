@@ -1,4 +1,4 @@
-package rsi
+package technicalanalysis
 
 import (
 	"errors"
