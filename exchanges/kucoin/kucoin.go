@@ -29,6 +29,7 @@ import (
 // Kucoin is the overarching type across this package
 type Kucoin struct {
 	exchange.Base
+	obm *orderbookManager
 }
 
 const (
@@ -212,6 +213,12 @@ func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 		return nil, err
 	}
 	s.Time = o.Time.Time()
+	if o.Sequence != "" {
+		s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &s, err
 }
 

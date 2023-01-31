@@ -178,7 +178,10 @@ func (s *Service) update(p *Price) error {
 		s.mu.Unlock()
 		return nil
 	}
-
+	if t.Price == *p {
+		s.mu.Unlock()
+		return nil
+	}
 	t.Price = *p
 	//nolint: gocritic
 	ids := append(t.Assoc, t.Main)
