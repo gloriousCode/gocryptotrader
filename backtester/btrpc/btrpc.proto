@@ -12,12 +12,7 @@ message StrategySettings {
   string name = 1;
   bool use_simultaneous_signal_processing = 2;
   bool disable_usd_tracking = 3;
-  repeated CustomSettings custom_settings = 4;
-}
-
-message CustomSettings {
-  string key_field = 1;
-  string key_value = 2;
+  bytes custom_settings = 4;
 }
 
 message ExchangeLevelFunding {

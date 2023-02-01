@@ -239,8 +239,8 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	strats := strategies.GetSupportedStrategies()
 	strategiesToUse := make([]string, len(strats))
 	for i := range strats {
-		fmt.Printf("%v. %s\n", i+1, strats[i].Name())
-		strategiesToUse[i] = strats[i].Name()
+		fmt.Printf("%v. %s\n", i+1, strats[i].GetName())
+		strategiesToUse[i] = strats[i].GetName()
 	}
 	var err error
 	cfg.StrategySettings.Name, err = parseStratName(quickParse(reader), strategiesToUse)
@@ -252,11 +252,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	cfg.Goal = quickParse(reader)
 	fmt.Println("Enter a nickname, it can help distinguish between different configs using the same strategy")
 	cfg.Nickname = quickParse(reader)
-	fmt.Println("Does this strategy have custom settings? y/n")
-	customSettings := quickParse(reader)
-	if strings.Contains(customSettings, y) {
-		cfg.StrategySettings.CustomSettings = customSettingsLoop(reader)
-	}
+	fmt.Println("If you wish to utilise custom settings, plaese review the strategy's readme and add the custom JSON required")
 	fmt.Println("Do you wish to have strategy performance tracked against USD? y/n")
 	yn := quickParse(reader)
 	cfg.StrategySettings.DisableUSDTracking = !strings.Contains(yn, y)

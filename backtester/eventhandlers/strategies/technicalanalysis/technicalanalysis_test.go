@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -23,7 +23,7 @@ import (
 func TestName(t *testing.T) {
 	t.Parallel()
 	d := Strategy{}
-	if n := d.Name(); n != Name {
+	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -56,29 +56,29 @@ func TestSetCustomSettings(t *testing.T) {
 
 	mappalopalous[rsiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiPeriodKey] = float14
 	mappalopalous[rsiLowKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiLowKey] = float14
 	mappalopalous[rsiHighKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[rsiHighKey] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 }
 
@@ -124,8 +124,8 @@ func TestOnSignal(t *testing.T) {
 	}
 	var resp signal.Event
 	_, err = s.OnSignal(da, nil, nil)
-	if !errors.Is(err, base.ErrTooMuchBadData) {
-		t.Fatalf("expected: %v, received %v", base.ErrTooMuchBadData, err)
+	if !errors.Is(err, strategybase.ErrTooMuchBadData) {
+		t.Fatalf("expected: %v, received %v", strategybase.ErrTooMuchBadData, err)
 	}
 
 	s.rsiPeriod = decimal.NewFromInt(1)
@@ -214,9 +214,9 @@ func TestOnSignals(t *testing.T) {
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
 	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
-	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
+	if !strings.Contains(err.Error(), strategybase.ErrTooMuchBadData.Error()) {
 		// common.Errs type doesn't keep type
-		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrTooMuchBadData)
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 	datakline "github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -28,7 +28,7 @@ const testExchange = "binance"
 func TestName(t *testing.T) {
 	t.Parallel()
 	d := Strategy{}
-	if n := d.Name(); n != Name {
+	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -36,7 +36,7 @@ func TestName(t *testing.T) {
 func TestDescription(t *testing.T) {
 	t.Parallel()
 	d := Strategy{}
-	if n := d.Description(); n != description {
+	if n := d.GetDescription(); n != description {
 		t.Errorf("expected %v", description)
 	}
 }
@@ -68,22 +68,22 @@ func TestSetCustomSettings(t *testing.T) {
 
 	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[closeShortDistancePercentageString] = float14
 	mappalopalous[openShortDistancePercentageString] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[closeShortDistancePercentageString] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestOnSignal(t *testing.T) {
 		openShortDistancePercentage: decimal.NewFromInt(14),
 	}
 	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
+	if !errors.Is(err, strategybase.ErrSimultaneousProcessingOnly) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrSimultaneousProcessingOnly)
 	}
 }
 
@@ -331,8 +331,8 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	_, err := s.OnSimultaneousSignals(nil, nil, nil)
-	if !errors.Is(err, base.ErrNoDataToProcess) {
-		t.Errorf("received '%v' expected '%v", err, base.ErrNoDataToProcess)
+	if !errors.Is(err, strategybase.ErrNoDataToProcess) {
+		t.Errorf("received '%v' expected '%v", err, strategybase.ErrNoDataToProcess)
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USD)

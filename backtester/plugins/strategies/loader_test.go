@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 )
@@ -32,14 +32,14 @@ func TestAddStrategies(t *testing.T) {
 }
 
 type CustomStrategy struct {
-	base.Strategy
+	strategybase.Strategy
 }
 
-func (s *CustomStrategy) Name() string {
+func (s *CustomStrategy) GetName() string {
 	return "custom-strategy"
 }
 
-func (s *CustomStrategy) Description() string {
+func (s *CustomStrategy) GetDescription() string {
 	return "this is a demonstration of loading strategies via custom plugins"
 }
 

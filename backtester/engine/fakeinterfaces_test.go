@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -280,11 +281,11 @@ func (f fakeFunding) RealisePNL(string, asset.Item, currency.Code, decimal.Decim
 
 type fakeStrat struct{}
 
-func (f fakeStrat) Name() string {
+func (f fakeStrat) GetName() string {
 	return "fake"
 }
 
-func (f fakeStrat) Description() string {
+func (f fakeStrat) GetDescription() string {
 	return "fake"
 }
 
@@ -306,7 +307,7 @@ func (f fakeStrat) SupportsSimultaneousProcessing() bool {
 
 func (f fakeStrat) SetSimultaneousProcessing(bool) {}
 
-func (f fakeStrat) SetCustomSettings(map[string]interface{}) error {
+func (f fakeStrat) SetCustomSettings(json.RawMessage) error {
 	return nil
 }
 

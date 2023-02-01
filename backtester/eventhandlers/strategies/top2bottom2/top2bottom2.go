@@ -1,6 +1,7 @@
 package top2bottom2
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -11,20 +12,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
 	// Name is the strategy name
-	Name         = "top2bottom2"
-	mfiPeriodKey = "mfi-period"
-	mfiLowKey    = "mfi-low"
-	mfiHighKey   = "mfi-high"
-	description  = `This is an example strategy to highlight more complex strategy design. All signals are processed and then ranked. Only the top 2 and bottom 2 proceed further`
+	Name                     = "top2bottom2"
+	description              = `This is an example strategy to highlight more complex strategy design. All signals are processed and then ranked. Only the top 2 and bottom 2 proceed further`
+	defaultMaxMissingPeriods = 14
 )
 
 var (
@@ -34,21 +34,25 @@ var (
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
-	base.Strategy
-	mfiPeriod decimal.Decimal
-	mfiLow    decimal.Decimal
-	mfiHigh   decimal.Decimal
+	strategybase.Strategy
+	Settings CustomSettings
 }
 
-// Name returns the name of the strategy
-func (s *Strategy) Name() string {
-	return Name
+type CustomSettings struct {
+	MaxMissingPeriods int64           `json:"max-missing-periods"`
+	MFIPeriod         decimal.Decimal `json:"mfi-period"`
+	MFILow            decimal.Decimal `json:"mfi-low"`
+	MFIHigh           decimal.Decimal `json:"mfi-high"`
 }
 
-// Description provides a nice overview of the strategy
-// be it definition of terms or to highlight its purpose
-func (s *Strategy) Description() string {
-	return description
+// New creates a new instance of a strategy
+func (s *Strategy) New() strategybase.Handler {
+	return &Strategy{
+		Strategy: strategybase.Strategy{
+			Name:        Name,
+			Description: description,
+		},
+	}
 }
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
@@ -109,7 +113,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		es.SetPrice(latest.GetClosePrice())
 		offset := latest.GetOffset()
 
-		if offset <= s.mfiPeriod.IntPart() {
+		if offset <= s.Settings.MFIPeriod.IntPart() {
 			es.AppendReason("Not enough data for signal generation")
 			es.SetDirection(order.DoNothing)
 			resp = append(resp, &es)
@@ -149,7 +153,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if err != nil {
 			return nil, err
 		}
-		mfi := indicators.MFI(massagedHighData, massagedLowData, massagedCloseData, massagedVolumeData, int(s.mfiPeriod.IntPart()))
+		mfi := indicators.MFI(massagedHighData, massagedLowData, massagedCloseData, massagedVolumeData, int(s.Settings.MFIPeriod.IntPart()))
 		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
 		if err != nil {
@@ -186,7 +190,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 	sortByMFI(&mfiFundEvents, true)
 	buyingOrSelling := false
 	for i := range mfiFundEvents {
-		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.mfiHigh) {
+		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.Settings.MFIHigh) {
 			mfiFundEvents[i].event.SetDirection(order.Sell)
 			buyingOrSelling = true
 		} else if i >= 2 {
@@ -195,7 +199,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 	}
 	sortByMFI(&mfiFundEvents, false)
 	for i := range mfiFundEvents {
-		if i < 2 && mfiFundEvents[i].mfi.LessThanOrEqual(s.mfiLow) {
+		if i < 2 && mfiFundEvents[i].mfi.LessThanOrEqual(s.Settings.MFILow) {
 			mfiFundEvents[i].event.SetDirection(order.Buy)
 			buyingOrSelling = true
 		} else if i >= 2 {
@@ -212,40 +216,43 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 }
 
 // SetCustomSettings allows a user to modify the MFI limits in their config
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	for k, v := range customSettings {
-		switch k {
-		case mfiHighKey:
-			mfiHigh, ok := v.(float64)
-			if !ok || mfiHigh <= 0 {
-				return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiHigh = decimal.NewFromFloat(mfiHigh)
-		case mfiLowKey:
-			mfiLow, ok := v.(float64)
-			if !ok || mfiLow <= 0 {
-				return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiLow = decimal.NewFromFloat(mfiLow)
-		case mfiPeriodKey:
-			mfiPeriod, ok := v.(float64)
-			if !ok || mfiPeriod <= 0 {
-				return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
-		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
-		}
+func (s *Strategy) SetCustomSettings(message json.RawMessage) error {
+	var customSettings CustomSettings
+	err := json.Unmarshal(message, &customSettings)
+	if err != nil {
+		return err
+	}
+	if customSettings.MaxMissingPeriods < 0 {
+		return fmt.Errorf("%w max missing periods less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.MFIHigh.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w mfi high less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.MFILow.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w mfi low less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.MFIPeriod.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w mfi period less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.MFIHigh.LessThan(customSettings.MFILow) {
+		return fmt.Errorf("%w MFI high %v less than MFI low %v make sure you know what you're doing",
+			strategybase.ErrInvalidCustomSettings, customSettings.MFIHigh, customSettings.MFILow)
 	}
 
+	s.Settings = customSettings
 	return nil
 }
 
 // SetDefaults sets the custom settings to their default values
 func (s *Strategy) SetDefaults() {
-	s.mfiHigh = decimal.NewFromInt(70)
-	s.mfiLow = decimal.NewFromInt(30)
-	s.mfiPeriod = decimal.NewFromInt(14)
+	s.Settings.MFIHigh = decimal.NewFromInt(70)
+	s.Settings.MFILow = decimal.NewFromInt(30)
+	s.Settings.MFIPeriod = decimal.NewFromInt(14)
+	if s.Settings.MaxMissingPeriods < 0 {
+		// only override < 0 in case strategy user desires no tolerance for missing data
+		log.Warnf(common.Strategy, "invalid maximum missing price periods, defaulting to %v", defaultMaxMissingPeriods)
+		s.Settings.MaxMissingPeriods = defaultMaxMissingPeriods
+	}
 }
 
 // massageMissingData will replace missing data with the previous candle's data
@@ -256,17 +263,17 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
-		if data[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
+		if data[i].IsZero() && i > int(s.Settings.MFIPeriod.IntPart()) {
 			data[i] = data[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
 		}
-		if missingDataStreak >= s.mfiPeriod.IntPart() {
+		if missingDataStreak >= s.Settings.MaxMissingPeriods {
 			return nil, fmt.Errorf("missing data exceeds mfi period length of %v at %s and will distort results. %w",
-				s.mfiPeriod,
+				s.Settings.MaxMissingPeriods,
 				t.Format(gctcommon.SimpleTimeFormat),
-				base.ErrTooMuchBadData)
+				strategybase.ErrTooMuchBadData)
 		}
 		resp[i] = data[i].InexactFloat64()
 	}

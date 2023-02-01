@@ -2,13 +2,20 @@
  "nickname": "TestGenerateRSICandleAPICustomSettingsStrat",
  "goal": "To demonstrate the RSI strategy using API candle data and custom settings",
  "strategy-settings": {
-  "name": "rsi",
+  "name": "technicalanalysis",
   "use-simultaneous-signal-processing": false,
   "disable-usd-tracking": false,
   "custom-settings": {
-   "rsi-high": 70,
-   "rsi-low": 30,
-   "rsi-period": 14
+   "max-missing-periods": 10,
+   "indicators": [
+    {
+     "rsi": {
+      "period": 14,
+      "low": 24,
+      "high": 71
+     }
+    }
+   ]
   }
  },
  "funding-settings": {

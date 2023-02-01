@@ -6,6 +6,7 @@ import (
 	"plugin"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
@@ -22,14 +23,14 @@ func LoadCustomStrategies(strategyPluginPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not lookup plugin. Plugin must have function `GetStrategy`. Error: %w", err)
 	}
-	customStrategies, ok := v.(func() []strategies.Handler)
+	customStrategies, ok := v.(func() []strategybase.Handler)
 	if !ok {
 		return gctcommon.GetAssertError("[]strategies.Handler", customStrategies)
 	}
 	return addStrategies(customStrategies())
 }
 
-func addStrategies(s []strategies.Handler) error {
+func addStrategies(s []strategybase.Handler) error {
 	if len(s) == 0 {
 		return errNoStrategies
 	}

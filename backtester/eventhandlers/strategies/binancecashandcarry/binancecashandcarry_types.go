@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 )
 
 const (
@@ -23,7 +23,12 @@ var (
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
-	base.Strategy
-	openShortDistancePercentage  decimal.Decimal
-	closeShortDistancePercentage decimal.Decimal
+	strategybase.Strategy
+	Settings CustomSettings
+}
+
+// CustomSettings holds custom settings for this strategy
+type CustomSettings struct {
+	OpenShortDistancePercentage  decimal.Decimal `json:"open-short-distance-percentage"`
+	CloseShortDistancePercentage decimal.Decimal `json:"close-short-distance-percentage"`
 }

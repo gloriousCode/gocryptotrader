@@ -429,15 +429,6 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
-	x := 0
-	for k, v := range defaultConfig.StrategySettings.CustomSettings {
-		customSettings[x] = &btrpc.CustomSettings{
-			KeyField: k,
-			KeyValue: fmt.Sprintf("%v", v),
-		}
-		x++
-	}
 
 	currencySettings := make([]*btrpc.CurrencySettings, len(defaultConfig.CurrencySettings))
 	for i := range defaultConfig.CurrencySettings {
@@ -522,7 +513,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
 					ClientId:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
-					PemKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 				},
@@ -571,7 +562,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 			Name:                            defaultConfig.StrategySettings.Name,
 			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
 			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
-			CustomSettings:                  customSettings,
+			CustomSettings:                  defaultConfig.StrategySettings.CustomSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{
 			UseExchangeLevelFunding: defaultConfig.FundingSettings.UseExchangeLevelFunding,

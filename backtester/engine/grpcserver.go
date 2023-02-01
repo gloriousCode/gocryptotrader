@@ -360,11 +360,6 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	customSettings := make(map[string]interface{}, len(request.Config.StrategySettings.CustomSettings))
-	for i := range request.Config.StrategySettings.CustomSettings {
-		customSettings[request.Config.StrategySettings.CustomSettings[i].KeyField] = request.Config.StrategySettings.CustomSettings[i].KeyValue
-	}
-
 	configSettings := make([]config.CurrencySettings, len(request.Config.CurrencySettings))
 	for i := range request.Config.CurrencySettings {
 		var currencySettingBuySideMinimumSize, currencySettingBuySideMaximumSize,
@@ -556,7 +551,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,
-					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PemKey,
+					PEMKey:          request.Config.DataSettings.LiveData.Credentials[i].Keys.PEMKey,
 					SubAccount:      request.Config.DataSettings.LiveData.Credentials[i].Keys.SubAccount,
 					OneTimePassword: request.Config.DataSettings.LiveData.Credentials[i].Keys.OneTimePassword,
 				},
@@ -586,7 +581,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			Name:                         request.Config.StrategySettings.Name,
 			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
 			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
-			CustomSettings:               customSettings,
+			CustomSettings:               request.Config.StrategySettings.CustomSettings,
 		},
 		FundingSettings: config.FundingSettings{
 			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,

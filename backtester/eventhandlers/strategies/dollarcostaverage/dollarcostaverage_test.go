@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -21,7 +21,7 @@ import (
 
 func TestName(t *testing.T) {
 	d := Strategy{}
-	if n := d.Name(); n != Name {
+	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -36,8 +36,8 @@ func TestSupportsSimultaneousProcessing(t *testing.T) {
 func TestSetCustomSettings(t *testing.T) {
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
-	if !errors.Is(err, base.ErrCustomSettingsUnsupported) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrCustomSettingsUnsupported)
+	if !errors.Is(err, strategybase.ErrCustomSettingsUnsupported) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrCustomSettingsUnsupported)
 	}
 }
 

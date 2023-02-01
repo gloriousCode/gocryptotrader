@@ -1,7 +1,8 @@
-package base
+package strategybase
 
 import (
 	"encoding/json"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -11,8 +12,24 @@ import (
 
 // Strategy is base implementation of the Handler interface
 type Strategy struct {
+	Name                      string
+	Description               string
 	useSimultaneousProcessing bool
 }
+
+// GetName returns the name
+func (s *Strategy) GetName() string {
+	return s.Name
+}
+
+// GetDescription provides a nice overview of the strategy
+// be it definition of terms or to highlight its purpose
+func (s *Strategy) GetDescription() string {
+	return s.Description
+}
+
+// SetDefaults sets default values for overridable custom settings
+func (s *Strategy) SetDefaults() {}
 
 // GetBaseData returns the non-interface version of the Handler
 func (s *Strategy) GetBaseData(d data.Handler) (signal.Signal, error) {
