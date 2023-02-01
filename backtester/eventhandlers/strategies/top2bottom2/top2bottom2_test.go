@@ -9,7 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	eventkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -63,29 +63,29 @@ func TestSetCustomSettings(t *testing.T) {
 
 	mappalopalous[mfiPeriodKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[mfiPeriodKey] = float14
 	mappalopalous[mfiLowKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[mfiLowKey] = float14
 	mappalopalous[mfiHighKey] = "14"
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 
 	mappalopalous[mfiHighKey] = float14
 	mappalopalous["lol"] = float14
 	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, base.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
+	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 }
 
@@ -142,9 +142,9 @@ func TestOnSignals(t *testing.T) {
 	}
 
 	_, err = s.OnSimultaneousSignals([]data.Handler{da, da, da, da}, nil, nil)
-	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
+	if !strings.Contains(err.Error(), strategybase.ErrTooMuchBadData.Error()) {
 		// common.Errs type doesn't keep type
-		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrTooMuchBadData)
 	}
 }
 

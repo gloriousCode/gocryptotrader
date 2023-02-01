@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -39,7 +39,7 @@ type BackTest struct {
 	MetaData                 TaskMetaData
 	DataHolder               data.Holder
 	LiveDataHandler          Handler
-	Strategy                 strategies.Handler
+	Strategy                 strategybase.Handler
 	Portfolio                portfolio.Handler
 	Exchange                 exchange.ExecutionHandler
 	Statistic                statistics.Handler

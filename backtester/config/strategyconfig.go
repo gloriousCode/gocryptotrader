@@ -9,7 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -124,12 +124,12 @@ func (c *Config) validateStrategySettings() error {
 	}
 	strats := strategies.GetSupportedStrategies()
 	for i := range strats {
-		if strings.EqualFold(strats[i].Name(), c.StrategySettings.Name) {
+		if strings.EqualFold(strats[i].GetName(), c.StrategySettings.Name) {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("strategty %v %w", c.StrategySettings.Name, base.ErrStrategyNotFound)
+	return fmt.Errorf("strategy %v %w", c.StrategySettings.Name, strategybase.ErrStrategyNotFound)
 }
 
 // validateDate checks whether someone has set a date poorly in their config
@@ -225,10 +225,7 @@ func (c *Config) PrintSetting() {
 	log.Info(common.Config, common.CMDColours.H2+"------------------Strategy Settings--------------------------"+common.CMDColours.Default)
 	log.Infof(common.Config, "Strategy: %s", c.StrategySettings.Name)
 	if len(c.StrategySettings.CustomSettings) > 0 {
-		log.Info(common.Config, "Custom strategy variables:")
-		for k, v := range c.StrategySettings.CustomSettings {
-			log.Infof(common.Config, "%s: %v", k, v)
-		}
+		log.Infof(common.Config, "Custom strategy variables:\n%s", string(c.StrategySettings.CustomSettings))
 	} else {
 		log.Info(common.Config, "Custom strategy variables: unset")
 	}

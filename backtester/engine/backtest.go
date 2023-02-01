@@ -11,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -309,7 +309,7 @@ func (bt *BackTest) processSingleDataEvent(ev data.Event, funds funding.IFundRel
 	}
 	s, err := bt.Strategy.OnSignal(d, bt.Funding, bt.Portfolio)
 	if err != nil {
-		if errors.Is(err, base.ErrTooMuchBadData) {
+		if errors.Is(err, strategybase.ErrTooMuchBadData) {
 			// too much bad data is a severe error and backtesting must cease
 			return err
 		}
@@ -367,10 +367,10 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding, bt.Portfolio)
 	if err != nil {
 		switch {
-		case errors.Is(err, base.ErrTooMuchBadData):
+		case errors.Is(err, strategybase.ErrTooMuchBadData):
 			// too much bad data is a severe error and backtesting must cease
 			return err
-		case errors.Is(err, base.ErrNoDataToProcess) && bt.MetaData.Closed && bt.MetaData.ClosePositionsOnStop:
+		case errors.Is(err, strategybase.ErrNoDataToProcess) && bt.MetaData.Closed && bt.MetaData.ClosePositionsOnStop:
 			// event queue is being cleared with no data events to process
 			return nil
 		default:
@@ -703,7 +703,7 @@ func (bt *BackTest) CloseAllPositions() error {
 	events, err := bt.Strategy.CloseAllPositions(bt.Portfolio.GetLatestHoldingsForAllCurrencies(), latestPrices)
 	if err != nil {
 		if errors.Is(err, gctcommon.ErrFunctionNotSupported) {
-			log.Warnf(common.LiveStrategy, "Closing all positions is not supported by strategy %v", bt.Strategy.Name())
+			log.Warnf(common.LiveStrategy, "Closing all positions is not supported by strategy %v", bt.Strategy.GetName())
 			return nil
 		}
 		return err

@@ -1,6 +1,7 @@
 package binancecashandcarry
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,7 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -20,21 +21,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Name returns the name of the strategy
-func (s *Strategy) Name() string {
-	return Name
-}
-
-// Description describes the strategy
-func (s *Strategy) Description() string {
-	return description
-}
-
 // OnSignal handles a data event and returns what action the strategy believes should occur
 // For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
 // sell signal when it is at or above a certain level
 func (s *Strategy) OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error) {
-	return nil, base.ErrSimultaneousProcessingOnly
+	return nil, strategybase.ErrSimultaneousProcessingOnly
 }
 
 // SupportsSimultaneousProcessing this strategy only supports simultaneous signal processing
@@ -49,11 +40,21 @@ type cashCarrySignals struct {
 
 var errNotSetup = errors.New("sent incomplete signals")
 
+// New creates a new instance of a strategy
+func (s *Strategy) New() strategybase.Handler {
+	return &Strategy{
+		Strategy: strategybase.Strategy{
+			Name:        Name,
+			Description: description,
+		},
+	}
+}
+
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
 	if len(d) == 0 {
-		return nil, base.ErrNoDataToProcess
+		return nil, strategybase.ErrNoDataToProcess
 	}
 	if f == nil {
 		return nil, fmt.Errorf("%w missing funding transferred", gctcommon.ErrNilPointer)
@@ -178,7 +179,7 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 	switch {
 	case len(pos) == 0,
 		pos[len(pos)-1].Status == order.Closed &&
-			diffBetweenFuturesSpot.GreaterThan(s.openShortDistancePercentage):
+			diffBetweenFuturesSpot.GreaterThan(s.Settings.OpenShortDistancePercentage):
 		// check to see if order is appropriate to action
 		spotSignal.SetPrice(spotSignal.ClosePrice)
 		spotSignal.AppendReasonf("Signalling purchase of %v", spotSignal.Pair())
@@ -199,12 +200,12 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 		// only appending spotSignal as futuresSignal will be raised later
 		response = append(response, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
-		diffBetweenFuturesSpot.LessThanOrEqual(s.closeShortDistancePercentage):
+		diffBetweenFuturesSpot.LessThanOrEqual(s.Settings.CloseShortDistancePercentage):
 		// closing positions when custom threshold met
 		spotSignal.SetDirection(order.ClosePosition)
-		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.closeShortDistancePercentage)
+		spotSignal.AppendReasonf("Closing position. Met threshold of %v", s.Settings.CloseShortDistancePercentage)
 		futuresSignal.SetDirection(order.ClosePosition)
-		futuresSignal.AppendReasonf("Closing position. Met threshold %v", s.closeShortDistancePercentage)
+		futuresSignal.AppendReasonf("Closing position. Met threshold %v", s.Settings.CloseShortDistancePercentage)
 		response = append(response, futuresSignal, spotSignal)
 	case pos[len(pos)-1].Status == order.Open &&
 		isLastEvent:
@@ -224,7 +225,7 @@ func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal
 // and carry signals
 func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 	if len(d) == 0 {
-		return nil, base.ErrNoDataToProcess
+		return nil, strategybase.ErrNoDataToProcess
 	}
 	var carryMap = make(map[*currency.Item]map[*currency.Item]cashCarrySignals, len(d))
 	for i := range d {
@@ -277,31 +278,23 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 }
 
 // SetCustomSettings can override default settings
-func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) error {
-	for k, v := range customSettings {
-		switch k {
-		case openShortDistancePercentageString:
-			osdp, ok := v.(float64)
-			if !ok || osdp <= 0 {
-				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
-		case closeShortDistancePercentageString:
-			csdp, ok := v.(float64)
-			if !ok || csdp <= 0 {
-				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
-			}
-			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
-		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
-		}
+func (s *Strategy) SetCustomSettings(message json.RawMessage) error {
+	var customSettings CustomSettings
+	err := json.Unmarshal(message, &customSettings)
+	if err != nil {
+		return err
+	}
+	if customSettings.OpenShortDistancePercentage.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w open short distance percentage less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.CloseShortDistancePercentage.LessThan(decimal.Zero) {
+		return fmt.Errorf("%w close short distance percentage less than zero", strategybase.ErrInvalidCustomSettings)
+	}
+	if customSettings.OpenShortDistancePercentage.LessThan(customSettings.CloseShortDistancePercentage) {
+		return fmt.Errorf("%w open short distance percentage %v less than close short distance percentage %v make sure you know what you're doing",
+			strategybase.ErrInvalidCustomSettings, customSettings.OpenShortDistancePercentage, customSettings.CloseShortDistancePercentage)
 	}
 
+	s.Settings = customSettings
 	return nil
-}
-
-// SetDefaults sets default values for overridable custom settings
-func (s *Strategy) SetDefaults() {
-	s.openShortDistancePercentage = decimal.Zero
-	s.closeShortDistancePercentage = decimal.Zero
 }

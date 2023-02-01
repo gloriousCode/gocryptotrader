@@ -1,71 +1,52 @@
 package strategies
 
 import (
+	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
-	"reflect"
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
+
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // LoadStrategyByName returns the strategy by its name
-func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, error) {
+func LoadStrategyByName(name string, useSimultaneousProcessing bool) (strategybase.Handler, error) {
 	strategies := GetSupportedStrategies()
+	var strategy strategybase.Handler
+	var err error
 	for i := range strategies {
-		strategy, err := createNewStrategy(name, useSimultaneousProcessing, strategies[i])
+		strategy, err = createNewStrategy(name, useSimultaneousProcessing, strategies[i])
 		if err != nil {
+			if errors.Is(err, strategybase.ErrStrategyNotFound) {
+				continue
+			}
 			return nil, err
 		}
-		if strategy != nil {
-			return strategy, err
-		}
+		break
 	}
-	return nil, fmt.Errorf("strategy '%v' %w", name, base.ErrStrategyNotFound)
+	return strategy, nil
 }
 
-func createNewStrategy(name string, useSimultaneousProcessing bool, h Handler) (Handler, error) {
+func createNewStrategy(name string, useSimultaneousProcessing bool, h strategybase.Handler) (strategybase.Handler, error) {
 	if h == nil {
 		return nil, fmt.Errorf("cannot load %v supported strategies contains %w", name, common.ErrNilPointer)
 	}
-	if !strings.EqualFold(name, h.Name()) {
-		return nil, nil
+	// ensure that we use a new instance of a strategy
+	newStrategy := h.New()
+	if newStrategy.GetName() != name {
+		return nil, fmt.Errorf("%w %v", strategybase.ErrStrategyNotFound, name)
 	}
-	// create new instance so strategy is not shared across all tasks
-	strategyValue := reflect.ValueOf(h)
-	if strategyValue.IsNil() {
-		return nil, fmt.Errorf("cannot load %v supported strategies element is a %w", name, common.ErrNilPointer)
+	if useSimultaneousProcessing && !newStrategy.SupportsSimultaneousProcessing() {
+		return nil, strategybase.ErrSimultaneousProcessingNotSupported
 	}
-	strategyElement := strategyValue.Elem()
-	if !strategyElement.IsValid() {
-		return nil, fmt.Errorf("cannot load %v strategy element is invalid %w", name, common.ErrTypeAssertFailure)
-	}
-	strategyType := strategyElement.Type()
-	if strategyType == nil {
-		return nil, fmt.Errorf("cannot load %v strategy type is a %w", name, common.ErrNilPointer)
-	}
-	newStrategy := reflect.New(strategyType)
-	if newStrategy.IsNil() {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is a %w", name, common.ErrNilPointer)
-	}
-	strategyInterface := newStrategy.Interface()
-	if strategyInterface == nil {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is not an interface. %w", name, common.ErrTypeAssertFailure)
-	}
-	strategy, ok := strategyInterface.(Handler)
-	if !ok {
-		return nil, fmt.Errorf("cannot load %v new instance of strategy is not a Handler interface. %w", name, common.ErrTypeAssertFailure)
-	}
-	if useSimultaneousProcessing && !strategy.SupportsSimultaneousProcessing() {
-		return nil, base.ErrSimultaneousProcessingNotSupported
-	}
-	strategy.SetSimultaneousProcessing(useSimultaneousProcessing)
-	return strategy, nil
+	newStrategy.SetSimultaneousProcessing(useSimultaneousProcessing)
+	return newStrategy, nil
 }
 
 // GetSupportedStrategies returns a static list of set strategies
@@ -77,15 +58,15 @@ func GetSupportedStrategies() StrategyHolder {
 }
 
 // AddStrategy will add a strategy to the list of strategies
-func AddStrategy(strategy Handler) error {
+func AddStrategy(strategy strategybase.Handler) error {
 	if strategy == nil {
 		return fmt.Errorf("%w strategy handler", common.ErrNilPointer)
 	}
 	m.Lock()
 	defer m.Unlock()
 	for i := range supportedStrategies {
-		if strings.EqualFold(supportedStrategies[i].Name(), strategy.Name()) {
-			return fmt.Errorf("'%v' %w", strategy.Name(), ErrStrategyAlreadyExists)
+		if strings.EqualFold(supportedStrategies[i].GetName(), strategy.GetName()) {
+			return fmt.Errorf("'%v' %w", strategy.GetName(), ErrStrategyAlreadyExists)
 		}
 	}
 	supportedStrategies = append(supportedStrategies, strategy)
@@ -96,9 +77,9 @@ var (
 	m sync.Mutex
 
 	supportedStrategies = StrategyHolder{
-		new(dollarcostaverage.Strategy),
-		new(technicalanalysis.Strategy),
-		new(top2bottom2.Strategy),
-		new(binancecashandcarry.Strategy),
+		new(dollarcostaverage.Strategy).New(),
+		new(technicalanalysis.Strategy).New(),
+		new(top2bottom2.Strategy).New(),
+		new(binancecashandcarry.Strategy).New(),
 	}
 )

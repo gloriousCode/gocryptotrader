@@ -10,7 +10,8 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -26,7 +27,7 @@ const (
 	mainExchange = "binance"
 	dca          = "dollarcostaverage"
 	// change this if you modify a config and want it to save to the example folder
-	saveConfig = false
+	saveConfig = !false
 )
 
 var (
@@ -312,8 +313,8 @@ func TestValidateStrategySettings(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
 	err := c.validateStrategySettings()
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received %v expected %v", err, base.ErrStrategyNotFound)
+	if !errors.Is(err, strategybase.ErrStrategyNotFound) {
+		t.Errorf("received %v expected %v", err, strategybase.ErrStrategyNotFound)
 	}
 	c.StrategySettings = StrategySettings{Name: dca}
 	err = c.validateStrategySettings()
@@ -362,11 +363,6 @@ func TestPrintSettings(t *testing.T) {
 		Goal:     "To demonstrate rendering of settings",
 		StrategySettings: StrategySettings{
 			Name: dca,
-			CustomSettings: map[string]interface{}{
-				"dca-dummy1": 30.0,
-				"dca-dummy2": 30.0,
-				"dca-dummy3": 30.0,
-			},
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -958,16 +954,28 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	if !saveConfig {
 		t.Skip()
 	}
+	rsiCustomSettings := technicalanalysis.CustomSettings{
+		MaxMissingPeriods: 10,
+		Indicators: []technicalanalysis.Indicator{
+			&technicalanalysis.RSI{
+				TABase: technicalanalysis.TABase{
+					Period: 14,
+					Low:    24,
+					High:   71,
+				},
+			},
+		},
+	}
+	customJson, err := json.MarshalIndent(rsiCustomSettings, "", " ")
+	if err != nil {
+		t.Fatal(err)
+	}
 	cfg := Config{
 		Nickname: "TestGenerateRSICandleAPICustomSettingsStrat",
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
-			Name: "rsi",
-			CustomSettings: map[string]interface{}{
-				"rsi-low":    30.0,
-				"rsi-high":   70.0,
-				"rsi-period": 14,
-			},
+			Name:           "technicalanalysis",
+			CustomSettings: customJson,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1206,11 +1214,11 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			Name:                         top2bottom2.Name,
 			SimultaneousSignalProcessing: true,
 
-			CustomSettings: map[string]interface{}{
-				"mfi-low":    32,
-				"mfi-high":   68,
-				"mfi-period": 14,
-			},
+			//CustomSettings: map[string]interface{}{
+			//	"mfi-low":    32,
+			//	"mfi-high":   68,
+			//	"mfi-period": 14,
+			//},
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,

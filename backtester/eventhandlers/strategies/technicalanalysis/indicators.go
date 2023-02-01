@@ -3,19 +3,23 @@ package technicalanalysis
 import (
 	"errors"
 	"fmt"
+
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 )
 
 const (
-	rsiName  = "RSI"
-	macdName = "SMA"
-	mfiName  = "MFI"
-	obvName  = "OBV"
+	rsiName                  = "RSI"
+	mfiName                  = "MFI"
+	obvName                  = "OBV"
+	bbandsName               = "OBV"
+	macdName                 = "MACD"
+	defaultMaxMissingPeriods = 14
 )
 
 var (
-	errUnsetIndicatorValue   = errors.New("unset indicator value")
-	errInvalidIndicatorValue = errors.New("invalid indicator value")
+	errUnsetIndicatorValue          = errors.New("unset indicator value")
+	errInvalidIndicatorValue        = errors.New("invalid indicator value")
+	errUnknownIndicatorAttributeSet = errors.New("unknown indicator attribute set, please check your config and read the readme")
 )
 
 // Indicator contains all relevant usable information to perform TA
@@ -26,6 +30,8 @@ type Indicator interface {
 	GetSlowPeriod() int64
 	GetLow() float64
 	GetHigh() float64
+	GetUp() float64
+	GetDown() float64
 	GetGroup() string
 	MustPass() bool
 	Validate() error
@@ -34,26 +40,28 @@ type Indicator interface {
 // CustomSettings holds all defined indicators
 // seperated by group (if defined)
 type CustomSettings struct {
-	Indicators        []Indicator `json:"indicators"`
-	GroupedIndicators [][]Indicator
+	MaxMissingPeriods int64         `json:"max-missing-periods"`
+	Indicators        []TABase      `json:"indicators"`
+	groupedIndicators [][]Indicator `json:"-"`
 }
 
 // TABase contains implementations to satisfy the interface
 // when something is unsupported
 type TABase struct {
 	Name         string  `json:"name"`
-	Period       int64   `json:"period"`
-	FastPeriod   int64   `json:"fast-period"`
-	SlowPeriod   int64   `json:"slow-period"`
-	Low          float64 `json:"low"`
-	High         float64 `json:"high"`
-	Group        string  `json:"group"`
-	PassRequired bool    `json:"pass-required"`
+	Period       int64   `json:"period,omitempty"`
+	FastPeriod   int64   `json:"fast-period,omitempty"`
+	SlowPeriod   int64   `json:"slow-period,omitempty"`
+	Low          float64 `json:"low,omitempty"`
+	High         float64 `json:"high,omitempty"`
+	Down         float64 `json:"down,omitempty"`
+	Up           float64 `json:"up,omitempty"`
+	Group        string  `json:"group,omitempty"`
+	PassRequired bool    `json:"pass-required,omitempty"`
 }
 
-// GetName returns the indicator Name
 func (t *TABase) GetName() string {
-	return t.Name
+	return ""
 }
 
 // GetPeriod returns the indicator period
@@ -81,6 +89,16 @@ func (t *TABase) GetSlowPeriod() int64 {
 	return t.SlowPeriod
 }
 
+// GetUp returns the up value for BBands
+func (t *TABase) GetUp() float64 {
+	return t.Up
+}
+
+// GetDown returns the down value for BBands
+func (t *TABase) GetDown() float64 {
+	return t.Down
+}
+
 // GetGroup returns the group the indicator belongs to
 func (t *TABase) GetGroup() string {
 	return t.Group
@@ -99,53 +117,114 @@ func (t *TABase) Validate() error {
 
 // RSI stands for Relative Strength Indicator
 type RSI struct {
-	*TABase
+	TABase `json:"rsi"`
+}
+
+// BBands are Bollinger bands, not boy bands
+type BBands struct {
+	TABase `json:"bbands"`
+}
+
+// OBV stands for on-balance-volume
+type OBV struct {
+	TABase `json:"obv"`
+}
+
+// MACD stands for Smoothed Moving Average
+type MACD struct {
+	TABase `json:"macd"`
+}
+
+// EMA stands for Exponential Moving Average
+type EMA struct {
+	TABase `json:"ema"`
+}
+
+// GetName returns the indicator's name
+func (i *RSI) GetName() string {
+	return rsiName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
-func (r *RSI) Validate() error {
-	if r.High <= 0 {
-		return fmt.Errorf("%w RSI High: %v", errUnsetIndicatorValue, r.High)
+func (i *RSI) Validate() error {
+	if i.High <= 0 {
+		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.High)
 	}
-	if r.Low <= 0 {
-		return fmt.Errorf("%w RSI Low: %v", errUnsetIndicatorValue, r.Low)
+	if i.Low <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.Low)
 	}
-	if r.Period <= 0 {
-		return fmt.Errorf("%w RSI Period: %v", errUnsetIndicatorValue, r.Period)
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
 	}
-	if r.Low > r.High {
-		return fmt.Errorf("%w RSI Low %v > High %v: %v", errInvalidIndicatorValue, r.Low, r.High)
+	if i.Low > i.High {
+		return fmt.Errorf("%w %s Low %v > High %v: %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
 	}
-	if r.GetSlowPeriod() > 0 || r.GetFastPeriod() > 0 {
-		return gctcommon.ErrFunctionNotSupported
+	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.High > 0 || i.Low > 0 {
+		return errUnknownIndicatorAttributeSet
 	}
 	return nil
 }
 
-// SMA stands for Smoothed Moving Average
-type SMA struct {
-	*TABase
+// GetName returns the indicator's name
+func (i *MACD) GetName() string {
+	return macdName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
-func (r *SMA) Validate() error {
-	if r.Period <= 0 {
-		return fmt.Errorf("%w RSI High: %v", errUnsetIndicatorValue, r.Period)
+func (i *MACD) Validate() error {
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
 	}
-	if r.FastPeriod <= 0 {
-		return fmt.Errorf("%w RSI Low: %v", errUnsetIndicatorValue, r.FastPeriod)
+	if i.FastPeriod <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.FastPeriod)
 	}
-	if r.SlowPeriod <= 0 {
-		return fmt.Errorf("%w RSI Low: %v", errUnsetIndicatorValue, r.SlowPeriod)
+	if i.SlowPeriod <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.SlowPeriod)
 	}
-	if r.SlowPeriod > r.Period {
-		return fmt.Errorf("%w SMA slow period %v > period %v: %v", errInvalidIndicatorValue, r.SlowPeriod, r.Period)
+	if i.SlowPeriod > i.Period {
+		return fmt.Errorf("%w %s slow period %v > period %v: %v", errInvalidIndicatorValue, i.GetName(), i.SlowPeriod, i.Period)
 	}
-	if r.Period > r.FastPeriod {
-		return fmt.Errorf("%w SMA period %v > fast period %v: %v", errInvalidIndicatorValue, r.Period, r.FastPeriod)
+	if i.Period > i.FastPeriod {
+		return fmt.Errorf("%w %s period %v > fast period %v: %v", errInvalidIndicatorValue, i.GetName(), i.Period, i.FastPeriod)
 	}
-	if r.Low > 0 || r.High > 0 {
-		return gctcommon.ErrFunctionNotSupported
+	if i.Up > 0 || i.Down > 0 || i.High > 0 || i.Low > 0 {
+		return errUnknownIndicatorAttributeSet
 	}
+	return nil
+}
+
+// GetName returns the indicator's name
+func (i *BBands) GetName() string {
+	return bbandsName
+}
+
+// Validate ensures the indicator's settings are all correct and usable
+func (i *BBands) Validate() error {
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Up <= 0 {
+		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Down <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Up <= i.Down {
+		return fmt.Errorf("%w %s High %v <= Low %v", errInvalidIndicatorValue, i.GetName(), i.Up, i.Down)
+	}
+	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.High > 0 || i.Low > 0 {
+		return errUnknownIndicatorAttributeSet
+	}
+
+	return nil
+}
+
+// GetName returns the indicator's name
+func (i *OBV) GetName() string {
+	return obvName
+}
+
+// Validate ensures the indicator's settings are all correct and usable
+func (i *OBV) Validate() error {
 	return nil
 }

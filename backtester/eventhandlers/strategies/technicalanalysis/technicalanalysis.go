@@ -3,40 +3,41 @@ package technicalanalysis
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"time"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
 	// Name is the strategy name
-	Name        = "technical analysis"
-	description = `This strategy allows the use of multiple technical analysis indicators to make decisions`
+	Name        = "technicalanalysis"
+	description = `This strategy allows the use of multiple technical analysis indicators to make strategic decisions`
 )
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
-	base.Strategy
+	strategybase.Strategy
 	Settings CustomSettings
 }
 
-// Name returns the name of the strategy
-func (s *Strategy) Name() string {
-	return Name
-}
-
-// Description provides a nice overview of the strategy
-// be it definition of terms or to highlight its purpose
-func (s *Strategy) Description() string {
-	return description
+// New creates a new instance of a strategy
+func (s *Strategy) New() strategybase.Handler {
+	return &Strategy{
+		Strategy: strategybase.Strategy{
+			Name:        Name,
+			Description: description,
+		},
+	}
 }
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
@@ -73,86 +74,110 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	}
 	if !hasDataAtTime {
 		es.SetDirection(order.MissingData)
-		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", latest.GetTime(), latestRSIValue)
+		es.AppendReasonf("missing data at %v, cannot perform any actions", latest.GetTime())
 		return &es, nil
 	}
 
-	for i := range s.Settings.GroupedIndicators {
+	for i := range s.Settings.groupedIndicators {
 	groupAnalysis:
-		for j := range s.Settings.GroupedIndicators[i] {
-			if offset := latest.GetOffset(); offset <= s.Settings.GroupedIndicators[i][j].GetPeriod() {
+		for j := range s.Settings.groupedIndicators[i] {
+			if offset := latest.GetOffset(); offset <= s.Settings.groupedIndicators[i][j].GetPeriod() {
 				es.AppendReason("Not enough data for signal generation")
 				es.SetDirection(order.DoNothing)
-				if s.Settings.GroupedIndicators[i][j].MustPass() {
-					es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+				if s.Settings.groupedIndicators[i][j].MustPass() {
+					es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 					break groupAnalysis
 				}
 				continue
 			}
 
-			switch s.Settings.GroupedIndicators[i][j].GetName() {
+			switch s.Settings.groupedIndicators[i][j].GetName() {
 			case rsiName:
-				rsi := indicators.RSI(massagedData, int(s.Settings.GroupedIndicators[i][j].GetPeriod()))
+				rsi := indicators.RSI(massagedData, int(s.Settings.groupedIndicators[i][j].GetPeriod()))
 				latestRSIValue := rsi[len(rsi)-1]
 				switch {
-				case latestRSIValue >= s.Settings.GroupedIndicators[i][j].GetHigh():
+				case latestRSIValue >= s.Settings.groupedIndicators[i][j].GetHigh():
 					err = setDirection(&es, order.Sell)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
-				case latestRSIValue <= s.Settings.GroupedIndicators[i][j].GetLow():
+				case latestRSIValue <= s.Settings.groupedIndicators[i][j].GetLow():
 					err = setDirection(&es, order.Buy)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
 				default:
-					es.SetDirection(order.DoNothing)
-					if s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					_ = setDirection(&es, order.DoNothing)
+					if s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
 				}
 				es.AppendReasonf("RSI at %v", latestRSIValue)
 			case macdName:
-				macd, signal, _ := indicators.MACD(massagedData, int(s.Settings.GroupedIndicators[i][j].GetFastPeriod()), int(s.Settings.GroupedIndicators[i][j].GetSlowPeriod()), int(s.Settings.GroupedIndicators[i][j].GetPeriod()))
+				macd, signal, _ := indicators.MACD(massagedData, int(s.Settings.groupedIndicators[i][j].GetFastPeriod()), int(s.Settings.groupedIndicators[i][j].GetSlowPeriod()), int(s.Settings.groupedIndicators[i][j].GetPeriod()))
 				latestMacd := macd[len(macd)-1]
 				latestSignal := macd[len(signal)-1]
 				previousMacd := macd[len(macd)-2]
 				previousSignal := macd[len(signal)-2]
-
-				if latestMacd > latestSignal && previousMacd <= previousSignal {
+				switch {
+				case latestMacd > latestSignal && previousMacd <= previousSignal:
 					err = setDirection(&es, order.Sell)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
-					continue
-				}
-				if latestMacd < latestSignal && previousMacd >= previousSignal {
+				case latestMacd < latestSignal && previousMacd >= previousSignal:
 					err = setDirection(&es, order.Buy)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
-					continue
-				}
-				if latestMacd > 0 && previousMacd < 0 {
+				case latestMacd > 0 && previousMacd < 0:
 					err = setDirection(&es, order.Buy)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
-					continue
-				}
-				if latestMacd < 0 && previousMacd > 0 {
+				case latestMacd < 0 && previousMacd > 0:
 					err = setDirection(&es, order.Sell)
-					if err != nil && s.Settings.GroupedIndicators[i][j].MustPass() {
-						es.AppendReasonf("group %v failed check", s.Settings.GroupedIndicators[i][j].GetGroup())
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
 						break groupAnalysis
 					}
-					continue
+				default:
+					_ = setDirection(&es, order.DoNothing)
+					if s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
+						break groupAnalysis
+					}
+				}
+			case bbandsName:
+				upper, _, lower := indicators.BBANDS(massagedData, int(s.Settings.groupedIndicators[i][j].GetPeriod()), s.Settings.groupedIndicators[i][j].GetUp(), s.Settings.groupedIndicators[i][j].GetDown(), indicators.Sma)
+				closePrice := latest.GetClosePrice().InexactFloat64()
+				latestUpper := upper[len(upper)-1]
+				latestDowner := lower[len(lower)-1]
+				switch {
+				case closePrice >= latestUpper:
+					err = setDirection(&es, order.Sell)
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
+						break groupAnalysis
+					}
+				case closePrice <= latestDowner:
+					err = setDirection(&es, order.Buy)
+					if err != nil && s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
+						break groupAnalysis
+					}
+				default:
+					_ = setDirection(&es, order.DoNothing)
+					if s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
+						break groupAnalysis
+					}
 				}
 			}
 		}
@@ -218,14 +243,20 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 	}
 	indicatorMap := make(map[string][]Indicator)
 	for i := range settings.Indicators {
-		if err = settings.Indicators[i].Validate(); err != nil {
+		groupMap := indicatorMap[settings.Indicators[i].GetGroup()]
+		switch settings.Indicators[i].GetName() {
+		case rsiName:
+			rsi := RSI{settings.Indicators[i]}
+			err = rsi.Validate()
+			groupMap = append(groupMap, &rsi)
+		}
+		if err != nil {
 			return err
 		}
-		groupMap := indicatorMap[settings.Indicators[i].GetGroup()]
-		groupMap = append(groupMap, settings.Indicators[i])
+		indicatorMap[settings.Indicators[i].GetGroup()] = groupMap
 	}
 	for _, v := range indicatorMap {
-		settings.GroupedIndicators = append(settings.GroupedIndicators, v)
+		settings.groupedIndicators = append(settings.groupedIndicators, v)
 	}
 	s.Settings = settings
 	return nil
@@ -233,9 +264,10 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 
 // SetDefaults sets the custom settings to their default values
 func (s *Strategy) SetDefaults() {
-	s.rsiHigh = decimal.NewFromInt(70)
-	s.rsiLow = decimal.NewFromInt(30)
-	s.rsiPeriod = decimal.NewFromInt(14)
+	if s.Settings.MaxMissingPeriods <= 0 {
+		log.Warnf(common.Strategy, "invalid maximum missing price periods, defaulting to %v", defaultMaxMissingPeriods)
+		s.Settings.MaxMissingPeriods = defaultMaxMissingPeriods
+	}
 }
 
 // massageMissingData will replace missing data with the previous candle's data
@@ -246,17 +278,17 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 	resp := make([]float64, len(data))
 	var missingDataStreak int64
 	for i := range data {
-		if data[i].IsZero() && i > int(s.rsiPeriod.IntPart()) {
+		if data[i].IsZero() {
 			data[i] = data[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
 		}
-		if missingDataStreak >= s.rsiPeriod.IntPart() {
-			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w",
-				s.rsiPeriod,
+		if missingDataStreak >= s.Settings.MaxMissingPeriods {
+			return nil, fmt.Errorf("missing data exceeds maximum allowable length of missing data of %v at %s and will distort results. %w",
+				s.Settings.MaxMissingPeriods,
 				t.Format(gctcommon.SimpleTimeFormat),
-				base.ErrTooMuchBadData)
+				strategybase.ErrTooMuchBadData)
 		}
 		resp[i] = data[i].InexactFloat64()
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding/trackingcurrencies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
@@ -378,19 +378,18 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	if err != nil {
 		return err
 	}
-	bt.MetaData.Strategy = bt.Strategy.Name()
-	bt.Strategy.SetDefaults()
-
-	if cfg.StrategySettings.CustomSettings != nil {
+	bt.MetaData.Strategy = bt.Strategy.GetName()
+	if len(cfg.StrategySettings.CustomSettings) > 0 {
 		err = bt.Strategy.SetCustomSettings(cfg.StrategySettings.CustomSettings)
-		if err != nil && !errors.Is(err, base.ErrCustomSettingsUnsupported) {
+		if err != nil && !errors.Is(err, strategybase.ErrCustomSettingsUnsupported) {
 			return err
 		}
 	}
+	bt.Strategy.SetDefaults()
 	stats := &statistics.Statistic{
-		StrategyName:                bt.Strategy.Name(),
+		StrategyName:                bt.Strategy.GetName(),
 		StrategyNickname:            cfg.Nickname,
-		StrategyDescription:         bt.Strategy.Description(),
+		StrategyDescription:         bt.Strategy.GetDescription(),
 		StrategyGoal:                cfg.Goal,
 		ExchangeAssetPairStatistics: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,

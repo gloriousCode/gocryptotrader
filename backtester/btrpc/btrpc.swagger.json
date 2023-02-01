@@ -129,6 +129,13 @@
             "type": "boolean"
           },
           {
+            "name": "config.strategySettings.customSettings",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
             "name": "config.fundingSettings.useExchangeLevelFunding",
             "in": "query",
             "required": false,
@@ -295,6 +302,12 @@
             "format": "int64"
           },
           {
+            "name": "config.dataSettings.liveData.useRealOrders",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
             "name": "config.portfolioSettings.leverage.canUseLeverage",
             "in": "query",
             "required": false,
@@ -401,6 +414,25 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "startTimeOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "endTimeOverride",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "intervalOverride",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
           }
         ],
         "tags": [
@@ -430,7 +462,7 @@
         ]
       }
     },
-    "/v1/startall": {
+    "/v1/startalltasks": {
       "post": {
         "operationId": "BacktesterService_StartAllTasks",
         "responses": {
@@ -617,6 +649,17 @@
         }
       }
     },
+    "btrpcCredentials": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "keys": {
+          "$ref": "#/definitions/btrpcExchangeCredentials"
+        }
+      }
+    },
     "btrpcCurrencySettings": {
       "type": "object",
       "properties": {
@@ -667,17 +710,6 @@
         },
         "futuresDetails": {
           "$ref": "#/definitions/btrpcFuturesDetails"
-        }
-      }
-    },
-    "btrpcCustomSettings": {
-      "type": "object",
-      "properties": {
-        "keyField": {
-          "type": "string"
-        },
-        "keyValue": {
-          "type": "string"
         }
       }
     },
@@ -771,17 +803,6 @@
     "btrpcExchangeCredentials": {
       "type": "object",
       "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "keys": {
-          "$ref": "#/definitions/btrpcExchangeKeys"
-        }
-      }
-    },
-    "btrpcExchangeKeys": {
-      "type": "object",
-      "properties": {
         "key": {
           "type": "string"
         },
@@ -791,7 +812,7 @@
         "clientId": {
           "type": "string"
         },
-        "pemKey": {
+        "PEMKey": {
           "type": "string"
         },
         "subAccount": {
@@ -905,10 +926,13 @@
           "type": "string",
           "format": "int64"
         },
+        "useRealOrders": {
+          "type": "boolean"
+        },
         "credentials": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcExchangeCredentials"
+            "$ref": "#/definitions/btrpcCredentials"
           }
         }
       }
@@ -1011,10 +1035,8 @@
           "type": "boolean"
         },
         "customSettings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/btrpcCustomSettings"
-          }
+          "type": "string",
+          "format": "byte"
         }
       },
       "title": "struct definitions"

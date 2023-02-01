@@ -22,9 +22,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
@@ -69,8 +69,8 @@ func TestSetupFromConfig(t *testing.T) {
 
 	cfg.DataSettings.Interval = gctkline.OneMonth
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
+	if !errors.Is(err, strategybase.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrStrategyNotFound)
 	}
 
 	const testExchange = "bybit"
@@ -90,8 +90,8 @@ func TestSetupFromConfig(t *testing.T) {
 		},
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
+	if !errors.Is(err, strategybase.ErrStrategyNotFound) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrStrategyNotFound)
 	}
 
 	cfg.StrategySettings = config.StrategySettings{

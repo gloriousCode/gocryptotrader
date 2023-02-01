@@ -4,7 +4,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -19,18 +19,17 @@ const (
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
-	base.Strategy
+	strategybase.Strategy
 }
 
-// Name returns the name
-func (s *Strategy) Name() string {
-	return Name
-}
-
-// Description provides a nice overview of the strategy
-// be it definition of terms or to highlight its purpose
-func (s *Strategy) Description() string {
-	return description
+// New creates a new instance of a strategy
+func (s *Strategy) New() strategybase.Handler {
+	return &Strategy{
+		Strategy: strategybase.Strategy{
+			Name:        Name,
+			Description: description,
+		},
+	}
 }
 
 // OnSignal handles a data event and returns what action the strategy believes should occur
@@ -89,6 +88,3 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 	}
 	return resp, nil
 }
-
-// SetDefaults not required for DCA
-func (s *Strategy) SetDefaults() {}

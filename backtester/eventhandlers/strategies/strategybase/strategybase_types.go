@@ -1,6 +1,15 @@
-package base
+package strategybase
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/data"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+)
 
 var (
 	// ErrCustomSettingsUnsupported used when custom settings are found in the strategy config when they shouldn't be
@@ -19,3 +28,18 @@ var (
 	// ErrNoDataToProcess is returned when simultaneous signal processing is enabled, but no events are passed in
 	ErrNoDataToProcess = errors.New("no kline data to process")
 )
+
+// Handler defines all functions required to run strategies against data events
+type Handler interface {
+	New() Handler
+	GetName() string
+	GetDescription() string
+	OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error)
+	OnSimultaneousSignals([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error)
+	UsingSimultaneousProcessing() bool
+	SupportsSimultaneousProcessing() bool
+	SetSimultaneousProcessing(bool)
+	SetCustomSettings(json.RawMessage) error
+	SetDefaults()
+	CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error)
+}

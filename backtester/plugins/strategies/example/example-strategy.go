@@ -4,7 +4,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -16,7 +16,7 @@ func main() {
 
 // CustomStrategy the type used to define custom strategy functions
 type CustomStrategy struct {
-	base.Strategy
+	strategybase.Strategy
 }
 
 // GetStrategies is required to load the strategy or strategies into the GoCryptoTrader Backtester
@@ -82,7 +82,7 @@ func (s *CustomStrategy) createSignal(d data.Handler) (*signal.Signal, error) {
 
 // SetCustomSettings can override default settings
 func (s *CustomStrategy) SetCustomSettings(map[string]interface{}) error {
-	return base.ErrCustomSettingsUnsupported
+	return strategybase.ErrCustomSettingsUnsupported
 }
 
 // SetDefaults sets default values for overridable custom settings
