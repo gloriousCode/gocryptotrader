@@ -956,13 +956,12 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 	}
 	rsiCustomSettings := technicalanalysis.CustomSettings{
 		MaxMissingPeriods: 10,
-		Indicators: []technicalanalysis.Indicator{
-			&technicalanalysis.RSI{
-				TABase: technicalanalysis.TABase{
-					Period: 14,
-					Low:    24,
-					High:   71,
-				},
+		Indicators: []technicalanalysis.TABase{
+			{
+				Name:   technicalanalysis.RSIName,
+				Period: 14,
+				Low:    24,
+				High:   71,
 			},
 		},
 	}

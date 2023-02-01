@@ -9,11 +9,16 @@
    "max-missing-periods": 10,
    "indicators": [
     {
-     "rsi": {
-      "period": 14,
-      "low": 24,
-      "high": 71
-     }
+     "name": "RSI",
+     "period": 14,
+     "low": 24,
+     "high": 71
+    },
+    {
+     "name": "RSI",
+     "period": 24,
+     "low": 30,
+     "high": 70
     }
    ]
   }

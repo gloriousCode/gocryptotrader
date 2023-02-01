@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	rsiName                  = "RSI"
-	mfiName                  = "MFI"
-	obvName                  = "OBV"
-	bbandsName               = "OBV"
-	macdName                 = "MACD"
+	RSIName                  = "RSI"
+	MFIName                  = "MFI"
+	OBVName                  = "OBV"
+	BBandsName               = "OBV"
+	MACDName                 = "MACD"
 	defaultMaxMissingPeriods = 14
 )
 
@@ -142,7 +142,7 @@ type EMA struct {
 
 // GetName returns the indicator's name
 func (i *RSI) GetName() string {
-	return rsiName
+	return RSIName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
@@ -159,7 +159,7 @@ func (i *RSI) Validate() error {
 	if i.Low > i.High {
 		return fmt.Errorf("%w %s Low %v > High %v: %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
 	}
-	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.High > 0 || i.Low > 0 {
+	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.Up > 0 || i.Down > 0 {
 		return errUnknownIndicatorAttributeSet
 	}
 	return nil
@@ -167,7 +167,7 @@ func (i *RSI) Validate() error {
 
 // GetName returns the indicator's name
 func (i *MACD) GetName() string {
-	return macdName
+	return MACDName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
@@ -195,7 +195,7 @@ func (i *MACD) Validate() error {
 
 // GetName returns the indicator's name
 func (i *BBands) GetName() string {
-	return bbandsName
+	return BBandsName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
@@ -221,7 +221,7 @@ func (i *BBands) Validate() error {
 
 // GetName returns the indicator's name
 func (i *OBV) GetName() string {
-	return obvName
+	return OBVName
 }
 
 // Validate ensures the indicator's settings are all correct and usable
