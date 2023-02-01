@@ -92,7 +92,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 			}
 
 			switch s.Settings.groupedIndicators[i][j].GetName() {
-			case rsiName:
+			case RSIName:
 				rsi := indicators.RSI(massagedData, int(s.Settings.groupedIndicators[i][j].GetPeriod()))
 				latestRSIValue := rsi[len(rsi)-1]
 				switch {
@@ -116,7 +116,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 					}
 				}
 				es.AppendReasonf("RSI at %v", latestRSIValue)
-			case macdName:
+			case MACDName:
 				macd, signal, _ := indicators.MACD(massagedData, int(s.Settings.groupedIndicators[i][j].GetFastPeriod()), int(s.Settings.groupedIndicators[i][j].GetSlowPeriod()), int(s.Settings.groupedIndicators[i][j].GetPeriod()))
 				latestMacd := macd[len(macd)-1]
 				latestSignal := macd[len(signal)-1]
@@ -154,7 +154,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 						break groupAnalysis
 					}
 				}
-			case bbandsName:
+			case BBandsName:
 				upper, _, lower := indicators.BBANDS(massagedData, int(s.Settings.groupedIndicators[i][j].GetPeriod()), s.Settings.groupedIndicators[i][j].GetUp(), s.Settings.groupedIndicators[i][j].GetDown(), indicators.Sma)
 				closePrice := latest.GetClosePrice().InexactFloat64()
 				latestUpper := upper[len(upper)-1]
@@ -244,8 +244,8 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 	indicatorMap := make(map[string][]Indicator)
 	for i := range settings.Indicators {
 		groupMap := indicatorMap[settings.Indicators[i].GetGroup()]
-		switch settings.Indicators[i].GetName() {
-		case rsiName:
+		switch settings.Indicators[i].Name {
+		case RSIName:
 			rsi := RSI{settings.Indicators[i]}
 			err = rsi.Validate()
 			groupMap = append(groupMap, &rsi)
