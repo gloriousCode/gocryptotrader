@@ -168,8 +168,8 @@ func main() {
 
 	if singleTaskStrategyPath != "" {
 		dir := singleTaskStrategyPath
-		var cfg *config.Config
-		cfg, err = config.ReadStrategyConfigFromFile(dir)
+		var cfg *strategyconfig.Config
+		cfg, err = strategyconfig.ReadStrategyConfigFromFile(dir)
 		if err != nil {
 			fmt.Printf("Could not read strategy config. Error: %v\n", err)
 			os.Exit(1)

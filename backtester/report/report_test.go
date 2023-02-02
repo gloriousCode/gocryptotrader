@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -24,8 +23,8 @@ func TestGenerateReport(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := Data{
-		Config: &config.Config{
-			StrategySettings: config.StrategySettings{
+		Config: &strategyconfig.Config{
+			StrategySettings: strategyconfig.StrategySettings{
 				DisableUSDTracking: true,
 			},
 		},

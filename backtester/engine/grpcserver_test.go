@@ -130,7 +130,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		t.Errorf("received '%v' expecting '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	defaultConfig, err := config.ReadStrategyConfigFromFile(dcaConfigPath)
+	defaultConfig, err := strategyconfig.ReadStrategyConfigFromFile(dcaConfigPath)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}

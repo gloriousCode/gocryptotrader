@@ -61,7 +61,7 @@ func TestSetupFromConfig(t *testing.T) {
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
-	cfg := &config.Config{}
+	cfg := &strategyconfig.Config{}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctkline.ErrInvalidInterval) {
 		t.Errorf("received: %v, expected: %v", err, gctkline.ErrInvalidInterval)
@@ -75,7 +75,7 @@ func TestSetupFromConfig(t *testing.T) {
 
 	const testExchange = "bybit"
 
-	cfg.CurrencySettings = []config.CurrencySettings{
+	cfg.CurrencySettings = []strategyconfig.CurrencySettings{
 		{
 			ExchangeName: testExchange,
 			Base:         currency.BTC,
@@ -94,13 +94,13 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, strategybase.ErrStrategyNotFound)
 	}
 
-	cfg.StrategySettings = config.StrategySettings{
+	cfg.StrategySettings = strategyconfig.StrategySettings{
 		Name: dollarcostaverage.Name,
 		CustomSettings: map[string]interface{}{
 			"hello": "moto",
 		},
 	}
-	cfg.DataSettings.APIData = &config.APIData{}
+	cfg.DataSettings.APIData = &strategyconfig.APIData{}
 
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if err != nil && !strings.Contains(err.Error(), "unrecognised dataType") {
@@ -127,7 +127,7 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNotYetImplemented)
 	}
 	cfg.FundingSettings.UseExchangeLevelFunding = true
-	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
+	cfg.FundingSettings.ExchangeLevelFunding = []strategyconfig.ExchangeLevelFunding{
 		{
 			ExchangeName: testExchange,
 			Asset:        asset.Spot,
@@ -155,26 +155,26 @@ func TestLoadDataAPI(t *testing.T) {
 		Reports: &report.Data{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
-	cfg := &config.Config{
-		CurrencySettings: []config.CurrencySettings{
+	cfg := &strategyconfig.Config{
+		CurrencySettings: []strategyconfig.CurrencySettings{
 			{
 				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
-				SpotDetails: &config.SpotDetails{
+				SpotDetails: &strategyconfig.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
 			},
 		},
-		DataSettings: config.DataSettings{
+		DataSettings: strategyconfig.DataSettings{
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
-			APIData: &config.APIData{
+			APIData: &strategyconfig.APIData{
 				StartDate: time.Now().Truncate(gctkline.OneMin.Duration()).Add(-time.Minute * 5),
 				EndDate:   time.Now().Truncate(gctkline.OneMin.Duration()),
 			}},
-		StrategySettings: config.StrategySettings{
+		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
 			CustomSettings: map[string]interface{}{
 				"hello": "moto",
@@ -208,27 +208,27 @@ func TestLoadDataCSV(t *testing.T) {
 		Reports: &report.Data{},
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
-	cfg := &config.Config{
-		CurrencySettings: []config.CurrencySettings{
+	cfg := &strategyconfig.Config{
+		CurrencySettings: []strategyconfig.CurrencySettings{
 			{
 				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
-				SpotDetails: &config.SpotDetails{
+				SpotDetails: &strategyconfig.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
 		},
-		DataSettings: config.DataSettings{
+		DataSettings: strategyconfig.DataSettings{
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
-			CSVData: &config.CSVData{
+			CSVData: &strategyconfig.CSVData{
 				FullPath: "test",
 			}},
-		StrategySettings: config.StrategySettings{
+		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
 			CustomSettings: map[string]interface{}{
 				"hello": "moto",
@@ -264,24 +264,24 @@ func TestLoadDataDatabase(t *testing.T) {
 		shutdown: make(chan struct{}),
 	}
 	cp := currency.NewPair(currency.BTC, currency.USDT)
-	cfg := &config.Config{
-		CurrencySettings: []config.CurrencySettings{
+	cfg := &strategyconfig.Config{
+		CurrencySettings: []strategyconfig.CurrencySettings{
 			{
 				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
-				SpotDetails: &config.SpotDetails{
+				SpotDetails: &strategyconfig.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
 		},
-		DataSettings: config.DataSettings{
+		DataSettings: strategyconfig.DataSettings{
 			DataType: common.CandleStr,
 			Interval: gctkline.OneMin,
-			DatabaseData: &config.DatabaseData{
+			DatabaseData: &strategyconfig.DatabaseData{
 				Config: database.Config{
 					Enabled: true,
 					Driver:  "sqlite3",
@@ -293,7 +293,7 @@ func TestLoadDataDatabase(t *testing.T) {
 				EndDate:          time.Now(),
 				InclusiveEndDate: true,
 			}},
-		StrategySettings: config.StrategySettings{
+		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
 			CustomSettings: map[string]interface{}{
 				"hello": "moto",
@@ -336,25 +336,25 @@ func TestLoadDataLive(t *testing.T) {
 	}
 
 	cp := currency.NewPair(currency.BTC, currency.USDT)
-	cfg := &config.Config{
-		CurrencySettings: []config.CurrencySettings{
+	cfg := &strategyconfig.Config{
+		CurrencySettings: []strategyconfig.CurrencySettings{
 			{
 				ExchangeName: testExchange,
 				Asset:        asset.Spot,
 				Base:         cp.Base,
 				Quote:        cp.Quote,
-				SpotDetails: &config.SpotDetails{
+				SpotDetails: &strategyconfig.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
 				MakerFee: &decimal.Zero,
 				TakerFee: &decimal.Zero,
 			},
 		},
-		DataSettings: config.DataSettings{
+		DataSettings: strategyconfig.DataSettings{
 			DataType: common.CandleStr,
 			Interval: 1234,
-			LiveData: &config.LiveData{
-				ExchangeCredentials: []config.Credentials{
+			LiveData: &strategyconfig.LiveData{
+				ExchangeCredentials: []strategyconfig.Credentials{
 					{
 						Exchange: testExchange,
 						Keys: account.Credentials{
@@ -369,7 +369,7 @@ func TestLoadDataLive(t *testing.T) {
 				},
 				RealOrders: true,
 			}},
-		StrategySettings: config.StrategySettings{
+		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
 			CustomSettings: map[string]interface{}{
 				"hello": "moto",
@@ -1544,7 +1544,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
-	cfg := &config.Config{}
+	cfg := &strategyconfig.Config{}
 	f := &binanceus.Binanceus{}
 	f.SetDefaults()
 	b := f.GetBase()
@@ -1553,8 +1553,8 @@ func TestSetExchangeCredentials(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	ld := &config.LiveData{}
-	cfg.DataSettings = config.DataSettings{
+	ld := &strategyconfig.LiveData{}
+	cfg.DataSettings = strategyconfig.DataSettings{
 		LiveData: ld,
 	}
 	err = setExchangeCredentials(cfg, b)
@@ -1574,7 +1574,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errNoCredsNoLive)
 	}
 
-	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{}}
+	cfg.DataSettings.LiveData.ExchangeCredentials = []strategyconfig.Credentials{{}}
 	err = setExchangeCredentials(cfg, b)
 	if !errors.Is(err, gctexchange.ErrCredentialsAreEmpty) {
 		t.Errorf("received '%v' expected '%v'", err, gctexchange.ErrCredentialsAreEmpty)
@@ -1582,7 +1582,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 
 	// requires valid credentials here to get complete coverage
 	// enter them here
-	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{
+	cfg.DataSettings.LiveData.ExchangeCredentials = []strategyconfig.Credentials{{
 		Exchange: testExchange,
 		Keys: account.Credentials{
 			Key:    "test",
@@ -1899,7 +1899,7 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 	}
 
 	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-	cfg, err := config.ReadStrategyConfigFromFile(strat1)
+	cfg, err := strategyconfig.ReadStrategyConfigFromFile(strat1)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

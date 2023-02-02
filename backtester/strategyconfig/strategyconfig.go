@@ -1,4 +1,4 @@
-package config
+package strategyconfig
 
 import (
 	"encoding/json"

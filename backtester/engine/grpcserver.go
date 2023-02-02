@@ -205,7 +205,7 @@ func (s *GRPCServer) ExecuteStrategyFromFile(_ context.Context, request *btrpc.E
 	}
 
 	dir := request.StrategyFilePath
-	cfg, err := config.ReadStrategyConfigFromFile(dir)
+	cfg, err := strategyconfig.ReadStrategyConfigFromFile(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +334,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, err
 	}
 
-	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
+	fundingSettings := make([]strategyconfig.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
 	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
 		var initialFunds, transferFee decimal.Decimal
 		var a asset.Item
@@ -351,7 +351,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			return nil, err
 		}
 
-		fundingSettings[i] = config.ExchangeLevelFunding{
+		fundingSettings[i] = strategyconfig.ExchangeLevelFunding{
 			ExchangeName: request.Config.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
 			Asset:        a,
 			Currency:     currency.NewCode(request.Config.FundingSettings.ExchangeLevelFunding[i].Currency),
@@ -360,7 +360,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	configSettings := make([]config.CurrencySettings, len(request.Config.CurrencySettings))
+	configSettings := make([]strategyconfig.CurrencySettings, len(request.Config.CurrencySettings))
 	for i := range request.Config.CurrencySettings {
 		var currencySettingBuySideMinimumSize, currencySettingBuySideMaximumSize,
 			currencySettingBuySideMaximumTotal, currencySettingSellSideMinimumSize,
@@ -431,9 +431,9 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			taker = &t
 		}
 
-		var spotDetails *config.SpotDetails
+		var spotDetails *strategyconfig.SpotDetails
 		if request.Config.CurrencySettings[i].SpotDetails != nil {
-			spotDetails = &config.SpotDetails{}
+			spotDetails = &strategyconfig.SpotDetails{}
 			if request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds != "" {
 				var ibf decimal.Decimal
 				ibf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds)
@@ -452,10 +452,10 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			}
 		}
 
-		var futuresDetails *config.FuturesDetails
+		var futuresDetails *strategyconfig.FuturesDetails
 		if request.Config.CurrencySettings[i].FuturesDetails != nil &&
 			request.Config.CurrencySettings[i].FuturesDetails.Leverage != nil {
-			futuresDetails = &config.FuturesDetails{}
+			futuresDetails = &strategyconfig.FuturesDetails{}
 			var mowlr, mlr, mclr decimal.Decimal
 			mowlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
 			if err != nil {
@@ -470,7 +470,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 				return nil, err
 			}
 
-			futuresDetails.Leverage = config.Leverage{
+			futuresDetails.Leverage = strategyconfig.Leverage{
 				CanUseLeverage:                 request.Config.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,
 				MaximumOrdersWithLeverageRatio: mowlr,
 				MaximumOrderLeverageRate:       mlr,
@@ -478,19 +478,19 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			}
 		}
 
-		configSettings[i] = config.CurrencySettings{
+		configSettings[i] = strategyconfig.CurrencySettings{
 			ExchangeName:   request.Config.CurrencySettings[i].ExchangeName,
 			Asset:          a,
 			Base:           currency.NewCode(request.Config.CurrencySettings[i].Base),
 			Quote:          currency.NewCode(request.Config.CurrencySettings[i].Quote),
 			SpotDetails:    spotDetails,
 			FuturesDetails: futuresDetails,
-			BuySide: config.MinMax{
+			BuySide: strategyconfig.MinMax{
 				MinimumSize:  currencySettingBuySideMinimumSize,
 				MaximumSize:  currencySettingBuySideMaximumSize,
 				MaximumTotal: currencySettingBuySideMaximumTotal,
 			},
-			SellSide: config.MinMax{
+			SellSide: strategyconfig.MinMax{
 				MinimumSize:  currencySettingSellSideMinimumSize,
 				MaximumSize:  currencySettingSellSideMaximumSize,
 				MaximumTotal: currencySettingSellSideMaximumTotal,
@@ -507,15 +507,15 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 	}
 
-	var apiData *config.APIData
+	var apiData *strategyconfig.APIData
 	if request.Config.DataSettings.ApiData != nil {
-		apiData = &config.APIData{
+		apiData = &strategyconfig.APIData{
 			StartDate:        request.Config.DataSettings.ApiData.StartDate.AsTime(),
 			EndDate:          request.Config.DataSettings.ApiData.EndDate.AsTime(),
 			InclusiveEndDate: request.Config.DataSettings.ApiData.InclusiveEndDate,
 		}
 	}
-	var dbData *config.DatabaseData
+	var dbData *strategyconfig.DatabaseData
 	if request.Config.DataSettings.DatabaseData != nil {
 		if request.Config.DataSettings.DatabaseData.Config.Config.Port > math.MaxUint16 {
 			return nil, fmt.Errorf("%w '%v' cannot exceed '%v'", errBadPort, request.Config.DataSettings.DatabaseData.Config.Config.Port, math.MaxUint16)
@@ -533,7 +533,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 				SSLMode:  request.Config.DataSettings.DatabaseData.Config.Config.SslMode,
 			},
 		}
-		dbData = &config.DatabaseData{
+		dbData = &strategyconfig.DatabaseData{
 			StartDate:        request.Config.DataSettings.DatabaseData.StartDate.AsTime(),
 			EndDate:          request.Config.DataSettings.DatabaseData.EndDate.AsTime(),
 			Path:             request.Config.DataSettings.DatabaseData.Path,
@@ -541,11 +541,11 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			InclusiveEndDate: request.Config.DataSettings.DatabaseData.InclusiveEndDate,
 		}
 	}
-	var liveData *config.LiveData
+	var liveData *strategyconfig.LiveData
 	if request.Config.DataSettings.LiveData != nil {
-		creds := make([]config.Credentials, len(request.Config.DataSettings.LiveData.Credentials))
+		creds := make([]strategyconfig.Credentials, len(request.Config.DataSettings.LiveData.Credentials))
 		for i := range request.Config.DataSettings.LiveData.Credentials {
-			creds[i] = config.Credentials{
+			creds[i] = strategyconfig.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
 				Keys: account.Credentials{
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
@@ -557,7 +557,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 				},
 			}
 		}
-		liveData = &config.LiveData{
+		liveData = &strategyconfig.LiveData{
 			NewEventTimeout:           time.Duration(request.Config.DataSettings.LiveData.NewEventTimeout),
 			DataCheckTimer:            time.Duration(request.Config.DataSettings.LiveData.DataCheckTimer),
 			RealOrders:                request.Config.DataSettings.LiveData.RealOrders,
@@ -567,28 +567,28 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			ExchangeCredentials:       creds,
 		}
 	}
-	var csvData *config.CSVData
+	var csvData *strategyconfig.CSVData
 	if request.Config.DataSettings.CsvData != nil {
-		csvData = &config.CSVData{
+		csvData = &strategyconfig.CSVData{
 			FullPath: request.Config.DataSettings.CsvData.Path,
 		}
 	}
 
-	cfg := &config.Config{
+	cfg := &strategyconfig.Config{
 		Nickname: request.Config.Nickname,
 		Goal:     request.Config.Goal,
-		StrategySettings: config.StrategySettings{
+		StrategySettings: strategyconfig.StrategySettings{
 			Name:                         request.Config.StrategySettings.Name,
 			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
 			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
 			CustomSettings:               request.Config.StrategySettings.CustomSettings,
 		},
-		FundingSettings: config.FundingSettings{
+		FundingSettings: strategyconfig.FundingSettings{
 			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,
 			ExchangeLevelFunding:    fundingSettings,
 		},
 		CurrencySettings: configSettings,
-		DataSettings: config.DataSettings{
+		DataSettings: strategyconfig.DataSettings{
 			Interval:     gctkline.Interval(request.Config.DataSettings.Interval),
 			DataType:     request.Config.DataSettings.Datatype,
 			APIData:      apiData,
@@ -596,25 +596,25 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			LiveData:     liveData,
 			CSVData:      csvData,
 		},
-		PortfolioSettings: config.PortfolioSettings{
-			Leverage: config.Leverage{
+		PortfolioSettings: strategyconfig.PortfolioSettings{
+			Leverage: strategyconfig.Leverage{
 				CanUseLeverage:                 request.Config.PortfolioSettings.Leverage.CanUseLeverage,
 				MaximumOrdersWithLeverageRatio: maximumOrdersWithLeverageRatio,
 				MaximumOrderLeverageRate:       maximumOrderLeverageRate,
 				MaximumCollateralLeverageRate:  maximumCollateralLeverageRate,
 			},
-			BuySide: config.MinMax{
+			BuySide: strategyconfig.MinMax{
 				MinimumSize:  buySideMinimumSize,
 				MaximumSize:  buySideMaximumSize,
 				MaximumTotal: buySideMaximumTotal,
 			},
-			SellSide: config.MinMax{
+			SellSide: strategyconfig.MinMax{
 				MinimumSize:  sellSideMinimumSize,
 				MaximumSize:  sellSideMaximumSize,
 				MaximumTotal: sellSideMaximumTotal,
 			},
 		},
-		StatisticSettings: config.StatisticSettings{
+		StatisticSettings: strategyconfig.StatisticSettings{
 			RiskFreeRate: rfr,
 		},
 	}

@@ -36,11 +36,11 @@ On the last event, the strategy will close the SHORT position by raising a LONG 
 ### Creating a strategy config
 - The long-dated futures contract will need to be part of the `currency-settings` of the contract
 - Funding for purchasing SPOT assets will need to be part of `funding-settings`
-- See the [example config](./config/strategyexamples/binance-cash-carry.strat)
+- See the [example config](./strategyconfig/binance-cash-carry.strat)
 
 ### Customisation
 This strategy does support strategy customisation in the following ways:
-
+----------------
 | Field | Description |  Example |
 | --- | ------- | --- |
 | openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |

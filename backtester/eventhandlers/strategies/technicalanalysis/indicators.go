@@ -11,7 +11,7 @@ const (
 	RSIName                  = "RSI"
 	MFIName                  = "MFI"
 	OBVName                  = "OBV"
-	BBandsName               = "OBV"
+	BBandsName               = "BBANDS"
 	MACDName                 = "MACD"
 	defaultMaxMissingPeriods = 14
 )
@@ -48,16 +48,17 @@ type CustomSettings struct {
 // TABase contains implementations to satisfy the interface
 // when something is unsupported
 type TABase struct {
-	Name         string  `json:"name"`
-	Period       int64   `json:"period,omitempty"`
-	FastPeriod   int64   `json:"fast-period,omitempty"`
-	SlowPeriod   int64   `json:"slow-period,omitempty"`
-	Low          float64 `json:"low,omitempty"`
-	High         float64 `json:"high,omitempty"`
-	Down         float64 `json:"down,omitempty"`
-	Up           float64 `json:"up,omitempty"`
-	Group        string  `json:"group,omitempty"`
-	PassRequired bool    `json:"pass-required,omitempty"`
+	Name             string  `json:"name"`
+	Period           int64   `json:"period,omitempty"`
+	FastPeriod       int64   `json:"fast-period,omitempty"`
+	SlowPeriod       int64   `json:"slow-period,omitempty"`
+	Low              float64 `json:"low,omitempty"`
+	High             float64 `json:"high,omitempty"`
+	Down             float64 `json:"down,omitempty"`
+	Up               float64 `json:"up,omitempty"`
+	Group            string  `json:"group,omitempty"`
+	PassRequired     bool    `json:"pass-required,omitempty"`
+	UseDefaultValues bool    `json:"use-defaults"`
 }
 
 func (t *TABase) GetName() string {
