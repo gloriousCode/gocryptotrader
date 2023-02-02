@@ -16,10 +16,12 @@
     },
     {
      "name": "RSI",
-     "period": 24,
-     "low": 30,
-     "high": 70
+     "period": 14,
+     "low": 10,
+     "high": 90,
+     "pass-required": true
     }
+
    ]
   }
  },
