@@ -7,9 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/urfave/cli/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -426,7 +424,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		"config",
 		"strategyexamples",
 		"dca-api-candles.strat")
-	defaultConfig, err := config.ReadStrategyConfigFromFile(defaultPath)
+	defaultConfig, err := strategyconfig.ReadStrategyConfigFromFile(defaultPath)
 	if err != nil {
 		return err
 	}

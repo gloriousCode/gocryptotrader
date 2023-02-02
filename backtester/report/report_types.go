@@ -2,9 +2,7 @@ package report
 
 import (
 	"errors"
-
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -33,7 +31,7 @@ type Data struct {
 	OriginalCandles       []*kline.Item
 	EnhancedCandles       []EnhancedKline
 	Statistics            *statistics.Statistic
-	Config                *config.Config
+	Config                *strategyconfig.Config
 	TemplatePath          string
 	OutputPath            string
 	Warnings              []Warning

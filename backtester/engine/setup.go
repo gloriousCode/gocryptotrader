@@ -62,7 +62,7 @@ func NewBacktester() (*BackTest, error) {
 }
 
 // SetupFromConfig takes a strategy config and configures a backtester variable to run
-func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output string, verbose bool) error {
+func (bt *BackTest) SetupFromConfig(cfg *strategyconfig.Config, templatePath, output string, verbose bool) error {
 	var err error
 	defer func() {
 		if err != nil {
@@ -423,7 +423,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 					continue trackingPairCheck
 				}
 			}
-			cfg.CurrencySettings = append(cfg.CurrencySettings, config.CurrencySettings{
+			cfg.CurrencySettings = append(cfg.CurrencySettings, strategyconfig.CurrencySettings{
 				ExchangeName:    trackingPairs[i].Exchange,
 				Asset:           trackingPairs[i].Asset,
 				Base:            trackingPairs[i].Base,
@@ -475,7 +475,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	return nil
 }
 
-func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchange, error) {
+func (bt *BackTest) setupExchangeSettings(cfg *strategyconfig.Config) (*exchange.Exchange, error) {
 	log.Infoln(common.Setup, "Setting exchange settings...")
 
 	resp := &exchange.Exchange{}
@@ -682,7 +682,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *strategyconfig.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -855,7 +855,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *strategyconfig.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -874,7 +874,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *strategyconfig.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -916,7 +916,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	}, nil
 }
 
-func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
+func setExchangeCredentials(cfg *strategyconfig.Config, base *gctexchange.Base) error {
 	if cfg == nil || base == nil || cfg.DataSettings.LiveData == nil {
 		return gctcommon.ErrNilPointer
 	}
@@ -955,7 +955,7 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 }
 
 // NewBacktesterFromConfigs creates a new backtester based on config settings
-func NewBacktesterFromConfigs(strategyCfg *config.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
+func NewBacktesterFromConfigs(strategyCfg *strategyconfig.Config, backtesterCfg *config.BacktesterConfig) (*BackTest, error) {
 	if strategyCfg == nil {
 		return nil, fmt.Errorf("%w strategy config", gctcommon.ErrNilPointer)
 	}

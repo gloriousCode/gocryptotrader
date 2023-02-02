@@ -15,7 +15,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -43,7 +42,7 @@ func main() {
 	fmt.Print(common.ASCIILogo)
 	fmt.Println("Welcome to the config generator!")
 	reader := bufio.NewReader(os.Stdin)
-	var cfg config.Config
+	var cfg strategyconfig.Config
 	var err error
 
 	fmt.Println("-----Strategy Settings-----")
@@ -153,7 +152,7 @@ func main() {
 	log.Println("Config creation complete!")
 }
 
-func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
+func parseStatisticsSettings(cfg *strategyconfig.Config, reader *bufio.Reader) error {
 	fmt.Println("Enter the risk free rate. eg 0.03")
 	rfr, err := strconv.ParseFloat(quickParse(reader), 64)
 	if err != nil {
@@ -163,7 +162,7 @@ func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	return nil
 }
 
-func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
+func parseDataSettings(cfg *strategyconfig.Config, reader *bufio.Reader) error {
 	var err error
 	fmt.Println("Will you be using \"candle\" or \"trade\" data?")
 	cfg.DataSettings.DataType = quickParse(reader)
@@ -195,7 +194,7 @@ func parseDataSettings(cfg *config.Config, reader *bufio.Reader) error {
 	return err
 }
 
-func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
+func parsePortfolioSettings(reader *bufio.Reader, cfg *strategyconfig.Config) error {
 	var err error
 	fmt.Println("Will there be global portfolio buy-side limits? y/n")
 	yn := quickParse(reader)
@@ -216,11 +215,11 @@ func parsePortfolioSettings(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
+func parseExchangeSettings(reader *bufio.Reader, cfg *strategyconfig.Config) error {
 	var err error
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
-		var currencySetting *config.CurrencySettings
+		var currencySetting *strategyconfig.CurrencySettings
 		currencySetting, err = addCurrencySetting(reader, cfg.FundingSettings.UseExchangeLevelFunding)
 		if err != nil {
 			return err
@@ -234,7 +233,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
+func parseStrategySettings(cfg *strategyconfig.Config, reader *bufio.Reader) error {
 	fmt.Println("Firstly, please select which strategy you wish to use")
 	strats := strategies.GetSupportedStrategies()
 	strategiesToUse := make([]string, len(strats))
@@ -271,7 +270,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 
 	addFunding := y
 	for strings.Contains(addFunding, y) {
-		fund := config.ExchangeLevelFunding{}
+		fund := strategyconfig.ExchangeLevelFunding{}
 		fmt.Println("What is the exchange name to add funding to?")
 		fund.ExchangeName = quickParse(reader)
 		fmt.Println("What is the asset to add funding to?")
@@ -323,8 +322,8 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	return nil
 }
 
-func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
-	cfg.DataSettings.APIData = &config.APIData{}
+func parseAPI(reader *bufio.Reader, cfg *strategyconfig.Config) error {
+	cfg.DataSettings.APIData = &strategyconfig.APIData{}
 	var startDate, endDate, inclusive string
 	var err error
 	defaultStart := time.Now().Add(-time.Hour * 24 * 365)
@@ -357,14 +356,14 @@ func parseAPI(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseCSV(reader *bufio.Reader, cfg *config.Config) {
-	cfg.DataSettings.CSVData = &config.CSVData{}
+func parseCSV(reader *bufio.Reader, cfg *strategyconfig.Config) {
+	cfg.DataSettings.CSVData = &strategyconfig.CSVData{}
 	fmt.Println("What is path of the CSV file to read?")
 	cfg.DataSettings.CSVData.FullPath = quickParse(reader)
 }
 
-func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
-	cfg.DataSettings.DatabaseData = &config.DatabaseData{}
+func parseDatabase(reader *bufio.Reader, cfg *strategyconfig.Config) error {
+	cfg.DataSettings.DatabaseData = &strategyconfig.DatabaseData{}
 	var input string
 	var err error
 	defaultStart := time.Now().Add(-time.Hour * 24 * 365)
@@ -450,8 +449,8 @@ func parseDatabase(reader *bufio.Reader, cfg *config.Config) error {
 	return nil
 }
 
-func parseLive(reader *bufio.Reader, cfg *config.Config) {
-	cfg.DataSettings.LiveData = &config.LiveData{}
+func parseLive(reader *bufio.Reader, cfg *strategyconfig.Config) {
+	cfg.DataSettings.LiveData = &strategyconfig.LiveData{}
 	fmt.Println("Do you wish to use live trading? It's highly recommended that you do not. y/n")
 	input := quickParse(reader)
 	cfg.DataSettings.LiveData.RealOrders = input == y || input == yes
@@ -462,7 +461,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 			return
 		}
 		for {
-			var creds config.Credentials
+			var creds strategyconfig.Credentials
 			fmt.Printf("What is the exchange name? y/n\n")
 			creds.Exchange = quickParse(reader)
 			fmt.Println("What is the API key?")
@@ -564,8 +563,8 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 	return resp
 }
 
-func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
-	setting := config.CurrencySettings{}
+func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*strategyconfig.CurrencySettings, error) {
+	setting := strategyconfig.CurrencySettings{}
 	fmt.Println("Enter the exchange name. eg Binance")
 	setting.ExchangeName = quickParse(reader)
 
@@ -601,7 +600,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 				if err != nil {
 					return nil, err
 				}
-				setting.SpotDetails = &config.SpotDetails{
+				setting.SpotDetails = &strategyconfig.SpotDetails{
 					InitialBaseFunds: &d,
 				}
 			}
@@ -620,7 +619,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 				return nil, err
 			}
 			if setting.SpotDetails == nil {
-				setting.SpotDetails = &config.SpotDetails{
+				setting.SpotDetails = &strategyconfig.SpotDetails{
 					InitialQuoteFunds: &d,
 				}
 			} else {
@@ -705,8 +704,8 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 	return &setting, nil
 }
 
-func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
-	resp := config.MinMax{}
+func minMaxParse(buySell string, reader *bufio.Reader) (strategyconfig.MinMax, error) {
+	resp := strategyconfig.MinMax{}
 	fmt.Printf("What is the maximum %s size? eg 1\n", buySell)
 	parseNum := quickParse(reader)
 	if parseNum != "" {
