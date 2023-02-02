@@ -118,6 +118,15 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 				es.AppendReasonf("RSI at %v", latestRSIValue)
 			case MACDName:
 				macd, signal, _ := indicators.MACD(massagedData, int(s.Settings.groupedIndicators[i][j].GetFastPeriod()), int(s.Settings.groupedIndicators[i][j].GetSlowPeriod()), int(s.Settings.groupedIndicators[i][j].GetPeriod()))
+				if len(macd) == 0 {
+					es.AppendReason("Not enough data for signal generation")
+					es.SetDirection(order.DoNothing)
+					if s.Settings.groupedIndicators[i][j].MustPass() {
+						es.AppendReasonf("indicator %v of group %v failed check", s.Settings.groupedIndicators[i][j].GetName(), s.Settings.groupedIndicators[i][j].GetGroup())
+						break groupAnalysis
+					}
+					continue
+				}
 				latestMacd := macd[len(macd)-1]
 				latestSignal := macd[len(signal)-1]
 				previousMacd := macd[len(macd)-2]
@@ -199,7 +208,7 @@ func setDirection(es *signal.Signal, direction order.Side) error {
 			es.SetDirection(order.DoNothing)
 		}
 	}
-	es.Direction = direction
+	es.SetDirection(direction)
 	return nil
 }
 
@@ -248,10 +257,25 @@ func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
 		case RSIName:
 			rsi := RSI{settings.Indicators[i]}
 			err = rsi.Validate()
+			if err != nil {
+				return err
+			}
+
 			groupMap = append(groupMap, &rsi)
-		}
-		if err != nil {
-			return err
+		case BBandsName:
+			bbands := BBands{settings.Indicators[i]}
+			err = bbands.Validate()
+			if err != nil {
+				return err
+			}
+			groupMap = append(groupMap, &bbands)
+		case MACDName:
+			macd := MACD{settings.Indicators[i]}
+			err = macd.Validate()
+			if err != nil {
+				return err
+			}
+			groupMap = append(groupMap, &macd)
 		}
 		indicatorMap[settings.Indicators[i].GetGroup()] = groupMap
 	}

@@ -173,19 +173,19 @@ func (i *MACD) GetName() string {
 // Validate ensures the indicator's settings are all correct and usable
 func (i *MACD) Validate() error {
 	if i.Period <= 0 {
-		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
 	}
 	if i.FastPeriod <= 0 {
-		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.FastPeriod)
+		return fmt.Errorf("%w %s FastPeriod: %v", errUnsetIndicatorValue, i.GetName(), i.FastPeriod)
 	}
 	if i.SlowPeriod <= 0 {
-		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.SlowPeriod)
+		return fmt.Errorf("%w %s SlowPeriod: %v", errUnsetIndicatorValue, i.GetName(), i.SlowPeriod)
 	}
 	if i.SlowPeriod > i.Period {
-		return fmt.Errorf("%w %s slow period %v > period %v: %v", errInvalidIndicatorValue, i.GetName(), i.SlowPeriod, i.Period)
+		return fmt.Errorf("%w %s slow period %v > period %v", errInvalidIndicatorValue, i.GetName(), i.SlowPeriod, i.Period)
 	}
 	if i.Period > i.FastPeriod {
-		return fmt.Errorf("%w %s period %v > fast period %v: %v", errInvalidIndicatorValue, i.GetName(), i.Period, i.FastPeriod)
+		return fmt.Errorf("%w %s period %v > fast period %v", errInvalidIndicatorValue, i.GetName(), i.Period, i.FastPeriod)
 	}
 	if i.Up > 0 || i.Down > 0 || i.High > 0 || i.Low > 0 {
 		return errUnknownIndicatorAttributeSet
