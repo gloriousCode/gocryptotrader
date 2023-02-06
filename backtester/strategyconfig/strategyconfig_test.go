@@ -1217,7 +1217,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			//	"mfi-low":    32,
 			//	"mfi-high":   68,
 			//	"mfi-period": 14,
-			//},
+			// },
 		},
 		FundingSettings: FundingSettings{
 			UseExchangeLevelFunding: true,

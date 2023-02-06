@@ -55,13 +55,22 @@ A breakdown of each available option will be detailed in tables below.
 In order to properly define your indicators in the custom fields section, please refer to the following tables
 
 ### RSI
-| Field           | Description                                                                                                                                                                                                                                                    |  Example |
-|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|
-| name            | The indicator name. Acceptable values are "RSI" "OBV" "BBANDS" "MACD"
-| period          | The indicator period used. E.g. for RSI, this value is typically 14
-| low             | The low value for RSI
-| high            | The high value for RSI
-| use-defaults    | If true, will populate the default values for the given indicator. For example, RSI would auto-populate to Low: 30, High: 70, Period: 14
+| Field           | Description                                                               |  Example |
+|-----------------|---------------------------------------------------------------------------|----------|
+| name            | The indicator name.                                                       | "RSI"    |
+| period          | The indicator period used. E.g. for RSI, this value is typically 14       | 14       |
+| low             | The low value for RSI                                                     | 30       |
+| high            | The high value for RSI                                                    | 14       |
+| use-defaults    | If true, will set the following values Low: 30, High: 70, Period: 14      | false    |
+
+### MACD
+| Field           | Description                                                                        |  Example |
+|-----------------|------------------------------------------------------------------------------------|----------|
+| name            | The indicator name.                                                                | "MACD"   |
+| period          | The indicator period used. E.g. for RSI, this value is typically 14                | 12       |
+| fast-period     | The smaller moving-average line                                                    | 9        |
+| slow-period     | The higher moving-average line                                                     | 26       |
+| use-defaults    | If true, will set the following values fast-period: 9, period: 12, slow-period: 26 | false    |
 
 
 
