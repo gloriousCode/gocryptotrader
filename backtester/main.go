@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	backtest "github.com/thrasher-corp/gocryptotrader/backtester/engine"
 	"github.com/thrasher-corp/gocryptotrader/backtester/plugins/strategies"
+	"github.com/thrasher-corp/gocryptotrader/backtester/strategyconfig"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/engine"
