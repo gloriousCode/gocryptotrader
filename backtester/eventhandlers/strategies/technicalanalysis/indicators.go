@@ -9,10 +9,11 @@ import (
 
 const (
 	RSIName                  = "RSI"
-	MFIName                  = "MFI"
-	OBVName                  = "OBV"
 	BBandsName               = "BBANDS"
+	MFIName                  = "MFI"
 	MACDName                 = "MACD"
+	ATRName                  = "ATR"
+	OBVName                  = "OBV"
 	defaultMaxMissingPeriods = 14
 )
 
@@ -34,6 +35,7 @@ type Indicator interface {
 	GetDown() float64
 	GetGroup() string
 	MustPass() bool
+	SetDefaults()
 	Validate() error
 }
 
@@ -141,6 +143,16 @@ type EMA struct {
 	TABase `json:"ema"`
 }
 
+// ATR stands for Average True Range
+type ATR struct {
+	TABase `json:"atr"`
+}
+
+// MFI stands for Average True Range
+type MFI struct {
+	TABase `json:"mfi"`
+}
+
 // GetName returns the indicator's name
 func (i *RSI) GetName() string {
 	return RSIName
@@ -158,12 +170,18 @@ func (i *RSI) Validate() error {
 		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
 	}
 	if i.Low > i.High {
-		return fmt.Errorf("%w %s Low %v > High %v: %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
+		return fmt.Errorf("%w %s Low %v > High %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
 	}
 	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.Up > 0 || i.Down > 0 {
 		return errUnknownIndicatorAttributeSet
 	}
 	return nil
+}
+
+func (i *RSI) SetDefaults() {
+	i.Period = 14
+	i.Low = 30
+	i.High = 70
 }
 
 // GetName returns the indicator's name
@@ -194,6 +212,12 @@ func (i *MACD) Validate() error {
 	return nil
 }
 
+func (i *MACD) SetDefaults() {
+	i.Period = 16
+	i.FastPeriod = 9
+	i.SlowPeriod = 26
+}
+
 // GetName returns the indicator's name
 func (i *BBands) GetName() string {
 	return BBandsName
@@ -220,6 +244,12 @@ func (i *BBands) Validate() error {
 	return nil
 }
 
+func (i *BBands) SetDefaults() {
+	i.Period = 14
+	i.Up = 9
+	i.Down = 26
+}
+
 // GetName returns the indicator's name
 func (i *OBV) GetName() string {
 	return OBVName
@@ -227,5 +257,77 @@ func (i *OBV) GetName() string {
 
 // Validate ensures the indicator's settings are all correct and usable
 func (i *OBV) Validate() error {
+	if i.High <= 0 {
+		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.High)
+	}
+	if i.Low <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.Low)
+	}
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Low > i.High {
+		return fmt.Errorf("%w %s Low %v > High %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
+	}
+	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.Up > 0 || i.Down > 0 {
+		return errUnknownIndicatorAttributeSet
+	}
 	return nil
+}
+
+func (i *OBV) SetDefaults() {
+	i.Period = 14
+	i.High = 70
+	i.Low = 30
+}
+
+// GetName returns the indicator's name
+func (i *ATR) GetName() string {
+	return ATRName
+}
+
+// Validate ensures the indicator's settings are all correct and usable
+func (i *ATR) Validate() error {
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Up > 0 || i.Down > 0 || i.FastPeriod > 0 || i.SlowPeriod > 0 || i.High > 0 || i.Low > 0 {
+		return errUnknownIndicatorAttributeSet
+	}
+	return nil
+}
+
+func (i *ATR) SetDefaults() {
+	i.Period = 14
+}
+
+// GetName returns the indicator's name
+func (i *MFI) GetName() string {
+	return MFIName
+}
+
+// Validate ensures the indicator's settings are all correct and usable
+func (i *MFI) Validate() error {
+	if i.High <= 0 {
+		return fmt.Errorf("%w %s High: %v", errUnsetIndicatorValue, i.GetName(), i.High)
+	}
+	if i.Low <= 0 {
+		return fmt.Errorf("%w %s Low: %v", errUnsetIndicatorValue, i.GetName(), i.Low)
+	}
+	if i.Period <= 0 {
+		return fmt.Errorf("%w %s Period: %v", errUnsetIndicatorValue, i.GetName(), i.Period)
+	}
+	if i.Low > i.High {
+		return fmt.Errorf("%w %s Low %v > High %v", errInvalidIndicatorValue, i.GetName(), i.Low, i.High)
+	}
+	if i.SlowPeriod > 0 || i.FastPeriod > 0 || i.Up > 0 || i.Down > 0 {
+		return errUnknownIndicatorAttributeSet
+	}
+	return nil
+}
+
+func (i *MFI) SetDefaults() {
+	i.Period = 14
+	i.High = 80
+	i.Low = 20
 }

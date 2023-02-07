@@ -1,6 +1,7 @@
 package technicalanalysis
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -42,43 +44,6 @@ func TestSetCustomSettings(t *testing.T) {
 	err := s.SetCustomSettings(nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	float14 := float64(14)
-	mappalopalous := make(map[string]interface{})
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = float14
-
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-
-	mappalopalous[rsiPeriodKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiPeriodKey] = float14
-	mappalopalous[rsiLowKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiLowKey] = float14
-	mappalopalous[rsiHighKey] = "14"
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
-	}
-
-	mappalopalous[rsiHighKey] = float14
-	mappalopalous["lol"] = float14
-	err = s.SetCustomSettings(mappalopalous)
-	if !errors.Is(err, strategybase.ErrInvalidCustomSettings) {
-		t.Errorf("received: %v, expected: %v", err, strategybase.ErrInvalidCustomSettings)
 	}
 }
 
@@ -128,7 +93,9 @@ func TestOnSignal(t *testing.T) {
 		t.Fatalf("expected: %v, received %v", strategybase.ErrTooMuchBadData, err)
 	}
 
-	s.rsiPeriod = decimal.NewFromInt(1)
+	rsiIndicator := &RSI{}
+	rsiIndicator.SetDefaults()
+	s.Settings.groupedIndicators = append(s.Settings.groupedIndicators, []Indicator{rsiIndicator})
 	_, err = s.OnSignal(da, nil, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
@@ -224,13 +191,52 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
-		t.Error("expected 70")
+
+}
+
+func TestProcessOBV(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	b := binance.Binance{}
+	b.SetDefaults()
+	conf, _ := b.GetDefaultConfig()
+	b.Setup(conf)
+	b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	candles, err := b.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, gctkline.OneDay, time.Now().AddDate(-1, 0, 0), time.Now())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
-		t.Error("expected 30")
+	testClose := make([]float64, len(candles.Candles))
+	testVolume := make([]float64, len(candles.Candles))
+	for i := range candles.Candles {
+		testClose[i] = candles.Candles[i].Close
+		testVolume[i] = candles.Candles[i].Volume
 	}
-	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
-		t.Error("expected 14")
+	obv := &OBV{}
+	obv.SetDefaults()
+
+	sig := &signal.Signal{
+		Base: &event.Base{},
 	}
+
+	for i := range testClose {
+		sig.Direction = order.UnknownSide
+		if i <= 14 {
+			continue
+		}
+		err := s.processOBV(testClose[:i], testVolume[:i], obv, sig)
+		if err != nil {
+			t.Error(err)
+		}
+		obvDir := sig.Direction
+		sig.Direction = order.UnknownSide
+		err = s.processRSI(testClose[:i], obv, sig)
+		if err != nil {
+			t.Error(err)
+		}
+		rsiDir := sig.Direction
+
+		t.Logf("obv: %v, rsi: %v", obvDir, rsiDir)
+	}
+
 }
