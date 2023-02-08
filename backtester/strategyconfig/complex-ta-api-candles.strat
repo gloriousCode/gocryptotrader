@@ -1,0 +1,95 @@
+{
+ "nickname": "TestGenerateComplexTAConfig",
+ "goal": "Demonstrates the complexity one can have using TA in a strategy",
+ "strategy-settings": {
+  "name": "technicalanalysis",
+  "use-simultaneous-signal-processing": false,
+  "disable-usd-tracking": false,
+  "custom-settings": {
+   "max-missing-periods": 10,
+   "indicators": [
+    {
+     "name": "RSI",
+     "use-defaults": true,
+     "pass-required": false
+    },
+    {
+     "name": "MFI",
+     "use-defaults": true,
+     "pass-required": true
+    },
+    {
+     "name": "RSI",
+     "high": 80,
+     "low": 40,
+     "period": 14,
+     "pass-required": true,
+     "group": "butts"
+    }
+   ]
+  }
+ },
+ "funding-settings": {
+  "use-exchange-level-funding": false
+ },
+ "currency-settings": [
+  {
+   "exchange-name": "binance",
+   "asset": "spot",
+   "base": "BTC",
+   "quote": "USDT",
+   "spot-details": {
+    "initial-quote-funds": "100000"
+   },
+   "buy-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "sell-side": {
+    "minimum-size": "0.005",
+    "maximum-size": "2",
+    "maximum-total": "40000"
+   },
+   "min-slippage-percent": "0",
+   "max-slippage-percent": "0",
+   "maker-fee-override": "0.0002",
+   "taker-fee-override": "0.0007",
+   "maximum-holdings-ratio": "0",
+   "skip-candle-volume-fitting": false,
+   "use-exchange-order-limits": false,
+   "use-exchange-pnl-calculation": false
+  }
+ ],
+ "data-settings": {
+  "interval": 10800000000000,
+  "data-type": "candle",
+  "verbose-exchange-requests": false,
+  "api-data": {
+   "start-date": "2022-08-01T00:00:00+10:00",
+   "end-date": "2022-12-01T01:00:00+11:00",
+   "inclusive-end-date": false
+  }
+ },
+ "portfolio-settings": {
+  "leverage": {
+   "can-use-leverage": false,
+   "maximum-orders-with-leverage-ratio": "0",
+   "maximum-leverage-rate": "0",
+   "maximum-collateral-leverage-rate": "0"
+  },
+  "buy-side": {
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
+  },
+  "sell-side": {
+   "minimum-size": "0.005",
+   "maximum-size": "2",
+   "maximum-total": "40000"
+  }
+ },
+ "statistic-settings": {
+  "risk-free-rate": "0.03"
+ }
+}
