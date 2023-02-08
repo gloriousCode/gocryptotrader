@@ -26,7 +26,7 @@ var (
 // Indicator contains all relevant usable information to perform TA
 type Indicator interface {
 	GetName() string
-	GetPeriod() int64
+	GetPeriod() int
 	GetFastPeriod() int64
 	GetSlowPeriod() int64
 	GetLow() float64
@@ -68,8 +68,8 @@ func (t *TABase) GetName() string {
 }
 
 // GetPeriod returns the indicator period
-func (t *TABase) GetPeriod() int64 {
-	return t.Period
+func (t *TABase) GetPeriod() int {
+	return int(t.Period)
 }
 
 // GetLow returns the low indicator setting
@@ -200,10 +200,10 @@ func (i *MACD) Validate() error {
 	if i.SlowPeriod <= 0 {
 		return fmt.Errorf("%w %s SlowPeriod: %v", errUnsetIndicatorValue, i.GetName(), i.SlowPeriod)
 	}
-	if i.SlowPeriod > i.Period {
+	if i.SlowPeriod < i.Period {
 		return fmt.Errorf("%w %s slow period %v > period %v", errInvalidIndicatorValue, i.GetName(), i.SlowPeriod, i.Period)
 	}
-	if i.Period > i.FastPeriod {
+	if i.Period < i.FastPeriod {
 		return fmt.Errorf("%w %s period %v > fast period %v", errInvalidIndicatorValue, i.GetName(), i.Period, i.FastPeriod)
 	}
 	if i.Up > 0 || i.Down > 0 || i.High > 0 || i.Low > 0 {

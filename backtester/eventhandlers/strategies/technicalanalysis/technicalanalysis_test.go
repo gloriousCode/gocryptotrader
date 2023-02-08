@@ -240,3 +240,35 @@ func TestProcessOBV(t *testing.T) {
 	}
 
 }
+
+func TestProcessATR(t *testing.T) {
+	t.Parallel()
+	s := Strategy{}
+	b := binance.Binance{}
+	b.SetDefaults()
+	conf, _ := b.GetDefaultConfig()
+	b.Setup(conf)
+	b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	candles, err := b.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, gctkline.OneDay, time.Now().AddDate(-1, 0, 0), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testClose := make([]float64, len(candles.Candles))
+	testHigh := make([]float64, len(candles.Candles))
+	testLow := make([]float64, len(candles.Candles))
+	for i := range candles.Candles {
+		testClose[i] = candles.Candles[i].Close
+		testHigh[i] = candles.Candles[i].High
+		testLow[i] = candles.Candles[i].Low
+	}
+	atr := &ATR{}
+	atr.SetDefaults()
+
+	sig := &signal.Signal{
+		Base: &event.Base{},
+	}
+	err = s.processATR(testHigh, testLow, testClose, atr, sig)
+	if err != nil {
+		t.Error(err)
+	}
+}

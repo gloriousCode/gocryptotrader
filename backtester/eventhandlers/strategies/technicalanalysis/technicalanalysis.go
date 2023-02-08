@@ -60,12 +60,37 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	}
 
 	es.SetPrice(latest.GetClosePrice())
-	dataRange, err := d.StreamClose()
+
+	closeRange, err := d.StreamClose()
 	if err != nil {
 		return nil, err
 	}
-	var massagedClosePrices []float64
-	massagedClosePrices, err = s.massageMissingData(dataRange, es.GetTime())
+	highRange, err := d.StreamHigh()
+	if err != nil {
+		return nil, err
+	}
+	lowRange, err := d.StreamLow()
+	if err != nil {
+		return nil, err
+	}
+	volRange, err := d.StreamVol()
+	if err != nil {
+		return nil, err
+	}
+
+	massagedClose, err := s.massageMissingData(closeRange, es.GetTime())
+	if err != nil {
+		return nil, err
+	}
+	massagedVolume, err := s.massageMissingData(volRange, es.GetTime())
+	if err != nil {
+		return nil, err
+	}
+	massagedHigh, err := s.massageMissingData(highRange, es.GetTime())
+	if err != nil {
+		return nil, err
+	}
+	massagedLow, err := s.massageMissingData(lowRange, es.GetTime())
 	if err != nil {
 		return nil, err
 	}
@@ -84,108 +109,43 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	groupAnalysis:
 		for j := range s.Settings.groupedIndicators[i] {
 			groupedIndicator := s.Settings.groupedIndicators[i][j]
-			if offset := latest.GetOffset(); offset <= groupedIndicator.GetPeriod() {
+			if offset := latest.GetOffset(); offset <= int64(groupedIndicator.GetPeriod()) {
 				es.AppendReason("Not enough data for signal generation")
 				es.SetDirection(order.DoNothing)
 				if groupedIndicator.MustPass() {
-					es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-					// break groupAnalysis
-					return nil, err
+					return &es, nil
 				}
 				continue
 			}
 
 			switch groupedIndicator.GetName() {
 			case RSIName:
-				err = s.processRSI(massagedClosePrices, groupedIndicator, &es)
+				err = s.processRSI(massagedClose, groupedIndicator, &es)
 				if err != nil {
 					break groupAnalysis
 				}
 			case MACDName:
-				err = s.processMACD(massagedClosePrices, groupedIndicator, &es)
+				err = s.processMACD(massagedClose, groupedIndicator, &es)
 				if err != nil {
 					break groupAnalysis
 				}
 			case BBandsName:
-				err = s.processBBands(massagedClosePrices, groupedIndicator, latest, &es)
+				err = s.processBBands(massagedClose, groupedIndicator, latest, &es)
 				if err != nil {
 					break groupAnalysis
 				}
 			case OBVName:
-				var volumeRange []decimal.Decimal
-				volumeRange, err = d.StreamVol()
-				if err != nil {
-					return nil, err
-				}
-				var massagedVolume []float64
-				massagedVolume, err = s.massageMissingData(volumeRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-
-				err = s.processOBV(massagedClosePrices, massagedVolume, groupedIndicator, &es)
+				err = s.processOBV(massagedClose, massagedVolume, groupedIndicator, &es)
 				if err != nil {
 					break groupAnalysis
 				}
 			case MFIName:
-				var highRange []decimal.Decimal
-				highRange, err = d.StreamHigh()
-				if err != nil {
-					return nil, err
-				}
-				var lowRange []decimal.Decimal
-				lowRange, err = d.StreamLow()
-				if err != nil {
-					return nil, err
-				}
-				var volRange []decimal.Decimal
-				volRange, err = d.StreamVol()
-				if err != nil {
-					return nil, err
-				}
-				var massagedVolume []float64
-				massagedVolume, err = s.massageMissingData(volRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-				var massagedHigh []float64
-				massagedHigh, err = s.massageMissingData(highRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-				var massagedLow []float64
-				massagedLow, err = s.massageMissingData(lowRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-
-				err = s.processMFI(massagedHigh, massagedLow, massagedClosePrices, massagedVolume, groupedIndicator, &es)
+				err = s.processMFI(massagedHigh, massagedLow, massagedClose, massagedVolume, groupedIndicator, &es)
 				if err != nil {
 					break groupAnalysis
 				}
 			case ATRName:
-				var highRange []decimal.Decimal
-				highRange, err = d.StreamHigh()
-				if err != nil {
-					return nil, err
-				}
-				var lowRange []decimal.Decimal
-				lowRange, err = d.StreamLow()
-				if err != nil {
-					return nil, err
-				}
-				var massagedHigh []float64
-				massagedHigh, err = s.massageMissingData(highRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-				var massagedLow []float64
-				massagedLow, err = s.massageMissingData(lowRange, es.GetTime())
-				if err != nil {
-					return nil, err
-				}
-
-				err = s.processATR(massagedHigh, massagedLow, massagedClosePrices, groupedIndicator, &es)
+				err = s.processATR(massagedHigh, massagedLow, massagedClose, groupedIndicator, &es)
 				if err != nil {
 					break groupAnalysis
 				}
@@ -196,34 +156,75 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 	return &es, nil
 }
 
+// processATR alone does not make purchasing decisions
+// rather, it will look at the market and determine whether to avoid
+// making a strategic decision because the volatility  and strength
+// of the price movement is not there
 func (s *Strategy) processATR(high, low, closePrices []float64, groupedIndicator Indicator, es signal.Event) error {
-	atr := indicators.ATR(high, low, closePrices, int(groupedIndicator.GetPeriod()))
-	
+	atr := indicators.ATR(high, low, closePrices, groupedIndicator.GetPeriod())
+	sma := indicators.SMA(closePrices, groupedIndicator.GetPeriod())
+
+	periodSMA := sma[len(sma)-1-groupedIndicator.GetPeriod()]
+	currentSMA := sma[len(sma)-1]
+	diffSMA := currentSMA - periodSMA
+
+	periodATR := atr[len(atr)-1-groupedIndicator.GetPeriod()]
+	currentATR := atr[len(atr)-1]
+	diffATR := currentATR - periodATR
+	if periodATR == 0 {
+		// nothing significant
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
+		if groupedIndicator.MustPass() {
+			return s.failCheck(es, groupedIndicator)
+		}
+		return nil
+	}
+	switch {
+	case diffATR > 0 && diffSMA > 0:
+		es.AppendReasonf("ATR of group '%v': '%v' trending up with increasing price", groupedIndicator.GetGroup(), currentATR)
+	case diffATR > 0 && diffSMA < 0:
+		es.AppendReasonf("ATR of group '%v': '%v' trending up with decreasing price", groupedIndicator.GetGroup(), currentATR)
+	case diffATR < 0 && diffSMA > 0,
+		diffATR < 0 && diffSMA < 0:
+		es.AppendReasonf("ATR of group '%v': '%v'", currentATR)
+		fallthrough
+	default:
+		// nothing significant
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
+		if groupedIndicator.MustPass() {
+			return s.failCheck(es, groupedIndicator)
+		}
+	}
+	return nil
+}
+
+func (s *Strategy) failCheck(es signal.Event, groupedIndicator Indicator) error {
+	_ = setDirection(es, order.DoNothing, groupedIndicator)
+	es.AppendReasonf("indicator '%v' of group '%v' failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
+	// break groupAnalysis
+	return errMustPass
 }
 
 func (s *Strategy) processMFI(high, low, closePrices, volume []float64, groupedIndicator Indicator, es signal.Event) error {
-	mfi := indicators.MFI(high, low, closePrices, volume, int(groupedIndicator.GetPeriod()))
+	mfi := indicators.MFI(high, low, closePrices, volume, groupedIndicator.GetPeriod())
 	latestMFI := mfi[len(mfi)-1]
+	es.AppendReasonf("MFI of group '%v': '%v'", groupedIndicator.GetGroup(), latestMFI)
 	var err error
 	switch {
 	case latestMFI >= groupedIndicator.GetHigh():
-		err = setDirection(es, order.Sell)
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	case latestMFI <= groupedIndicator.GetLow():
-		err = setDirection(es, order.Buy)
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	default:
-		_ = setDirection(es, order.DoNothing)
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	}
 	return nil
@@ -235,30 +236,26 @@ func (s *Strategy) processOBV(massagedClosePrices, massagedVolume []float64, gro
 		return nil
 	}
 	rsiObv := indicators.RSI(obv, int(groupedIndicator.GetPeriod()))
-	latestRSIValue := rsiObv[len(rsiObv)-1]
+	latestOBV := rsiObv[len(rsiObv)-1]
+	es.AppendReasonf("OBV of group '%v': '%v'", groupedIndicator.GetGroup(), latestOBV)
 	var err error
 	switch {
-	case latestRSIValue >= groupedIndicator.GetHigh():
-		err = setDirection(es, order.Sell)
+	case latestOBV >= groupedIndicator.GetHigh():
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
-	case latestRSIValue <= groupedIndicator.GetLow():
-		err = setDirection(es, order.Buy)
+	case latestOBV <= groupedIndicator.GetLow():
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	default:
-		_ = setDirection(es, order.DoNothing)
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	}
-	es.AppendReasonf("OBV RSI at %v", latestRSIValue)
 	return nil
 }
 
@@ -269,84 +266,73 @@ func (s *Strategy) processBBands(massagedClosePrices []float64, groupedIndicator
 	closePrice := latest.GetClosePrice().InexactFloat64()
 	latestUpper := upper[len(upper)-1]
 	latestDowner := lower[len(lower)-1]
+	es.AppendReasonf("BBAND of group '%v' upper: '%v' lower: '%v", groupedIndicator.GetGroup(), latestUpper, latestDowner)
 	var err error
 	switch {
 	case closePrice >= latestUpper:
-		err = setDirection(es, order.Sell)
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return errMustPass
+			return s.failCheck(es, groupedIndicator)
 		}
 	case closePrice <= latestDowner:
-		err = setDirection(es, order.Buy)
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return errMustPass
+			return s.failCheck(es, groupedIndicator)
 		}
 	default:
-		_ = setDirection(es, order.DoNothing)
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return errMustPass
+			return s.failCheck(es, groupedIndicator)
 		}
 	}
 	return nil
 }
 
 func (s *Strategy) processMACD(massagedClosePrices []float64, groupedIndicator Indicator, es signal.Event) error {
-	macd, signal, _ := indicators.MACD(massagedClosePrices, int(groupedIndicator.GetFastPeriod()), int(groupedIndicator.GetSlowPeriod()), int(groupedIndicator.GetPeriod()))
 	var err error
-	if len(macd) == 0 {
+	if len(massagedClosePrices) < int(groupedIndicator.GetSlowPeriod())+groupedIndicator.GetPeriod() {
 		es.AppendReason("Not enough data for signal generation")
 		es.SetDirection(order.DoNothing)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 		return nil
 	}
+	macd, sig, _ := indicators.MACD(massagedClosePrices, int(groupedIndicator.GetFastPeriod()), int(groupedIndicator.GetSlowPeriod()), groupedIndicator.GetPeriod())
 	latestMacd := macd[len(macd)-1]
-	latestSignal := macd[len(signal)-1]
+	latestSignal := macd[len(sig)-1]
 	previousMacd := macd[len(macd)-2]
-	previousSignal := macd[len(signal)-2]
+	previousSignal := macd[len(sig)-2]
+	es.AppendReasonf("MACD of group '%v': '%v'", groupedIndicator.GetGroup(), latestMacd)
 	switch {
 	case latestMacd > latestSignal && previousMacd <= previousSignal:
-		err = setDirection(es, order.Sell)
+		es.AppendReason("MACD Sell")
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	case latestMacd < latestSignal && previousMacd >= previousSignal:
-		err = setDirection(es, order.Buy)
+		es.AppendReason("MACD Buy")
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	case latestMacd > 0 && previousMacd < 0:
-		err = setDirection(es, order.Buy)
+		es.AppendReason("MACD Buy")
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	case latestMacd < 0 && previousMacd > 0:
-		err = setDirection(es, order.Sell)
+		es.AppendReason("MACD Sell")
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	default:
-		_ = setDirection(es, order.DoNothing)
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return errMustPass
+			return s.failCheck(es, groupedIndicator)
 		}
 	}
 	return nil
@@ -356,46 +342,40 @@ func (s *Strategy) processRSI(massagedClosePrices []float64, groupedIndicator In
 	rsi := indicators.RSI(massagedClosePrices, int(groupedIndicator.GetPeriod()))
 	latestRSIValue := rsi[len(rsi)-1]
 	var err error
+	es.AppendReasonf("RSI of group '%v': '%v'", groupedIndicator.GetGroup(), latestRSIValue)
 	switch {
 	case latestRSIValue >= groupedIndicator.GetHigh():
-		err = setDirection(es, order.Sell)
+		err = setDirection(es, order.Sell, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	case latestRSIValue <= groupedIndicator.GetLow():
-		err = setDirection(es, order.Buy)
+		err = setDirection(es, order.Buy, groupedIndicator)
 		if err != nil && groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	default:
-		_ = setDirection(es, order.DoNothing)
+		_ = setDirection(es, order.DoNothing, groupedIndicator)
 		if groupedIndicator.MustPass() {
-			es.AppendReasonf("indicator %v of group %v failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-			// break groupAnalysis
-			return err
+			return s.failCheck(es, groupedIndicator)
 		}
 	}
-	es.AppendReasonf("RSI at %v", latestRSIValue)
 	return nil
 }
 
 var errCannotSetDirection = errors.New("cannot set direction")
 
-func setDirection(es signal.Event, direction order.Side) error {
+func setDirection(es signal.Event, direction order.Side, groupedIndicator Indicator) error {
 	switch es.GetDirection() {
 	case order.Buy:
 		if direction == order.Sell {
-			es.AppendReason("conflicting indicators results, cannot switch from buy to sell")
+			es.AppendReasonf("indicator '%v' of group '%v' tried to switch from buy to sell. Doing nothing instead", groupedIndicator.GetName(), groupedIndicator.GetGroup())
 			es.SetDirection(order.DoNothing)
 			return errCannotSetDirection
 		}
 	case order.Sell:
 		if direction == order.Buy {
-			es.AppendReason("conflicting indicators results, cannot switch from sell to buy")
+			es.AppendReasonf("indicator '%v' of group '%v' tried to switch from sell to buy. Doing nothing instead", groupedIndicator.GetName(), groupedIndicator.GetGroup())
 			es.SetDirection(order.DoNothing)
 			return errCannotSetDirection
 		}
