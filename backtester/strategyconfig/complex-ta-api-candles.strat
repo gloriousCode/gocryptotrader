@@ -10,21 +10,11 @@
    "indicators": [
     {
      "name": "RSI",
-     "use-defaults": true,
-     "pass-required": false
+     "use-defaults": true
     },
     {
-     "name": "MFI",
-     "use-defaults": true,
-     "pass-required": true
-    },
-    {
-     "name": "RSI",
-     "high": 80,
-     "low": 40,
-     "period": 14,
-     "pass-required": true,
-     "group": "butts"
+     "name": "MACD",
+     "use-defaults": true
     }
    ]
   }

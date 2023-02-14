@@ -20,12 +20,12 @@ func TestAddStrategies(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = addStrategies([]strategies.Handler{&dollarcostaverage.Strategy{}})
+	err = addStrategies([]strategybase.Handler{&dollarcostaverage.Strategy{}})
 	if !errors.Is(err, strategies.ErrStrategyAlreadyExists) {
 		t.Error(err)
 	}
 
-	err = addStrategies([]strategies.Handler{&CustomStrategy{}})
+	err = addStrategies([]strategybase.Handler{&CustomStrategy{}})
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}

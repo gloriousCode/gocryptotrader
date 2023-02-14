@@ -24,7 +24,7 @@ func TestGetStrategies(t *testing.T) {
 
 func TestLoadStrategyByName(t *testing.T) {
 	t.Parallel()
-	var resp Handler
+	var resp strategybase.Handler
 	_, err := LoadStrategyByName("test", false)
 	if !errors.Is(err, strategybase.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, strategybase.ErrStrategyNotFound)
@@ -113,6 +113,10 @@ func TestCreateNewStrategy(t *testing.T) {
 
 type customStrategy struct {
 	strategybase.Strategy
+}
+
+func (s *customStrategy) New() strategybase.Handler {
+	return &customStrategy{}
 }
 
 func (s *customStrategy) GetName() string {

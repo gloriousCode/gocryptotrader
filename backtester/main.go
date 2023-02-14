@@ -268,8 +268,7 @@ func main() {
 func parseFlags(wd string) map[string]bool {
 	defaultStrategy := filepath.Join(
 		wd,
-		"config",
-		"strategyexamples",
+		"strategyconfig",
 		"dca-api-candles.strat")
 	defaultTemplate := filepath.Join(
 		wd,

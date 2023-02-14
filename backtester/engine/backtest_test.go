@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/backtester/report"
+	"github.com/thrasher-corp/gocryptotrader/backtester/strategyconfig"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -61,7 +62,9 @@ func TestSetupFromConfig(t *testing.T) {
 	if !errors.Is(err, errNilConfig) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
-	cfg := &strategyconfig.Config{}
+	cfg := &strategyconfig.Config{
+		StrategySettings: strategyconfig.StrategySettings{Name: "dollarcostaverage"},
+	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctkline.ErrInvalidInterval) {
 		t.Errorf("received: %v, expected: %v", err, gctkline.ErrInvalidInterval)
@@ -96,9 +99,9 @@ func TestSetupFromConfig(t *testing.T) {
 
 	cfg.StrategySettings = strategyconfig.StrategySettings{
 		Name: dollarcostaverage.Name,
-		CustomSettings: map[string]interface{}{
+		CustomSettings: []byte(`{
 			"hello": "moto",
-		},
+		},`),
 	}
 	cfg.DataSettings.APIData = &strategyconfig.APIData{}
 
@@ -176,9 +179,9 @@ func TestLoadDataAPI(t *testing.T) {
 			}},
 		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
-				"hello": "moto",
-			},
+			CustomSettings: []byte(`{
+			"hello": "moto",
+		},`),
 		},
 	}
 	em := engine.ExchangeManager{}
@@ -230,9 +233,9 @@ func TestLoadDataCSV(t *testing.T) {
 			}},
 		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
-				"hello": "moto",
-			},
+			CustomSettings: []byte(`{
+			"hello": "moto",
+		},`),
 		},
 	}
 	em := engine.ExchangeManager{}
@@ -295,9 +298,9 @@ func TestLoadDataDatabase(t *testing.T) {
 			}},
 		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
-				"hello": "moto",
-			},
+			CustomSettings: []byte(`{
+			"hello": "moto",
+		},`),
 		},
 	}
 	em := engine.ExchangeManager{}
@@ -371,9 +374,9 @@ func TestLoadDataLive(t *testing.T) {
 			}},
 		StrategySettings: strategyconfig.StrategySettings{
 			Name: dollarcostaverage.Name,
-			CustomSettings: map[string]interface{}{
-				"hello": "moto",
-			},
+			CustomSettings: []byte(`{
+			"hello": "moto",
+		},`),
 		},
 	}
 	exch, err := bt.exchangeManager.NewExchangeByName(testExchange)
@@ -1898,7 +1901,7 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+	strat1 := filepath.Join("..", "strategyconfig", "dca-api-candles.strat")
 	cfg, err := strategyconfig.ReadStrategyConfigFromFile(strat1)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)

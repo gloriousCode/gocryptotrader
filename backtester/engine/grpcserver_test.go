@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -15,13 +14,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
+	"github.com/thrasher-corp/gocryptotrader/backtester/strategyconfig"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-var dbConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-database-candles.strat")
+var dcaConfigPath = filepath.Join("..", "strategyconfig", "dca-api-candles.strat")
+var dbConfigPath = filepath.Join("..", "strategyconfig", "dca-database-candles.strat")
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()
@@ -134,16 +134,8 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expecting '%v'", err, nil)
 	}
-	customSettings := make([]*btrpc.CustomSettings, len(defaultConfig.StrategySettings.CustomSettings))
-	x := 0
-	for k, v := range defaultConfig.StrategySettings.CustomSettings {
-		customSettings[x] = &btrpc.CustomSettings{
-			KeyField: k,
-			KeyValue: fmt.Sprintf("%v", v),
-		}
-		x++
-	}
 
+	defaultConfig.StrategySettings.CustomSettings = []byte(`{}`)
 	currencySettings := make([]*btrpc.CurrencySettings, len(defaultConfig.CurrencySettings))
 	for i := range defaultConfig.CurrencySettings {
 		var sd *btrpc.SpotDetails
@@ -282,7 +274,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 			Name:                            defaultConfig.StrategySettings.Name,
 			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
 			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
-			CustomSettings:                  customSettings,
+			CustomSettings:                  defaultConfig.StrategySettings.CustomSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{
 			UseExchangeLevelFunding: defaultConfig.FundingSettings.UseExchangeLevelFunding,

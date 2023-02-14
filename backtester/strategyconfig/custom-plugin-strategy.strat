@@ -4,7 +4,8 @@
  "strategy-settings": {
   "name": "custom-strategy",
   "use-simultaneous-signal-processing": false,
-  "disable-usd-tracking": false
+  "disable-usd-tracking": false,
+  "custom-settings": null
  },
  "funding-settings": {
   "use-exchange-level-funding": false

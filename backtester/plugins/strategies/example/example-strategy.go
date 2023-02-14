@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
@@ -20,8 +19,8 @@ type CustomStrategy struct {
 }
 
 // GetStrategies is required to load the strategy or strategies into the GoCryptoTrader Backtester
-func GetStrategies() []strategies.Handler {
-	return []strategies.Handler{&CustomStrategy{}}
+func GetStrategies() []strategybase.Handler {
+	return []strategybase.Handler{&CustomStrategy{}}
 }
 
 // Name returns the name of the strategy

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -280,6 +281,10 @@ func (f fakeFunding) RealisePNL(string, asset.Item, currency.Code, decimal.Decim
 }
 
 type fakeStrat struct{}
+
+func (f fakeStrat) New() strategybase.Handler {
+	return fakeStrat{}
+}
 
 func (f fakeStrat) GetName() string {
 	return "fake"

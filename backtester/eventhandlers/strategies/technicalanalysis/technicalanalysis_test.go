@@ -95,6 +95,7 @@ func TestOnSignal(t *testing.T) {
 
 	rsiIndicator := &RSI{}
 	rsiIndicator.SetDefaults()
+	s.SetDefaults()
 	s.Settings.groupedIndicators = append(s.Settings.groupedIndicators, []Indicator{rsiIndicator})
 	_, err = s.OnSignal(da, nil, nil)
 	if !errors.Is(err, nil) {

@@ -400,7 +400,7 @@ func clearAllTasks(c *cli.Context) error {
 
 var executeStrategyFromConfigCommand = &cli.Command{
 	Name:        "executestrategyfromconfig",
-	Usage:       fmt.Sprintf("runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation using %v", filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")),
+	Usage:       fmt.Sprintf("runs the default strategy config but via passing in as a struct instead of a filepath - this is a proof-of-concept implementation using %v", filepath.Join("..", "strategyconfig", "dca-api-candles.strat")),
 	Description: "the cli is not a good place to manage this type of command with n variables to pass in from a command line",
 	Action:      executeStrategyFromConfig,
 	Flags: []cli.Flag{
@@ -422,8 +422,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 	defaultPath := filepath.Join(
 		"..",
-		"config",
-		"strategyexamples",
+		"strategyconfig",
 		"dca-api-candles.strat")
 	defaultConfig, err := strategyconfig.ReadStrategyConfigFromFile(defaultPath)
 	if err != nil {
@@ -513,7 +512,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
 					ClientId:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
-					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					PemKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 				},
