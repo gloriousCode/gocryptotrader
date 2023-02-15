@@ -38,6 +38,7 @@ type Strategy struct {
 	Settings CustomSettings
 }
 
+// CustomSettings holds the settings for the strategy
 type CustomSettings struct {
 	MaxMissingPeriods int64           `json:"max-missing-periods"`
 	MFIPeriod         decimal.Decimal `json:"mfi-period"`

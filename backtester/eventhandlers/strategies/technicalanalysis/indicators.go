@@ -8,11 +8,17 @@ import (
 )
 
 const (
-	RSIName                  = "RSI"
-	BBandsName               = "BBANDS"
-	MFIName                  = "MFI"
-	MACDName                 = "MACD"
-	ATRName                  = "ATR"
+	// RSIName is the name for the indicator
+	RSIName = "RSI"
+	// BBandsName is the name for the indicator
+	BBandsName = "BBANDS"
+	// MFIName is the name for the indicator
+	MFIName = "MFI"
+	// MACDName is the name for the indicator
+	MACDName = "MACD"
+	// ATRName is the name for the indicator
+	ATRName = "ATR"
+	// OBVName is the name for the indicator
 	OBVName                  = "OBV"
 	defaultMaxMissingPeriods = 14
 )
@@ -63,8 +69,9 @@ type TABase struct {
 	UseDefaultValues bool    `json:"use-defaults"`
 }
 
+// GetName returns the name
 func (t *TABase) GetName() string {
-	return ""
+	return t.Name
 }
 
 // GetPeriod returns the indicator period
@@ -178,6 +185,7 @@ func (i *RSI) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *RSI) SetDefaults() {
 	i.Period = 14
 	i.Low = 30
@@ -212,6 +220,7 @@ func (i *MACD) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *MACD) SetDefaults() {
 	i.Period = 16
 	i.FastPeriod = 9
@@ -244,6 +253,7 @@ func (i *BBands) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *BBands) SetDefaults() {
 	i.Period = 14
 	i.Up = 9
@@ -275,6 +285,7 @@ func (i *OBV) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *OBV) SetDefaults() {
 	i.Period = 14
 	i.High = 70
@@ -297,6 +308,7 @@ func (i *ATR) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *ATR) SetDefaults() {
 	i.Period = 14
 }
@@ -326,6 +338,7 @@ func (i *MFI) Validate() error {
 	return nil
 }
 
+// SetDefaults sets default values for the indicator
 func (i *MFI) SetDefaults() {
 	i.Period = 14
 	i.High = 80

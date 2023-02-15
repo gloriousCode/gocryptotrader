@@ -201,7 +201,6 @@ func (s *Strategy) processATR(high, low, closePrices []float64, groupedIndicator
 func (s *Strategy) failCheck(es signal.Event, groupedIndicator Indicator) error {
 	_ = setDirection(es, order.DoNothing, groupedIndicator)
 	es.AppendReasonf("indicator '%v' of group '%v' failed check", groupedIndicator.GetName(), groupedIndicator.GetGroup())
-	// break groupAnalysis
 	return errMustPass
 }
 
@@ -235,7 +234,7 @@ func (s *Strategy) processOBV(massagedClosePrices, massagedVolume []float64, gro
 	if len(obv) == 0 {
 		return nil
 	}
-	rsiObv := indicators.RSI(obv, int(groupedIndicator.GetPeriod()))
+	rsiObv := indicators.RSI(obv, groupedIndicator.GetPeriod())
 	latestOBV := rsiObv[len(rsiObv)-1]
 	es.AppendReasonf("OBV of group '%v': '%v'", groupedIndicator.GetGroup(), latestOBV)
 	var err error
@@ -262,7 +261,7 @@ func (s *Strategy) processOBV(massagedClosePrices, massagedVolume []float64, gro
 var errMustPass = errors.New("must pass")
 
 func (s *Strategy) processBBands(massagedClosePrices []float64, groupedIndicator Indicator, latest data.Event, es signal.Event) error {
-	upper, _, lower := indicators.BBANDS(massagedClosePrices, int(groupedIndicator.GetPeriod()), groupedIndicator.GetUp(), groupedIndicator.GetDown(), indicators.Sma)
+	upper, _, lower := indicators.BBANDS(massagedClosePrices, groupedIndicator.GetPeriod(), groupedIndicator.GetUp(), groupedIndicator.GetDown(), indicators.Sma)
 	closePrice := latest.GetClosePrice().InexactFloat64()
 	latestUpper := upper[len(upper)-1]
 	latestDowner := lower[len(lower)-1]
@@ -339,7 +338,7 @@ func (s *Strategy) processMACD(massagedClosePrices []float64, groupedIndicator I
 }
 
 func (s *Strategy) processRSI(massagedClosePrices []float64, groupedIndicator Indicator, es signal.Event) error {
-	rsi := indicators.RSI(massagedClosePrices, int(groupedIndicator.GetPeriod()))
+	rsi := indicators.RSI(massagedClosePrices, groupedIndicator.GetPeriod())
 	latestRSIValue := rsi[len(rsi)-1]
 	var err error
 	es.AppendReasonf("RSI of group '%v': '%v'", groupedIndicator.GetGroup(), latestRSIValue)

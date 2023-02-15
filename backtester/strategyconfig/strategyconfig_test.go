@@ -965,7 +965,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			},
 		},
 	}
-	customJson, err := json.MarshalIndent(rsiCustomSettings, "", " ")
+	customJSON, err := json.MarshalIndent(rsiCustomSettings, "", " ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -974,7 +974,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 		Goal:     "To demonstrate the RSI strategy using API candle data and custom settings",
 		StrategySettings: StrategySettings{
 			Name:           "technicalanalysis",
-			CustomSettings: customJson,
+			CustomSettings: customJSON,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1041,7 +1041,7 @@ func TestGenerateComplexTAConfig(t *testing.T) {
 			},
 		},
 	}
-	customJson, err := json.MarshalIndent(rsiCustomSettings, "", " ")
+	customJSON, err := json.MarshalIndent(rsiCustomSettings, "", " ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1050,7 +1050,7 @@ func TestGenerateComplexTAConfig(t *testing.T) {
 		Goal:     "Demonstrates the complexity one can have using TA in a strategy",
 		StrategySettings: StrategySettings{
 			Name:           "technicalanalysis",
-			CustomSettings: customJson,
+			CustomSettings: customJSON,
 		},
 		CurrencySettings: []CurrencySettings{
 			{

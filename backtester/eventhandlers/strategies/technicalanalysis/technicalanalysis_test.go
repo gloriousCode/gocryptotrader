@@ -209,8 +209,14 @@ func TestProcessOBV(t *testing.T) {
 	b := binance.Binance{}
 	b.SetDefaults()
 	conf, _ := b.GetDefaultConfig()
-	b.Setup(conf)
-	b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err := b.Setup(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
 	candles, err := b.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, gctkline.OneDay, time.Now().AddDate(-1, 0, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
@@ -255,8 +261,14 @@ func TestProcessATR(t *testing.T) {
 	b := binance.Binance{}
 	b.SetDefaults()
 	conf, _ := b.GetDefaultConfig()
-	b.Setup(conf)
-	b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	err := b.Setup(conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
 	candles, err := b.GetHistoricCandlesExtended(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot, gctkline.OneDay, time.Now().AddDate(-1, 0, 0), time.Now())
 	if err != nil {
 		t.Fatal(err)
