@@ -419,6 +419,9 @@ var errUnknownIndicator = errors.New("unknown indicator")
 
 // SetCustomSettings allows a user to modify the RSI limits in their config
 func (s *Strategy) SetCustomSettings(customSettings json.RawMessage) error {
+	if len(customSettings) == 0 {
+		return strategybase.ErrEmptyCustomSettings
+	}
 	var settings CustomSettings
 	err := json.Unmarshal(customSettings, &settings)
 	if err != nil {

@@ -63,7 +63,7 @@ func TestSetupFromConfig(t *testing.T) {
 		t.Errorf("received %v, expected %v", err, errNilConfig)
 	}
 	cfg := &strategyconfig.Config{
-		StrategySettings: strategyconfig.StrategySettings{Name: "dollarcostaverage"},
+		StrategySettings: strategyconfig.StrategySettings{Name: "lol"},
 	}
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	if !errors.Is(err, gctkline.ErrInvalidInterval) {

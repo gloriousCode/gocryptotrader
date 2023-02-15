@@ -27,7 +27,11 @@ const testExchange = "binance"
 
 func TestName(t *testing.T) {
 	t.Parallel()
-	d := Strategy{}
+	d := Strategy{
+		Strategy: strategybase.Strategy{
+			Name: Name,
+		},
+	}
 	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
@@ -35,7 +39,11 @@ func TestName(t *testing.T) {
 
 func TestDescription(t *testing.T) {
 	t.Parallel()
-	d := Strategy{}
+	d := Strategy{
+		Strategy: strategybase.Strategy{
+			Description: description,
+		},
+	}
 	if n := d.GetDescription(); n != description {
 		t.Errorf("expected %v", description)
 	}
@@ -53,12 +61,16 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
+	if !errors.Is(err, strategybase.ErrEmptyCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrEmptyCustomSettings)
+	}
+
+	err = s.SetCustomSettings([]byte(`{}`))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	return
 	// float14 := float64(14)
-	//mappalopalous := make(map[string]interface{})
+	// mappalopalous := make(map[string]interface{})
 	//mappalopalous[openShortDistancePercentageString] = float14
 	//mappalopalous[closeShortDistancePercentageString] = float14
 	//
@@ -91,7 +103,9 @@ func TestSetCustomSettings(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{
-		openShortDistancePercentage: decimal.NewFromInt(14),
+		Settings: CustomSettings{
+			OpenShortDistancePercentage: decimal.NewFromInt(14),
+		},
 	}
 	_, err := s.OnSignal(nil, nil, nil)
 	if !errors.Is(err, strategybase.ErrSimultaneousProcessingOnly) {
@@ -103,11 +117,11 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.openShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
-		t.Errorf("expected 5, received %v", s.openShortDistancePercentage)
+	if !s.Settings.OpenShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
+		t.Errorf("expected 5, received %v", s.Settings.OpenShortDistancePercentage)
 	}
-	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
-		t.Errorf("expected 5, received %v", s.closeShortDistancePercentage)
+	if !s.Settings.CloseShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
+		t.Errorf("expected 5, received %v", s.Settings.CloseShortDistancePercentage)
 	}
 }
 

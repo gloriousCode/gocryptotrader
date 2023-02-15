@@ -6,11 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
-
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/binancecashandcarry"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/dollarcostaverage"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/technicalanalysis"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/top2bottom2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -28,9 +27,9 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (strategyba
 			}
 			return nil, err
 		}
-		break
+		return strategy, nil
 	}
-	return strategy, nil
+	return nil, fmt.Errorf("%w %v", strategybase.ErrStrategyNotFound, name)
 }
 
 func createNewStrategy(name string, useSimultaneousProcessing bool, h strategybase.Handler) (strategybase.Handler, error) {

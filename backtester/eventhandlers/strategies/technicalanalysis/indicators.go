@@ -40,7 +40,7 @@ type Indicator interface {
 }
 
 // CustomSettings holds all defined indicators
-// seperated by group (if defined)
+// separated by group (if defined)
 type CustomSettings struct {
 	MaxMissingPeriods int64         `json:"max-missing-periods"`
 	Indicators        []TABase      `json:"indicators"`

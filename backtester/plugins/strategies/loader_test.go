@@ -1,6 +1,7 @@
 package strategies
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -20,7 +21,9 @@ func TestAddStrategies(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = addStrategies([]strategybase.Handler{&dollarcostaverage.Strategy{}})
+	err = addStrategies([]strategybase.Handler{&dollarcostaverage.Strategy{
+		Strategy: strategybase.Strategy{Name: dollarcostaverage.Name},
+	}})
 	if !errors.Is(err, strategies.ErrStrategyAlreadyExists) {
 		t.Error(err)
 	}
@@ -33,6 +36,10 @@ func TestAddStrategies(t *testing.T) {
 
 type CustomStrategy struct {
 	strategybase.Strategy
+}
+
+func (s *CustomStrategy) New() strategybase.Handler {
+	return &CustomStrategy{}
 }
 
 func (s *CustomStrategy) GetName() string {
@@ -58,7 +65,7 @@ func (s *CustomStrategy) createSignal(d data.Handler) (*signal.Signal, error) {
 	return nil, nil
 }
 
-func (s *CustomStrategy) SetCustomSettings(map[string]interface{}) error {
+func (s *CustomStrategy) SetCustomSettings(json.RawMessage) error {
 	return nil
 }
 

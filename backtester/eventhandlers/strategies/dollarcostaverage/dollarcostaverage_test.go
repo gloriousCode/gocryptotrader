@@ -20,7 +20,11 @@ import (
 )
 
 func TestName(t *testing.T) {
-	d := Strategy{}
+	d := Strategy{
+		strategybase.Strategy{
+			Name: Name,
+		},
+	}
 	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}

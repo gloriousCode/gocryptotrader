@@ -68,12 +68,14 @@ func TestAddStrategy(t *testing.T) {
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
 	}
-	err = AddStrategy(new(dollarcostaverage.Strategy))
+	dca := dollarcostaverage.Strategy{}
+	err = AddStrategy(dca.New())
 	if !errors.Is(err, ErrStrategyAlreadyExists) {
 		t.Errorf("received '%v' expected '%v'", err, ErrStrategyAlreadyExists)
 	}
 
-	err = AddStrategy(new(customStrategy))
+	cs := customStrategy{}
+	err = AddStrategy(cs.New())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -93,16 +95,16 @@ func TestCreateNewStrategy(t *testing.T) {
 
 	// mismatched name
 	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+	if !errors.Is(err, strategybase.ErrStrategyNotFound) {
+		t.Errorf("received '%v' expected '%v'", err, strategybase.ErrStrategyNotFound)
 	}
 	if resp != nil {
 		t.Errorf("received '%v' expected '%v'", resp, nil)
 	}
 
 	// valid
-	h := new(dollarcostaverage.Strategy)
-	resp, err = createNewStrategy(dollarcostaverage.Name, false, h)
+	h := dollarcostaverage.Strategy{}
+	resp, err = createNewStrategy(dollarcostaverage.Name, false, h.New())
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}

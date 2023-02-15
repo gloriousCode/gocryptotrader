@@ -21,8 +21,10 @@ import (
 
 func TestName(t *testing.T) {
 	t.Parallel()
-	d := Strategy{}
-	if n := d.GetName(); n != Name {
+	s := Strategy{
+		Strategy: strategybase.Strategy{Name: Name},
+	}
+	if n := s.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
 }
@@ -37,7 +39,9 @@ func TestSupportsSimultaneousProcessing(t *testing.T) {
 
 func TestDescription(t *testing.T) {
 	t.Parallel()
-	s := Strategy{}
+	s := Strategy{
+		Strategy: strategybase.Strategy{Description: description},
+	}
 	if s.GetDescription() != description {
 		t.Error("unexpected description")
 	}
@@ -47,6 +51,10 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
+	if !errors.Is(err, strategybase.ErrEmptyCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrEmptyCustomSettings)
+	}
+	err = s.SetCustomSettings([]byte(`{}`))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}

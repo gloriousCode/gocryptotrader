@@ -12,6 +12,8 @@ import (
 )
 
 var (
+	// ErrEmptyCustomSettings is returned if you call SetCustomSettings out of turn
+	ErrEmptyCustomSettings = errors.New("received empty custom settings")
 	// ErrCustomSettingsUnsupported used when custom settings are found in the strategy config when they shouldn't be
 	ErrCustomSettingsUnsupported = errors.New("custom settings not supported")
 	// ErrSimultaneousProcessingNotSupported used when strategy does not support simultaneous processing

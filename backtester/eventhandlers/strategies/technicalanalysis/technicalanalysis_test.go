@@ -24,7 +24,11 @@ import (
 
 func TestName(t *testing.T) {
 	t.Parallel()
-	d := Strategy{}
+	d := Strategy{
+		Strategy: strategybase.Strategy{
+			Name: Name,
+		},
+	}
 	if n := d.GetName(); n != Name {
 		t.Errorf("expected %v", Name)
 	}
@@ -42,6 +46,11 @@ func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	err := s.SetCustomSettings(nil)
+	if !errors.Is(err, strategybase.ErrEmptyCustomSettings) {
+		t.Errorf("received: %v, expected: %v", err, strategybase.ErrEmptyCustomSettings)
+	}
+
+	err = s.SetCustomSettings([]byte(`{}`))
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -192,7 +201,6 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-
 }
 
 func TestProcessOBV(t *testing.T) {
@@ -239,7 +247,6 @@ func TestProcessOBV(t *testing.T) {
 
 		t.Logf("obv: %v, rsi: %v", obvDir, rsiDir)
 	}
-
 }
 
 func TestProcessATR(t *testing.T) {

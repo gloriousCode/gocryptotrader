@@ -279,6 +279,9 @@ func sortSignals(d []data.Handler) ([]cashCarrySignals, error) {
 
 // SetCustomSettings can override default settings
 func (s *Strategy) SetCustomSettings(message json.RawMessage) error {
+	if len(message) == 0 {
+		return strategybase.ErrEmptyCustomSettings
+	}
 	var customSettings CustomSettings
 	err := json.Unmarshal(message, &customSettings)
 	if err != nil {

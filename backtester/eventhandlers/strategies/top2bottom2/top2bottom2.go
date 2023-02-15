@@ -217,6 +217,9 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 
 // SetCustomSettings allows a user to modify the MFI limits in their config
 func (s *Strategy) SetCustomSettings(message json.RawMessage) error {
+	if len(message) == 0 {
+		return strategybase.ErrEmptyCustomSettings
+	}
 	var customSettings CustomSettings
 	err := json.Unmarshal(message, &customSettings)
 	if err != nil {
@@ -248,8 +251,9 @@ func (s *Strategy) SetDefaults() {
 	s.Settings.MFIHigh = decimal.NewFromInt(70)
 	s.Settings.MFILow = decimal.NewFromInt(30)
 	s.Settings.MFIPeriod = decimal.NewFromInt(14)
-	if s.Settings.MaxMissingPeriods < 0 {
-		// only override < 0 in case strategy user desires no tolerance for missing data
+	if s.Settings.MaxMissingPeriods <= 0 {
+		// only override <= 0 in case strategy user desires no tolerance for missing data
+		// potentiall rename this, because a tolerance of 1 means no missing data
 		log.Warnf(common.Strategy, "invalid maximum missing price periods, defaulting to %v", defaultMaxMissingPeriods)
 		s.Settings.MaxMissingPeriods = defaultMaxMissingPeriods
 	}
