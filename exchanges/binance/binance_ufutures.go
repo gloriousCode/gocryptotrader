@@ -1242,7 +1242,7 @@ func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string
 		// Binance applies no consistency to the length of their contracts
 		// retrieving candle data is the only way to know its start date accurately
 		var quarterlyContractLength = -100
-		resp, err := b.GetHistoricCandlesExtended(ctx, curr, a, expDate.AddDate(0, 0, quarterlyContractLength), expDate, kline.OneDay)
+		resp, err := b.GetHistoricCandlesExtended(ctx, curr, a, kline.OneDay, expDate.AddDate(0, 0, quarterlyContractLength), expDate)
 		if err != nil {
 			return nil, err
 		}

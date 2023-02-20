@@ -445,13 +445,13 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			}
 		}
 
-		configSettings[i] = config.CurrencySettings{
+		configSettings[i] = strategyconfig.CurrencySettings{
 			ExchangeName: request.Config.CurrencySettings[i].ExchangeName,
 			Asset:        a,
 			Base:         currency.NewCode(request.Config.CurrencySettings[i].Base),
 			Quote:        currency.NewCode(request.Config.CurrencySettings[i].Quote),
 			SpotDetails:  spotDetails,
-			BuySide: config.MinMax{
+			BuySide: strategyconfig.MinMax{
 				MinimumSize:  currencySettingBuySideMinimumSize,
 				MaximumSize:  currencySettingBuySideMaximumSize,
 				MaximumTotal: currencySettingBuySideMaximumTotal,
@@ -562,10 +562,10 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 			LiveData:     liveData,
 			CSVData:      csvData,
 		},
-		PortfolioSettings: config.PortfolioSettings{
+		PortfolioSettings: strategyconfig.PortfolioSettings{
 			CanUseLeverage: request.Config.PortfolioSettings.CanUseLeverage,
 			TargetLeverage: request.Config.PortfolioSettings.Leverage,
-			BuySide: config.MinMax{
+			BuySide: strategyconfig.MinMax{
 				MinimumSize:  buySideMinimumSize,
 				MaximumSize:  buySideMaximumSize,
 				MaximumTotal: buySideMaximumTotal,

@@ -301,30 +301,6 @@
             "type": "boolean"
           },
           {
-            "name": "config.portfolioSettings.leverage.canUseLeverage",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "config.portfolioSettings.leverage.maximumOrdersWithLeverageRatio",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "config.portfolioSettings.leverage.maximumLeverageRate",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "config.portfolioSettings.leverage.maximumCollateralLeverageRate",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
             "name": "config.portfolioSettings.buySide.minimumSize",
             "in": "query",
             "required": false,
@@ -359,6 +335,19 @@
             "in": "query",
             "required": false,
             "type": "string"
+          },
+          {
+            "name": "config.portfolioSettings.canUseLeverage",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "config.portfolioSettings.leverage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
           },
           {
             "name": "config.statisticSettings.riskFreeRate",
@@ -452,6 +441,49 @@
             }
           }
         },
+        "tags": [
+          "BacktesterService"
+        ]
+      }
+    },
+    "/v1/setleveragefortask": {
+      "post": {
+        "operationId": "BacktesterService_SetLeverageForTask",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/btrpcSetLeverageForTaskResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "canUseLeverage",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "leverage",
+            "in": "query",
+            "required": false,
+            "type": "number",
+            "format": "double"
+          }
+        ],
         "tags": [
           "BacktesterService"
         ]
@@ -702,9 +734,6 @@
         },
         "spotDetails": {
           "$ref": "#/definitions/btrpcSpotDetails"
-        },
-        "futuresDetails": {
-          "$ref": "#/definitions/btrpcFuturesDetails"
         }
       }
     },
@@ -871,31 +900,6 @@
         }
       }
     },
-    "btrpcFuturesDetails": {
-      "type": "object",
-      "properties": {
-        "leverage": {
-          "$ref": "#/definitions/btrpcLeverage"
-        }
-      }
-    },
-    "btrpcLeverage": {
-      "type": "object",
-      "properties": {
-        "canUseLeverage": {
-          "type": "boolean"
-        },
-        "maximumOrdersWithLeverageRatio": {
-          "type": "string"
-        },
-        "maximumLeverageRate": {
-          "type": "string"
-        },
-        "maximumCollateralLeverageRate": {
-          "type": "string"
-        }
-      }
-    },
     "btrpcListAllTasksResponse": {
       "type": "object",
       "properties": {
@@ -946,14 +950,18 @@
     "btrpcPortfolioSettings": {
       "type": "object",
       "properties": {
-        "leverage": {
-          "$ref": "#/definitions/btrpcLeverage"
-        },
         "buySide": {
           "$ref": "#/definitions/btrpcPurchaseSide"
         },
         "sellSide": {
           "$ref": "#/definitions/btrpcPurchaseSide"
+        },
+        "canUseLeverage": {
+          "type": "boolean"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
@@ -968,6 +976,21 @@
         },
         "maximumTotal": {
           "type": "string"
+        }
+      }
+    },
+    "btrpcSetLeverageForTaskResponse": {
+      "type": "object",
+      "properties": {
+        "taskSummary": {
+          "$ref": "#/definitions/btrpcTaskSummary"
+        },
+        "canUseLeverage": {
+          "type": "boolean"
+        },
+        "leverage": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

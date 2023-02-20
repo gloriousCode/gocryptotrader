@@ -22,17 +22,17 @@
   {
    "exchange-name": "binance",
    "asset": "usdtmarginedfutures",
-   "base": "BTCUSDT",
-   "quote": "220930",
+   "base": "BTC",
+   "quote": "USDT",
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "1337"
+    "maximum-total": "40000"
    },
    "sell-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "1337"
+    "maximum-total": "40000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -51,12 +51,12 @@
    "buy-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "1337"
+    "maximum-total": "40000"
    },
    "sell-side": {
     "minimum-size": "0.005",
     "maximum-size": "2",
-    "maximum-total": "1337"
+    "maximum-total": "40000"
    },
    "min-slippage-percent": "0",
    "max-slippage-percent": "0",
@@ -73,18 +73,14 @@
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2022-06-22T00:00:00Z",
-   "end-date": "2022-09-30T00:00:00Z",
+   "start-date": "2021-01-14T00:00:00Z",
+   "end-date": "2021-09-24T00:00:00Z",
    "inclusive-end-date": false
   }
  },
  "portfolio-settings": {
-  "leverage": {
-   "can-use-leverage": false,
-   "maximum-orders-with-leverage-ratio": "0",
-   "maximum-leverage-rate": "0",
-   "maximum-collateral-leverage-rate": "0"
-  },
+  "can-use-leverage": false,
+  "target-leverage": 0,
   "buy-side": {
    "minimum-size": "0",
    "maximum-size": "0",
