@@ -140,7 +140,7 @@ message ExchangeCredentials {
   string key = 1;
   string secret = 2;
   string client_id = 3;
-  string PEM_key = 4;
+  string pem_key = 4;
   string sub_account = 5;
   string one_time_password = 6;
 }
@@ -198,8 +198,8 @@ message ExecuteStrategyFromFileRequest {
   string strategy_file_path = 1;
   bool do_not_run_immediately = 2;
   bool do_not_store = 3;
-  string start_time_override = 4;
-  string end_time_override = 5;
+  google.protobuf.Timestamp start_time_override = 4;
+  google.protobuf.Timestamp end_time_override = 5;
   uint64 interval_override = 6;
 }
 

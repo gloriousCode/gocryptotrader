@@ -419,13 +419,15 @@
             "name": "startTimeOverride",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           {
             "name": "endTimeOverride",
             "in": "query",
             "required": false,
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           {
             "name": "intervalOverride",
@@ -812,7 +814,7 @@
         "clientId": {
           "type": "string"
         },
-        "PEMKey": {
+        "pemKey": {
           "type": "string"
         },
         "subAccount": {

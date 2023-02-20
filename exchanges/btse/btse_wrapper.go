@@ -707,7 +707,7 @@ func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 		return nil, err
 	}
 
-	exctractor := func(addr string) (string, string) {
+	extractor := func(addr string) (string, string) {
 		if strings.Contains(addr, ":") {
 			split := strings.Split(addr, ":")
 			return split[0], split[1]
@@ -721,7 +721,7 @@ func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 			return nil, err
 		}
 		if len(addressCreate) != 0 {
-			addr, tag := exctractor(addressCreate[0].Address)
+			addr, tag := extractor(addressCreate[0].Address)
 			return &deposit.Address{
 				Address: addr,
 				Tag:     tag,
@@ -729,7 +729,7 @@ func (b *BTSE) GetDepositAddress(ctx context.Context, c currency.Code, accountID
 		}
 		return nil, errors.New("address not found")
 	}
-	addr, tag := exctractor(address[0].Address)
+	addr, tag := extractor(address[0].Address)
 	return &deposit.Address{
 		Address: addr,
 		Tag:     tag,

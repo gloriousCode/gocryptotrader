@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
+	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/urfave/cli/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -40,17 +42,17 @@ var executeStrategyFromFileCommand = &cli.Command{
 		&cli.StringFlag{
 			Name:    "starttimeoverride",
 			Aliases: []string{"s"},
-			Usage:   "override the strat file's start time",
+			Usage:   fmt.Sprintf("override the strategy file's start time using your local time. eg '%v'", time.Now().Truncate(time.Hour).AddDate(0, -1, 0).Format(common.SimpleTimeFormat)),
 		},
 		&cli.StringFlag{
 			Name:    "endtimeoverride",
 			Aliases: []string{"e"},
-			Usage:   "override the strat file's end time",
+			Usage:   fmt.Sprintf("override the strategy file's end time using your local time. eg '%v'", time.Now().Truncate(time.Hour).Format(common.SimpleTimeFormat)),
 		},
 		&cli.Uint64Flag{
 			Name:    "intervaloverride",
 			Aliases: []string{"i"},
-			Usage:   "override the strat file's candle interval",
+			Usage:   "override the strategy file's candle interval, in seconds. eg 60 = 1 minute",
 		},
 	},
 }
@@ -109,8 +111,9 @@ func executeStrategyFromFile(c *cli.Context) error {
 			return fmt.Errorf("invalid time format for end: %v", err)
 		}
 	}
-	if !s.IsZero() || !e.IsZero() {
-		if err = common.StartEndTimeCheck(s, e); err != nil {
+	if !s.IsZero() && !e.IsZero() {
+		err = common.StartEndTimeCheck(s, e)
+		if err != nil {
 			return err
 		}
 	}
@@ -118,15 +121,13 @@ func executeStrategyFromFile(c *cli.Context) error {
 	var intervalOverride uint64
 	if c.IsSet("intervaloverride") {
 		intervalOverride = c.Uint64("intervaloverride")
-	} else {
-		intervalCheck := c.Args().Get(5)
-		if intervalCheck != "" {
-			intervalOverride, err = strconv.ParseUint(c.Args().Get(5), 10, 64)
-			if err != nil {
-				return err
-			}
+	} else if c.Args().Get(5) != "" {
+		intervalOverride, err = strconv.ParseUint(c.Args().Get(5), 10, 64)
+		if err != nil {
+			return err
 		}
 	}
+	overrideDuration := time.Duration(intervalOverride) * time.Second
 
 	client := btrpc.NewBacktesterServiceClient(conn)
 	result, err := client.ExecuteStrategyFromFile(
@@ -135,9 +136,9 @@ func executeStrategyFromFile(c *cli.Context) error {
 			StrategyFilePath:    path,
 			DoNotRunImmediately: dnr,
 			DoNotStore:          dns,
-			StartTimeOverride:   startTimeOverride,
-			EndTimeOverride:     endTimeOverride,
-			IntervalOverride:    intervalOverride,
+			StartTimeOverride:   timestamppb.New(s),
+			EndTimeOverride:     timestamppb.New(e),
+			IntervalOverride:    uint64(overrideDuration),
 		},
 	)
 
@@ -512,7 +513,7 @@ func executeStrategyFromConfig(c *cli.Context) error {
 					Key:             defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 					Secret:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
 					ClientId:        defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
-					PEMKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
+					PemKey:          defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 					SubAccount:      defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
 					OneTimePassword: defaultConfig.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 				},
