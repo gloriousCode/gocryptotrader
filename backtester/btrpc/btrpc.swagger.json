@@ -129,6 +129,13 @@
             "type": "boolean"
           },
           {
+            "name": "config.strategySettings.customSettings",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          },
+          {
             "name": "config.fundingSettings.useExchangeLevelFunding",
             "in": "query",
             "required": false,
@@ -708,17 +715,6 @@
         }
       }
     },
-    "btrpcCustomSettings": {
-      "type": "object",
-      "properties": {
-        "keyField": {
-          "type": "string"
-        },
-        "keyValue": {
-          "type": "string"
-        }
-      }
-    },
     "btrpcDataSettings": {
       "type": "object",
       "properties": {
@@ -1041,10 +1037,8 @@
           "type": "boolean"
         },
         "customSettings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/btrpcCustomSettings"
-          }
+          "type": "string",
+          "format": "byte"
         }
       },
       "title": "struct definitions"
