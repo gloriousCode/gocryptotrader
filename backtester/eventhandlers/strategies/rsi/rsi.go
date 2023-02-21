@@ -2,7 +2,7 @@ package rsi
 
 import (
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/strategybase"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -27,7 +27,7 @@ const (
 
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
-	strategybase.Strategy
+	base.Strategy
 	rsiPeriod decimal.Decimal
 	rsiLow    decimal.Decimal
 	rsiHigh   decimal.Decimal
@@ -149,23 +149,23 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]interface{}) erro
 		case rsiHighKey:
 			rsiHigh, ok := v.(float64)
 			if !ok || rsiHigh <= 0 {
-				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", strategybase.ErrInvalidCustomSettings, v)
+				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiHigh = decimal.NewFromFloat(rsiHigh)
 		case rsiLowKey:
 			rsiLow, ok := v.(float64)
 			if !ok || rsiLow <= 0 {
-				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", strategybase.ErrInvalidCustomSettings, v)
+				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiLow = decimal.NewFromFloat(rsiLow)
 		case rsiPeriodKey:
 			rsiPeriod, ok := v.(float64)
 			if !ok || rsiPeriod <= 0 {
-				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", strategybase.ErrInvalidCustomSettings, v)
+				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
 			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
 		default:
-			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", strategybase.ErrInvalidCustomSettings, k, v)
+			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
 	}
 
@@ -197,7 +197,7 @@ func (s *Strategy) massageMissingData(data []decimal.Decimal, t time.Time) ([]fl
 			return nil, fmt.Errorf("missing data exceeds RSI period length of %v at %s and will distort results. %w",
 				s.rsiPeriod,
 				t.Format(gctcommon.SimpleTimeFormat),
-				strategybase.ErrTooMuchBadData)
+				base.ErrTooMuchBadData)
 		}
 		resp[i] = data[i].InexactFloat64()
 	}
