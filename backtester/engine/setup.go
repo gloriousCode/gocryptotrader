@@ -254,7 +254,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			}
 		}
 		portSet := &risk.CurrencySettings{
-			MaximumLeverage: cfg.PortfolioSettings.TargetLeverage,
+			TargetLeverage: cfg.PortfolioSettings.TargetLeverage,
+			MaxLVR:         cfg.PortfolioSettings.MaxLVR,
 		}
 		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr.Base.Item][curr.Quote.Item] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&

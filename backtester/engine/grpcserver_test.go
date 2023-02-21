@@ -291,7 +291,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		CurrencySettings: currencySettings,
 		DataSettings:     dataSettings,
 		PortfolioSettings: &btrpc.PortfolioSettings{
-			Leverage: &btrpc.Leverage{
+			TargetLeverage: &btrpc.Leverage{
 				CanUseLeverage:                 defaultConfig.PortfolioSettings.Leverage.CanUseLeverage,
 				MaximumOrdersWithLeverageRatio: defaultConfig.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio.String(),
 				MaximumLeverageRate:            defaultConfig.PortfolioSettings.Leverage.MaximumOrderLeverageRate.String(),

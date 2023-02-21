@@ -35,14 +35,14 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 			return nil, errLeverageNotAllowed
 		}
 		ratio := existingLeverageRatio(s)
-		if ratio.InexactFloat64() > currencySettings.MaximumLeverage {
-			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", currencySettings.MaximumLeverage, ratio, ex, a, p, errCannotPlaceLeverageOrder)
+		if ratio.InexactFloat64() > currencySettings.TargetLeverage {
+			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", currencySettings.TargetLeverage, ratio, ex, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		if ratio.InexactFloat64() > currencySettings.MaximumLeverage {
-			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", currencySettings.MaximumLeverage, ratio, ex, a, p, errCannotPlaceLeverageOrder)
+		if ratio.InexactFloat64() > currencySettings.TargetLeverage {
+			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", currencySettings.TargetLeverage, ratio, ex, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
 	return retOrder, nil

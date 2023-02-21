@@ -1235,14 +1235,25 @@ func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string
 			return nil, err
 		}
 		bb := b.GetBase()
-		currPairs, _ := bb.CurrencyPairs.Get(a)
-		currPairs.Enabled.Add(curr)
+		currPairs, err := bb.CurrencyPairs.Get(a)
+		if err != nil {
+			return nil, err
+		}
+
+		currPairs.Available = currPairs.Available.Add(curr)
+		bb.CurrencyPairs.StorePairs(a, currPairs.Available, false)
+
+		currPairs.Enabled = currPairs.Enabled.Add(curr)
 		bb.CurrencyPairs.StorePairs(a, currPairs.Enabled, true)
 		// quarterlyContractLength is a rough 6-month contract duration
 		// Binance applies no consistency to the length of their contracts
 		// retrieving candle data is the only way to know its start date accurately
 		var quarterlyContractLength = -100
-		resp, err := b.GetHistoricCandlesExtended(ctx, curr, a, kline.OneDay, expDate.AddDate(0, 0, quarterlyContractLength), expDate)
+		sd := expDate.AddDate(0, 0, quarterlyContractLength)
+		if sd.After(time.Now()) {
+			continue
+		}
+		resp, err := b.GetHistoricCandlesExtended(ctx, curr, a, kline.OneDay, sd, expDate)
 		if err != nil {
 			return nil, err
 		}

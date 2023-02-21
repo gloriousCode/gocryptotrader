@@ -49,14 +49,14 @@
   "data-type": "candle",
   "verbose-exchange-requests": false,
   "api-data": {
-   "start-date": "2022-09-23T00:00:00Z",
+   "start-date": "2022-09-21T00:00:00Z",
    "end-date": "2022-12-30T00:00:00Z",
    "inclusive-end-date": false
   }
  },
  "portfolio-settings": {
   "can-use-leverage": true,
-  "target-leverage": 5,
+  "target-leverage": 2,
   "buy-side": {
    "minimum-size": "0",
    "maximum-size": "0",

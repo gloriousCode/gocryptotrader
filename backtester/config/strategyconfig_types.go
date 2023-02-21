@@ -96,8 +96,9 @@ type StatisticSettings struct {
 // these settings will override ExchangeSettings that go against it
 // and assess the bigger picture
 type PortfolioSettings struct {
-	CanUseLeverage bool    `json:"can-use-leverage"`
-	TargetLeverage float64 `json:"target-leverage"`
+	CanUseLeverage bool            `json:"can-use-leverage"`
+	TargetLeverage float64         `json:"target-leverage"`
+	MaxLVR         decimal.Decimal `json:"max-lvr-percent"`
 
 	BuySide  MinMax `json:"buy-side"`
 	SellSide MinMax `json:"sell-side"`

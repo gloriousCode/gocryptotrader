@@ -579,7 +579,8 @@ func executeStrategyFromConfig(c *cli.Context) error {
 				MaximumTotal: defaultConfig.PortfolioSettings.SellSide.MaximumTotal.String(),
 			},
 			CanUseLeverage: defaultConfig.PortfolioSettings.CanUseLeverage,
-			Leverage:       defaultConfig.PortfolioSettings.TargetLeverage,
+			TargetLeverage: defaultConfig.PortfolioSettings.TargetLeverage,
+			MaxLVR:         defaultConfig.PortfolioSettings.MaxLVR.String(),
 		},
 		StatisticSettings: &btrpc.StatisticSettings{
 			RiskFreeRate: defaultConfig.StatisticSettings.RiskFreeRate.String(),

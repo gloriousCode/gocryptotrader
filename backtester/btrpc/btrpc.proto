@@ -158,7 +158,8 @@ message PortfolioSettings {
   PurchaseSide buy_side = 1;
   PurchaseSide sell_side = 2;
   bool can_use_leverage = 3;
-  double leverage = 4;
+  double target_leverage = 4;
+  string max_lvr_percent = 5;
 }
 
 message StatisticSettings {

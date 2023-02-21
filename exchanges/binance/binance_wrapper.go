@@ -1742,27 +1742,63 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		var candles []CandleStick
-		candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
-			Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-			Symbol:    req.Pair,
-			StartTime: req.RangeHolder.Ranges[x].Start.Time,
-			EndTime:   req.RangeHolder.Ranges[x].End.Time,
-			Limit:     int(b.Features.Enabled.Kline.ResultLimit),
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range candles {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
-				Open:   candles[i].Open,
-				High:   candles[i].High,
-				Low:    candles[i].Low,
-				Close:  candles[i].Close,
-				Volume: candles[i].Volume,
+		switch a {
+		case asset.Spot:
+			var candles []CandleStick
+			candles, err = b.GetSpotKline(ctx, &KlinesRequestParams{
+				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
+				Symbol:    req.Pair,
+				StartTime: req.RangeHolder.Ranges[x].Start.Time,
+				EndTime:   req.RangeHolder.Ranges[x].End.Time,
+				Limit:     int(b.Features.Enabled.Kline.ResultLimit),
 			})
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		case asset.USDTMarginedFutures:
+			var candles []FuturesCandleStick
+			candles, err = b.UKlineData(ctx, req.RequestFormatted, b.FormatExchangeKlineInterval(interval), int64(req.RangeHolder.Limit), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		case asset.CoinMarginedFutures:
+			var candles []FuturesCandleStick
+			candles, err = b.GetFuturesKlineData(ctx, req.RequestFormatted, b.FormatExchangeKlineInterval(interval), int64(req.RangeHolder.Limit), req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for i := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[i].OpenTime,
+					Open:   candles[i].Open,
+					High:   candles[i].High,
+					Low:    candles[i].Low,
+					Close:  candles[i].Close,
+					Volume: candles[i].Volume,
+				})
+			}
+		default:
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 		}
 	}
 	return req.ProcessResponse(timeSeries)

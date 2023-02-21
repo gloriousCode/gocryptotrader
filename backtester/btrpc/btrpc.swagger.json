@@ -343,11 +343,17 @@
             "type": "boolean"
           },
           {
-            "name": "config.portfolioSettings.leverage",
+            "name": "config.portfolioSettings.targetLeverage",
             "in": "query",
             "required": false,
             "type": "number",
             "format": "double"
+          },
+          {
+            "name": "config.portfolioSettings.maxLVR",
+            "in": "query",
+            "required": false,
+            "type": "string"
           },
           {
             "name": "config.statisticSettings.riskFreeRate",
@@ -959,9 +965,12 @@
         "canUseLeverage": {
           "type": "boolean"
         },
-        "leverage": {
+        "targetLeverage": {
           "type": "number",
           "format": "double"
+        },
+        "maxLVR": {
+          "type": "string"
         }
       }
     },

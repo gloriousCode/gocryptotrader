@@ -107,14 +107,14 @@ func TestEvaluateOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	r.MaximumLeverage = decimal.NewFromInt(33)
+	r.TargetLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[e][a][p.Base.Item][p.Quote.Item].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	r.MaximumLeverage = decimal.NewFromInt(33)
+	r.TargetLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[e][a][p.Base.Item][p.Quote.Item].MaxLeverageRate = decimal.NewFromInt(33)
 
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{

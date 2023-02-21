@@ -564,7 +564,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		},
 		PortfolioSettings: config.PortfolioSettings{
 			CanUseLeverage: request.Config.PortfolioSettings.CanUseLeverage,
-			TargetLeverage: request.Config.PortfolioSettings.Leverage,
+			TargetLeverage: request.Config.PortfolioSettings.TargetLeverage,
 			BuySide: config.MinMax{
 				MinimumSize:  buySideMinimumSize,
 				MaximumSize:  buySideMaximumSize,

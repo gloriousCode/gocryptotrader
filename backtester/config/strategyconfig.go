@@ -300,6 +300,7 @@ func (c *Config) PrintSetting() {
 	log.Infof(common.Config, "Can use leverage: %v", c.PortfolioSettings.CanUseLeverage)
 	if c.PortfolioSettings.CanUseLeverage {
 		log.Infof(common.Config, "Target leverage: %v", c.PortfolioSettings.TargetLeverage)
+		log.Infof(common.Config, "Max LVR%%: %v", c.PortfolioSettings.MaxLVR)
 	}
 	if c.DataSettings.LiveData != nil {
 		log.Info(common.Config, common.CMDColours.H2+"------------------Live Settings------------------------------"+common.CMDColours.Default)

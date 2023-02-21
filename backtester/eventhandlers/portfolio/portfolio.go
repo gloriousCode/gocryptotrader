@@ -41,7 +41,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	canUseLeverage := p.canUseLeverage
 	leverage := p.targetLeverage
 	eventLeverage := ev.GetLeverage()
-	if eventLeverage > 0 && eventLeverage != leverage {
+	if canUseLeverage && eventLeverage > 0 && eventLeverage != leverage {
 		leverage = eventLeverage
 	}
 	p.m.Unlock()
