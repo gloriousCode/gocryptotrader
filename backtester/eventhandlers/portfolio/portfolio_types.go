@@ -2,9 +2,10 @@ package portfolio
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"sync"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -43,13 +44,10 @@ var (
 // modify, accept or reject strategy signals
 type Portfolio struct {
 	calculateOffline bool
-	riskFreeRate     decimal.Decimal
 	sizeManager      SizeHandler
 	riskManager      risk.Handler
 	settingsHolder   map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings
 	m                sync.Mutex
-	canUseLeverage   bool
-	targetLeverage   float64
 }
 
 // Handler contains all functions expected to operate a portfolio manager

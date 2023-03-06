@@ -3,9 +3,10 @@ package portfolio
 import (
 	"errors"
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 	"strings"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/size"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -37,14 +38,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return nil, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
 	}
 	// for leverage numbers
-	p.m.Lock()
-	canUseLeverage := p.canUseLeverage
-	leverage := p.targetLeverage
-	eventLeverage := ev.GetLeverage()
-	if canUseLeverage && eventLeverage > 0 && eventLeverage != leverage {
-		leverage = eventLeverage
-	}
-	p.m.Unlock()
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -130,7 +123,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return cannotPurchase(ev, o, sizingFunds)
 	}
 
-	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds, canUseLeverage, leverage)
+	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds, false, 0)
 	if err != nil {
 		return sizedOrder, err
 	}

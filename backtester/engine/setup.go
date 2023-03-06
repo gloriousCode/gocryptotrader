@@ -185,9 +185,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		exchBase.CurrencyPairs.Pairs[cfg.CurrencySettings[i].Asset] = exchangeAsset
 	}
 
-	portfolioRisk := &risk.Risk{
-		CurrencySettings: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings),
-	}
+	portfolioRisk := &risk.Risk{}
 
 	bt.Funding = funds
 	var trackFuturesPositions bool
@@ -216,9 +214,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	for i := range cfg.CurrencySettings {
-		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
-		}
 		a := cfg.CurrencySettings[i].Asset
 		if !a.IsValid() {
 			return fmt.Errorf(
@@ -229,12 +224,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				cfg.CurrencySettings[i].Base,
 				cfg.CurrencySettings[i].Quote,
 				err)
-		}
-		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a] = make(map[*currency.Item]map[*currency.Item]*risk.CurrencySettings)
-		}
-		if portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] == nil {
-			portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][cfg.CurrencySettings[i].Base.Item] = make(map[*currency.Item]*risk.CurrencySettings)
 		}
 		var curr currency.Pair
 		var b, q currency.Code
@@ -253,11 +242,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				return err
 			}
 		}
-		portSet := &risk.CurrencySettings{
-			TargetLeverage: cfg.PortfolioSettings.TargetLeverage,
-			MaxLVR:         cfg.PortfolioSettings.MaxLVR,
-		}
-		portfolioRisk.CurrencySettings[cfg.CurrencySettings[i].ExchangeName][a][curr.Base.Item][curr.Quote.Item] = portSet
 		if cfg.CurrencySettings[i].MakerFee != nil &&
 			cfg.CurrencySettings[i].TakerFee != nil &&
 			cfg.CurrencySettings[i].MakerFee.GreaterThan(*cfg.CurrencySettings[i].TakerFee) {

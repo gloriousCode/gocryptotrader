@@ -2,13 +2,12 @@ package risk
 
 import (
 	"errors"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var (
@@ -24,13 +23,15 @@ type Handler interface {
 
 // Risk contains all currency settings in order to evaluate potential orders
 type Risk struct {
-	CurrencySettings map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencySettings
-	CanUseLeverage   bool
-	TargetLeverage   float64
-	MaxLVR           decimal.Decimal
+	canUseLeverage  bool
+	currentLeverage float64
+	leverageTarget  float64
+	maxLVR          decimal.Decimal
+	riskFreeRate    decimal.Decimal
 }
 
 // CurrencySettings contains relevant limits to assess risk
+// TODO utilise leverage at a currency level
 type CurrencySettings struct {
 	TargetLeverage float64
 	MaxLVR         decimal.Decimal

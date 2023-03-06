@@ -2,6 +2,8 @@ package portfolio
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -11,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"strings"
 )
 
 // Setup creates a portfolio manager instance and sets private fields
@@ -26,11 +27,8 @@ func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal, calcula
 		return nil, errRiskManagerUnset
 	}
 	return &Portfolio{
-		riskFreeRate:     riskFreeRate,
 		sizeManager:      sh,
 		riskManager:      r,
-		canUseLeverage:   canUseLeverage,
-		targetLeverage:   leverage,
 		calculateOffline: calculateOffline,
 	}, nil
 }
@@ -43,7 +41,6 @@ func (p *Portfolio) Reset() error {
 	p.m.Lock()
 	defer p.m.Unlock()
 	p.settingsHolder = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*Settings)
-	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
 	return nil
@@ -56,8 +53,6 @@ func (p *Portfolio) AdjustLeverage(canUseLeverage bool, leverage float64) error 
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	p.canUseLeverage = canUseLeverage
-	p.targetLeverage = leverage
 	return nil
 }
 

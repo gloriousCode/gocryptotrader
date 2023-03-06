@@ -101,20 +101,20 @@ func TestEvaluateOrder(t *testing.T) {
 	if !errors.Is(err, errLeverageNotAllowed) {
 		t.Error(err)
 	}
-	r.CanUseLeverage = true
+	r.canUseLeverage = true
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errCannotPlaceLeverageOrder) {
 		t.Error(err)
 	}
 
-	r.TargetLeverage = decimal.NewFromInt(33)
+	r.currentLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[e][a][p.Base.Item][p.Quote.Item].MaxLeverageRate = decimal.NewFromInt(33)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	r.TargetLeverage = decimal.NewFromInt(33)
+	r.currentLeverage = decimal.NewFromInt(33)
 	r.CurrencySettings[e][a][p.Base.Item][p.Quote.Item].MaxLeverageRate = decimal.NewFromInt(33)
 
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{
