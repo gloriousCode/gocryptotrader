@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/shopspring/decimal"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -19,6 +20,7 @@ var (
 // Handler defines what is expected to be able to assess risk of an order
 type Handler interface {
 	EvaluateOrder(order.Event, []holdings.Holding, compliance.Snapshot) (*order.Order, error)
+	EvaluateExistingPositions([]gctorder.Position) error
 }
 
 // Risk contains all currency settings in order to evaluate potential orders

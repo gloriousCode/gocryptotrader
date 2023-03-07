@@ -37,7 +37,6 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	if exchangeSettings == nil {
 		return nil, fmt.Errorf("%w exchange settings", gctcommon.ErrNilPointer)
 	}
-	// for leverage numbers
 	if p.sizeManager == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -65,6 +64,11 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 			ev.GetExchange(),
 			ev.GetAssetType(),
 			ev.Pair())
+	}
+
+	err := p.riskManager.EvaluateExistingPositions(p.GetAllPositions())
+	if err != nil {
+		return nil, err
 	}
 
 	if ev.GetDirection() == gctorder.DoNothing ||
@@ -355,6 +359,20 @@ func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp c
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
 	return &lookup.ComplianceManager, nil
+}
+
+func (p *Portfolio) GetAllPositions() []gctorder.Position {
+	var positions []gctorder.Position
+	for _, exch := range p.settingsHolder {
+		for _, a := range exch {
+			for _, b := range a {
+				for _, q := range b {
+					positions = append(positions, q.FuturesTracker.GetPositions()...)
+				}
+			}
+		}
+	}
+	return positions
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair

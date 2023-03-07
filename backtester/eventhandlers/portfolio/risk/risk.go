@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // EvaluateOrder goes through a standard list of evaluations to make to ensure that
@@ -36,6 +37,16 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 		}
 	}
 	return retOrder, nil
+}
+
+// CalculateLVR figures out the LVR
+func (r *Risk) CalculateLVR(positions []gctorder.Position) (decimal.Decimal, error) {
+	for i := range positions {
+		for j := range positions[i].Orders {
+			positions[i].
+		}
+	}
+	return decimal.Zero, nil
 }
 
 func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal {
