@@ -41,11 +41,11 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 
 // CalculateLVR figures out the LVR
 func (r *Risk) CalculateLVR(positions []gctorder.Position) (decimal.Decimal, error) {
-	for i := range positions {
-		for j := range positions[i].Orders {
-			positions[i].
-		}
-	}
+	//for i := range positions {
+	//	for j := range positions[i].Orders {
+	//		positions[i].
+	//	}
+	//}
 	return decimal.Zero, nil
 }
 
