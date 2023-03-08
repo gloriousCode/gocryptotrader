@@ -252,37 +252,24 @@ type UAccountBalanceV2Data struct {
 
 // UAccountInformationV2Data stores account info for ufutures
 type UAccountInformationV2Data struct {
-	FeeTier                     int64   `json:"feeTier"`
-	CanTrade                    bool    `json:"canTrade"`
-	CanDeposit                  bool    `json:"canDeposit"`
-	CanWithdraw                 bool    `json:"canWithdraw"`
-	UpdateTime                  int64   `json:"updateTime"`
-	TotalInitialMargin          float64 `json:"totalInitialMargin,string"`
-	TotalMaintenance            float64 `json:"totalMaintMargin,string"`
-	TotalWalletBalance          float64 `json:"totalWalletBalance,string"`
-	TotalUnrealizedProfit       float64 `json:"totalUnrealizedProfit,string"`
-	TotalMarginBalance          float64 `json:"totalMarginBalance,string"`
-	TotalPositionInitialMargin  float64 `json:"totalPositionInitialMargin,string"`
-	TotalOpenOrderInitialMargin float64 `json:"totalOpenOrderInitialMargin,string"`
-	TotalCrossWalletBalance     float64 `json:"totalCrossWalletBalance,string"`
-	TotalCrossUnrealizedPNL     float64 `json:"totalCrossUnPnl,string"`
-	AvailableBalance            float64 `json:"availableBalance,string"`
-	MaxWithdrawAmount           float64 `json:"maxWithdrawAmount,string"`
-	Assets                      []struct {
-		Asset                  string  `json:"asset"`
-		WalletBalance          float64 `json:"walletBalance,string"`
-		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-		MarginBalance          float64 `json:"marginBalance,string"`
-		MaintMargin            float64 `json:"maintMargin,string"`
-		InitialMargin          float64 `json:"initialMargin,string"`
-		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
-		CrossUnPnl             float64 `json:"crossUnPnl,string"`
-		AvailableBalance       float64 `json:"availableBalance,string"`
-		MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
-	} `json:"assets"`
-	Positions []struct {
+	FeeTier                     int64          `json:"feeTier"`
+	CanTrade                    bool           `json:"canTrade"`
+	CanDeposit                  bool           `json:"canDeposit"`
+	CanWithdraw                 bool           `json:"canWithdraw"`
+	UpdateTime                  int64          `json:"updateTime"`
+	TotalInitialMargin          float64        `json:"totalInitialMargin,string"`
+	TotalMaintenance            float64        `json:"totalMaintMargin,string"`
+	TotalWalletBalance          float64        `json:"totalWalletBalance,string"`
+	TotalUnrealizedProfit       float64        `json:"totalUnrealizedProfit,string"`
+	TotalMarginBalance          float64        `json:"totalMarginBalance,string"`
+	TotalPositionInitialMargin  float64        `json:"totalPositionInitialMargin,string"`
+	TotalOpenOrderInitialMargin float64        `json:"totalOpenOrderInitialMargin,string"`
+	TotalCrossWalletBalance     float64        `json:"totalCrossWalletBalance,string"`
+	TotalCrossUnrealizedPNL     float64        `json:"totalCrossUnPnl,string"`
+	AvailableBalance            float64        `json:"availableBalance,string"`
+	MaxWithdrawAmount           float64        `json:"maxWithdrawAmount,string"`
+	Assets                      []UWalletAsset `json:"assets"`
+	Positions                   []struct {
 		Symbol                 string  `json:"symbol"`
 		InitialMargin          float64 `json:"initialMargin,string"`
 		MaintenanceMargin      float64 `json:"maintMargin,string"`
@@ -295,6 +282,21 @@ type UAccountInformationV2Data struct {
 		MaxNotional            float64 `json:"maxNotional,string"`
 		PositionSide           string  `json:"positionSide"`
 	} `json:"positions"`
+}
+
+type UWalletAsset struct {
+	Asset                  string  `json:"asset"`
+	WalletBalance          float64 `json:"walletBalance,string"`
+	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
+	MarginBalance          float64 `json:"marginBalance,string"`
+	MaintenanceMargin      float64 `json:"maintMargin,string"`
+	InitialMargin          float64 `json:"initialMargin,string"`
+	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
+	CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
+	CrossUnPnl             float64 `json:"crossUnPnl,string"`
+	AvailableBalance       float64 `json:"availableBalance,string"`
+	MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
 }
 
 // UChangeInitialLeverage stores leverage change data

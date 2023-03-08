@@ -267,11 +267,11 @@ func TestUKlineData(t *testing.T) {
 
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
-	_, err := b.UGetMarkPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.UGetMarkPrice(context.Background(), "BTCUSDT")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UGetMarkPrice(context.Background(), currency.EMPTYPAIR)
+	_, err = b.UGetMarkPrice(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1103,7 +1103,7 @@ func TestGetFuturesAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("skipping test: api keys not set")
 	}
-	_, err := b.GetFuturesAccountInfo(context.Background())
+	_, err := b.GetCoinMarginedFuturesAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -2845,46 +2845,87 @@ func TestFetchSpotExchangeLimits(t *testing.T) {
 
 func TestUGetAllLongDatedContractDetails(t *testing.T) {
 	t.Parallel()
-	resp, err := b.UGetAllLongDatedContractDetails(context.Background())
+	_, err := b.UGetAllLongDatedContractDetails(context.Background())
 	if err != nil {
 		t.Error(err)
-	}
-	for i := range resp {
-		t.Log(resp[i])
 	}
 }
 
 func TestCGetAllLongDatedContractDetails(t *testing.T) {
 	t.Parallel()
-	resp, err := b.CGetAllLongDatedContractDetails(context.Background())
+	_, err := b.CGetAllLongDatedContractDetails(context.Background())
 	if err != nil {
 		t.Error(err)
-	}
-	for i := range resp {
-		t.Log(resp[i])
 	}
 }
 
 func TestUGetPublicLeverageBrackets(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	resp, err := b.uGetPublicLeverageBrackets(context.Background())
+	_, err := b.uGetPublicLeverageBrackets(context.Background())
 	if err != nil {
 		t.Error(err)
-	}
-	for i := range resp {
-		t.Logf("%s", resp[i].UpdateTime.Time().String())
 	}
 }
 
 func TestCGetPublicLeverageBrackets(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	resp, err := b.cGetPublicLeverageBrackets(context.Background())
+	_, err := b.cGetPublicLeverageBrackets(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	for i := range resp {
-		t.Logf("%s", resp[i].UpdateTime.Time().String())
+}
+
+func TestUSetMultiAssetsMargin(t *testing.T) {
+	t.Parallel()
+	if !areTestAPIKeysSet() || !canManipulateRealOrders {
+		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
 	}
+
+	err := b.USetMultiAssetsMargin(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.USetMultiAssetsMargin(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestBinanceStuff(t *testing.T) {
+	t.Parallel()
+	isMultiAssetMarginEnabled, err := b.UMultiAssetsMarginEnabled(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	if !isMultiAssetMarginEnabled {
+		t.Fatal("woah nelly")
+	}
+	hello, err := b.UAccountInformationV2(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var btcWalletAsset, busdAmount UWalletAsset
+	for i := range hello.Assets {
+		if hello.Assets[i].Asset == "BTC" {
+			btcWalletAsset = hello.Assets[i]
+		}
+		if hello.Assets[i].Asset == "BUSD" {
+			busdAmount = hello.Assets[i]
+		}
+		if hello.Assets[i].CrossWalletBalance > 0 {
+			t.Logf("%+v", hello.Assets[i])
+		}
+	}
+	mp, err := b.UGetMarkPrice(context.Background(), "BTCBUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mp) != 1 {
+		t.Fatal("woah nelly")
+	}
+	btcAmount := mp[0].MarkPrice * btcWalletAsset.CrossWalletBalance
+	t.Log(mp[0])
+	t.Log(btcAmount + busdAmount.CrossWalletBalance)
+	t.Log(busdAmount.CrossWalletBalance)
+	t.Logf("%+v", hello)
 }

@@ -67,6 +67,7 @@ const (
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
+	ufuturesMultiAssetMargin      = "/fapi/v1/multiAssetsMargin"
 
 	ufuturesAWSContractDetails = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/um/daily/klines/"
 	cfuturesAWSContractDetails = "https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?delimiter=/&prefix=data/futures/cm/daily/klines/"
@@ -362,16 +363,12 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 }
 
 // UGetMarkPrice gets mark price data for USDTMarginedFutures
-func (b *Binance) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]UMarkPrice, error) {
+func (b *Binance) UGetMarkPrice(ctx context.Context, symbol string) ([]UMarkPrice, error) {
 	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("symbol", symbolValue)
+	if symbol != "" {
+		params.Set("symbol", symbol)
 		var tempResp UMarkPrice
-		err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), uFuturesDefaultRate, &tempResp)
+		err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesMarkPrice+params.Encode(), uFuturesDefaultRate, &tempResp)
 		if err != nil {
 			return nil, err
 		}
@@ -1321,10 +1318,8 @@ var errNoBracketFound = errors.New("not bracket found")
 
 func (m *MarginRequirementDetails) GetBracket(amount, leverage float64) (*RiskBracket, error) {
 	for i := range m.RiskBrackets {
-		if amount < m.RiskBrackets[i].BracketNotionalFloor ||
-			amount > m.RiskBrackets[i].BracketNotionalCap ||
-			leverage < m.RiskBrackets[i].MinOpenPosLeverage ||
-			leverage > m.RiskBrackets[i].MaxOpenPosLeverage {
+		if (amount < m.RiskBrackets[i].BracketNotionalFloor || amount > m.RiskBrackets[i].BracketNotionalCap) ||
+			(leverage < m.RiskBrackets[i].MinOpenPosLeverage || leverage > m.RiskBrackets[i].MaxOpenPosLeverage) {
 			continue
 		}
 		return &m.RiskBrackets[i], nil
@@ -1386,4 +1381,20 @@ func (b *Binance) PopulateMarginRequirements() error {
 		}
 	}
 	return nil
+}
+
+// UMultiAssetsMarginEnabled returns if multi-asset-margin is enabled for the account
+func (b *Binance) UMultiAssetsMarginEnabled(ctx context.Context) (bool, error) {
+	type multiAssetMarginResponse struct {
+		MultiAssetsMargin bool `json:"multiAssetsMargin"`
+	}
+	var resp multiAssetMarginResponse
+	return resp.MultiAssetsMargin, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesMultiAssetMargin, nil, uFuturesMultiAssetMarginRate, &resp)
+}
+
+// USetMultiAssetsMargin returns if multi-asset-margin is enabled for the account
+func (b *Binance) USetMultiAssetsMargin(ctx context.Context, enabled bool) error {
+	params := url.Values{}
+	params.Set("multiAssetsMargin", strconv.FormatBool(enabled))
+	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesMultiAssetMargin, params, uFuturesSetMultiAssetMarginRate, nil)
 }

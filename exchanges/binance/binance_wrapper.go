@@ -733,7 +733,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		acc.Currencies = currencyBalance
 
 	case asset.CoinMarginedFutures:
-		accData, err := b.GetFuturesAccountInfo(ctx)
+		accData, err := b.GetCoinMarginedFuturesAccountInfo(ctx)
 		if err != nil {
 			return info, err
 		}

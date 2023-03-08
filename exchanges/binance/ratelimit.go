@@ -57,6 +57,8 @@ const (
 	uFuturesOrderbook100Rate
 	uFuturesOrderbook500Rate
 	uFuturesOrderbook1000Rate
+	uFuturesMultiAssetMarginRate
+	uFuturesSetMultiAssetMarginRate
 	uFuturesKline100Rate
 	uFuturesKline500Rate
 	uFuturesKline1000Rate
@@ -149,6 +151,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case uFuturesOrderbook500Rate,
 		uFuturesKlineMaxRate:
 		limiter, tokens = r.UFuturesRate, 10
+	case uFuturesMultiAssetMarginRate:
+		limiter, tokens = r.UFuturesRate, 30
+	case uFuturesSetMultiAssetMarginRate:
+		limiter, tokens = r.UFuturesRate, 1
 	case uFuturesOrderbook1000Rate,
 		uFuturesHistoricalTradesRate:
 		limiter, tokens = r.UFuturesRate, 20

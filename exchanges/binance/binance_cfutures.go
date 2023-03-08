@@ -1235,8 +1235,8 @@ func (b *Binance) GetFuturesAccountBalance(ctx context.Context) ([]FuturesAccoun
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesAccountBalance, nil, cFuturesDefaultRate, &resp)
 }
 
-// GetFuturesAccountInfo gets account info data for CoinMarginedFutures, account
-func (b *Binance) GetFuturesAccountInfo(ctx context.Context) (FuturesAccountInformation, error) {
+// GetCoinMarginedFuturesAccountInfo gets account info data for CoinMarginedFutures, account
+func (b *Binance) GetCoinMarginedFuturesAccountInfo(ctx context.Context) (FuturesAccountInformation, error) {
 	var resp FuturesAccountInformation
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, cfuturesAccountInfo, nil, cFuturesAccountInformationRate, &resp)
 }
