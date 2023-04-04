@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 var (
@@ -216,9 +217,10 @@ type PositionTrackerSetup struct {
 // TotalCollateralCalculator holds many collateral calculators
 // to calculate total collateral standing with one struct
 type TotalCollateralCalculator struct {
-	CollateralAssets []CollateralCalculator
-	CalculateOffline bool
-	FetchPositions   bool
+	CollateralAssets       []CollateralCalculator
+	CalculateOffline       bool
+	FetchPositions         bool
+	CanHaveMixedAssetTypes bool
 }
 
 // CollateralCalculator is used to determine
@@ -330,6 +332,10 @@ type PositionSummaryRequest struct {
 
 // PositionSummary returns basic details on an open position
 type PositionSummary struct {
+	Asset asset.Item
+	Pair  currency.Pair
+
+	MarginType                   margin.Type
 	MaintenanceMarginRequirement decimal.Decimal
 	InitialMarginRequirement     decimal.Decimal
 	EstimatedLiquidationPrice    decimal.Decimal
@@ -342,6 +348,7 @@ type PositionSummary struct {
 	MarginFraction               decimal.Decimal
 	FreeCollateral               decimal.Decimal
 	TotalCollateral              decimal.Decimal
+	Leverage                     decimal.Decimal
 }
 
 // FundingRatesRequest is used to request funding rate details for a position

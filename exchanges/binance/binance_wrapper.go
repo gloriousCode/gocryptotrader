@@ -1997,7 +1997,15 @@ func (b *Binance) ScaleCollateral(ctx context.Context, request *order.Collateral
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency. See FTX's implementation
 func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
-	if request.CalculateOffline {
+	if request == nil {
+		return nil, fmt.Errorf("%w TotalCollateralCalculator", common.ErrNilPointer)
+	}
+	if len(request.CollateralAssets) == 0 {
+		return nil, fmt.Errorf("%w CollateralAssets", common.ErrNilPointer)
+	}
+
+	switch {
+	case request.CalculateOffline:
 		resp := &order.TotalCollateralResponse{}
 		for i := range request.CollateralAssets {
 			scaled, err := b.ScaleCollateral(ctx, &request.CollateralAssets[i])
@@ -2013,8 +2021,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 			resp.CollateralContributedByPositiveSpotBalances = resp.CollateralContributedByPositiveSpotBalances.Add(scaled.CollateralContribution)
 		}
 		return resp, nil
+	case request.CanHaveMixedAssetTypes:
+		return nil, common.ErrFunctionNotSupported
+	case request.CollateralAssets[0].Asset == asset.USDTMarginedFutures:
+
+	case request.CollateralAssets[0].Asset == asset.CoinMarginedFutures:
+
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.CollateralAssets)
 	}
-	return nil, common.ErrNotYetImplemented
 }
 
 func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
@@ -2065,4 +2080,70 @@ func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c cur
 		return nil, common.ErrFunctionNotSupported
 	}
 	return nil, fmt.Errorf("%w %v %v", currency.ErrCurrencyNotFound, c, a)
+}
+
+// GetPositionSummary returns a position for an asset and currency
+// Binance allows multiple positions in opposing directions so multiple position summaries can be returned
+func (b *Binance) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) ([]order.PositionSummary, error) {
+	switch request.Asset {
+	case asset.USDTMarginedFutures:
+		result, err := b.UPositionsInfoV2(ctx, request.Pair)
+		if err != nil {
+			return nil, err
+		}
+		response := make([]order.PositionSummary, len(result))
+		for i := range result {
+			var mt margin.Type
+			mt, err = marginTypeStringToType(result[i].MarginType)
+			response[i] = order.PositionSummary{
+				Asset:                     request.Asset,
+				Pair:                      request.Pair,
+				MarginType:                mt,
+				Leverage:                  decimal.NewFromFloat(result[i].Leverage),
+				EstimatedLiquidationPrice: decimal.NewFromFloat(result[i].LiquidationPrice),
+				MarkPrice:                 decimal.NewFromFloat(result[i].MarkPrice),
+				CurrentSize:               decimal.NewFromFloat(result[i].PositionAmount),
+				AverageOpenPrice:          decimal.NewFromFloat(result[i].EntryPrice),
+				RecentPNL:                 decimal.NewFromFloat(result[i].UnrealizedProfit),
+			}
+		}
+		return response, nil
+	case asset.CoinMarginedFutures:
+		result, err := b.FuturesPositionsInfo(ctx, request.Asset.String(), request.Pair.String())
+		if err != nil {
+			return nil, err
+		}
+		response := make([]order.PositionSummary, len(result))
+		for i := range result {
+			var mt margin.Type
+			mt, err = marginTypeStringToType(result[i].MarginType)
+			response[i] = order.PositionSummary{
+				Asset:                     request.Asset,
+				Pair:                      request.Pair,
+				MarginType:                mt,
+				Leverage:                  decimal.NewFromFloat(result[i].Leverage),
+				EstimatedLiquidationPrice: decimal.NewFromFloat(result[i].LiquidationPrice),
+				MarkPrice:                 decimal.NewFromFloat(result[i].MarkPrice),
+				CurrentSize:               decimal.NewFromFloat(result[i].PositionAmount),
+				AverageOpenPrice:          decimal.NewFromFloat(result[i].EntryPrice),
+				RecentPNL:                 decimal.NewFromFloat(result[i].UnrealizedProfit),
+			}
+		}
+		return response, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.Asset)
+
+	}
+
+}
+
+func marginTypeStringToType(mt string) (margin.Type, error) {
+	switch mt {
+	case "isolated":
+		return margin.SingleAssetMargin, nil
+	case "cross":
+		return margin.MultiAssetMargin, nil
+	default:
+		return margin.UnknownMarginType, fmt.Errorf("%w %v", margin.ErrUnknownMarginType, mt)
+	}
 }

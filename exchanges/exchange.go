@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/shopspring/decimal"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -1577,10 +1578,10 @@ func (b *Base) GetMarginRatesHistory(ctx context.Context, request *margin.RateHi
 }
 
 // GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) ([]order.PositionSummary, error) {
 	if request.CalculateOffline {
 		log.Info(log.ExchangeSys, "GetPositionSummary")
-		return &order.PositionSummary{}, nil
+		return nil, nil
 	}
 	return nil, common.ErrNotYetImplemented
 }

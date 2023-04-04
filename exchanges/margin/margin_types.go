@@ -1,12 +1,31 @@
 package margin
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+// Margin types
+const (
+	UnsetMarginType   Type = 0
+	SingleAssetMargin Type = 1 << iota
+	MultiAssetMargin
+	UnknownMarginType
+)
+
+var (
+	// ErrUnknownMarginType returned when an unknown margin type is received
+	ErrUnknownMarginType = errors.New("unknown margin type")
+)
+
+// Type helps identify the margin rules of a futures position
+// or account, or anything.
+// Different rules apply to different exchanges based on the type
+type Type uint8
 
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
