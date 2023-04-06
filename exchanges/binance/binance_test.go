@@ -2929,3 +2929,96 @@ func TestBinanceStuff(t *testing.T) {
 	t.Log(busdAmount.CrossWalletBalance)
 	t.Logf("%+v", hello)
 }
+
+func TestGetPositionSummary(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name             string
+		calculateOffline bool
+		direction        order.Side
+		asset            asset.Item
+		expectedError    error
+	}{
+		{
+			name:             "Error: Offline Calculation",
+			calculateOffline: true,
+			direction:        order.UnknownSide,
+			asset:            asset.USDTMarginedFutures,
+			expectedError:    nil,
+		},
+		{
+			name:             "Error: Invalid Direction",
+			calculateOffline: false,
+			direction:        order.UnknownSide,
+			asset:            asset.USDTMarginedFutures,
+			expectedError:    errors.New("side is invalid 0"),
+		},
+		{
+			name:             "Error: Asset Not Supported",
+			calculateOffline: false,
+			direction:        order.Buy,
+			asset:            asset.Empty,
+			expectedError:    errors.New("asset not supported Unsupported"),
+		},
+		// Add more test cases for valid scenarios.
+	}
+	ctx := context.Background()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			request := &order.PositionSummaryRequest{
+				CalculateOffline: tc.calculateOffline,
+				Direction:        tc.direction,
+				Asset:            tc.asset,
+			}
+
+			_, err := b.GetPositionSummary(ctx, request)
+			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	curr, a, err := b.GetCollateralCurrencyForContract(asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+	if !curr.Equal(currency.USDT) || a != asset.USDTMarginedFutures {
+		t.Error("expected USDT USDTMarginedFutures")
+	}
+
+	curr, a, err = b.GetCollateralCurrencyForContract(asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.BUSD))
+	if err != nil {
+		t.Error(err)
+	}
+	if !curr.Equal(currency.BUSD) || a != asset.USDTMarginedFutures {
+		t.Error("expected BUSD USDTMarginedFutures")
+	}
+
+	cp, err := currency.NewPairFromString("ETHUSDT_230630")
+	if err != nil {
+		t.Fatal(err)
+	}
+	curr, a, err = b.GetCollateralCurrencyForContract(asset.USDTMarginedFutures, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	if !curr.Equal(currency.USDT) || a != asset.USDTMarginedFutures {
+		t.Error("expected USDT USDTMarginedFutures")
+	}
+
+	cp, err = currency.NewPairFromString("BTCUSD_PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	curr, a, err = b.GetCollateralCurrencyForContract(asset.CoinMarginedFutures, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	if !curr.Equal(currency.BTC) || a != asset.CoinMarginedFutures {
+		t.Error("expected BTC CoinMarginedFutures")
+	}
+}

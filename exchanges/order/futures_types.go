@@ -310,12 +310,12 @@ type Position struct {
 
 // PositionSummaryRequest is used to request a summary of an open position
 type PositionSummaryRequest struct {
-	Asset asset.Item
-	Pair  currency.Pair
+	Asset     asset.Item
+	Pair      currency.Pair
+	Direction Side
 
 	// offline calculation requirements below
 	CalculateOffline          bool
-	Direction                 Side
 	FreeCollateral            decimal.Decimal
 	TotalCollateral           decimal.Decimal
 	OpeningPrice              decimal.Decimal
