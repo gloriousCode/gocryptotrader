@@ -740,7 +740,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		var currencyDetails []account.Balance
 		for i := range accData.Assets {
 			currencyDetails = append(currencyDetails, account.Balance{
-				Currency: currency.NewCode(accData.Assets[i].Asset),
+				Currency: accData.Assets[i].CurrencyAsset,
 				Total:    accData.Assets[i].WalletBalance,
 				Hold:     accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
 				Free:     accData.Assets[i].AvailableBalance,
@@ -2034,7 +2034,30 @@ func (b *Binance) GetFundingRates(ctx context.Context, request *order.FundingRat
 		}
 
 	case asset.CoinMarginedFutures:
-		b.FuturesGetFundingHistory()
+		for i := range request.Pairs {
+			rates, err := b.FuturesGetFundingHistory(ctx, request.Pairs[i], 1000, request.StartDate, request.EndDate)
+			if err != nil {
+				return nil, err
+			}
+			allTheRates := make([]order.FundingRate, len(rates))
+			for j := range rates {
+				allTheRates[j] = order.FundingRate{
+					Time: time.UnixMilli(rates[j].FundingTime),
+					Rate: decimal.NewFromFloat(rates[j].FundingRate),
+				}
+			}
+			resp[i] = order.FundingRates{
+				Exchange:              "",
+				Asset:                 0,
+				Pair:                  currency.Pair{},
+				StartDate:             time.Time{},
+				EndDate:               time.Time{},
+				LatestRate:            allTheRates[len(allTheRates)-1],
+				PredictedUpcomingRate: order.FundingRate{},
+				FundingRates:          allTheRates,
+				PaymentSum:            decimal.Decimal{},
+			}
+		}
 	}
 	return nil, common.ErrNotYetImplemented
 }
@@ -2046,7 +2069,7 @@ func (b *Binance) GetPositionSummary(ctx context.Context, request *order.Positio
 		return nil, nil
 	}
 	if request.Direction == order.UnknownSide {
-		return nil, fmt.Errorf("%w %v", order.ErrSideIsInvalid, request.Direction)
+		return nil, fmt.Errorf("%w %v direction required", order.ErrSideIsInvalid, request.Direction)
 	}
 	switch request.Asset {
 	case asset.USDTMarginedFutures:
@@ -2055,7 +2078,9 @@ func (b *Binance) GetPositionSummary(ctx context.Context, request *order.Positio
 			return nil, err
 		}
 		for i := range result {
-			if request.Direction.String() != result[i].PositionSide && result[i].PositionSide != "BOTH" {
+			if request.Direction != order.AnySide ||
+				request.Direction.String() != result[i].PositionSide ||
+				result[i].PositionSide != "BOTH" {
 				continue
 			}
 			var mt margin.Type
@@ -2078,7 +2103,9 @@ func (b *Binance) GetPositionSummary(ctx context.Context, request *order.Positio
 			return nil, err
 		}
 		for i := range result {
-			if request.Direction.String() != result[i].PositionSide && result[i].PositionSide != "BOTH" {
+			if request.Direction != order.AnySide ||
+				request.Direction.String() != result[i].PositionSide ||
+				result[i].PositionSide != "BOTH" {
 				continue
 			}
 			var mt margin.Type
@@ -2129,7 +2156,70 @@ func (b *Binance) ScaleCollateral(ctx context.Context, request *order.Collateral
 			ScaledUsed:                  request.LockedCollateral,
 		}, nil
 	}
-	return nil, common.ErrNotYetImplemented
+
+	switch request.Asset {
+	case asset.CoinMarginedFutures:
+		balances, err := b.GetCoinMarginedFuturesAccountInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range balances.Assets {
+			if !balances.Assets[i].CurrencyAsset.Equal(request.CollateralCurrency) {
+				continue
+			}
+			cp, err := b.FormatSymbol(currency.NewPair(request.CollateralCurrency, currency.BUSD), asset.USDTMarginedFutures)
+			if err != nil {
+				return nil, err
+			}
+			mp, err := b.UGetMarkPrice(ctx, cp)
+			if err != nil {
+				return nil, err
+			}
+			return &order.CollateralByCurrency{
+				Currency:                    request.CollateralCurrency,
+				TotalFunds:                  decimal.NewFromFloat(balances.Assets[i].WalletBalance),
+				AvailableForUseAsCollateral: decimal.NewFromFloat(balances.Assets[i].AvailableBalance),
+				CollateralContribution:      decimal.NewFromFloat(balances.Assets[i].MarginBalance),
+				FairMarketValue:             decimal.NewFromFloat(mp[0].MarkPrice),
+				Weighting:                   decimal.NewFromInt(1),
+				ScaledCurrency:              request.CollateralCurrency,
+				UnrealisedPNL:               decimal.NewFromFloat(balances.Assets[i].UnrealizedProfit),
+				ScaledUsed:                  decimal.NewFromFloat(balances.Assets[i].MarginBalance),
+			}, nil
+		}
+	case asset.USDTMarginedFutures:
+		balances, err := b.UAccountInformationV2(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range balances.Assets {
+			if !balances.Assets[i].CurrencyAsset.Equal(request.CollateralCurrency) {
+				continue
+			}
+			cp, err := b.FormatSymbol(currency.NewPair(request.CollateralCurrency, currency.BUSD), asset.USDTMarginedFutures)
+			if err != nil {
+				return nil, err
+			}
+			mp, err := b.UGetMarkPrice(ctx, cp)
+			if err != nil {
+				return nil, err
+			}
+			return &order.CollateralByCurrency{
+				Currency:                    request.CollateralCurrency,
+				SkipContribution:            !balances.Assets[i].IsMarginAvailable,
+				TotalFunds:                  decimal.NewFromFloat(balances.Assets[i].WalletBalance),
+				AvailableForUseAsCollateral: decimal.NewFromFloat(balances.Assets[i].AvailableBalance),
+				CollateralContribution:      decimal.NewFromFloat(balances.Assets[i].MarginBalance),
+				FairMarketValue:             decimal.NewFromFloat(mp[0].MarkPrice),
+				Weighting:                   decimal.NewFromInt(1),
+				ScaledCurrency:              request.CollateralCurrency,
+				UnrealisedPNL:               decimal.NewFromFloat(balances.Assets[i].UnrealizedProfit),
+				ScaledUsed:                  decimal.NewFromFloat(balances.Assets[i].MarginBalance),
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.Asset)
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall

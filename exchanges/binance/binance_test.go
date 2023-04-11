@@ -704,12 +704,12 @@ func TestGetCrossMarginInterestHistory(t *testing.T) {
 
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", time.Time{}, time.Time{})
+	_, err := b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), -1, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	start, end := getTime()
-	_, err = b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "2", start, end)
+	_, err = b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), 2, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2906,10 +2906,10 @@ func TestBinanceStuff(t *testing.T) {
 	}
 	var btcWalletAsset, busdAmount UWalletAsset
 	for i := range hello.Assets {
-		if hello.Assets[i].Asset == "BTC" {
+		if hello.Assets[i].CurrencyAsset == "BTC" {
 			btcWalletAsset = hello.Assets[i]
 		}
-		if hello.Assets[i].Asset == "BUSD" {
+		if hello.Assets[i].CurrencyAsset == "BUSD" {
 			busdAmount = hello.Assets[i]
 		}
 		if hello.Assets[i].CrossWalletBalance > 0 {
@@ -2940,40 +2940,49 @@ func TestGetPositionSummary(t *testing.T) {
 		expectedError    error
 	}{
 		{
-			name:             "Error: Offline Calculation",
+			name:             "Offline Calculation",
 			calculateOffline: true,
 			direction:        order.UnknownSide,
 			asset:            asset.USDTMarginedFutures,
-			expectedError:    nil,
 		},
 		{
-			name:             "Error: Invalid Direction",
-			calculateOffline: false,
-			direction:        order.UnknownSide,
-			asset:            asset.USDTMarginedFutures,
-			expectedError:    errors.New("side is invalid 0"),
+			name:          "Error: Invalid Direction",
+			direction:     order.UnknownSide,
+			asset:         asset.USDTMarginedFutures,
+			expectedError: order.ErrSideIsInvalid,
 		},
 		{
-			name:             "Error: Asset Not Supported",
-			calculateOffline: false,
-			direction:        order.Buy,
-			asset:            asset.Empty,
-			expectedError:    errors.New("asset not supported Unsupported"),
+			name:          "Error: Asset Not Supported",
+			direction:     order.Buy,
+			asset:         asset.Empty,
+			expectedError: asset.ErrNotSupported,
 		},
-		// Add more test cases for valid scenarios.
+		{
+			name:          "Success: anyside USDTMarginedFutures",
+			asset:         asset.USDTMarginedFutures,
+			direction:     order.AnySide,
+			expectedError: exchange.ErrCredentialsAreEmpty,
+		},
+		{
+			name:          "Success: anyside CoinMarginedFutures",
+			asset:         asset.CoinMarginedFutures,
+			direction:     order.AnySide,
+			expectedError: exchange.ErrCredentialsAreEmpty,
+		},
 	}
 	ctx := context.Background()
 	for _, tc := range testCases {
+		testCase := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			request := &order.PositionSummaryRequest{
-				CalculateOffline: tc.calculateOffline,
-				Direction:        tc.direction,
-				Asset:            tc.asset,
+				CalculateOffline: testCase.calculateOffline,
+				Direction:        testCase.direction,
+				Asset:            testCase.asset,
 			}
 
 			_, err := b.GetPositionSummary(ctx, request)
-			if tc.expectedError != nil && !errors.Is(err, tc.expectedError) {
+			if !errors.Is(err, testCase.expectedError) && !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 				t.Error(err)
 			}
 		})

@@ -271,7 +271,7 @@ type UAccountInformationV2Data struct {
 	Assets                      []UWalletAsset `json:"assets"`
 	Positions                   []struct {
 		Symbol                 string  `json:"symbol"`
-		InitialMargin          float64 `json:"initialMargin,string"`
+		InitialMargin          string  `json:"initialMargin"`
 		MaintenanceMargin      float64 `json:"maintMargin,string"`
 		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
@@ -280,23 +280,30 @@ type UAccountInformationV2Data struct {
 		Isolated               bool    `json:"isolated"`
 		EntryPrice             float64 `json:"entryPrice,string"`
 		MaxNotional            float64 `json:"maxNotional,string"`
-		PositionSide           string  `json:"positionSide"`
+		BidNotional            float64 `json:"bidNotional,string"`
+		AskNotional            float64 `json:"askNotional,string"`
+		PositionSide           float64 `json:"positionSide,string"`
+		PositionAmt            float64 `json:"positionAmt,string"`
+		UpdateTime             int64   `json:"updateTime,string"`
 	} `json:"positions"`
 }
 
+// UWalletAsset stores wallet asset data for ufutures
 type UWalletAsset struct {
-	Asset                  string  `json:"asset"`
-	WalletBalance          float64 `json:"walletBalance,string"`
-	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-	MarginBalance          float64 `json:"marginBalance,string"`
-	MaintenanceMargin      float64 `json:"maintMargin,string"`
-	InitialMargin          float64 `json:"initialMargin,string"`
-	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-	CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
-	CrossUnPnl             float64 `json:"crossUnPnl,string"`
-	AvailableBalance       float64 `json:"availableBalance,string"`
-	MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
+	CurrencyAsset          currency.Code `json:"asset"`
+	WalletBalance          float64       `json:"walletBalance,string"`
+	UnrealizedProfit       float64       `json:"unrealizedProfit,string"`
+	MarginBalance          float64       `json:"marginBalance,string"`
+	MaintenanceMargin      float64       `json:"maintMargin,string"`
+	InitialMargin          float64       `json:"initialMargin,string"`
+	PositionInitialMargin  float64       `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64       `json:"openOrderInitialMargin,string"`
+	CrossWalletBalance     float64       `json:"crossWalletBalance,string"`
+	CrossUnPnl             float64       `json:"crossUnPnl,string"`
+	AvailableBalance       float64       `json:"availableBalance,string"`
+	MaxWithdrawAmount      float64       `json:"maxWithdrawAmount,string"`
+	IsMarginAvailable      bool          `json:"marginAvailable"`
+	UpdateTime             int64         `json:"updateTime"`
 }
 
 // UChangeInitialLeverage stores leverage change data

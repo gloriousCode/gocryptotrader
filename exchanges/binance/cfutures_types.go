@@ -361,38 +361,36 @@ type FuturesAccountBalanceData struct {
 
 // FuturesAccountInformationPositions  holds account position data
 type FuturesAccountInformationPositions struct {
-	Symbol                 string    `json:"symbol"`
-	Amount                 float64   `json:"positionAmt,string"`
-	InitialMargin          float64   `json:"initialMargin,string"`
-	MaintMargin            float64   `json:"maintMargin,string"`
-	UnrealizedProfit       float64   `json:"unrealizedProfit,string"`
-	PositionInitialMargin  float64   `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64   `json:"openOrderInitialMargin,string"`
-	Leverage               float64   `json:"leverage,string"`
-	Isolated               bool      `json:"isolated"`
-	PositionSide           string    `json:"positionSide"`
-	EntryPrice             float64   `json:"entryPrice,string"`
-	MaxQty                 float64   `json:"maxQty,string"`
-	UpdateTime             time.Time `json:"updateTime"`
-	NotionalValue          float64   `json:"notionalValue,string"`
-	IsolatedWallet         float64   `json:"isolatedWallet,string"`
+	Symbol                 string  `json:"symbol"`
+	PositionAmount         float64 `json:"positionAmt,string"`
+	InitialMargin          float64 `json:"initialMargin,string"`
+	MaintenanceMargin      float64 `json:"maintMargin,string"`
+	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
+	Leverage               float64 `json:"leverage,string"`
+	Isolated               bool    `json:"isolated"`
+	PositionSide           string  `json:"positionSide"`
+	EntryPrice             float64 `json:"entryPrice,string"`
+	MaxQuantity            float64 `json:"maxQty,string"`
+	UpdateTime             int64   `json:"updateTime"`
 }
 
 // FuturesAccountInformation stores account information for futures account
 type FuturesAccountInformation struct {
 	Assets []struct {
-		Asset                  string  `json:"asset"`
-		WalletBalance          float64 `json:"walletBalance,string"`
-		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-		MarginBalance          float64 `json:"marginBalance,string"`
-		MaintMargin            float64 `json:"maintMargin,string"`
-		InitialMargin          float64 `json:"initialMargin,string"`
-		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-		OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-		MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
-		CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
-		CrossUnPNL             float64 `json:"crossUnPnl,string"`
-		AvailableBalance       float64 `json:"availableBalance,string"`
+		CurrencyAsset          currency.Code `json:"asset"`
+		WalletBalance          float64       `json:"walletBalance,string"`
+		UnrealizedProfit       float64       `json:"unrealizedProfit,string"`
+		MarginBalance          float64       `json:"marginBalance,string"`
+		MaintenanceMargin      float64       `json:"maintMargin,string"`
+		InitialMargin          float64       `json:"initialMargin,string"`
+		PositionInitialMargin  float64       `json:"positionInitialMargin,string"`
+		OpenOrderInitialMargin float64       `json:"openOrderInitialMargin,string"`
+		MaxWithdrawAmount      float64       `json:"maxWithdrawAmount,string"`
+		CrossWalletBalance     float64       `json:"crossWalletBalance,string"`
+		CrossUnPnl             float64       `json:"crossUnPnl,string"`
+		AvailableBalance       float64       `json:"availableBalance,string"`
 	} `json:"assets"`
 	Positions   []FuturesAccountInformationPositions `json:"positions"`
 	CanDeposit  bool                                 `json:"canDeposit"`
