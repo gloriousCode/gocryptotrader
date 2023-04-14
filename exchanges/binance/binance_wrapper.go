@@ -2252,8 +2252,49 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 	case request.CanHaveMixedAssetTypes:
 		return nil, common.ErrFunctionNotSupported
 	case request.CollateralAssets[0].Asset == asset.USDTMarginedFutures:
-
+		ai, err := b.UAccountInformationV2(ctx)
+		if err != nil {
+			return nil, err
+		}
+		assets := make([]order.CollateralByCurrency, len(ai.Assets))
+		for i := range ai.Assets {
+			assets[i] = order.CollateralByCurrency{
+				Currency:                    ai.Assets[i].CurrencyAsset,
+				TotalFunds:                  decimal.NewFromFloat(ai.Assets[i].WalletBalance),
+				AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[i].AvailableBalance
+				CollateralContribution:      decimal.NewFromFloat(ai.Assets[i].WalletBalance),
+			//	FairMarketValue:             decimal.NewFromFloat(ai.Assets[i].),
+				Weighting:                   decimal.NewFromInt(1), // binance doesn't apply scaling
+				ScaledCurrency:              ai.Assets[i].CurrencyAsset,
+				UnrealisedPNL:                decimal.NewFromFloat(ai.Assets[i].UnrealizedProfit),
+				ScaledUsed:                  decimal.NewFromFloat(ai.Assets[i].MarginBalance),
+			}
+		}
+		positions := make([]order.CollateralByPosition, len(ai.Positions))
+		for i := range ai.Positions {
+			positions[i] = order.CollateralByPosition{
+				PositionCurrency: currency.Pair{},
+				Size:             decimal.NewFromFloat(ai.Positions[i].PositionAmt),
+				OpenOrderSize:    decimal.NewFromFloat(ai.Positions[i].InitialMargin),
+				PositionSize:     decimal.NewFromFloat(ai.Positions[i].PositionAmt),
+				MarkPrice:        decimal.NewFromFloat(ai.Positions[i].EntryPrice),
+				RequiredMargin:   decimal.NewFromFloat(ai.Positions[i].MaintenanceMargin),
+				CollateralUsed:   decimal.NewFromFloat(ai.Positions[i].PositionAmt * ai.Positions[i].EntryPrice),
+			}
+		}
+		return &order.TotalCollateralResponse{
+			CollateralCurrency:               currency.Code{},
+			TotalValueOfPositiveSpotBalances: decimal.NewFromFloat(ai.TotalWalletBalance),
+			UsedCollateral:                   decimal.NewFromFloat(ai.TotalWalletBalance).Sub(decimal.NewFromFloat(ai.AvailableBalance)),
+			UsedBreakdown:                    nil,
+			AvailableCollateral:              decimal.NewFromFloat(ai.AvailableBalance),
+			AvailableMaintenanceCollateral:   decimal.NewFromFloat(ai.TotalMaintenance),
+			UnrealisedPNL:                    decimal.NewFromFloat(ai.TotalUnrealizedProfit),
+			BreakdownByCurrency:              assets,
+			BreakdownOfPositions:             positions,
+		}, nil
 	case request.CollateralAssets[0].Asset == asset.CoinMarginedFutures:
+		b.GetCoinMarginedFuturesAccountInfo(ctx)
 
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.CollateralAssets)
