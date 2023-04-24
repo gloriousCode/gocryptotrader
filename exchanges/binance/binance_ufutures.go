@@ -1193,6 +1193,8 @@ func (b *Binance) ParseBinanceCurrencyStorage(ctx context.Context, path, subPref
 	return currs, nil
 }
 
+// UGetAllLongDatedContractDetails returns all long dated contract details
+// for USDT margined futures
 func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
 	pairs, err := b.ParseBinanceCurrencyStorage(ctx, ufuturesAWSContractDetails, "um")
 	if err != nil {
@@ -1201,15 +1203,18 @@ func (b *Binance) UGetAllLongDatedContractDetails(ctx context.Context) ([]LongDa
 	return b.parseLongDatedContractData(ctx, pairs, asset.USDTMarginedFutures)
 }
 
+// CGetAllLongDatedContractDetails returns all long dated contract details
+// for coin margined futures
 func (b *Binance) CGetAllLongDatedContractDetails(ctx context.Context) ([]LongDatedContractDetails, error) {
 	pairs, err := b.ParseBinanceCurrencyStorage(ctx, cfuturesAWSContractDetails, "cm")
 	if err != nil {
 		return nil, err
 	}
 	return b.parseLongDatedContractData(ctx, pairs, asset.CoinMarginedFutures)
-
 }
 
+// parseLongDatedContractData parses long dated contract data
+// and determines their availibility
 func (b *Binance) parseLongDatedContractData(ctx context.Context, pairs []string, a asset.Item) ([]LongDatedContractDetails, error) {
 	pFmt, err := b.GetPairFormat(a, true)
 	if err != nil {

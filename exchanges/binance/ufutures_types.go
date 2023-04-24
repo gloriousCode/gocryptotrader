@@ -271,7 +271,7 @@ type UAccountInformationV2Data struct {
 	Assets                      []UWalletAsset `json:"assets"`
 	Positions                   []struct {
 		Symbol                 string  `json:"symbol"`
-		InitialMargin          string  `json:"initialMargin"`
+		InitialMargin          float64 `json:"initialMargin,string"`
 		MaintenanceMargin      float64 `json:"maintMargin,string"`
 		UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
 		PositionInitialMargin  float64 `json:"positionInitialMargin,string"`

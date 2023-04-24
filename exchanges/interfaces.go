@@ -141,7 +141,10 @@ type FuturesManagement interface {
 	GetBaseCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
-	GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error)
+	GetMarginRequirements(ctx context.Context, request *margin.RequirementsRequest) (*margin.Requirements, error)
 	CalculatePosition(item asset.Item, pair currency.Pair, size, targetLeverage decimal.Decimal) (*order.Sized, error)
 	order.PNLCalculation
+	GetExpiredFuturesContracts(ctx context.Context, a asset.Item) (currency.Pairs, error)
+	SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error
+	GetMarginMode(ctx context.Context, item asset.Item) (margin.Type, error)
 }

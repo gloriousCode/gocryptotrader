@@ -85,7 +85,6 @@ func (b *Binance) SetDefaults() {
 	usdtFutures := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -2001,10 +2000,23 @@ func (b *Binance) GetCurrencyForRealisedPNL(a asset.Item, cp currency.Pair) (cur
 	return b.GetCollateralCurrencyForContract(a, cp)
 }
 
+// GetFundingRates returns funding rates for a given asset type
+// in a given period, for given pairs
 func (b *Binance) GetFundingRates(ctx context.Context, request *order.FundingRatesRequest) ([]order.FundingRates, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w FundingRatesRequest", common.ErrNilPointer)
+	}
 	if request.EndDate.Sub(request.StartDate) > time.Hour*1000 {
 		return nil, errors.New("binance only allows 1000 hours of funding rate history")
 	}
+	if err := common.StartEndTimeCheck(request.StartDate, request.EndDate); err != nil {
+		return nil, err
+	}
+	pFmt, err := b.GetPairFormat(request.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	request.Pairs = request.Pairs.Format(pFmt)
 	resp := make([]order.FundingRates, len(request.Pairs))
 	switch request.Asset {
 	case asset.USDTMarginedFutures:
@@ -2013,6 +2025,16 @@ func (b *Binance) GetFundingRates(ctx context.Context, request *order.FundingRat
 			if err != nil {
 				return nil, err
 			}
+			resp[i] = order.FundingRates{
+				Exchange:  b.Name,
+				Asset:     asset.USDTMarginedFutures,
+				Pair:      request.Pairs[i],
+				StartDate: request.StartDate,
+				EndDate:   request.EndDate,
+			}
+			if len(rates) == 0 {
+				continue
+			}
 			allTheRates := make([]order.FundingRate, len(rates))
 			for j := range rates {
 				allTheRates[j] = order.FundingRate{
@@ -2020,25 +2042,26 @@ func (b *Binance) GetFundingRates(ctx context.Context, request *order.FundingRat
 					Rate: decimal.NewFromFloat(rates[j].FundingRate),
 				}
 			}
-			resp[i] = order.FundingRates{
-				Exchange:              "",
-				Asset:                 0,
-				Pair:                  currency.Pair{},
-				StartDate:             time.Time{},
-				EndDate:               time.Time{},
-				LatestRate:            allTheRates[len(allTheRates)-1],
-				PredictedUpcomingRate: order.FundingRate{},
-				FundingRates:          allTheRates,
-				PaymentSum:            decimal.Decimal{},
-			}
+			resp[i].FundingRates = allTheRates
+			resp[i].LatestRate = allTheRates[len(allTheRates)-1]
 		}
-
+		return resp, nil
 	case asset.CoinMarginedFutures:
 		for i := range request.Pairs {
 			rates, err := b.FuturesGetFundingHistory(ctx, request.Pairs[i], 1000, request.StartDate, request.EndDate)
 			if err != nil {
 				return nil, err
 			}
+			resp[i] = order.FundingRates{
+				Exchange:  b.Name,
+				Asset:     asset.USDTMarginedFutures,
+				Pair:      request.Pairs[i],
+				StartDate: request.StartDate,
+				EndDate:   request.EndDate,
+			}
+			if len(rates) == 0 {
+				continue
+			}
 			allTheRates := make([]order.FundingRate, len(rates))
 			for j := range rates {
 				allTheRates[j] = order.FundingRate{
@@ -2046,31 +2069,31 @@ func (b *Binance) GetFundingRates(ctx context.Context, request *order.FundingRat
 					Rate: decimal.NewFromFloat(rates[j].FundingRate),
 				}
 			}
-			resp[i] = order.FundingRates{
-				Exchange:              "",
-				Asset:                 0,
-				Pair:                  currency.Pair{},
-				StartDate:             time.Time{},
-				EndDate:               time.Time{},
-				LatestRate:            allTheRates[len(allTheRates)-1],
-				PredictedUpcomingRate: order.FundingRate{},
-				FundingRates:          allTheRates,
-				PaymentSum:            decimal.Decimal{},
-			}
+			resp[i].FundingRates = allTheRates
+			resp[i].LatestRate = allTheRates[len(allTheRates)-1]
 		}
+		return resp, nil
 	}
-	return nil, common.ErrNotYetImplemented
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.Asset)
 }
 
 // GetPositionSummary returns a position for an asset and currency
 // Binance allows multiple positions in opposing directions so multiple position summaries can be returned
 func (b *Binance) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
+	}
 	if request.CalculateOffline {
-		return nil, nil
+		return nil, errors.New("no")
 	}
 	if request.Direction == order.UnknownSide {
 		return nil, fmt.Errorf("%w %v direction required", order.ErrSideIsInvalid, request.Direction)
 	}
+	pFmt, err := b.GetPairFormat(request.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	request.Pair = request.Pair.Format(pFmt)
 	switch request.Asset {
 	case asset.USDTMarginedFutures:
 		result, err := b.UPositionsInfoV2(ctx, request.Pair)
@@ -2261,13 +2284,13 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 			assets[i] = order.CollateralByCurrency{
 				Currency:                    ai.Assets[i].CurrencyAsset,
 				TotalFunds:                  decimal.NewFromFloat(ai.Assets[i].WalletBalance),
-				AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[i].AvailableBalance
+				AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[i].AvailableBalance),
 				CollateralContribution:      decimal.NewFromFloat(ai.Assets[i].WalletBalance),
-			//	FairMarketValue:             decimal.NewFromFloat(ai.Assets[i].),
-				Weighting:                   decimal.NewFromInt(1), // binance doesn't apply scaling
-				ScaledCurrency:              ai.Assets[i].CurrencyAsset,
-				UnrealisedPNL:                decimal.NewFromFloat(ai.Assets[i].UnrealizedProfit),
-				ScaledUsed:                  decimal.NewFromFloat(ai.Assets[i].MarginBalance),
+				//	FairMarketValue:             decimal.NewFromFloat(ai.Assets[i].),
+				Weighting:      decimal.NewFromInt(1), // binance doesn't apply scaling
+				ScaledCurrency: ai.Assets[i].CurrencyAsset,
+				UnrealisedPNL:  decimal.NewFromFloat(ai.Assets[i].UnrealizedProfit),
+				ScaledUsed:     decimal.NewFromFloat(ai.Assets[i].MarginBalance),
 			}
 		}
 		positions := make([]order.CollateralByPosition, len(ai.Positions))
@@ -2380,8 +2403,15 @@ func (b *Binance) GetFuturesPositions(ctx context.Context, request *order.Positi
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.Asset)
 }
 
-func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
-	switch a {
+// GetMarginRequirements returns margin requirements for a futures position
+func (b *Binance) GetMarginRequirements(ctx context.Context, request *margin.RequirementsRequest) (*margin.Requirements, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w RequirementsRequest", common.ErrNilPointer)
+	}
+	if request.CalculateOffline {
+
+	}
+	switch request.Asset {
 	case asset.USDTMarginedFutures:
 		brackets, err := b.uGetPublicLeverageBrackets(ctx)
 		if err != nil {
@@ -2389,47 +2419,48 @@ func (b *Binance) GetMarginRequirements(ctx context.Context, a asset.Item, c cur
 		}
 		for i := range brackets {
 			for j := range brackets[i].RiskBrackets {
-				if intendedLeverage < brackets[i].RiskBrackets[j].BracketNotionalFloor || intendedLeverage > brackets[i].RiskBrackets[j].BracketNotionalCap {
+				if request.IntendedLeverage < brackets[i].RiskBrackets[j].BracketNotionalFloor || request.IntendedLeverage > brackets[i].RiskBrackets[j].BracketNotionalCap {
 					continue
 				}
 				return &margin.Requirements{
 					Exchange:                     b.Name,
-					Asset:                        a,
-					Pair:                         c,
+					Asset:                        request.Asset,
+					Pair:                         request.Pair,
 					MaxLeverage:                  brackets[i].RiskBrackets[j].MaxOpenPosLeverage,
-					InitialMarginRequirement:     decimal.NewFromFloat(intendedPositionCost / intendedLeverage),
-					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].RiskBrackets[j].BracketMaintenanceMarginRate),
+					InitialMarginRequirement:     decimal.NewFromFloat(request.IntendedPositionCost / request.IntendedLeverage),
+					MaintenanceMarginRequirement: decimal.NewFromFloat(request.IntendedPositionCost * brackets[i].RiskBrackets[j].BracketMaintenanceMarginRate),
 					CollateralScaling:            decimal.NewFromInt(1),
 				}, nil
 			}
 		}
 	case asset.CoinMarginedFutures:
-		brackets, err := b.FuturesNotionalBracket(ctx, c)
+		brackets, err := b.FuturesNotionalBracket(ctx, request.Pair)
 		if err != nil {
 			return nil, err
 		}
 		for i := range brackets {
 			for j := range brackets[i].Brackets {
-				if intendedLeverage < brackets[i].Brackets[j].QtylFloor || intendedLeverage > brackets[i].Brackets[j].QtyCap {
+				if request.IntendedLeverage < brackets[i].Brackets[j].QtylFloor || request.IntendedLeverage > brackets[i].Brackets[j].QtyCap {
 					continue
 				}
 				return &margin.Requirements{
 					Exchange:                     b.Name,
-					Asset:                        a,
-					Pair:                         c,
+					Asset:                        request.Asset,
+					Pair:                         request.Pair,
 					MaxLeverage:                  brackets[i].Brackets[j].InitialLeverage,
-					InitialMarginRequirement:     decimal.NewFromFloat(intendedPositionCost / intendedLeverage),
-					MaintenanceMarginRequirement: decimal.NewFromFloat(intendedPositionCost * brackets[i].Brackets[j].MaintMarginRatio),
+					InitialMarginRequirement:     decimal.NewFromFloat(request.IntendedPositionCost / request.IntendedLeverage),
+					MaintenanceMarginRequirement: decimal.NewFromFloat(request.IntendedPositionCost * brackets[i].Brackets[j].MaintMarginRatio),
 					CollateralScaling:            decimal.NewFromInt(1),
 				}, nil
 			}
 		}
 	default:
-		return nil, common.ErrFunctionNotSupported
+		return nil, fmt.Errorf("%w %v", common.ErrFunctionNotSupported, request.Asset)
 	}
-	return nil, fmt.Errorf("%w %v %v", currency.ErrCurrencyNotFound, c, a)
+	return nil, fmt.Errorf("%w %v %v", currency.ErrCurrencyNotFound, request.Pair, request.Asset)
 }
 
+// IsPerpetualFutureCurrency parses a futures currency to determine if its a perp
 func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (bool, error) {
 	switch a {
 	case asset.USDTMarginedFutures:
@@ -2439,4 +2470,50 @@ func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (b
 	default:
 		return false, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// GetExpiredFuturesContracts returns a list of expired futures contracts
+func (b *Binance) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	switch a {
+	case asset.USDTMarginedFutures:
+		contracts, err := b.UGetAllLongDatedContractDetails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make(currency.Pairs, 0, len(contracts))
+		for i := range contracts {
+			if !contracts[i].HasExpired {
+				// should be available via UpdateTradablePairs
+				continue
+			}
+			resp = append(resp, contracts[i].Currency)
+		}
+		return resp, nil
+	case asset.CoinMarginedFutures:
+		contracts, err := b.CGetAllLongDatedContractDetails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make(currency.Pairs, 0, len(contracts))
+		for i := range contracts {
+			if !contracts[i].HasExpired {
+				// should be available via UpdateTradablePairs
+				continue
+			}
+			resp = append(resp, contracts[i].Currency)
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+}
+
+// SetMarginMode sets the account's margin mode for the asset type
+func (b *Binance) SetMarginMode(ctx context.Context, mode margin.Type, item asset.Item) error {
+	return common.ErrNotYetImplemented
+
+}
+
+// GetMarginMode returns the account's margin mode for the asset type
+func (b *Binance) GetMarginMode(ctx context.Context, item asset.Item) (margin.Type, error) {
+	return 0, common.ErrNotYetImplemented
 }

@@ -27,6 +27,17 @@ var (
 // Different rules apply to different exchanges based on the type
 type Type uint8
 
+type RequirementsRequest struct {
+	Exchange             string
+	Asset                asset.Item
+	Pair                 currency.Pair
+	IntendedLeverage     float64
+	IntendedPositionCost float64
+	CalculateOffline     bool
+	// Offline fields
+	CurrentPrice decimal.Decimal
+}
+
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
 	Exchange           string

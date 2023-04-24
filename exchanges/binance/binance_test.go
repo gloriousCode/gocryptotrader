@@ -16,6 +16,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -702,7 +703,7 @@ func TestGetCrossMarginInterestHistory(t *testing.T) {
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := b.FundingRates(context.Background(), currency.NewPair(currency.BTC, currency.USDT), -1, time.Time{}, time.Time{})
 	if err != nil {
@@ -2906,10 +2907,10 @@ func TestBinanceStuff(t *testing.T) {
 	}
 	var btcWalletAsset, busdAmount UWalletAsset
 	for i := range hello.Assets {
-		if hello.Assets[i].CurrencyAsset == "BTC" {
+		if hello.Assets[i].CurrencyAsset == currency.BTC {
 			btcWalletAsset = hello.Assets[i]
 		}
-		if hello.Assets[i].CurrencyAsset == "BUSD" {
+		if hello.Assets[i].CurrencyAsset == currency.BUSD {
 			busdAmount = hello.Assets[i]
 		}
 		if hello.Assets[i].CrossWalletBalance > 0 {
@@ -2969,18 +2970,25 @@ func TestGetPositionSummary(t *testing.T) {
 			direction:     order.AnySide,
 			expectedError: exchange.ErrCredentialsAreEmpty,
 		},
+		{
+			name:          "nil request",
+			expectedError: common.ErrNilPointer,
+		},
 	}
 	ctx := context.Background()
 	for _, tc := range testCases {
 		testCase := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			request := &order.PositionSummaryRequest{
 				CalculateOffline: testCase.calculateOffline,
 				Direction:        testCase.direction,
 				Asset:            testCase.asset,
 			}
-
+			if testCase.asset == asset.Empty && testCase.direction == order.UnknownSide {
+				request = nil
+			}
 			_, err := b.GetPositionSummary(ctx, request)
 			if !errors.Is(err, testCase.expectedError) && !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 				t.Error(err)
@@ -3029,5 +3037,124 @@ func TestGetCollateralCurrencyForContract(t *testing.T) {
 	}
 	if !curr.Equal(currency.BTC) || a != asset.CoinMarginedFutures {
 		t.Error("expected BTC CoinMarginedFutures")
+	}
+}
+
+func TestGetFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingRates(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+
+	req := &order.FundingRatesRequest{}
+	_, err = b.GetFundingRates(context.Background(), req)
+	if !errors.Is(err, common.ErrDateUnset) {
+		t.Error(err)
+	}
+
+	req.Asset = asset.CoinMarginedFutures
+	req.Pairs = currency.Pairs{
+		currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter),
+	}
+	req.StartDate = time.Now().Add(-time.Hour * 24)
+	req.EndDate = time.Now()
+	_, err = b.GetFundingRates(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	req.Asset = asset.USDTMarginedFutures
+	req.Pairs = currency.Pairs{
+		currency.NewPairWithDelimiter("BTC", "USDT", ""),
+	}
+	_, err = b.GetFundingRates(context.Background(), req)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	req.Asset = asset.Spot
+	_, err = b.GetFundingRates(context.Background(), req)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	_, _, err := b.GetCurrencyForRealisedPNL(asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetExpiredFuturesContracts(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetExpiredFuturesContracts(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetExpiredFuturesContracts(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetExpiredFuturesContracts(context.Background(), asset.Spot)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	if _, err := b.IsPerpetualFutureCurrency(asset.Spot, cp); !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	cp = currency.NewPair(currency.BTC, currency.USD)
+	isIt, err := b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, cp)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if isIt {
+		t.Errorf("received '%v' expected '%v'", isIt, false)
+	}
+	cp = currency.NewPair(currency.BTC, currency.PERP)
+	isIt, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, cp)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if !isIt {
+		t.Errorf("received '%v' expected '%v'", isIt, true)
+	}
+
+	isIt, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, cp)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if isIt {
+		t.Errorf("received '%v' expected '%v'", isIt, false)
+	}
+	cp = currency.NewPair(currency.BTC, currency.BUSD)
+	isIt, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, cp)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if !isIt {
+		t.Errorf("received '%v' expected '%v'", isIt, true)
+	}
+}
+
+func TestGetMarginRequirements(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetMarginRequirements(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+
+	request := &margin.RequirementsRequest{}
+	_, err = b.GetMarginRequirements(context.Background(), request)
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
 	}
 }

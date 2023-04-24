@@ -1572,7 +1572,7 @@ func (b *Base) GetMinimumMarginFraction(asset.Item, currency.Pair) (decimal.Deci
 	return decimal.Zero, common.ErrNotYetImplemented
 }
 
-func (b *Base) GetMarginRequirements(ctx context.Context, a asset.Item, c currency.Pair, intendedLeverage, intendedPositionCost float64) (*margin.Requirements, error) {
+func (b *Base) GetMarginRequirements(context.Context, *margin.RequirementsRequest) (*margin.Requirements, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1621,4 +1621,21 @@ func (b *Base) ScaleCollateral(ctx context.Context, request *order.CollateralCal
 // standing in a singular currency. See FTX's implementation
 func (b *Base) CalculateTotalCollateral(ctx context.Context, request *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetExpiredFuturesContracts returns a list of expired futures contracts
+// Some exchanges do not provide expired contracts by default
+func (b *Base) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// SetMarginMode sets the account's margin mode for the asset type
+func (b *Base) SetMarginMode(ctx context.Context, mode margin.Type, item asset.Item) error {
+	return common.ErrNotYetImplemented
+
+}
+
+// GetMarginMode returns the account's margin mode for the asset type
+func (b *Base) GetMarginMode(ctx context.Context, item asset.Item) (margin.Type, error) {
+	return 0, common.ErrNotYetImplemented
 }

@@ -361,19 +361,19 @@ type FuturesAccountBalanceData struct {
 
 // FuturesAccountInformationPositions  holds account position data
 type FuturesAccountInformationPositions struct {
-	Symbol                 string  `json:"symbol"`
-	PositionAmount         float64 `json:"positionAmt,string"`
-	InitialMargin          float64 `json:"initialMargin,string"`
-	MaintenanceMargin      float64 `json:"maintMargin,string"`
-	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-	Leverage               float64 `json:"leverage,string"`
-	Isolated               bool    `json:"isolated"`
-	PositionSide           string  `json:"positionSide"`
-	EntryPrice             float64 `json:"entryPrice,string"`
-	MaxQuantity            float64 `json:"maxQty,string"`
-	UpdateTime             int64   `json:"updateTime"`
+	Symbol                 string    `json:"symbol"`
+	PositionAmount         float64   `json:"positionAmt,string"`
+	InitialMargin          float64   `json:"initialMargin,string"`
+	MaintenanceMargin      float64   `json:"maintMargin,string"`
+	UnrealizedProfit       float64   `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64   `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64   `json:"openOrderInitialMargin,string"`
+	Leverage               float64   `json:"leverage,string"`
+	Isolated               bool      `json:"isolated"`
+	PositionSide           string    `json:"positionSide"`
+	EntryPrice             float64   `json:"entryPrice,string"`
+	MaxQuantity            float64   `json:"maxQty,string"`
+	UpdateTime             time.Time `json:"updateTime"`
 }
 
 // FuturesAccountInformation stores account information for futures account
