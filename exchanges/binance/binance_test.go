@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	backtestercommon "github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1611,14 +1612,8 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var expected int
-	if mockTests {
-		expected = 5
-	} else {
-		expected = 2134
-	}
-	if len(result) != expected {
-		t.Errorf("GetHistoricTrades() expected %v entries, got %v", expected, len(result))
+	if mockTests && len(result) != 5 {
+		t.Errorf("GetHistoricTrades() expected %v entries, got %v", 5, len(result))
 	}
 }
 
@@ -2945,6 +2940,7 @@ func TestGetPositionSummary(t *testing.T) {
 			calculateOffline: true,
 			direction:        order.UnknownSide,
 			asset:            asset.USDTMarginedFutures,
+			expectedError:    backtestercommon.ErrCannotCalculateOffline,
 		},
 		{
 			name:          "Error: Invalid Direction",
@@ -3155,6 +3151,55 @@ func TestGetMarginRequirements(t *testing.T) {
 	request := &margin.RequirementsRequest{}
 	_, err = b.GetMarginRequirements(context.Background(), request)
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+}
+
+func TestGetBaseCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	_, _, err := b.GetBaseCurrencyForContract(asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	c, a, err := b.GetBaseCurrencyForContract(asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT))
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if a != asset.USDTMarginedFutures {
+		t.Errorf("expected '%v' received '%v'", asset.USDTMarginedFutures, a)
+	}
+	if c != currency.BTC {
+		t.Errorf("expected '%v' received '%v'", currency.BTC, c)
+	}
+
+	c, a, err = b.GetBaseCurrencyForContract(asset.CoinMarginedFutures, currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.UnderscoreDelimiter))
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if a != asset.CoinMarginedFutures {
+		t.Errorf("expected '%v' received '%v'", asset.CoinMarginedFutures, a)
+	}
+	if c != currency.BTC {
+		t.Errorf("expected '%v' received '%v'", currency.BTC, c)
+	}
+}
+
+func TestScaleCollateral(t *testing.T) {
+	t.Parallel()
+	_, err := b.ScaleCollateral(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Error(err)
+	}
+
+	request := &order.CollateralCalculator{}
+	_, err = b.ScaleCollateral(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = b.ScaleCollateral(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
 }

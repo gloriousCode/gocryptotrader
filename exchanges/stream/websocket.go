@@ -716,9 +716,11 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
 		return true
 	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {
-		log.Infof(log.WebsocketMgr,
-			WebsocketNotAuthenticatedUsingRest,
-			w.exchangeName)
+		if w.verbose {
+			log.Infof(log.WebsocketMgr,
+				WebsocketNotAuthenticatedUsingRest,
+				w.exchangeName)
+		}
 	}
 	return false
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	backtestercommon "github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1956,10 +1957,14 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 
 // GetBaseCurrencyForContract returns the base currency for an asset and contract pair
 func (b *Binance) GetBaseCurrencyForContract(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
-	bS := cp.Base.String()
-	bS = strings.Replace(bS, currency.USDT.String(), "", -1)
-
-	return currency.NewCode(bS), a, nil
+	switch a {
+	case asset.USDTMarginedFutures:
+		return cp.Base, a, nil
+	case asset.CoinMarginedFutures:
+		sp := strings.Split(cp.Base.String(), "USD")
+		return currency.NewCode(sp[0]), a, nil
+	}
+	return currency.EMPTYCODE, asset.Empty, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
@@ -2084,7 +2089,7 @@ func (b *Binance) GetPositionSummary(ctx context.Context, request *order.Positio
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
 	if request.CalculateOffline {
-		return nil, errors.New("no")
+		return nil, backtestercommon.ErrCannotCalculateOffline
 	}
 	if request.Direction == order.UnknownSide {
 		return nil, fmt.Errorf("%w %v direction required", order.ErrSideIsInvalid, request.Direction)
@@ -2163,6 +2168,9 @@ func marginTypeStringToType(mt string) (margin.Type, error) {
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
 func (b *Binance) ScaleCollateral(ctx context.Context, request *order.CollateralCalculator) (*order.CollateralByCurrency, error) {
+	if request == nil {
+		return nil, fmt.Errorf("%w CollateralCalculator", common.ErrNilPointer)
+	}
 	if request.CalculateOffline {
 		// binance does not use scaling, but instead just their pricing
 		return &order.CollateralByCurrency{

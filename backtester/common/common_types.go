@@ -32,6 +32,8 @@ var (
 	ErrInvalidDataType = errors.New("invalid datatype received")
 	// ErrFileNotFound returned when the file is not found
 	ErrFileNotFound = errors.New("file not found")
+	// ErrCannotCalculateOffline is returned when a function call does not support offline calculations
+	ErrCannotCalculateOffline = errors.New("cannot calculate offline")
 
 	errCannotGenerateFileName = errors.New("cannot generate filename")
 )
