@@ -64,3 +64,8 @@ func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal 
 
 	return ratio
 }
+
+func (r *Risk) EvaluateExistingPositions(positions []gctorder.Position) error {
+	//TODO implement me
+	panic("implement me")
+}

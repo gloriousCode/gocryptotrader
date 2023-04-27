@@ -2516,7 +2516,7 @@ func (b *Binance) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) 
 }
 
 // SetMarginMode sets the account's margin mode for the asset type
-func (b *Binance) SetMarginMode(ctx context.Context, mode margin.Type, item asset.Item) error {
+func (b *Binance) SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error {
 	return common.ErrNotYetImplemented
 
 }

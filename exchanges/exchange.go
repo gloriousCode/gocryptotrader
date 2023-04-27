@@ -1627,7 +1627,7 @@ func (b *Base) GetMarginRatesHistory(ctx context.Context, request *margin.RateHi
 }
 
 // GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) ([]order.PositionSummary, error) {
+func (b *Base) GetPositionSummary(ctx context.Context, request *order.PositionSummaryRequest) (*order.PositionSummary, error) {
 	if request.CalculateOffline {
 		log.Info(log.ExchangeSys, "GetPositionSummary")
 		return nil, nil
@@ -1667,7 +1667,7 @@ func (b *Base) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) (cu
 }
 
 // SetMarginMode sets the account's margin mode for the asset type
-func (b *Base) SetMarginMode(ctx context.Context, mode margin.Type, item asset.Item) error {
+func (b *Base) SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error {
 	return common.ErrNotYetImplemented
 
 }

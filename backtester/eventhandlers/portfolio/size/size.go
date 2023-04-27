@@ -52,7 +52,7 @@ func (s *Size) sizeLeverage(retOrder *order.Order, req *Request) (*Response, err
 	if err != nil {
 		return nil, err
 	}
-	req.MarginRequirements, err = req.Settings.Exchange.GetMarginRequirements(context.TODO(), req.OrderEvent.GetAssetType(), req.OrderEvent.Pair(), req.AmountAvailable.InexactFloat64()*req.Leverage, req.Leverage)
+	req.MarginRequirements, err = req.Settings.Exchange.GetMarginRequirements(context.TODO(), nil) //req.OrderEvent.GetAssetType(), req.OrderEvent.Pair(), req.AmountAvailable.InexactFloat64()*req.Leverage, req.Leverage)
 	if err != nil {
 		return nil, err
 	}
