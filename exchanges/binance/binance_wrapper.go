@@ -12,8 +12,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	backtestercommon "github.com/thrasher-corp/gocryptotrader/backtester/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -22,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -2000,7 +1999,7 @@ func (b *Binance) GetCollateralCurrencyForContract(a asset.Item, pair currency.P
 }
 
 // GetCurrencyForRealisedPNL returns the currency for realised PNL for an asset and contract pair
-// Binance has seperate wallets for different assets, so it can just call GetCollateralCurrencyForContract
+// Binance has separate wallets for different assets, so it can just call GetCollateralCurrencyForContract
 func (b *Binance) GetCurrencyForRealisedPNL(a asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
 	return b.GetCollateralCurrencyForContract(a, cp)
 }
@@ -2326,7 +2325,6 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, request *order.T
 		}, nil
 	case request.CollateralAssets[0].Asset == asset.CoinMarginedFutures:
 		b.GetCoinMarginedFuturesAccountInfo(ctx)
-
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, request.CollateralAssets)
 }
@@ -2518,7 +2516,6 @@ func (b *Binance) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) 
 // SetMarginMode sets the account's margin mode for the asset type
 func (b *Binance) SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error {
 	return common.ErrNotYetImplemented
-
 }
 
 // GetMarginMode returns the account's margin mode for the asset type

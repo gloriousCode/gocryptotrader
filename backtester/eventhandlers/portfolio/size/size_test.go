@@ -2,11 +2,13 @@ package size
 
 import (
 	"errors"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"

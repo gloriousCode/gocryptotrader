@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1455,7 +1454,6 @@ func (b *Base) GetServerTime(context.Context, asset.Item) (time.Time, error) {
 
 // GetFundingPaymentDetails returns funding payment details for a future for a specific time period
 func (b *Base) GetFundingPaymentDetails(ctx context.Context, request *order.FundingRatesRequest) (*order.FundingRates, error) {
-
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1669,7 +1667,6 @@ func (b *Base) GetExpiredFuturesContracts(ctx context.Context, a asset.Item) (cu
 // SetMarginMode sets the account's margin mode for the asset type
 func (b *Base) SetMarginMode(ctx context.Context, item asset.Item, mode margin.Type) error {
 	return common.ErrNotYetImplemented
-
 }
 
 // GetMarginMode returns the account's margin mode for the asset type

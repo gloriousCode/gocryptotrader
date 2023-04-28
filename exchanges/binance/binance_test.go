@@ -1026,19 +1026,10 @@ func TestGetFuturesAccountBalance(t *testing.T) {
 	}
 }
 
-func TestGetFuturesAccountInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetFuturesAccountInfo(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestFuturesChangeInitialLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.FuturesChangeInitialLeverage(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5)
+	_, err := b.FuturesChangeInitialLeverage(context.Background(), currency.NewPairWithDelimiter("BTC", "USDT", ""), 5)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1101,7 +1092,7 @@ func TestFuturesForceOrders(t *testing.T) {
 func TestUGetNotionalLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.FuturesNotionalBracket(context.Background(), "BTCUSD")
+	_, err := b.FuturesNotionalBracket(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -2766,10 +2757,7 @@ func TestCGetPublicLeverageBrackets(t *testing.T) {
 
 func TestUSetMultiAssetsMargin(t *testing.T) {
 	t.Parallel()
-	if !areTestAPIKeysSet() || !canManipulateRealOrders {
-		t.Skip("skipping test: api keys not set or canManipulateRealOrders set to false")
-	}
-
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.USetMultiAssetsMargin(context.Background(), false)
 	if err != nil {
 		t.Error(err)

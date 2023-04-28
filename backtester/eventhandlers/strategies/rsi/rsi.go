@@ -2,8 +2,9 @@ package rsi
 
 import (
 	"fmt"
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"

@@ -2,11 +2,11 @@ package size
 
 import (
 	"errors"
+
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
-
-	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 )
 
 var (

@@ -462,7 +462,7 @@ func TestFullCycle(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
-	}, &risk.Risk{}, decimal.Zero)
+	}, &risk.Risk{}, decimal.Zero, false, false, 1)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -600,7 +600,7 @@ func TestFullCycleMulti(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
-	}, &risk.Risk{}, decimal.Zero)
+	}, &risk.Risk{}, decimal.Zero, false, false, 1)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
