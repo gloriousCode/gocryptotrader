@@ -138,8 +138,8 @@ type Update struct {
 	UpdateTime time.Time
 	Asset      asset.Item
 	Action
-	Bids []Item
-	Asks []Item
+	Bids Items
+	Asks Items
 	Pair currency.Pair
 	// Checksum defines the expected value when the books have been verified
 	Checksum uint32

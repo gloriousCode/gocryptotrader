@@ -308,8 +308,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 							Amount: amount})
 					} else {
 						newOrderbook = append(newOrderbook, WebsocketBook{
-							ID:     int64(id),
-							Price:  pricePeriod,
+							Price:  id,
 							Amount: rateAmount})
 					}
 				}
@@ -340,8 +339,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 						Amount: amount})
 				} else {
 					newOrderbook = append(newOrderbook, WebsocketBook{
-						ID:     int64(id),
-						Price:  pricePeriod,
+						Price:  id,
 						Amount: amountRate})
 				}
 
@@ -424,6 +422,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			}
 			return nil
 		case wsTicker:
+
 			tickerData, ok := d[1].([]interface{})
 			if !ok {
 				return errors.New("type assertion for tickerData")
@@ -1395,7 +1394,8 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 			}
 		}
 	}
-
+	book.Bids.SortBids()
+	book.Asks.SortAsks()
 	book.Asset = assetType
 	book.Pair = p
 	book.Exchange = b.Name
@@ -1444,10 +1444,10 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			orderbookUpdate.Action = orderbook.Delete
 			if fundingRate {
 				if book[i].Amount == 1 {
-					// delete bid
+					// delete ask
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				} else {
-					// delete ask
+					// delete bid
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				}
 			} else {
@@ -1487,7 +1487,8 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 			return err
 		}
 	}
-
+	orderbookUpdate.Bids.SortBids()
+	orderbookUpdate.Asks.SortAsks()
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
 }
 
@@ -1497,7 +1498,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		wsBook,
 		wsTrades,
 		wsTicker,
-		wsCandles,
 	}
 
 	var subscriptions []stream.ChannelSubscription
@@ -1507,26 +1507,32 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		if err != nil {
 			return nil, err
 		}
-
+		enabledPairs = enabledPairs.Format(*b.CurrencyPairs.Pairs[assets[i]].RequestFormat)
 		for j := range channels {
 			for k := range enabledPairs {
-				params := make(map[string]interface{})
-				if channels[j] == wsBook {
-					params["prec"] = "R0"
-					params["len"] = "100"
+				var fPair string
+				switch assets[i] {
+				case asset.Spot, asset.Margin:
+					fPair = "t" + enabledPairs[k].String()
+				case asset.MarginFunding:
+					fPair = "f" + enabledPairs[k].String()
 				}
-
-				if channels[j] == wsCandles {
+				params := make(map[string]interface{}, 4)
+				switch channels[j] {
+				case wsBook:
+					params["prec"] = "P0"
+					params["len"] = "100"
+					params["freq"] = "F0"
+					params["symbol"] = fPair
+				case wsCandles:
 					// TODO: Add ability to select timescale && funding period
 					var fundingPeriod string
-					prefix := "t"
 					if assets[i] == asset.MarginFunding {
-						prefix = "f"
 						fundingPeriod = ":p30"
 					}
-					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
-				} else {
-					params["symbol"] = enabledPairs[k].String()
+					params["key"] = "trade:1m:" + fPair + fundingPeriod
+				default:
+					params["symbol"] = fPair
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{

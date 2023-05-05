@@ -299,10 +299,14 @@ func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 	case asset.Margin:
 		for k := range items {
-			if !strings.Contains(k, ":") {
+			pairStr := strings.Split(k, ":")
+			if len(pairStr) <= 1 {
 				continue
 			}
-			pair, err = currency.NewPairFromStrings(k[1:], "")
+			if strings.HasPrefix(pairStr[0], "t") {
+				pairStr[0] = pairStr[0][1:]
+			}
+			pair, err = currency.NewPairFromStrings(pairStr[0], strings.Join(pairStr[1:], ""))
 			if err != nil {
 				return nil, err
 			}
