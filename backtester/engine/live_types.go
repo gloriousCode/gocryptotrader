@@ -98,7 +98,7 @@ type liveDataSourceDataHandler struct {
 	pair                      currency.Pair
 	underlyingPair            currency.Pair
 	dataType                  int64
-	pairCandles               *kline.DataFromKline
+	pairCandles               *kline.CandleEvents
 	processedData             map[int64]struct{}
 	candlesToAppend           *gctkline.Item
 	dataRequestRetryTolerance int64

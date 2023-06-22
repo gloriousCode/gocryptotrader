@@ -410,7 +410,7 @@ func TestGenerateReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	dfk := &kline.DataFromKline{
+	dfk := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: exchName,
@@ -462,7 +462,7 @@ func TestCreateSnapshot(t *testing.T) {
 	}
 
 	f.items = append(f.items, &Item{})
-	dfk := &kline.DataFromKline{
+	dfk := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Candles: []gctkline.Candle{
@@ -501,12 +501,12 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	err = f.AddUSDTrackingData(kline.NewDataFromKline())
+	err = f.AddUSDTrackingData(kline.NewCandleEvents())
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
 	}
 
-	dfk := &kline.DataFromKline{
+	dfk := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Candles: []gctkline.Candle{
@@ -541,7 +541,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, errCannotMatchTrackingToItem)
 	}
 
-	dfk = &kline.DataFromKline{
+	dfk = &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: exchName,
@@ -996,7 +996,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 		t.Errorf("received '%v', expected  '%v'", err, gctcommon.ErrNotYetImplemented)
 	}
 
-	f.items[0].trackingCandles = kline.NewDataFromKline()
+	f.items[0].trackingCandles = kline.NewCandleEvents()
 	err = f.items[0].trackingCandles.SetStream([]data.Event{
 		&fakeEvent{},
 	})

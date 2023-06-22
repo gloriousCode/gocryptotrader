@@ -686,7 +686,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints
 // it can also be generated from trade data which will be converted into kline data
-func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.CandleEvents, error) {
 	if exch == nil {
 		return nil, engine.ErrExchangeNotFound
 	}
@@ -712,7 +712,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	}
 
 	log.Infof(common.Setup, "Loading data for %v %v %v...\n", exch.GetName(), a, fPair)
-	resp := kline.NewDataFromKline()
+	resp := kline.NewCandleEvents()
 	underlyingPair := currency.EMPTYPAIR
 	if a.IsFutures() {
 		// returning the collateral currency along with using the
@@ -871,7 +871,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 	return resp, nil
 }
 
-func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
+func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a asset.Item, dataType int64, isUSDTrackingPair bool) (*kline.CandleEvents, error) {
 	if cfg == nil || cfg.DataSettings.DatabaseData == nil {
 		return nil, errors.New("nil config data received")
 	}
@@ -890,7 +890,7 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		isUSDTrackingPair)
 }
 
-func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.DataFromKline, error) {
+func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint32, dataType int64) (*kline.CandleEvents, error) {
 	if cfg.DataSettings.Interval <= 0 {
 		return nil, errIntervalUnset
 	}
@@ -925,7 +925,7 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 	if len(summary) > 0 {
 		log.Warnf(common.Setup, "%v", summary)
 	}
-	return &kline.DataFromKline{
+	return &kline.CandleEvents{
 		Base:        &data.Base{},
 		Item:        candles,
 		RangeHolder: dates,

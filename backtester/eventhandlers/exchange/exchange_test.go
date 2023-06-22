@@ -311,7 +311,7 @@ func TestExecuteOrder(t *testing.T) {
 			},
 		},
 	}
-	d := &kline.DataFromKline{
+	d := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: item,
 	}
@@ -438,7 +438,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
 
-	d := &kline.DataFromKline{
+	d := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: testExchange,

@@ -506,7 +506,7 @@ func TestFullCycle(t *testing.T) {
 	}
 
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
@@ -646,7 +646,7 @@ func TestFullCycleMulti(t *testing.T) {
 	}
 
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: ex,
 			Pair:     cp,
@@ -769,7 +769,7 @@ func TestTriggerLiquidationsForExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	da := &kline.DataFromKline{
+	da := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Asset:    a,
@@ -1021,7 +1021,7 @@ func TestProcessOrderEvent(t *testing.T) {
 	}
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
@@ -1137,7 +1137,7 @@ func TestProcessFillEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
@@ -1249,7 +1249,7 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	}
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,
@@ -1360,7 +1360,7 @@ func TestCloseAllPositions(t *testing.T) {
 		underlyingPair:            cp,
 		dataType:                  common.DataCandle,
 		dataRequestRetryTolerance: 1,
-		pairCandles: &kline.DataFromKline{
+		pairCandles: &kline.CandleEvents{
 			Base: &data.Base{},
 			Item: &gctkline.Item{
 				Exchange:       testExchange,
@@ -1984,7 +1984,7 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	bt.Funding = f
 	tt := time.Now()
 	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
+	k := &kline.CandleEvents{
 		Item: &gctkline.Item{
 			Exchange: testExchange,
 			Pair:     cp,

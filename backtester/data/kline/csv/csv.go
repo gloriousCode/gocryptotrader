@@ -23,8 +23,8 @@ import (
 var errNoUSDData = errors.New("could not retrieve USD CSV candle data")
 
 // LoadData is a basic csv reader which converts the found CSV file into a kline item
-func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.DataFromKline, error) {
-	resp := kline.NewDataFromKline()
+func LoadData(dataType int64, filepath, exchangeName string, interval time.Duration, fPair currency.Pair, a asset.Item, isUSDTrackingPair bool) (*kline.CandleEvents, error) {
+	resp := kline.NewCandleEvents()
 	csvFile, err := os.Open(filepath)
 	if err != nil {
 		return nil, err

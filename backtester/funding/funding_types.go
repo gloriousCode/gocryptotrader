@@ -40,7 +40,7 @@ type IFundingManager interface {
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() (*Report, error)
-	AddUSDTrackingData(*kline.DataFromKline) error
+	AddUSDTrackingData(*kline.CandleEvents) error
 	CreateSnapshot(time.Time) error
 	USDTrackingDisabled() bool
 	Liquidate(common.Event) error
@@ -157,12 +157,12 @@ type Item struct {
 	reserved          decimal.Decimal
 	transferFee       decimal.Decimal
 	pairedWith        *Item
-	trackingCandles   *kline.DataFromKline
+	trackingCandles   *kline.CandleEvents
 	snapshot          map[int64]ItemSnapshot
 	isCollateral      bool
 	isLiquidated      bool
 	appendedViaAPI    bool
-	collateralCandles map[currency.Code]kline.DataFromKline
+	collateralCandles map[currency.Code]kline.CandleEvents
 }
 
 // SpotPair holds two currencies that are associated with each other
@@ -213,7 +213,7 @@ type ReportItem struct {
 	USDFinalFunds        decimal.Decimal
 	USDFinalCostForOne   decimal.Decimal
 	Snapshots            []ItemSnapshot
-	USDPairCandle        *kline.DataFromKline
+	USDPairCandle        *kline.CandleEvents
 	Difference           decimal.Decimal
 	ShowInfinite         bool
 	IsCollateral         bool

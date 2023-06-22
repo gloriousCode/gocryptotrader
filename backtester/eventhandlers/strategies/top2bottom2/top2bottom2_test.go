@@ -130,7 +130,7 @@ func TestOnSignals(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected  '%v'", err, nil)
 	}
-	da := &kline.DataFromKline{
+	da := &kline.CandleEvents{
 		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},

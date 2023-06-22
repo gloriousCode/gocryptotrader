@@ -168,7 +168,7 @@ func (f fakeDataHolder) SetDataForCurrency(string, asset.Item, currency.Pair, da
 
 func (f fakeDataHolder) GetAllData() ([]data.Handler, error) {
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	return []data.Handler{&kline.DataFromKline{
+	return []data.Handler{&kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange:       testExchange,
@@ -242,7 +242,7 @@ func (f fakeFunding) GenerateReport() (*funding.Report, error) {
 	return nil, nil
 }
 
-func (f fakeFunding) AddUSDTrackingData(*kline.DataFromKline) error {
+func (f fakeFunding) AddUSDTrackingData(*kline.CandleEvents) error {
 	return nil
 }
 

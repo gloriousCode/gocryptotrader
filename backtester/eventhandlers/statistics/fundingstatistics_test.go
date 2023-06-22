@@ -64,7 +64,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 			},
 		},
 	}
-	dfk := &kline.DataFromKline{
+	dfk := &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &usdKline,
 	}
@@ -171,7 +171,7 @@ func TestCalculateIndividualFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	ri.USDPairCandle = &kline.DataFromKline{
+	ri.USDPairCandle = &kline.CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange:       testExchange,

@@ -25,7 +25,7 @@ func TestGetBase(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
 
-	_, err = s.GetBaseData(datakline.NewDataFromKline())
+	_, err = s.GetBaseData(datakline.NewCandleEvents())
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
@@ -56,7 +56,7 @@ func TestGetBase(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	_, err = s.GetBaseData(&datakline.DataFromKline{
+	_, err = s.GetBaseData(&datakline.CandleEvents{
 		Item:        &gctkline.Item{},
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},

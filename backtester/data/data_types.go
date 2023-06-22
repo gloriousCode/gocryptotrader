@@ -80,6 +80,7 @@ type Streamer interface {
 	StreamVol() ([]decimal.Decimal, error)
 
 	HasDataAtTime(time.Time) (bool, error)
+	HasFundingRates() bool
 }
 
 // Event interface used for loading and interacting with Data

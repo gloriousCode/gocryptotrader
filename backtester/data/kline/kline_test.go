@@ -25,7 +25,7 @@ func TestLoad(t *testing.T) {
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	tt := time.Now()
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	err := d.Load()
@@ -61,7 +61,7 @@ func TestHasDataAtTime(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	has, err := d.HasDataAtTime(time.Now())
@@ -151,7 +151,7 @@ func TestAppend(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	tt1 := time.Date(2020, 1, 0, 0, 0, 0, 0, time.UTC)
 	tt2 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 		Item: &gctkline.Item{
 			Exchange: testExchange,
@@ -212,7 +212,7 @@ func TestStreamOpen(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamOpen()
@@ -259,7 +259,7 @@ func TestStreamVolume(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamVol()
@@ -306,7 +306,7 @@ func TestStreamClose(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamClose()
@@ -354,7 +354,7 @@ func TestStreamHigh(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base: &data.Base{},
 	}
 	bad, err := d.StreamHigh()
@@ -402,7 +402,7 @@ func TestStreamLow(t *testing.T) {
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
-	d := DataFromKline{
+	d := CandleEvents{
 		Base:        &data.Base{},
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}

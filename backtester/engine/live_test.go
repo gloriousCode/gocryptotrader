@@ -344,7 +344,7 @@ func TestFetchLatestData(t *testing.T) {
 			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
 			dataRequestRetryTolerance: 1,
 			underlyingPair:            cp,
-			pairCandles: &datakline.DataFromKline{
+			pairCandles: &datakline.CandleEvents{
 				Base: &data.Base{},
 				Item: &kline.Item{
 					Exchange:       testExchange,
@@ -407,7 +407,7 @@ func TestLoadCandleData(t *testing.T) {
 	l.dataType = common.DataCandle
 	l.asset = asset.Spot
 	l.pair = cp
-	l.pairCandles = &datakline.DataFromKline{
+	l.pairCandles = &datakline.CandleEvents{
 		Base: &data.Base{},
 		Item: &kline.Item{
 			Exchange:       testExchange,
@@ -459,7 +459,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 			dataRequestRetryWaitTime:  defaultDataRequestWaitTime,
 			dataRequestRetryTolerance: 1,
 			underlyingPair:            cp,
-			pairCandles: &datakline.DataFromKline{
+			pairCandles: &datakline.CandleEvents{
 				Base: &data.Base{},
 				Item: &kline.Item{
 					Exchange:       testExchange,

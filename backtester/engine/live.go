@@ -303,7 +303,7 @@ func (d *dataChecker) AppendDataSource(dataSource *liveDataSourceSetup) error {
 			return fmt.Errorf("%w %v %v %v", errDataSourceExists, exchName, dataSource.asset, dataSource.pair)
 		}
 	}
-	k := kline.NewDataFromKline()
+	k := kline.NewCandleEvents()
 	k.Item = &gctkline.Item{
 		Exchange:       exchName,
 		Pair:           dataSource.pair,

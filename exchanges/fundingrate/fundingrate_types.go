@@ -7,10 +7,15 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
-var ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+var (
+	// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
+	ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+	// ErrRatesMissing returns when rates are missing
+	ErrRatesMissing = errors.New("missing funding rates")
+)
 
 // RatesRequest is used to request funding rate details for a position
 type RatesRequest struct {
@@ -43,6 +48,7 @@ type Rates struct {
 	PaymentSum            decimal.Decimal
 	PaymentCurrency       currency.Code
 	TimeOfNextRate        time.Time
+	RateInterval          kline.Interval
 }
 
 // LatestRateRequest is used to request the latest funding rate

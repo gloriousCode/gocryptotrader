@@ -146,7 +146,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) error {
 
 // AddUSDTrackingData adds USD tracking data to a funding item
 // only in the event that it is not USD and there is data
-func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
+func (f *FundManager) AddUSDTrackingData(k *kline.CandleEvents) error {
 	if f == nil || f.items == nil {
 		return gctcommon.ErrNilPointer
 	}
@@ -206,7 +206,7 @@ func (f *FundManager) AddUSDTrackingData(k *kline.DataFromKline) error {
 // usd stablecoins do not always match in value,
 // this is a simplified implementation that can allow
 // USD tracking for many currencies across many exchanges
-func (f *FundManager) setUSDCandles(k *kline.DataFromKline, i *Item) error {
+func (f *FundManager) setUSDCandles(k *kline.CandleEvents, i *Item) error {
 	usdCandles := gctkline.Item{
 		Exchange: k.Item.Exchange,
 		Pair:     currency.Pair{Delimiter: k.Item.Pair.Delimiter, Base: i.currency, Quote: currency.USD},

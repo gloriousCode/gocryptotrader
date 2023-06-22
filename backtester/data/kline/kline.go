@@ -9,19 +9,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// NewDataFromKline returns a new struct
-func NewDataFromKline() *DataFromKline {
-	return &DataFromKline{
+// NewCandleEvents returns a new struct
+func NewCandleEvents() *CandleEvents {
+	return &CandleEvents{
 		Base: &data.Base{},
 	}
 }
 
 // HasDataAtTime verifies checks the underlying range data
 // To determine whether there is any candle data present at the time provided
-func (d *DataFromKline) HasDataAtTime(t time.Time) (bool, error) {
+func (d *CandleEvents) HasDataAtTime(t time.Time) (bool, error) {
 	isLive, err := d.Base.IsLive()
 	if err != nil {
 		return false, err
@@ -46,7 +47,7 @@ func (d *DataFromKline) HasDataAtTime(t time.Time) (bool, error) {
 }
 
 // Load sets the candle data to the stream for processing
-func (d *DataFromKline) Load() error {
+func (d *CandleEvents) Load() error {
 	if d.Item == nil || len(d.Item.Candles) == 0 {
 		return errNoCandleData
 	}
@@ -77,7 +78,7 @@ func (d *DataFromKline) Load() error {
 }
 
 // AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *DataFromKline) AppendResults(ki *gctkline.Item) error {
+func (d *CandleEvents) AppendResults(ki *gctkline.Item) error {
 	if ki == nil {
 		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
 	}
@@ -142,7 +143,7 @@ candleLoop:
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration
-func (d *DataFromKline) StreamOpen() ([]decimal.Decimal, error) {
+func (d *CandleEvents) StreamOpen() ([]decimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
@@ -156,7 +157,7 @@ func (d *DataFromKline) StreamOpen() ([]decimal.Decimal, error) {
 }
 
 // StreamHigh returns all High prices from the beginning until the current iteration
-func (d *DataFromKline) StreamHigh() ([]decimal.Decimal, error) {
+func (d *CandleEvents) StreamHigh() ([]decimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func (d *DataFromKline) StreamHigh() ([]decimal.Decimal, error) {
 }
 
 // StreamLow returns all Low prices from the beginning until the current iteration
-func (d *DataFromKline) StreamLow() ([]decimal.Decimal, error) {
+func (d *CandleEvents) StreamLow() ([]decimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
@@ -184,7 +185,7 @@ func (d *DataFromKline) StreamLow() ([]decimal.Decimal, error) {
 }
 
 // StreamClose returns all Close prices from the beginning until the current iteration
-func (d *DataFromKline) StreamClose() ([]decimal.Decimal, error) {
+func (d *CandleEvents) StreamClose() ([]decimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
@@ -198,7 +199,7 @@ func (d *DataFromKline) StreamClose() ([]decimal.Decimal, error) {
 }
 
 // StreamVol returns all Volume prices from the beginning until the current iteration
-func (d *DataFromKline) StreamVol() ([]decimal.Decimal, error) {
+func (d *CandleEvents) StreamVol() ([]decimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
@@ -209,4 +210,36 @@ func (d *DataFromKline) StreamVol() ([]decimal.Decimal, error) {
 		ret[x] = s[x].GetVolume()
 	}
 	return ret, nil
+}
+
+// LoadFundingRates loads funding rates into the data set
+func (d *CandleEvents) LoadFundingRates(rates *fundingrate.Rates) error {
+	if d.Item == nil || len(d.Item.Candles) == 0 {
+		return fmt.Errorf("%w no candles to load funding rates into", gctkline.ErrInsufficientCandleData)
+	}
+	if rates.RateInterval != d.Item.Interval {
+		return fmt.Errorf("%w %v %v", gctkline.ErrUnsupportedInterval, rates.RateInterval, d.Item.Interval)
+	}
+	timesWithRates := make(map[int64]bool, len(d.Item.Candles))
+candles:
+	for i := range d.Item.Candles {
+		for j := range rates.FundingRates {
+			truncTime := d.Item.Candles[i].Time.Truncate(rates.RateInterval.Duration())
+			if d.Item.Candles[i].Time.Truncate(rates.RateInterval.Duration()).Equal(rates.FundingRates[j].Time) {
+				timesWithRates[truncTime.UnixMilli()] = true
+				continue candles
+			}
+		}
+	}
+	var err error
+	for i := range timesWithRates {
+		if !timesWithRates[i] {
+			err = gctcommon.AppendError(err, fmt.Errorf("%w %v", fundingrate.ErrRatesMissing, time.UnixMilli(i)))
+		}
+	}
+	if err != nil {
+		return err
+	}
+	d.FundingRates = rates
+	return nil
 }
