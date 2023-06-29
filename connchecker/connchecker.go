@@ -51,7 +51,7 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 	if err := c.initialCheck(); err != nil {
 		return nil, err
 	}
-
+	c.mu.Lock()
 	if c.connected {
 		log.Debugln(log.Global, ConnFound)
 	} else {
@@ -59,6 +59,7 @@ func New(dnsList, domainList []string, checkInterval time.Duration) (*Checker, e
 	}
 
 	c.shutdown = make(chan struct{}, 1)
+	c.mu.Unlock()
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go c.Monitor(&wg)
@@ -79,7 +80,9 @@ type Checker struct {
 
 // Shutdown cleanly shutsdown monitor routine
 func (c *Checker) Shutdown() {
+	c.mu.Lock()
 	c.connected = false
+	c.mu.Unlock()
 	close(c.shutdown)
 	c.wg.Wait()
 }
@@ -126,7 +129,9 @@ func (c *Checker) initialCheck() error {
 			connected = true
 		}
 	}
+	c.mu.Lock()
 	c.connected = connected
+	c.mu.Unlock()
 	return nil
 }
 

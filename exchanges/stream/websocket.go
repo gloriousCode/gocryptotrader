@@ -392,10 +392,10 @@ func (w *Websocket) connectionMonitor() error {
 			case err := <-w.ReadMessageErrors:
 				if isDisconnectionError(err) {
 					w.setInit(false)
+					w.shutdownCleanup()
 					log.Warnf(log.WebsocketMgr,
 						"%v websocket has been disconnected. Reason: %v",
 						w.exchangeName, err)
-					w.setConnectedStatus(false)
 				} else {
 					// pass off non disconnect errors to datahandler to manage
 					w.DataHandler <- err
@@ -423,8 +423,6 @@ func (w *Websocket) connectionMonitor() error {
 // Shutdown attempts to shut down a websocket connection and associated routines
 // by using a package defined shutdown function
 func (w *Websocket) Shutdown() error {
-	w.m.Lock()
-	defer w.m.Unlock()
 
 	if !w.IsConnected() {
 		return fmt.Errorf("%v websocket: cannot shutdown %w",
@@ -443,9 +441,6 @@ func (w *Websocket) Shutdown() error {
 			"%v websocket: shutting down websocket\n",
 			w.exchangeName)
 	}
-
-	defer w.Orderbook.FlushBuffer()
-
 	if w.Conn != nil {
 		if err := w.Conn.Shutdown(); err != nil {
 			return err
@@ -457,6 +452,14 @@ func (w *Websocket) Shutdown() error {
 			return err
 		}
 	}
+	w.shutdownCleanup()
+	return nil
+}
+
+func (w *Websocket) shutdownCleanup() {
+	w.m.Lock()
+	defer w.m.Unlock()
+	defer w.Orderbook.FlushBuffer()
 
 	// flush any subscriptions from last connection if needed
 	w.subscriptionMutex.Lock()
@@ -473,7 +476,6 @@ func (w *Websocket) Shutdown() error {
 			"%v websocket: completed websocket shutdown\n",
 			w.exchangeName)
 	}
-	return nil
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change

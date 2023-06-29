@@ -229,10 +229,10 @@ func (ok *Okx) WsConnect() error {
 	if err != nil {
 		return err
 	}
-	ok.Websocket.Wg.Add(2)
+	ok.Websocket.Wg.Add(3)
 	go ok.wsFunnelConnectionData(ok.Websocket.Conn)
 	go ok.WsReadData()
-	go ok.WsResponseMultiplexer.Run()
+	go ok.WsResponseMultiplexer.Run(ok)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -242,6 +242,7 @@ func (ok *Okx) WsConnect() error {
 		Message:     pingMsg,
 		Delay:       time.Second * 27,
 	})
+
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
@@ -1691,10 +1692,13 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 }
 
 // Run this functions distributes websocket request responses to
-func (m *wsRequestDataChannelsMultiplexer) Run() {
+func (m *wsRequestDataChannelsMultiplexer) Run(ok *Okx) {
+	defer ok.Websocket.Wg.Done()
 	tickerData := time.NewTicker(time.Second)
 	for {
 		select {
+		case <-ok.Websocket.ShutdownC:
+			return
 		case <-tickerData.C:
 			for x, myChan := range m.WsResponseChannelsMap {
 				if myChan == nil {
