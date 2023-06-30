@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -160,24 +161,36 @@ type Exchange struct {
 	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
-	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
-	EnabledPairs                     *currency.Pairs      `json:"enabledPairs,omitempty"`
-	AssetTypes                       *string              `json:"assetTypes,omitempty"`
-	PairsLastUpdated                 *int64               `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat         *currency.PairFormat `json:"configCurrencyPairFormat,omitempty"`
-	RequestCurrencyPairFormat        *currency.PairFormat `json:"requestCurrencyPairFormat,omitempty"`
-	AuthenticatedAPISupport          *bool                `json:"authenticatedApiSupport,omitempty"`
-	AuthenticatedWebsocketAPISupport *bool                `json:"authenticatedWebsocketApiSupport,omitempty"`
-	APIKey                           *string              `json:"apiKey,omitempty"`
-	APISecret                        *string              `json:"apiSecret,omitempty"`
-	APIAuthPEMKeySupport             *bool                `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey                    *string              `json:"apiAuthPemKey,omitempty"`
-	APIURL                           *string              `json:"apiUrl,omitempty"`
-	APIURLSecondary                  *string              `json:"apiUrlSecondary,omitempty"`
-	ClientID                         *string              `json:"clientId,omitempty"`
-	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
-	Websocket                        *bool                `json:"websocket,omitempty"`
-	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
+	AvailablePairs                   *currency.Pairs               `json:"availablePairs,omitempty"`
+	EnabledPairs                     *currency.Pairs               `json:"enabledPairs,omitempty"`
+	AssetTypes                       *string                       `json:"assetTypes,omitempty"`
+	PairsLastUpdated                 *int64                        `json:"pairsLastUpdated,omitempty"`
+	ConfigCurrencyPairFormat         *currency.PairFormat          `json:"configCurrencyPairFormat,omitempty"`
+	RequestCurrencyPairFormat        *currency.PairFormat          `json:"requestCurrencyPairFormat,omitempty"`
+	AuthenticatedAPISupport          *bool                         `json:"authenticatedApiSupport,omitempty"`
+	AuthenticatedWebsocketAPISupport *bool                         `json:"authenticatedWebsocketApiSupport,omitempty"`
+	APIKey                           *string                       `json:"apiKey,omitempty"`
+	APISecret                        *string                       `json:"apiSecret,omitempty"`
+	APIAuthPEMKeySupport             *bool                         `json:"apiAuthPemKeySupport,omitempty"`
+	APIAuthPEMKey                    *string                       `json:"apiAuthPemKey,omitempty"`
+	APIURL                           *string                       `json:"apiUrl,omitempty"`
+	APIURLSecondary                  *string                       `json:"apiUrlSecondary,omitempty"`
+	ClientID                         *string                       `json:"clientId,omitempty"`
+	SupportsAutoPairUpdates          *bool                         `json:"supportsAutoPairUpdates,omitempty"`
+	Websocket                        *bool                         `json:"websocket,omitempty"`
+	WebsocketURL                     *string                       `json:"websocketUrl,omitempty"`
+	WebsocketSubscriptionSettings    WebsocketSubscriptionSettings `json:"websocketSubscriptionSettings"`
+}
+
+type WebsocketSubscriptionSettings struct {
+	Asset                      asset.Item             `json:"asset,omitempty"`
+	Subscriptions              WebsocketSubscriptions `json:"subscriptions"`
+	AuthenticatedSubscriptions WebsocketSubscriptions `json:"authenticatedSubscriptions"`
+}
+
+type WebsocketSubscriptions struct {
+	GeneralSubscriptions     []string `json:"generalSubscriptions"`
+	PerCurrencySubscriptions []string `json:"perCurrencySubscriptions"`
 }
 
 // Profiler defines the profiler configuration to enable pprof
