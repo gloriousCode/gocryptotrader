@@ -168,12 +168,12 @@ func TestAppend(t *testing.T) {
 	}
 	Append("sillyexchange", p, asset.Spot, 1234, 45)
 	if len(Items) < 2 {
-		t.Error("stats AppendResults did not add exchange values.")
+		t.Error("stats AppendKlineData did not add exchange values.")
 	}
 
 	Append("sillyexchange", p, asset.Spot, 1234, 45)
 	if len(Items) == 3 {
-		t.Error("stats AppendResults added exchange values")
+		t.Error("stats AppendKlineData added exchange values")
 	}
 }
 

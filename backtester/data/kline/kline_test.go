@@ -12,6 +12,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -182,7 +183,7 @@ func TestAppend(t *testing.T) {
 			},
 		},
 	}
-	err := d.AppendResults(&item)
+	err := d.AppendKlineData(&item)
 	if !errors.Is(err, gctkline.ErrItemNotEqual) {
 		t.Errorf("received: %v, expected: %v", err, gctkline.ErrItemNotEqual)
 	}
@@ -191,17 +192,17 @@ func TestAppend(t *testing.T) {
 	item.Pair = p
 	item.Asset = a
 
-	err = d.AppendResults(&item)
+	err = d.AppendKlineData(&item)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = d.AppendResults(&item)
+	err = d.AppendKlineData(&item)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	err = d.AppendResults(nil)
+	err = d.AppendKlineData(nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received: %v, expected: %v", err, gctcommon.ErrNilPointer)
 	}
@@ -445,4 +446,40 @@ func TestStreamLow(t *testing.T) {
 	if len(low) == 0 {
 		t.Error("expected low")
 	}
+}
+
+func TestHasFundingRates(t *testing.T) {
+	t.Parallel()
+	d := CandleEvents{}
+	if d.HasFundingRates() {
+		t.Error("should be false")
+	}
+
+	d.RateHolder = &fundingrate.Rates{}
+	if d.HasFundingRates() {
+		t.Error("should be false")
+	}
+
+	d.RateHolder.FundingRates = []fundingrate.Rate{
+		{},
+	}
+	if !d.HasFundingRates() {
+		t.Error("should be true")
+	}
+}
+
+func TestGetFundingRateForInterval(t *testing.T) {
+
+}
+
+func TestGetLatestFundingRate(t *testing.T) {
+
+}
+
+func TestGetFundingRateForTime(t *testing.T) {
+
+}
+
+func TestLoadFundingRates(t *testing.T) {
+
 }

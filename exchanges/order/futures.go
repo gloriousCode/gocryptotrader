@@ -438,7 +438,7 @@ func (m *MultiPositionTracker) TrackFundingDetails(d *fundingrate.Rates) error {
 		return fmt.Errorf("multi-position tracker %w", common.ErrNilPointer)
 	}
 	if d == nil {
-		return fmt.Errorf("%w FundingRates", common.ErrNilPointer)
+		return fmt.Errorf("%w RateHolder", common.ErrNilPointer)
 	}
 	var err error
 	d.Exchange, err = checkTrackerPrerequisitesLowerExchange(d.Exchange, d.Asset, d.Pair)

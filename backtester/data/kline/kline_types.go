@@ -14,7 +14,7 @@ var errNoCandleData = errors.New("no candle data provided")
 // It holds candle data for a specified range with helper functions
 type CandleEvents struct {
 	*data.Base
-	Item         *gctkline.Item
-	RangeHolder  *gctkline.IntervalRangeHolder
-	FundingRates *fundingrate.Rates
+	Item        *gctkline.Item
+	RangeHolder *gctkline.IntervalRangeHolder
+	RateHolder  *fundingrate.Rates
 }

@@ -77,8 +77,8 @@ func (d *CandleEvents) Load() error {
 	return d.SetStream(klineData)
 }
 
-// AppendResults adds a candle item to the data stream and sorts it to ensure it is all in order
-func (d *CandleEvents) AppendResults(ki *gctkline.Item) error {
+// AppendKlineData adds a candle item to the data stream and sorts it to ensure it is all in order
+func (d *CandleEvents) AppendKlineData(ki *gctkline.Item) error {
 	if ki == nil {
 		return fmt.Errorf("%w kline item", gctcommon.ErrNilPointer)
 	}
@@ -217,15 +217,15 @@ func (d *CandleEvents) LoadFundingRates(rates *fundingrate.Rates) error {
 	if d.Item == nil || len(d.Item.Candles) == 0 {
 		return fmt.Errorf("%w no candles to load funding rates into", gctkline.ErrInsufficientCandleData)
 	}
-	if rates.RateInterval != d.Item.Interval {
+	if rates.RateInterval != d.Item.Interval.Duration() {
 		return fmt.Errorf("%w %v %v", gctkline.ErrUnsupportedInterval, rates.RateInterval, d.Item.Interval)
 	}
 	timesWithRates := make(map[int64]bool, len(d.Item.Candles))
 candles:
 	for i := range d.Item.Candles {
 		for j := range rates.FundingRates {
-			truncTime := d.Item.Candles[i].Time.Truncate(rates.RateInterval.Duration())
-			if d.Item.Candles[i].Time.Truncate(rates.RateInterval.Duration()).Equal(rates.FundingRates[j].Time) {
+			truncTime := d.Item.Candles[i].Time.Truncate(rates.RateInterval)
+			if d.Item.Candles[i].Time.Truncate(rates.RateInterval).Equal(rates.FundingRates[j].Time) {
 				timesWithRates[truncTime.UnixMilli()] = true
 				continue candles
 			}
@@ -240,6 +240,52 @@ candles:
 	if err != nil {
 		return err
 	}
-	d.FundingRates = rates
+	d.RateHolder = rates
 	return nil
+}
+
+// GetFundingRateForTime returns the funding rate for a specific time
+func (d *CandleEvents) GetFundingRateForTime(t time.Time) (*fundingrate.Rate, error) {
+	if d.RateHolder == nil {
+		return nil, fmt.Errorf("%w", fundingrate.ErrRatesMissing)
+	}
+	for i := range d.RateHolder.FundingRates {
+		if d.RateHolder.FundingRates[i].Time.Equal(t) {
+			return &d.RateHolder.FundingRates[i], nil
+		}
+	}
+	return nil, fmt.Errorf("%w for %v", fundingrate.ErrRatesMissing, t)
+}
+
+// GetFundingRateForInterval returns the funding rate for the interval
+// funding rate intervals can differ from kline interval rates
+func (d *CandleEvents) GetFundingRateForInterval(t time.Time) (*fundingrate.Rate, error) {
+	if d.RateHolder == nil {
+		return nil, fmt.Errorf("%w", fundingrate.ErrRatesMissing)
+	}
+	for i := range d.RateHolder.FundingRates {
+		if d.RateHolder.FundingRates[i].Time.Equal(t) ||
+			(d.RateHolder.FundingRates[i].Time.After(t) && d.RateHolder.FundingRates[i].Time.Add(d.RateHolder.RateInterval).Before(t)) {
+			return &d.RateHolder.FundingRates[i], nil
+		}
+	}
+	return nil, fmt.Errorf("%w for %v", fundingrate.ErrRatesMissing, t)
+}
+
+// GetLatestFundingRate returns the funding rate for the latest event
+func (d *CandleEvents) GetLatestFundingRate() (*fundingrate.Rate, error) {
+	if d.RateHolder == nil {
+		return nil, fmt.Errorf("%w", fundingrate.ErrRatesMissing)
+	}
+	le, err := d.Base.Latest()
+	if err != nil {
+		return nil, err
+	}
+
+	return d.GetFundingRateForInterval(le.GetTime())
+}
+
+// HasFundingRates returns whether funding rates are set
+func (d *CandleEvents) HasFundingRates() bool {
+	return d.RateHolder != nil && len(d.RateHolder.FundingRates) > 0
 }

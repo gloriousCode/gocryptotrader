@@ -7,7 +7,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 var (
@@ -48,7 +47,7 @@ type Rates struct {
 	PaymentSum            decimal.Decimal
 	PaymentCurrency       currency.Code
 	TimeOfNextRate        time.Time
-	RateInterval          kline.Interval
+	RateInterval          time.Duration
 }
 
 // LatestRateRequest is used to request the latest funding rate

@@ -377,7 +377,7 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 		if d.verboseDataCheck {
 			log.Infof(common.LiveStrategy, "%v %v %v found new data", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair)
 		}
-		err = d.sourcesToCheck[i].pairCandles.AppendResults(d.sourcesToCheck[i].candlesToAppend)
+		err = d.sourcesToCheck[i].pairCandles.AppendKlineData(d.sourcesToCheck[i].candlesToAppend)
 		if err != nil {
 			return false, err
 		}
@@ -440,7 +440,7 @@ func (d *dataChecker) SetDataForClosingAllPositions(s ...signal.Event) error {
 				Close:  s[x].GetClosePrice().InexactFloat64(),
 				Volume: s[x].GetVolume().InexactFloat64(),
 			})
-			err = d.sourcesToCheck[y].pairCandles.AppendResults(d.sourcesToCheck[y].pairCandles.Item)
+			err = d.sourcesToCheck[y].pairCandles.AppendKlineData(d.sourcesToCheck[y].pairCandles.Item)
 			if err != nil {
 				log.Errorf(common.LiveStrategy, "%v %v %v issue appending kline data: %v", d.sourcesToCheck[y].exchangeName, d.sourcesToCheck[y].asset, d.sourcesToCheck[y].pair, err)
 				continue

@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 )
 
 var (
@@ -24,20 +25,6 @@ var (
 	errNothingToAdd    = errors.New("cannot append empty event to stream")
 	errMisMatchedEvent = errors.New("cannot add event to stream, does not match")
 )
-
-// HandlerHolder stores an event handler per exchange asset pair
-type HandlerHolder struct {
-	m    sync.Mutex
-	data map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler
-}
-
-// Holder interface dictates what a Data holder is expected to do
-type Holder interface {
-	SetDataForCurrency(string, asset.Item, currency.Pair, Handler) error
-	GetAllData() ([]Handler, error)
-	GetDataForCurrency(ev common.Event) (Handler, error)
-	Reset() error
-}
 
 // Base is the base implementation of some interface functions
 // where further specific functions are implemented in DataFromKline
@@ -60,6 +47,7 @@ type Handler interface {
 // Loader interface for Loading Data into backtest supported format
 type Loader interface {
 	Load() error
+	LoadFundingRates(rates *fundingrate.Rates) error
 	AppendStream(s ...Event) error
 }
 
@@ -81,6 +69,9 @@ type Streamer interface {
 
 	HasDataAtTime(time.Time) (bool, error)
 	HasFundingRates() bool
+	GetFundingRateForTime(t time.Time) (*fundingrate.Rate, error)
+	GetFundingRateForInterval(t time.Time) (*fundingrate.Rate, error)
+	GetLatestFundingRate() (*fundingrate.Rate, error)
 }
 
 // Event interface used for loading and interacting with Data
