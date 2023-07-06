@@ -4919,6 +4919,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				if v[i].Error != nil {
 					cb.Error = v[i].Error.Error()
 				}
+				if result.CollateralByAsset == nil {
+					result.CollateralByAsset = make(map[string]*gctrpc.CollateralByAsset)
+				}
 				if result.CollateralByAsset[k.String()] == nil {
 					result.CollateralByAsset[k.String()] = &gctrpc.CollateralByAsset{}
 				}
