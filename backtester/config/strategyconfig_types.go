@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
@@ -54,36 +55,34 @@ type DataSettings struct {
 
 // FundingSettings contains funding details for individual currencies
 type FundingSettings struct {
-	UseExchangeLevelFunding bool                   `json:"use-exchange-level-funding"`
-	ExchangeLevelFunding    []ExchangeLevelFunding `json:"exchange-level-funding,omitempty"`
+	ExchangeWallets []ExchangeWallet `json:"exchange-wallets"`
 }
 
 // StrategySettings contains what strategy to load, along with custom settings map
 // (variables defined per strategy)
 // along with defining whether the strategy will assess all currencies at once, or individually
 type StrategySettings struct {
-	Name                         string `json:"name"`
-	SimultaneousSignalProcessing bool   `json:"use-simultaneous-signal-processing"`
-
+	Name string `json:"name"`
 	// If true, won't track USD values against currency pair
 	// bool language is opposite to encourage use by default
 	DisableUSDTracking bool                   `json:"disable-usd-tracking"`
 	CustomSettings     map[string]interface{} `json:"custom-settings,omitempty"`
 }
 
-// ExchangeLevelFunding allows the portfolio manager to access
+// ExchangeWallet allows the portfolio manager to access
 // a shared pool. For example, The base currencies BTC and LTC can both
 // access the same USDT funding to make purchasing decisions
 // Similarly, when a BTC is sold, LTC can now utilise the increased funding
 // Importantly, exchange level funding is all-inclusive, you cannot have it for only some uses
 // It also is required to use SimultaneousSignalProcessing, otherwise the first currency processed
 // will have dibs
-type ExchangeLevelFunding struct {
-	ExchangeName string          `json:"exchange-name"`
-	Asset        asset.Item      `json:"asset"`
-	Currency     currency.Code   `json:"currency"`
-	InitialFunds decimal.Decimal `json:"initial-funds"`
-	TransferFee  decimal.Decimal `json:"transfer-fee"`
+type ExchangeWallet struct {
+	ExchangeName   string          `json:"exchange-name"`
+	Asset          asset.Item      `json:"asset"`
+	Currency       currency.Code   `json:"currency"`
+	InitialFunds   decimal.Decimal `json:"initial-funds"`
+	TransferFee    decimal.Decimal `json:"transfer-fee"`
+	CollateralMode collateral.Mode `json:"collateral-mode"`
 }
 
 // StatisticSettings adjusts ratios where

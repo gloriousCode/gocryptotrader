@@ -226,10 +226,6 @@ func (f fakeFunding) Reset() error {
 	return nil
 }
 
-func (f fakeFunding) IsUsingExchangeLevelFunding() bool {
-	return true
-}
-
 func (f fakeFunding) GetFundingForEvent(common.Event) (funding.IFundingPair, error) {
 	return &funding.SpotPair{}, nil
 }
@@ -288,19 +284,11 @@ func (f fakeStrat) Description() string {
 	return "fake"
 }
 
-func (f fakeStrat) OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error) {
-	return nil, nil
-}
-
-func (f fakeStrat) OnSimultaneousSignals([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error) {
+func (f fakeStrat) Execute([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error) {
 	return nil, nil
 }
 
 func (f fakeStrat) UsingSimultaneousProcessing() bool {
-	return true
-}
-
-func (f fakeStrat) SupportsSimultaneousProcessing() bool {
 	return true
 }
 

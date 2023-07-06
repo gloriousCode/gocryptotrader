@@ -72,6 +72,7 @@ type TotalCollateralResponse struct {
 	AvailableCollateral                         decimal.Decimal
 	AvailableMaintenanceCollateral              decimal.Decimal
 	UnrealisedPNL                               decimal.Decimal
+	BreakdownByAsset                            map[asset.Item][]collateral.ByCurrency
 	BreakdownByCurrency                         []collateral.ByCurrency
 	BreakdownOfPositions                        []collateral.ByPosition
 }

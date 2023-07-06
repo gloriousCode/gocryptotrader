@@ -6,7 +6,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -44,75 +43,9 @@ func (s *Strategy) Description() string {
 	return description
 }
 
-// OnSignal handles a data event and returns what action the strategy believes should occur
-// For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
-// sell signal when it is at or above a certain level
-func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
-	if d == nil {
-		return nil, common.ErrNilEvent
-	}
-	es, err := s.GetBaseData(d)
-	if err != nil {
-		return nil, err
-	}
-
-	latest, err := d.Latest()
-	if err != nil {
-		return nil, err
-	}
-
-	es.SetPrice(latest.GetClosePrice())
-
-	if offset := latest.GetOffset(); offset <= s.rsiPeriod.IntPart() {
-		es.AppendReason("Not enough data for signal generation")
-		es.SetDirection(order.DoNothing)
-		return &es, nil
-	}
-
-	dataRange, err := d.StreamClose()
-	if err != nil {
-		return nil, err
-	}
-	var massagedData []float64
-	massagedData, err = s.massageMissingData(dataRange, es.GetTime())
-	if err != nil {
-		return nil, err
-	}
-	rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
-	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
-	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
-	if err != nil {
-		return nil, err
-	}
-	if !hasDataAtTime {
-		es.SetDirection(order.MissingData)
-		es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", latest.GetTime(), latestRSIValue)
-		return &es, nil
-	}
-
-	switch {
-	case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
-		es.SetDirection(order.Sell)
-	case latestRSIValue.LessThanOrEqual(s.rsiLow):
-		es.SetDirection(order.Buy)
-	default:
-		es.SetDirection(order.DoNothing)
-	}
-	es.AppendReasonf("RSI at %v", latestRSIValue)
-
-	return &es, nil
-}
-
-// SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
-// There is nothing actually stopping this strategy from considering multiple currencies at once
-// but for demonstration purposes, this strategy does not
-func (s *Strategy) SupportsSimultaneousProcessing() bool {
-	return true
-}
-
-// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
+// Execute analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) Execute(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs error
 	for i := range d {
@@ -120,16 +53,65 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTra
 		if err != nil {
 			return nil, err
 		}
-		sigEvent, err := s.OnSignal(d[i], nil, nil)
+		es, err := s.GetBaseData(d[i])
+		if err != nil {
+			return nil, err
+		}
+
+		es.SetPrice(latest.GetClosePrice())
+
+		if offset := latest.GetOffset(); offset <= s.rsiPeriod.IntPart() {
+			es.AppendReason("Not enough data for signal generation")
+			es.SetDirection(order.DoNothing)
+			continue
+		}
+
+		dataRange, err := d[i].StreamClose()
 		if err != nil {
 			errs = gctcommon.AppendError(errs, fmt.Errorf("%v %v %v %w",
 				latest.GetExchange(),
 				latest.GetAssetType(),
 				latest.Pair(),
 				err))
-		} else {
-			resp = append(resp, sigEvent)
+			continue
 		}
+		var massagedData []float64
+		massagedData, err = s.massageMissingData(dataRange, es.GetTime())
+		if err != nil {
+			errs = gctcommon.AppendError(errs, fmt.Errorf("%v %v %v %w",
+				latest.GetExchange(),
+				latest.GetAssetType(),
+				latest.Pair(),
+				err))
+			continue
+		}
+		rsi := indicators.RSI(massagedData, int(s.rsiPeriod.IntPart()))
+		latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
+		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
+		if err != nil {
+			errs = gctcommon.AppendError(errs, fmt.Errorf("%v %v %v %w",
+				latest.GetExchange(),
+				latest.GetAssetType(),
+				latest.Pair(),
+				err))
+			continue
+		}
+		if !hasDataAtTime {
+			es.SetDirection(order.MissingData)
+			es.AppendReasonf("missing data at %v, cannot perform any actions. RSI %v", latest.GetTime(), latestRSIValue)
+			continue
+		}
+
+		switch {
+		case latestRSIValue.GreaterThanOrEqual(s.rsiHigh):
+			es.SetDirection(order.Sell)
+		case latestRSIValue.LessThanOrEqual(s.rsiLow):
+			es.SetDirection(order.Buy)
+		default:
+			es.SetDirection(order.DoNothing)
+		}
+		es.AppendReasonf("RSI at %v", latestRSIValue)
+		resp = append(resp, &es)
 	}
 	return resp, errs
 }

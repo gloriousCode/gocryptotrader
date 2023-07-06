@@ -148,7 +148,7 @@ type FuturesManagement interface {
 	CalculateTotalCollateral(context.Context, *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error)
 	GetFundingRates(context.Context, *order.FundingRatesRequest) ([]order.FundingRates, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
-	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
+	GetCollateralCurrencyForContract(context.Context, asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 	order.PNLCalculation
 
 	GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error)

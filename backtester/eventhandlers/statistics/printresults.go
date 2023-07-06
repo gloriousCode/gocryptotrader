@@ -206,7 +206,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) {
+func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair) {
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].Time.Before(c.Events[j].Time)
 	})
@@ -245,30 +245,6 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(common.CurrencyStatistics, "%s Calculated Drawdown: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.DrawdownPercent, 8, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Difference: %s", sep, convert.DecimalToHumanFriendlyString(c.MaxDrawdown.Highest.Value.Sub(c.MaxDrawdown.Lowest.Value), 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Drawdown length: %s", sep, convert.IntToHumanFriendlyString(c.MaxDrawdown.IntervalDuration, ","))
-	if !usingExchangeLevelFunding && c.TotalOrders > 1 {
-		log.Infoln(common.CurrencyStatistics, common.CMDColours.H2+"------------------Ratios------------------------------------------------"+common.CMDColours.Default)
-		log.Infoln(common.CurrencyStatistics, common.CMDColours.H3+"------------------Rates-------------------------------------------------"+common.CMDColours.Default)
-		log.Infof(common.CurrencyStatistics, "%s Compound Annual Growth Rate: %s", sep, convert.DecimalToHumanFriendlyString(c.CompoundAnnualGrowthRate, 2, ".", ","))
-		log.Infoln(common.CurrencyStatistics, common.CMDColours.H4+"------------------Arithmetic--------------------------------------------"+common.CMDColours.Default)
-		if c.ShowMissingDataWarning {
-			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
-			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
-		}
-		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
-
-		log.Infoln(common.CurrencyStatistics, common.CMDColours.H4+"------------------Geometric--------------------------------------------"+common.CMDColours.Default)
-		if c.ShowMissingDataWarning {
-			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
-			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
-		}
-		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.GeometricRatios.CalmarRatio.Round(4))
-	}
 
 	log.Infoln(common.CurrencyStatistics, common.CMDColours.H2+"------------------Results------------------------------------"+common.CMDColours.Default)
 	log.Infof(common.CurrencyStatistics, "%s Starting Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.StartingClosePrice.Value, 8, ".", ","), c.StartingClosePrice.Time)
@@ -277,23 +253,11 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 	log.Infof(common.CurrencyStatistics, "%s Highest Close Price: %s at %v", sep, convert.DecimalToHumanFriendlyString(c.HighestClosePrice.Value, 8, ".", ","), c.HighestClosePrice.Time)
 
 	log.Infof(common.CurrencyStatistics, "%s Market movement: %s%%", sep, convert.DecimalToHumanFriendlyString(c.MarketMovement, 2, ".", ","))
-	if !usingExchangeLevelFunding {
-		log.Infof(common.CurrencyStatistics, "%s Strategy movement: %s%%", sep, convert.DecimalToHumanFriendlyString(c.StrategyMovement, 2, ".", ","))
-		log.Infof(common.CurrencyStatistics, "%s Did it beat the market: %v", sep, c.StrategyMovement.GreaterThan(c.MarketMovement))
-	}
-
 	log.Infof(common.CurrencyStatistics, "%s Value lost to volume sizing: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLostToVolumeSizing, 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Value lost to slippage: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLostToSlippage, 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Total Value lost: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalValueLost, 2, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Total Fees: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalFees, 8, ".", ","))
 	log.Infof(common.CurrencyStatistics, "%s Final holdings value: %s", sep, convert.DecimalToHumanFriendlyString(c.TotalAssetValue, 8, ".", ","))
-	if !usingExchangeLevelFunding {
-		// the following have no direct translation to individual exchange level funds as they
-		// combine base and quote values
-		log.Infof(common.CurrencyStatistics, "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.QuoteSize, 8, ".", ","))
-		log.Infof(common.CurrencyStatistics, "%s Final holdings: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.BaseSize, 8, ".", ","))
-		log.Infof(common.CurrencyStatistics, "%s Final total value: %s", sep, convert.DecimalToHumanFriendlyString(last.Holdings.TotalValue, 8, ".", ","))
-	}
 
 	if last.PNL != nil {
 		var unrealised, realised portfolio.BasicPNLResult
@@ -333,7 +297,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 			log.Infof(common.FundingStatistics, "%s Initial funds: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.InitialFunds, 8, ".", ","))
 			log.Infof(common.FundingStatistics, "%s Final funds: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.FinalFunds, 8, ".", ","))
 
-			if !f.Report.DisableUSDTracking && f.Report.UsingExchangeLevelFunding {
+			if !f.Report.DisableUSDTracking {
 				log.Infof(common.FundingStatistics, "%s Initial funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.USDInitialFunds, 2, ".", ","))
 				log.Infof(common.FundingStatistics, "%s Final funds in USD: $%s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.USDFinalFunds, 2, ".", ","))
 			}

@@ -20,11 +20,7 @@ type StrategyHolder []Handler
 type Handler interface {
 	Name() string
 	Description() string
-	OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error)
-	OnSimultaneousSignals([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error)
-	UsingSimultaneousProcessing() bool
-	SupportsSimultaneousProcessing() bool
-	SetSimultaneousProcessing(bool)
+	Execute([]data.Handler, funding.IFundingTransferer, portfolio.Handler) ([]signal.Event, error)
 	SetCustomSettings(map[string]interface{}) error
 	SetDefaults()
 	CloseAllPositions([]holdings.Holding, []data.Event) ([]signal.Event, error)

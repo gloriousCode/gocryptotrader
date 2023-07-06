@@ -23,7 +23,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
 	}
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -83,7 +83,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
 	}
 
-	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
+	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
@@ -220,7 +220,7 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 		t.Errorf("received %v expected %v", err, common.ErrNilPointer)
 	}
 
-	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
+	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}

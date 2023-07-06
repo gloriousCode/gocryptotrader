@@ -204,14 +204,15 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		}
 	}
 
-	exchangeLevelFunding := make([]*btrpc.ExchangeLevelFunding, len(defaultConfig.FundingSettings.ExchangeLevelFunding))
-	for i := range defaultConfig.FundingSettings.ExchangeLevelFunding {
-		exchangeLevelFunding[i] = &btrpc.ExchangeLevelFunding{
-			ExchangeName: defaultConfig.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-			Asset:        defaultConfig.FundingSettings.ExchangeLevelFunding[i].Asset.String(),
-			Currency:     defaultConfig.FundingSettings.ExchangeLevelFunding[i].Currency.String(),
-			InitialFunds: defaultConfig.FundingSettings.ExchangeLevelFunding[i].InitialFunds.String(),
-			TransferFee:  defaultConfig.FundingSettings.ExchangeLevelFunding[i].TransferFee.String(),
+	exchangeWallets := make([]*btrpc.ExchangeWallet, len(defaultConfig.FundingSettings.ExchangeWallets))
+	for i := range defaultConfig.FundingSettings.ExchangeWallets {
+		exchangeWallets[i] = &btrpc.ExchangeWallet{
+			ExchangeName:   defaultConfig.FundingSettings.ExchangeWallets[i].ExchangeName,
+			Asset:          defaultConfig.FundingSettings.ExchangeWallets[i].Asset.String(),
+			Currency:       defaultConfig.FundingSettings.ExchangeWallets[i].Currency.String(),
+			InitialFunds:   defaultConfig.FundingSettings.ExchangeWallets[i].InitialFunds.String(),
+			TransferFee:    defaultConfig.FundingSettings.ExchangeWallets[i].TransferFee.String(),
+			CollateralMode: defaultConfig.FundingSettings.ExchangeWallets[i].CollateralMode.String(),
 		}
 	}
 
@@ -279,14 +280,12 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 		Nickname: defaultConfig.Nickname,
 		Goal:     defaultConfig.Goal,
 		StrategySettings: &btrpc.StrategySettings{
-			Name:                            defaultConfig.StrategySettings.Name,
-			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
-			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
-			CustomSettings:                  customSettings,
+			Name:               defaultConfig.StrategySettings.Name,
+			DisableUsdTracking: defaultConfig.StrategySettings.DisableUSDTracking,
+			CustomSettings:     customSettings,
 		},
 		FundingSettings: &btrpc.FundingSettings{
-			UseExchangeLevelFunding: defaultConfig.FundingSettings.UseExchangeLevelFunding,
-			ExchangeLevelFunding:    exchangeLevelFunding,
+			ExchangeWallets: exchangeWallets,
 		},
 		CurrencySettings: currencySettings,
 		DataSettings:     dataSettings,
@@ -331,9 +330,7 @@ func TestExecuteStrategyFromConfig(t *testing.T) {
 
 	// coverage test to ensure the rest of the config can successfully be converted
 	// this will not have a successful response
-	cfg.FundingSettings.UseExchangeLevelFunding = true
-	cfg.StrategySettings.UseSimultaneousSignalProcessing = true
-	cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, &btrpc.ExchangeLevelFunding{
+	cfg.FundingSettings.ExchangeWallets = append(cfg.FundingSettings.ExchangeWallets, &btrpc.ExchangeWallet{
 		ExchangeName: defaultConfig.CurrencySettings[0].ExchangeName,
 		Asset:        defaultConfig.CurrencySettings[0].Asset.String(),
 		Currency:     defaultConfig.CurrencySettings[0].Base.String(),

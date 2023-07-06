@@ -491,14 +491,15 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		}
 	}
 
-	exchangeLevelFunding := make([]*btrpc.ExchangeLevelFunding, len(defaultConfig.FundingSettings.ExchangeLevelFunding))
-	for i := range defaultConfig.FundingSettings.ExchangeLevelFunding {
-		exchangeLevelFunding[i] = &btrpc.ExchangeLevelFunding{
-			ExchangeName: defaultConfig.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-			Asset:        defaultConfig.FundingSettings.ExchangeLevelFunding[i].Asset.String(),
-			Currency:     defaultConfig.FundingSettings.ExchangeLevelFunding[i].Currency.String(),
-			InitialFunds: defaultConfig.FundingSettings.ExchangeLevelFunding[i].InitialFunds.String(),
-			TransferFee:  defaultConfig.FundingSettings.ExchangeLevelFunding[i].TransferFee.String(),
+	exchangeLevelFunding := make([]*btrpc.ExchangeWallet, len(defaultConfig.FundingSettings.ExchangeWallets))
+	for i := range defaultConfig.FundingSettings.ExchangeWallets {
+		exchangeLevelFunding[i] = &btrpc.ExchangeWallet{
+			ExchangeName:   defaultConfig.FundingSettings.ExchangeWallets[i].ExchangeName,
+			Asset:          defaultConfig.FundingSettings.ExchangeWallets[i].Asset.String(),
+			Currency:       defaultConfig.FundingSettings.ExchangeWallets[i].Currency.String(),
+			InitialFunds:   defaultConfig.FundingSettings.ExchangeWallets[i].InitialFunds.String(),
+			TransferFee:    defaultConfig.FundingSettings.ExchangeWallets[i].TransferFee.String(),
+			CollateralMode: defaultConfig.FundingSettings.ExchangeWallets[i].CollateralMode.String(),
 		}
 	}
 
@@ -568,15 +569,11 @@ func executeStrategyFromConfig(c *cli.Context) error {
 		Nickname: defaultConfig.Nickname,
 		Goal:     defaultConfig.Goal,
 		StrategySettings: &btrpc.StrategySettings{
-			Name:                            defaultConfig.StrategySettings.Name,
-			UseSimultaneousSignalProcessing: defaultConfig.StrategySettings.SimultaneousSignalProcessing,
-			DisableUsdTracking:              defaultConfig.StrategySettings.DisableUSDTracking,
-			CustomSettings:                  customSettings,
+			Name:               defaultConfig.StrategySettings.Name,
+			DisableUsdTracking: defaultConfig.StrategySettings.DisableUSDTracking,
+			CustomSettings:     customSettings,
 		},
-		FundingSettings: &btrpc.FundingSettings{
-			UseExchangeLevelFunding: defaultConfig.FundingSettings.UseExchangeLevelFunding,
-			ExchangeLevelFunding:    exchangeLevelFunding,
-		},
+		FundingSettings:  &btrpc.FundingSettings{},
 		CurrencySettings: currencySettings,
 		DataSettings:     dataSettings,
 		PortfolioSettings: &btrpc.PortfolioSettings{

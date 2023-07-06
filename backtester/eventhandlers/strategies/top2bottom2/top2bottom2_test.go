@@ -27,14 +27,6 @@ func TestName(t *testing.T) {
 	}
 }
 
-func TestSupportsSimultaneousProcessing(t *testing.T) {
-	t.Parallel()
-	s := Strategy{}
-	if !s.SupportsSimultaneousProcessing() {
-		t.Error("expected true")
-	}
-}
-
 func TestDescription(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
@@ -89,27 +81,15 @@ func TestSetCustomSettings(t *testing.T) {
 	}
 }
 
-func TestOnSignal(t *testing.T) {
-	t.Parallel()
-	s := Strategy{}
-	if _, err := s.OnSignal(nil, nil, nil); !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
-		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
-	}
-}
-
 func TestOnSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, errStrategyOnlySupportsSimultaneousProcessing) {
-		t.Errorf("received: %v, expected: %v", err, errStrategyOnlySupportsSimultaneousProcessing)
-	}
 	dInsert := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	exch := "binance"
 	a := asset.Spot
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	d := &data.Base{}
-	err = d.SetStream([]data.Event{&eventkline.Kline{
+	err := d.SetStream([]data.Event{&eventkline.Kline{
 		Base: &event.Base{
 			Exchange:     exch,
 			Time:         dInsert,
@@ -135,13 +115,13 @@ func TestOnSignals(t *testing.T) {
 		Base:        d,
 		RangeHolder: &gctkline.IntervalRangeHolder{},
 	}
-	_, err = s.OnSimultaneousSignals([]data.Handler{da}, nil, nil)
+	_, err = s.Execute([]data.Handler{da}, nil, nil)
 	if !strings.Contains(err.Error(), errStrategyCurrencyRequirements.Error()) {
 		// common.Errs type doesn't keep type
 		t.Errorf("received: %v, expected: %v", err, errStrategyCurrencyRequirements)
 	}
 
-	_, err = s.OnSimultaneousSignals([]data.Handler{da, da, da, da}, nil, nil)
+	_, err = s.Execute([]data.Handler{da, da, da, da}, nil, nil)
 	if !strings.Contains(err.Error(), base.ErrTooMuchBadData.Error()) {
 		// common.Errs type doesn't keep type
 		t.Errorf("received: %v, expected: %v", err, base.ErrTooMuchBadData)

@@ -195,7 +195,6 @@ func TestValidateCurrencySettings(t *testing.T) {
 	}
 
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
@@ -203,7 +202,6 @@ func TestValidateCurrencySettings(t *testing.T) {
 
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
 	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &leet
-	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateCurrencySettings()
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received: %v, expected: %v", err, errBadInitialFunds)
@@ -321,18 +319,16 @@ func TestValidateStrategySettings(t *testing.T) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 
-	c.StrategySettings.SimultaneousSignalProcessing = true
 	err = c.validateStrategySettings()
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
 	c.FundingSettings = FundingSettings{}
-	c.FundingSettings.UseExchangeLevelFunding = true
 	err = c.validateStrategySettings()
 	if !errors.Is(err, errExchangeLevelFundingDataRequired) {
 		t.Errorf("received %v expected %v", err, errExchangeLevelFundingDataRequired)
 	}
-	c.FundingSettings.ExchangeLevelFunding = []ExchangeLevelFunding{
+	c.FundingSettings.ExchangeWallets = []ExchangeWallet{
 		{
 			InitialFunds: decimal.NewFromInt(-1),
 		},
@@ -340,18 +336,6 @@ func TestValidateStrategySettings(t *testing.T) {
 	err = c.validateStrategySettings()
 	if !errors.Is(err, errBadInitialFunds) {
 		t.Errorf("received %v expected %v", err, errBadInitialFunds)
-	}
-
-	c.StrategySettings.SimultaneousSignalProcessing = false
-	err = c.validateStrategySettings()
-	if !errors.Is(err, errSimultaneousProcessingRequired) {
-		t.Errorf("received %v expected %v", err, errSimultaneousProcessingRequired)
-	}
-
-	c.FundingSettings.UseExchangeLevelFunding = false
-	err = c.validateStrategySettings()
-	if !errors.Is(err, errExchangeLevelFundingRequired) {
-		t.Errorf("received %v expected %v", err, errExchangeLevelFundingRequired)
 	}
 }
 
@@ -412,8 +396,7 @@ func TestPrintSettings(t *testing.T) {
 	}
 	cfg.PrintSetting()
 	cfg.FundingSettings = FundingSettings{
-		UseExchangeLevelFunding: true,
-		ExchangeLevelFunding:    []ExchangeLevelFunding{{}},
+		ExchangeWallets: []ExchangeWallet{{}},
 	}
 	cfg.PrintSetting()
 }
@@ -604,13 +587,11 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 		Nickname: "ExampleStrategyDCAAPICandlesExchangeLevelFunding",
 		Goal:     "To demonstrate DCA strategy using API candles using a shared pool of funds",
 		StrategySettings: StrategySettings{
-			Name:                         dca,
-			SimultaneousSignalProcessing: true,
-			DisableUSDTracking:           true,
+			Name:               dca,
+			DisableUSDTracking: true,
 		},
 		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
+			ExchangeWallets: []ExchangeWallet{
 				{
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
@@ -820,8 +801,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 		Nickname: "ExampleStrategyDCAAPICandlesSimultaneousProcessing",
 		Goal:     "To demonstrate how simultaneous processing can work",
 		StrategySettings: StrategySettings{
-			Name:                         dca,
-			SimultaneousSignalProcessing: true,
+			Name: dca,
 		},
 		CurrencySettings: []CurrencySettings{
 			{
@@ -1203,8 +1183,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 		Nickname: "ExampleStrategyTop2Bottom2",
 		Goal:     "To demonstrate a complex strategy using exchange level funding and simultaneous processing of data signals",
 		StrategySettings: StrategySettings{
-			Name:                         top2bottom2.Name,
-			SimultaneousSignalProcessing: true,
+			Name: top2bottom2.Name,
 
 			CustomSettings: map[string]interface{}{
 				"mfi-low":    32,
@@ -1213,8 +1192,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			},
 		},
 		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
+			ExchangeWallets: []ExchangeWallet{
 				{
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
@@ -1331,12 +1309,10 @@ func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 		Nickname: "ExampleCashAndCarry",
 		Goal:     "To demonstrate a cash and carry strategy",
 		StrategySettings: StrategySettings{
-			Name:                         "binance-cash-carry",
-			SimultaneousSignalProcessing: true,
+			Name: "binance-cash-carry",
 		},
 		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
+			ExchangeWallets: []ExchangeWallet{
 				{
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
@@ -1404,12 +1380,10 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 		Nickname: "ExampleBinanceLiveCashAndCarry",
 		Goal:     "To demonstrate a cash and carry strategy using a live data source",
 		StrategySettings: StrategySettings{
-			Name:                         "binance-cash-carry",
-			SimultaneousSignalProcessing: true,
+			Name: "binance-cash-carry",
 		},
 		FundingSettings: FundingSettings{
-			UseExchangeLevelFunding: true,
-			ExchangeLevelFunding: []ExchangeLevelFunding{
+			ExchangeWallets: []ExchangeWallet{
 				{
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,

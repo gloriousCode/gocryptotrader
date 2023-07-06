@@ -28,8 +28,7 @@ const (
 )
 
 var (
-	errStrategyOnlySupportsSimultaneousProcessing = errors.New("strategy only supports simultaneous processing")
-	errStrategyCurrencyRequirements               = errors.New("top2bottom2 strategy requires at least 4 currencies")
+	errStrategyCurrencyRequirements = errors.New("top2bottom2 strategy requires at least 4 currencies")
 )
 
 // Strategy is an implementation of the Handler interface
@@ -49,19 +48,6 @@ func (s *Strategy) Name() string {
 // be it definition of terms or to highlight its purpose
 func (s *Strategy) Description() string {
 	return description
-}
-
-// OnSignal handles a data event and returns what action the strategy believes should occur
-// however,this complex strategy cannot function on an individual basis
-func (s *Strategy) OnSignal(_ data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
-	return nil, errStrategyOnlySupportsSimultaneousProcessing
-}
-
-// SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
-// There is nothing actually stopping this strategy from considering multiple currencies at once
-// but for demonstration purposes, this strategy does not
-func (s *Strategy) SupportsSimultaneousProcessing() bool {
-	return true
 }
 
 type mfiFundEvent struct {
@@ -86,9 +72,9 @@ func sortByMFI(o *[]mfiFundEvent, reverse bool) {
 	}
 }
 
-// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
+// Execute analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) Execute(d []data.Handler, f funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	if len(d) < 4 {
 		return nil, errStrategyCurrencyRequirements
 	}

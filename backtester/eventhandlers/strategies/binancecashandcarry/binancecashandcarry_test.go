@@ -41,14 +41,6 @@ func TestDescription(t *testing.T) {
 	}
 }
 
-func TestSupportsSimultaneousProcessing(t *testing.T) {
-	t.Parallel()
-	s := Strategy{}
-	if !s.SupportsSimultaneousProcessing() {
-		t.Error("expected true")
-	}
-}
-
 func TestSetCustomSettings(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
@@ -84,17 +76,6 @@ func TestSetCustomSettings(t *testing.T) {
 	err = s.SetCustomSettings(mappalopalous)
 	if !errors.Is(err, base.ErrInvalidCustomSettings) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrInvalidCustomSettings)
-	}
-}
-
-func TestOnSignal(t *testing.T) {
-	t.Parallel()
-	s := Strategy{
-		openShortDistancePercentage: decimal.NewFromInt(14),
-	}
-	_, err := s.OnSignal(nil, nil, nil)
-	if !errors.Is(err, base.ErrSimultaneousProcessingOnly) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrSimultaneousProcessingOnly)
 	}
 }
 
@@ -327,10 +308,10 @@ func (p portfolerino) GetPositions(common.Event) ([]gctorder.Position, error) {
 	}, nil
 }
 
-func TestOnSimultaneousSignals(t *testing.T) {
+func TestExecute(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.OnSimultaneousSignals(nil, nil, nil)
+	_, err := s.Execute(nil, nil, nil)
 	if !errors.Is(err, base.ErrNoDataToProcess) {
 		t.Errorf("received '%v' expected '%v", err, base.ErrNoDataToProcess)
 	}
@@ -373,13 +354,13 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		d,
 	}
 	f := &fakeFunds{}
-	_, err = s.OnSimultaneousSignals(signals, f, nil)
+	_, err = s.Execute(signals, f, nil)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v", err, gctcommon.ErrNilPointer)
 	}
 
 	p := &portfolerino{}
-	_, err = s.OnSimultaneousSignals(signals, f, p)
+	_, err = s.Execute(signals, f, p)
 	if !errors.Is(err, errNotSetup) {
 		t.Errorf("received '%v' expected '%v", err, errNotSetup)
 	}
@@ -420,7 +401,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 		d,
 		d2,
 	}
-	resp, err := s.OnSimultaneousSignals(signals, f, p)
+	resp, err := s.Execute(signals, f, p)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}
@@ -429,7 +410,7 @@ func TestOnSimultaneousSignals(t *testing.T) {
 	}
 
 	f.hasBeenLiquidated = true
-	resp, err = s.OnSimultaneousSignals(signals, f, p)
+	resp, err = s.Execute(signals, f, p)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v", err, nil)
 	}

@@ -1620,7 +1620,7 @@ func (b *Base) CalculateTotalCollateral(_ context.Context, _ *order.TotalCollate
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCollateralCurrencyForContract(ctx context.Context, _ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 

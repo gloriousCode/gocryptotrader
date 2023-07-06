@@ -33,54 +33,42 @@ func (s *Strategy) Description() string {
 	return description
 }
 
-// OnSignal handles a data event and returns what action the strategy believes should occur
-// For dollarcostaverage, this means returning a buy signal on every event
-func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
-	if d == nil {
-		return nil, common.ErrNilEvent
-	}
-	es, err := s.GetBaseData(d)
-	if err != nil {
-		return nil, err
-	}
-
-	latest, err := d.Latest()
-	if err != nil {
-		return nil, err
-	}
-	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
-	if err != nil {
-		return nil, err
-	}
-	if !hasDataAtTime {
-		es.SetDirection(order.MissingData)
-		es.AppendReasonf("missing data at %v, cannot perform any actions", latest.GetTime())
-		return &es, nil
-	}
-
-	es.SetPrice(latest.GetClosePrice())
-	es.SetDirection(order.Buy)
-	es.AppendReason("DCA purchases on every iteration")
-	return &es, nil
-}
-
-// SupportsSimultaneousProcessing highlights whether the strategy can handle multiple currency calculation
-func (s *Strategy) SupportsSimultaneousProcessing() bool {
-	return true
-}
-
-// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
+// Execute analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
 // For dollarcostaverage, the strategy is always "buy", so it uses the OnSignal function
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) Execute(d []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	var resp []signal.Event
 	var errs error
 	for i := range d {
-		sigEvent, err := s.OnSignal(d[i], nil, nil)
+		if d[i] == nil {
+			return nil, common.ErrNilEvent
+		}
+		es, err := s.GetBaseData(d[i])
+		if err != nil {
+			return nil, err
+		}
+
+		latest, err := d[i].Latest()
+		if err != nil {
+			return nil, err
+		}
+		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
+		if err != nil {
+			return nil, err
+		}
+		if !hasDataAtTime {
+			es.SetDirection(order.MissingData)
+			es.AppendReasonf("missing data at %v, cannot perform any actions", latest.GetTime())
+			continue
+		}
+
+		es.SetPrice(latest.GetClosePrice())
+		es.SetDirection(order.Buy)
+		es.AppendReason("DCA purchases on every iteration")
 		if err != nil {
 			errs = gctcommon.AppendError(errs, err)
 		} else {
-			resp = append(resp, sigEvent)
+			resp = append(resp, &es)
 		}
 	}
 	return resp, errs

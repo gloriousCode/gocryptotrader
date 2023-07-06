@@ -101,25 +101,17 @@ func (c *Config) validateMinMaxes() (err error) {
 }
 
 func (c *Config) validateStrategySettings() error {
-	if c.FundingSettings.UseExchangeLevelFunding && !c.StrategySettings.SimultaneousSignalProcessing {
-		return errSimultaneousProcessingRequired
-	}
-	if len(c.FundingSettings.ExchangeLevelFunding) > 0 && !c.FundingSettings.UseExchangeLevelFunding {
-		return errExchangeLevelFundingRequired
-	}
-	if c.FundingSettings.UseExchangeLevelFunding && len(c.FundingSettings.ExchangeLevelFunding) == 0 {
+	if len(c.FundingSettings.ExchangeWallets) == 0 {
 		return errExchangeLevelFundingDataRequired
 	}
-	if c.FundingSettings.UseExchangeLevelFunding {
-		for i := range c.FundingSettings.ExchangeLevelFunding {
-			if c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
-				return fmt.Errorf("%w for %v %v %v",
-					errBadInitialFunds,
-					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-					c.FundingSettings.ExchangeLevelFunding[i].Asset,
-					c.FundingSettings.ExchangeLevelFunding[i].Currency,
-				)
-			}
+	for i := range c.FundingSettings.ExchangeWallets {
+		if c.FundingSettings.ExchangeWallets[i].InitialFunds.IsNegative() {
+			return fmt.Errorf("%w for %v %v %v",
+				errBadInitialFunds,
+				c.FundingSettings.ExchangeWallets[i].ExchangeName,
+				c.FundingSettings.ExchangeWallets[i].Asset,
+				c.FundingSettings.ExchangeWallets[i].Currency,
+			)
 		}
 	}
 	strats := strategies.GetSupportedStrategies()
@@ -165,32 +157,13 @@ func (c *Config) validateCurrencySettings() error {
 			}
 		}
 		if c.CurrencySettings[i].SpotDetails != nil {
-			if c.FundingSettings.UseExchangeLevelFunding {
-				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
-					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
-				}
-				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
-					return fmt.Errorf("non-nil base %w", errBadInitialFunds)
-				}
-			} else {
-				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
-					return fmt.Errorf("nil base and quote %w", errBadInitialFunds)
-				}
-				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.IsZero() &&
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.IsZero() {
-					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
-				}
-				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
-				}
-				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
-				}
+			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
+				c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
+			}
+			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
+				c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
+				return fmt.Errorf("non-nil base %w", errBadInitialFunds)
 			}
 		}
 		if c.CurrencySettings[i].Base.IsEmpty() {
@@ -232,22 +205,20 @@ func (c *Config) PrintSetting() {
 	} else {
 		log.Infoln(common.Config, "Custom strategy variables: unset")
 	}
-	log.Infof(common.Config, "Simultaneous Signal Processing: %v", c.StrategySettings.SimultaneousSignalProcessing)
 	log.Infof(common.Config, "USD value tracking: %v", !c.StrategySettings.DisableUSDTracking)
 
-	if c.FundingSettings.UseExchangeLevelFunding && c.StrategySettings.SimultaneousSignalProcessing {
-		log.Infoln(common.Config, common.CMDColours.H2+"------------------Funding Settings---------------------------"+common.CMDColours.Default)
-		log.Infof(common.Config, "Use Exchange Level Funding: %v", c.FundingSettings.UseExchangeLevelFunding)
-		if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
-			log.Infof(common.Config, "Funding levels will be set by the exchange")
-		} else {
-			for i := range c.FundingSettings.ExchangeLevelFunding {
-				log.Infof(common.Config, "Initial funds for %v %v %v: %v",
-					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
-					c.FundingSettings.ExchangeLevelFunding[i].Asset,
-					c.FundingSettings.ExchangeLevelFunding[i].Currency,
-					c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
-			}
+	log.Infoln(common.Config, common.CMDColours.H2+"------------------Funding Settings---------------------------"+common.CMDColours.Default)
+	if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
+		log.Infof(common.Config, "Funding levels will be set by the exchange")
+	} else {
+		for i := range c.FundingSettings.ExchangeWallets {
+			log.Infof(common.Config, "Initial funds for %v %v %v wallet type %v: %v",
+				c.FundingSettings.ExchangeWallets[i].ExchangeName,
+				c.FundingSettings.ExchangeWallets[i].Asset,
+				c.FundingSettings.ExchangeWallets[i].Currency,
+				c.FundingSettings.ExchangeWallets[i].CollateralMode,
+				c.FundingSettings.ExchangeWallets[i].InitialFunds.Round(8))
+
 		}
 	}
 
@@ -258,20 +229,8 @@ func (c *Config) PrintSetting() {
 			c.CurrencySettings[i].Quote)
 		log.Infof(common.Config, currStr[:61])
 		log.Infof(common.Config, "Exchange: %v", c.CurrencySettings[i].ExchangeName)
-		switch {
-		case c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders:
+		if c.DataSettings.LiveData != nil && c.DataSettings.LiveData.RealOrders {
 			log.Infof(common.Config, "Funding levels will be set by the exchange")
-		case !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil:
-			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
-				log.Infof(common.Config, "Initial base funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
-					c.CurrencySettings[i].Base)
-			}
-			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
-				log.Infof(common.Config, "Initial quote funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
-					c.CurrencySettings[i].Quote)
-			}
 		}
 		if c.CurrencySettings[i].TakerFee != nil {
 			if c.CurrencySettings[i].UsingExchangeTakerFee {

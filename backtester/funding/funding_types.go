@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -36,7 +37,6 @@ var (
 // IFundingManager limits funding usage for portfolio event handling
 type IFundingManager interface {
 	Reset() error
-	IsUsingExchangeLevelFunding() bool
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() (*Report, error)
@@ -57,7 +57,6 @@ type IFundingManager interface {
 // IFundingTransferer allows for funding amounts to be transferred
 // implementation can be swapped for live transferring
 type IFundingTransferer interface {
-	IsUsingExchangeLevelFunding() bool
 	Transfer(decimal.Decimal, *Item, *Item, bool) error
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	HasExchangeBeenLiquidated(handler common.Event) bool
@@ -140,11 +139,10 @@ type ICollateralReleaser interface {
 // FundManager is the benevolent holder of all funding levels across all
 // currencies used in the backtester
 type FundManager struct {
-	usingExchangeLevelFunding bool
-	disableUSDTracking        bool
-	items                     []*Item
-	exchangeManager           *engine.ExchangeManager
-	verbose                   bool
+	disableUSDTracking bool
+	items              []*Item
+	exchangeManager    *engine.ExchangeManager
+	verbose            bool
 }
 
 // Item holds funding data per currency item
@@ -156,6 +154,7 @@ type Item struct {
 	available         decimal.Decimal
 	reserved          decimal.Decimal
 	transferFee       decimal.Decimal
+	collateralMode    collateral.Mode
 	pairedWith        *Item
 	trackingCandles   *kline.DataFromKline
 	snapshot          map[int64]ItemSnapshot
@@ -192,12 +191,11 @@ type BasicItem struct {
 
 // Report holds all funding data for result reporting
 type Report struct {
-	DisableUSDTracking        bool
-	UsingExchangeLevelFunding bool
-	Items                     []ReportItem
-	USDTotalsOverTime         []ItemSnapshot
-	InitialFunds              decimal.Decimal
-	FinalFunds                decimal.Decimal
+	DisableUSDTracking bool
+	Items              []ReportItem
+	USDTotalsOverTime  []ItemSnapshot
+	InitialFunds       decimal.Decimal
+	FinalFunds         decimal.Decimal
 }
 
 // ReportItem holds reporting fields

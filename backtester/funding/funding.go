@@ -25,15 +25,14 @@ import (
 
 // SetupFundingManager creates the funding holder. It carries knowledge about levels of funding
 // across all execution handlers and enables fund transfers
-func SetupFundingManager(exchManager *engine.ExchangeManager, usingExchangeLevelFunding, disableUSDTracking, verbose bool) (*FundManager, error) {
+func SetupFundingManager(exchManager *engine.ExchangeManager, disableUSDTracking, verbose bool) (*FundManager, error) {
 	if exchManager == nil {
 		return nil, errExchangeManagerRequired
 	}
 	return &FundManager{
-		usingExchangeLevelFunding: usingExchangeLevelFunding,
-		disableUSDTracking:        disableUSDTracking,
-		exchangeManager:           exchManager,
-		verbose:                   verbose,
+		disableUSDTracking: disableUSDTracking,
+		exchangeManager:    exchManager,
+		verbose:            verbose,
 	}, nil
 }
 
@@ -291,8 +290,7 @@ func (f *FundManager) USDTrackingDisabled() bool {
 // GenerateReport builds report data for result HTML report
 func (f *FundManager) GenerateReport() (*Report, error) {
 	report := Report{
-		UsingExchangeLevelFunding: f.usingExchangeLevelFunding,
-		DisableUSDTracking:        f.disableUSDTracking,
+		DisableUSDTracking: f.disableUSDTracking,
 	}
 	items := make([]ReportItem, len(f.items))
 	for x := range f.items {
@@ -468,11 +466,6 @@ func (f *FundManager) AddPair(p *SpotPair) error {
 	}
 	f.items = append(f.items, p.base, p.quote)
 	return nil
-}
-
-// IsUsingExchangeLevelFunding returns if using usingExchangeLevelFunding
-func (f *FundManager) IsUsingExchangeLevelFunding() bool {
-	return f.usingExchangeLevelFunding
 }
 
 // GetFundingForEvent This will construct a funding based on a backtesting event
@@ -690,10 +683,6 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	}
 
 	for i := range f.items {
-		if f.items[i].asset.IsFutures() {
-			// futures positions aren't collateral, they utilise it
-			continue
-		}
 		_, ok := exchMap[f.items[i].exchange]
 		if !ok {
 			var exch exchange.IBotExchange
@@ -703,7 +692,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 			}
 			exchMap[f.items[i].exchange] = exch
 		}
-		var usd decimal.Decimal
+		var closePrice decimal.Decimal
 		if f.items[i].trackingCandles != nil {
 			var latest data.Event
 			latest, err = f.items[i].trackingCandles.Latest()
@@ -711,10 +700,10 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 				return err
 			}
 			if latest != nil {
-				usd = latest.GetClosePrice()
+				closePrice = latest.GetClosePrice()
 			}
 		}
-		if usd.IsZero() {
+		if closePrice.IsZero() {
 			continue
 		}
 		var side = gctorder.Buy
@@ -729,14 +718,14 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 			Side:               side,
 			FreeCollateral:     f.items[i].available,
 			LockedCollateral:   f.items[i].reserved,
-			USDPrice:           usd,
+			USDPrice:           closePrice,
 		})
 	}
 	exch, ok := exchMap[ev.GetExchange()]
 	if !ok {
 		return fmt.Errorf("%v %w", ev.GetExchange(), engine.ErrExchangeNotFound)
 	}
-	futureCurrency, futureAsset, err := exch.GetCollateralCurrencyForContract(ev.GetAssetType(), ev.Pair())
+	futureCurrency, futureAsset, err := exch.GetCollateralCurrencyForContract(context.TODO(), ev.GetAssetType(), ev.Pair())
 	if err != nil {
 		return err
 	}
@@ -750,10 +739,16 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 		if f.items[i].exchange == ev.GetExchange() &&
 			f.items[i].asset == futureAsset &&
 			f.items[i].currency.Equal(futureCurrency) {
-			if f.verbose {
-				log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.AvailableCollateral)
+
+			for j := range collat.BreakdownByCurrency {
+				if !collat.BreakdownByCurrency[j].Currency.Equal(futureCurrency) {
+					continue
+				}
+				if f.verbose {
+					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.BreakdownByCurrency[j].AvailableForUseAsCollateral)
+				}
+				f.items[i].available = collat.BreakdownByCurrency[j].AvailableForUseAsCollateral
 			}
-			f.items[i].available = collat.AvailableCollateral
 			return nil
 		}
 	}

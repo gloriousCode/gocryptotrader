@@ -117,19 +117,7 @@
             "type": "string"
           },
           {
-            "name": "config.strategySettings.useSimultaneousSignalProcessing",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "config.strategySettings.disableUsdTracking",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "config.fundingSettings.useExchangeLevelFunding",
             "in": "query",
             "required": false,
             "type": "boolean"
@@ -593,12 +581,14 @@
         "clearedTasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         },
         "remainingTasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -630,6 +620,7 @@
         "currencySettings": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCurrencySettings"
           }
         },
@@ -829,7 +820,7 @@
         }
       }
     },
-    "btrpcExchangeLevelFunding": {
+    "btrpcExchangeWallet": {
       "type": "object",
       "properties": {
         "exchangeName": {
@@ -846,6 +837,9 @@
         },
         "transferFee": {
           "type": "string"
+        },
+        "collateralMode": {
+          "type": "string"
         }
       }
     },
@@ -860,13 +854,11 @@
     "btrpcFundingSettings": {
       "type": "object",
       "properties": {
-        "useExchangeLevelFunding": {
-          "type": "boolean"
-        },
-        "exchangeLevelFunding": {
+        "exchangeWallets": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/btrpcExchangeLevelFunding"
+            "type": "object",
+            "$ref": "#/definitions/btrpcExchangeWallet"
           }
         }
       }
@@ -902,6 +894,7 @@
         "tasks": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -938,6 +931,7 @@
         "credentials": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCredentials"
           }
         }
@@ -1015,6 +1009,7 @@
         "tasksStopped": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcTaskSummary"
           }
         }
@@ -1034,15 +1029,13 @@
         "name": {
           "type": "string"
         },
-        "useSimultaneousSignalProcessing": {
-          "type": "boolean"
-        },
         "disableUsdTracking": {
           "type": "boolean"
         },
         "customSettings": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/btrpcCustomSettings"
           }
         }
@@ -1100,6 +1093,7 @@
         "details": {
           "type": "array",
           "items": {
+            "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
         }

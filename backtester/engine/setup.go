@@ -108,7 +108,6 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 	funds, err := funding.SetupFundingManager(
 		bt.exchangeManager,
-		cfg.FundingSettings.UseExchangeLevelFunding,
 		cfg.StrategySettings.DisableUSDTracking,
 		bt.verbose,
 	)
@@ -116,16 +115,16 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	if cfg.FundingSettings.UseExchangeLevelFunding && !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
-		for i := range cfg.FundingSettings.ExchangeLevelFunding {
-			a := cfg.FundingSettings.ExchangeLevelFunding[i].Asset
-			cq := cfg.FundingSettings.ExchangeLevelFunding[i].Currency
+	if !(cfg.DataSettings.LiveData != nil && cfg.DataSettings.LiveData.RealOrders) {
+		for i := range cfg.FundingSettings.ExchangeWallets {
+			a := cfg.FundingSettings.ExchangeWallets[i].Asset
+			cq := cfg.FundingSettings.ExchangeWallets[i].Currency
 			var item *funding.Item
-			item, err = funding.CreateItem(cfg.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+			item, err = funding.CreateItem(cfg.FundingSettings.ExchangeWallets[i].ExchangeName,
 				a,
 				cq,
-				cfg.FundingSettings.ExchangeLevelFunding[i].InitialFunds,
-				cfg.FundingSettings.ExchangeLevelFunding[i].TransferFee)
+				cfg.FundingSettings.ExchangeWallets[i].InitialFunds,
+				cfg.FundingSettings.ExchangeWallets[i].TransferFee)
 			if err != nil {
 				return err
 			}
@@ -275,100 +274,60 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 
 		var baseItem, quoteItem, futureItem *funding.Item
 		switch {
-		case cfg.FundingSettings.UseExchangeLevelFunding:
-			switch {
-			case a == asset.Spot:
-				// add any remaining currency items that have no funding data in the strategy config
-				baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
-					a,
-					b,
-					decimal.Zero,
-					decimal.Zero)
-				if err != nil {
-					return err
-				}
-				quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
-					a,
-					q,
-					decimal.Zero,
-					decimal.Zero)
-				if err != nil {
-					return err
-				}
-				err = funds.AddItem(baseItem)
-				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return err
-				}
-				err = funds.AddItem(quoteItem)
-				if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
-					return err
-				}
-			case a.IsFutures():
-				// setup contract items
-				c := funding.CreateFuturesCurrencyCode(b, q)
-				futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
-					a,
-					c,
-					decimal.Zero,
-					decimal.Zero)
-				if err != nil {
-					return err
-				}
+		case a == asset.Spot:
+			// add any remaining currency items that have no funding data in the strategy config
+			baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				b,
+				decimal.Zero,
+				decimal.Zero)
+			if err != nil {
+				return err
+			}
+			quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				q,
+				decimal.Zero,
+				decimal.Zero)
+			if err != nil {
+				return err
+			}
+			err = funds.AddItem(baseItem)
+			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
+				return err
+			}
+			err = funds.AddItem(quoteItem)
+			if err != nil && !errors.Is(err, funding.ErrAlreadyExists) {
+				return err
+			}
+		case a.IsFutures():
+			// setup contract items
+			c := funding.CreateFuturesCurrencyCode(b, q)
+			futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
+				a,
+				c,
+				decimal.Zero,
+				decimal.Zero)
+			if err != nil {
+				return err
+			}
 
-				var collateralCurrency currency.Code
-				collateralCurrency, _, err = exch.GetCollateralCurrencyForContract(a, currency.NewPair(b, q))
-				if err != nil {
-					return err
-				}
+			var collateralCurrency currency.Code
+			collateralCurrency, _, err = exch.GetCollateralCurrencyForContract(context.TODO(), a, currency.NewPair(b, q))
+			if err != nil {
+				return err
+			}
 
-				err = funds.LinkCollateralCurrency(futureItem, collateralCurrency)
-				if err != nil {
-					return err
-				}
-				err = funds.AddItem(futureItem)
-				if err != nil {
-					return err
-				}
-			default:
-				return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
+			err = funds.LinkCollateralCurrency(futureItem, collateralCurrency)
+			if err != nil {
+				return err
+			}
+			err = funds.AddItem(futureItem)
+			if err != nil {
+				return err
 			}
 		default:
-			var bFunds, qFunds decimal.Decimal
-			if cfg.CurrencySettings[i].SpotDetails != nil {
-				if cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
-					bFunds = *cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds
-				}
-				if cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
-					qFunds = *cfg.CurrencySettings[i].SpotDetails.InitialQuoteFunds
-				}
-			}
-			baseItem, err = funding.CreateItem(
-				cfg.CurrencySettings[i].ExchangeName,
-				a,
-				curr.Base,
-				bFunds,
-				decimal.Zero)
-			if err != nil {
-				return err
-			}
-			quoteItem, err = funding.CreateItem(
-				cfg.CurrencySettings[i].ExchangeName,
-				a,
-				curr.Quote,
-				qFunds,
-				decimal.Zero)
-			if err != nil {
-				return err
-			}
-			var pair *funding.SpotPair
-			pair, err = funding.CreatePair(baseItem, quoteItem)
-			if err != nil {
-				return err
-			}
-			err = funds.AddPair(pair)
-			if err != nil {
-				return err
-			}
+			return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 		}
 	}
 
@@ -378,7 +337,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name, cfg.StrategySettings.SimultaneousSignalProcessing)
+	bt.Strategy, err = strategies.LoadStrategyByName(cfg.StrategySettings.Name)
 	if err != nil {
 		return err
 	}
@@ -723,7 +682,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		// taking the BTC base and USDT as quote, allows linking
 		// BTC-USDT and BTCUSDT-PERP
 		var curr currency.Code
-		curr, _, err = exch.GetCollateralCurrencyForContract(a, fPair)
+		curr, _, err = exch.GetCollateralCurrencyForContract(context.TODO(), a, fPair)
 		if err != nil {
 			return resp, err
 		}

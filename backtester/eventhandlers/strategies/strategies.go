@@ -15,10 +15,10 @@ import (
 )
 
 // LoadStrategyByName returns the strategy by its name
-func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, error) {
+func LoadStrategyByName(name string) (Handler, error) {
 	strategies := GetSupportedStrategies()
 	for i := range strategies {
-		strategy, err := createNewStrategy(name, useSimultaneousProcessing, strategies[i])
+		strategy, err := createNewStrategy(name, strategies[i])
 		if err != nil {
 			return nil, err
 		}
@@ -29,7 +29,7 @@ func LoadStrategyByName(name string, useSimultaneousProcessing bool) (Handler, e
 	return nil, fmt.Errorf("strategy '%v' %w", name, base.ErrStrategyNotFound)
 }
 
-func createNewStrategy(name string, useSimultaneousProcessing bool, h Handler) (Handler, error) {
+func createNewStrategy(name string, h Handler) (Handler, error) {
 	if h == nil {
 		return nil, fmt.Errorf("cannot load %v supported strategies contains %w", name, common.ErrNilPointer)
 	}
@@ -61,10 +61,6 @@ func createNewStrategy(name string, useSimultaneousProcessing bool, h Handler) (
 	if !ok {
 		return nil, fmt.Errorf("cannot load %v new instance of strategy is not a Handler interface. %w", name, common.ErrTypeAssertFailure)
 	}
-	if useSimultaneousProcessing && !strategy.SupportsSimultaneousProcessing() {
-		return nil, base.ErrSimultaneousProcessingNotSupported
-	}
-	strategy.SetSimultaneousProcessing(useSimultaneousProcessing)
 	return strategy, nil
 }
 

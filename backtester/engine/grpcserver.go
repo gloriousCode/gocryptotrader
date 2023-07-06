@@ -334,27 +334,27 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, err
 	}
 
-	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
-	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
+	exchangeWallets := make([]config.ExchangeWallet, len(request.Config.FundingSettings.ExchangeWallets))
+	for i := range request.Config.FundingSettings.ExchangeWallets {
 		var initialFunds, transferFee decimal.Decimal
 		var a asset.Item
-		initialFunds, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
+		initialFunds, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeWallets[i].InitialFunds)
 		if err != nil {
 			return nil, err
 		}
-		transferFee, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].TransferFee)
+		transferFee, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeWallets[i].TransferFee)
 		if err != nil {
 			return nil, err
 		}
-		a, err = asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
+		a, err = asset.New(request.Config.FundingSettings.ExchangeWallets[i].Asset)
 		if err != nil {
 			return nil, err
 		}
 
-		fundingSettings[i] = config.ExchangeLevelFunding{
-			ExchangeName: request.Config.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
+		exchangeWallets[i] = config.ExchangeWallet{
+			ExchangeName: request.Config.FundingSettings.ExchangeWallets[i].ExchangeName,
 			Asset:        a,
-			Currency:     currency.NewCode(request.Config.FundingSettings.ExchangeLevelFunding[i].Currency),
+			Currency:     currency.NewCode(request.Config.FundingSettings.ExchangeWallets[i].Currency),
 			InitialFunds: initialFunds,
 			TransferFee:  transferFee,
 		}
@@ -583,14 +583,12 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		Nickname: request.Config.Nickname,
 		Goal:     request.Config.Goal,
 		StrategySettings: config.StrategySettings{
-			Name:                         request.Config.StrategySettings.Name,
-			SimultaneousSignalProcessing: request.Config.StrategySettings.UseSimultaneousSignalProcessing,
-			DisableUSDTracking:           request.Config.StrategySettings.DisableUsdTracking,
-			CustomSettings:               customSettings,
+			Name:               request.Config.StrategySettings.Name,
+			DisableUSDTracking: request.Config.StrategySettings.DisableUsdTracking,
+			CustomSettings:     customSettings,
 		},
 		FundingSettings: config.FundingSettings{
-			UseExchangeLevelFunding: request.Config.FundingSettings.UseExchangeLevelFunding,
-			ExchangeLevelFunding:    fundingSettings,
+			ExchangeWallets: exchangeWallets,
 		},
 		CurrencySettings: configSettings,
 		DataSettings: config.DataSettings{

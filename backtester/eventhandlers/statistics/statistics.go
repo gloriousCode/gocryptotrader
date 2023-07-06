@@ -238,7 +238,7 @@ func (s *Statistic) CalculateAllResults() error {
 					s.StartDate = stats.Events[0].Time
 					s.EndDate = last.Time
 					cp := currency.NewPair(b.Currency(), q.Currency())
-					stats.PrintResults(exchangeName, assetItem, cp, s.FundManager.IsUsingExchangeLevelFunding())
+					stats.PrintResults(exchangeName, assetItem, cp)
 
 					finalResults = append(finalResults, FinalResultsHolder{
 						Exchange:         exchangeName,

@@ -221,7 +221,7 @@ func parseExchangeSettings(reader *bufio.Reader, cfg *config.Config) error {
 	addCurrency := y
 	for strings.Contains(addCurrency, y) {
 		var currencySetting *config.CurrencySettings
-		currencySetting, err = addCurrencySetting(reader, cfg.FundingSettings.UseExchangeLevelFunding)
+		currencySetting, err = addCurrencySetting(reader)
 		if err != nil {
 			return err
 		}
@@ -262,20 +262,9 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 	cfg.StrategySettings.DisableUSDTracking = !strings.Contains(yn, y)
 	fmt.Println("Will this strategy use simultaneous processing? y/n")
 	yn = quickParse(reader)
-	cfg.StrategySettings.SimultaneousSignalProcessing = strings.Contains(yn, y)
-	if !cfg.StrategySettings.SimultaneousSignalProcessing {
-		return nil
-	}
-	fmt.Println("Will this strategy be able to share funds at an exchange level? y/n")
-	yn = quickParse(reader)
-	cfg.FundingSettings.UseExchangeLevelFunding = strings.Contains(yn, y)
-	if !cfg.FundingSettings.UseExchangeLevelFunding {
-		return nil
-	}
-
 	addFunding := y
 	for strings.Contains(addFunding, y) {
-		fund := config.ExchangeLevelFunding{}
+		fund := config.ExchangeWallet{}
 		fmt.Println("What is the exchange name to add funding to?")
 		fund.ExchangeName = quickParse(reader)
 		fmt.Println("What is the asset to add funding to?")
@@ -319,7 +308,7 @@ func parseStrategySettings(cfg *config.Config, reader *bufio.Reader) error {
 				return err
 			}
 		}
-		cfg.FundingSettings.ExchangeLevelFunding = append(cfg.FundingSettings.ExchangeLevelFunding, fund)
+		cfg.FundingSettings.ExchangeWallets = append(cfg.FundingSettings.ExchangeWallets, fund)
 		fmt.Println("Add another source of funds? y/n")
 		addFunding = quickParse(reader)
 	}
@@ -568,7 +557,7 @@ func customSettingsLoop(reader *bufio.Reader) map[string]interface{} {
 	return resp
 }
 
-func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*config.CurrencySettings, error) {
+func addCurrencySetting(reader *bufio.Reader) (*config.CurrencySettings, error) {
 	setting := config.CurrencySettings{}
 	fmt.Println("Enter the exchange name. eg Binance")
 	setting.ExchangeName = quickParse(reader)
@@ -595,43 +584,9 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 
 	fmt.Println("Enter the currency base. eg BTC")
 	setting.Base = currency.NewCode(quickParse(reader))
-	if setting.Asset == asset.Spot {
-		if !usingExchangeLevelFunding {
-			fmt.Println("Enter the initial base funds. eg 0")
-			parseNum := quickParse(reader)
-			if parseNum != "" {
-				var d decimal.Decimal
-				d, err = decimal.NewFromString(parseNum)
-				if err != nil {
-					return nil, err
-				}
-				setting.SpotDetails = &config.SpotDetails{
-					InitialBaseFunds: &d,
-				}
-			}
-		}
-	}
 
 	fmt.Println("Enter the currency quote. eg USDT")
 	setting.Quote = currency.NewCode(quickParse(reader))
-	if setting.Asset == asset.Spot && !usingExchangeLevelFunding {
-		fmt.Println("Enter the initial quote funds. eg 10000")
-		parseNum := quickParse(reader)
-		if parseNum != "" {
-			var d decimal.Decimal
-			d, err = decimal.NewFromString(parseNum)
-			if err != nil {
-				return nil, err
-			}
-			if setting.SpotDetails == nil {
-				setting.SpotDetails = &config.SpotDetails{
-					InitialQuoteFunds: &d,
-				}
-			} else {
-				setting.SpotDetails.InitialQuoteFunds = &d
-			}
-		}
-	}
 
 	fmt.Println("Do you want to set custom fees? If no, Backtester will use default fees for exchange y/n")
 	yn := quickParse(reader)

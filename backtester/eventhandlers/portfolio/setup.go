@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"context"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -89,7 +90,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		HoldingsSnapshots: make(map[int64]*holdings.Holding),
 	}
 	if setup.Asset.IsFutures() {
-		collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(setup.Asset, setup.Pair)
+		collateralCurrency, _, err := setup.Exchange.GetCollateralCurrencyForContract(context.TODO(), setup.Asset, setup.Pair)
 		if err != nil {
 			return err
 		}

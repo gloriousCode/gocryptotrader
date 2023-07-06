@@ -4922,6 +4922,18 @@
         }
       }
     },
+    "gctrpcCollateralByAsset": {
+      "type": "object",
+      "properties": {
+        "collateralForCurrency": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcCollateralForCurrency"
+          }
+        }
+      }
+    },
     "gctrpcCollateralByPosition": {
       "type": "object",
       "properties": {
@@ -4952,6 +4964,9 @@
       "type": "object",
       "properties": {
         "currency": {
+          "type": "string"
+        },
+        "asset": {
           "type": "string"
         },
         "excludedFromCollateral": {
@@ -5720,11 +5735,10 @@
         "unrealisedPnl": {
           "type": "string"
         },
-        "currencyBreakdown": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/gctrpcCollateralForCurrency"
+        "collateralByAsset": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/gctrpcCollateralByAsset"
           }
         },
         "positionBreakdown": {

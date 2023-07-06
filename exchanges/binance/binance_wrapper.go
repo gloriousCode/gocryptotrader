@@ -2622,3 +2622,209 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 }
+
+// GetCollateralCurrencyForContract returns the collateral currency for a given contract
+// is used to determine collateral allocations
+func (b *Binance) GetCollateralCurrencyForContract(ctx context.Context, item asset.Item, cp currency.Pair) (currency.Code, asset.Item, error) {
+	if !item.IsFutures() {
+		return currency.Code{}, 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	if err := b.CurrencyPairs.IsAssetEnabled(item); err != nil {
+		return currency.Code{}, 0, fmt.Errorf("%w %v", asset.ErrNotEnabled, item)
+	}
+	switch item {
+	case asset.USDTMarginedFutures:
+		return cp.Quote, item, nil
+	case asset.CoinMarginedFutures:
+		ei, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return currency.Code{}, 0, err
+		}
+		formattedPair, err := b.FormatSymbol(cp, item)
+		if err != nil {
+			return currency.Code{}, 0, err
+		}
+		for i := range ei.Symbols {
+			if ei.Symbols[i].Symbol != formattedPair {
+				continue
+			}
+			return currency.NewCode(ei.Symbols[i].MarginAsset), item, nil
+		}
+		return currency.Code{}, 0, fmt.Errorf("%w %v %v", currency.ErrPairNotFound, item, cp)
+	default:
+		return currency.Code{}, 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+}
+
+func (b *Binance) ScaleCollateral(ctx context.Context, req *order.CollateralCalculator) (*collateral.ByCurrency, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w CollateralCalculator", common.ErrNilPointer)
+	}
+	if !req.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	// Binance does not apply currency scaling
+	return &collateral.ByCurrency{
+		Currency:                    req.CollateralCurrency,
+		TotalFunds:                  req.FreeCollateral.Add(req.LockedCollateral),
+		AvailableForUseAsCollateral: req.FreeCollateral,
+		CollateralContribution:      req.FreeCollateral,
+		// AdditionalCollateralUsed:    ,
+		FairMarketValue: req.USDPrice,
+		Weighting:       decimal.NewFromInt(1),
+		ScaledCurrency:  req.CollateralCurrency,
+		ScaledUsed:      req.LockedCollateral,
+	}, nil
+}
+
+// CalculateTotalCollateral returns the total collateral per asset wallet
+// as Binance separates collateral calculation per asset eg CoinMarginedFutures and USDTMarginedFutures
+func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w TotalCollateralCalculator", common.ErrNilPointer)
+	}
+	resp := &order.TotalCollateralResponse{
+		BreakdownByAsset: make(map[asset.Item][]collateral.ByCurrency),
+	}
+	assets := b.CurrencyPairs.GetAssetTypes(true)
+	for i := range assets {
+		switch assets[i] {
+		case asset.USDTMarginedFutures:
+			if req.CalculateOffline {
+
+			} else {
+				ai, err := b.UAccountInformationV2(ctx)
+				if err != nil {
+					return nil, err
+				}
+				for j := range ai.Positions {
+					pair, err := currency.NewPairFromString(ai.Positions[j].Symbol)
+					if err != nil {
+						return nil, err
+					}
+					mp, err := b.UGetMarkPrice(ctx, pair)
+					if err != nil {
+						return nil, err
+					}
+					dmp := decimal.NewFromFloat(mp[0].MarkPrice)
+					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
+						PositionCurrency: pair,
+						Asset:            asset.USDTMarginedFutures,
+						// TODO determine difference
+						PositionSize:   decimal.NewFromFloat(ai.Positions[j].PositionAmount),
+						MarkPrice:      dmp,
+						RequiredMargin: decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
+						CollateralUsed: decimal.NewFromFloat(ai.Positions[j].PositionAmount).Mul(dmp),
+					})
+				}
+				bba := resp.BreakdownByAsset[asset.USDTMarginedFutures]
+				for j := range ai.Assets {
+					curr := currency.NewCode(ai.Assets[j].Asset)
+					fmv := 1.0
+					if !curr.Equal(currency.USDT) {
+						mp, err := b.UGetMarkPrice(ctx, currency.NewPair(curr, currency.USDT))
+						if err != nil {
+							return nil, err
+						}
+						fmv = mp[0].MarkPrice
+					}
+
+					bba = append(bba, collateral.ByCurrency{
+						Currency:                    curr,
+						Asset:                       asset.USDTMarginedFutures,
+						TotalFunds:                  decimal.NewFromFloat(ai.Assets[j].WalletBalance),
+						AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						CollateralContribution:      decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						FairMarketValue:             decimal.NewFromFloat(fmv),
+						Weighting:                   decimal.NewFromInt(1),
+						ScaledCurrency:              curr,
+						UnrealisedPNL:               decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPnl),
+					})
+
+				}
+				resp.BreakdownByAsset[asset.USDTMarginedFutures] = bba
+			}
+		case asset.CoinMarginedFutures:
+			if req.CalculateOffline {
+
+			} else {
+				ai, err := b.GetFuturesAccountInfo(ctx)
+				if err != nil {
+					return nil, err
+				}
+				for j := range ai.Positions {
+					pair, err := currency.NewPairFromString(ai.Positions[j].Symbol)
+					if err != nil {
+						return nil, err
+					}
+					mp, err := b.GetIndexAndMarkPrice(ctx, pair.String(), "")
+					if err != nil {
+						return nil, err
+					}
+					dmp := decimal.NewFromFloat(mp[0].MarkPrice)
+					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
+						PositionCurrency: pair,
+						Asset:            asset.CoinMarginedFutures,
+						// TODO determine difference
+						PositionSize:   decimal.NewFromFloat(ai.Positions[j].Amount),
+						MarkPrice:      dmp,
+						RequiredMargin: decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
+						CollateralUsed: decimal.NewFromFloat(ai.Positions[j].Amount).Mul(dmp),
+					})
+				}
+				bba := resp.BreakdownByAsset[asset.CoinMarginedFutures]
+				for j := range ai.Assets {
+					curr := currency.NewCode(ai.Assets[j].Asset)
+					fmv := 1.0
+					if !curr.Equal(currency.USDT) {
+						mp, err := b.GetIndexAndMarkPrice(ctx, ai.Assets[j].Asset+"USDT", "")
+						if err != nil {
+							return nil, err
+						}
+						fmv = mp[0].MarkPrice
+					}
+
+					bba = append(bba, collateral.ByCurrency{
+						Currency:                    curr,
+						Asset:                       asset.CoinMarginedFutures,
+						TotalFunds:                  decimal.NewFromFloat(ai.Assets[j].WalletBalance),
+						AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						CollateralContribution:      decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						FairMarketValue:             decimal.NewFromFloat(fmv),
+						Weighting:                   decimal.NewFromInt(1),
+						ScaledCurrency:              curr,
+						UnrealisedPNL:               decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPNL),
+					})
+
+				}
+				resp.BreakdownByAsset[asset.CoinMarginedFutures] = bba
+			}
+		case asset.Spot:
+			if req.CalculateOffline {
+
+			} else {
+				ai, err := b.GetAccount(ctx)
+				if err != nil {
+					return nil, err
+				}
+				bba := resp.BreakdownByAsset[asset.Spot]
+				for j := range ai.Balances {
+					curr := currency.NewCode(ai.Balances[j].Asset)
+					bba = append(bba, collateral.ByCurrency{
+						Currency:                    curr,
+						Asset:                       asset.CoinMarginedFutures,
+						TotalFunds:                  ai.Balances[j].Free.Add(ai.Balances[j].Locked),
+						AvailableForUseAsCollateral: decimal.Zero,
+						CollateralContribution:      decimal.Zero,
+						Weighting:                   decimal.Zero,
+						ScaledCurrency:              curr,
+					})
+				}
+				resp.BreakdownByAsset[asset.Spot] = bba
+			}
+		default:
+			continue
+		}
+	}
+	return resp, nil
+}

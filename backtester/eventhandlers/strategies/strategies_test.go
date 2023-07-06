@@ -24,40 +24,24 @@ func TestGetStrategies(t *testing.T) {
 func TestLoadStrategyByName(t *testing.T) {
 	t.Parallel()
 	var resp Handler
-	_, err := LoadStrategyByName("test", false)
-	if !errors.Is(err, base.ErrStrategyNotFound) {
-		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
-	}
-	_, err = LoadStrategyByName("test", true)
+	_, err := LoadStrategyByName("test")
 	if !errors.Is(err, base.ErrStrategyNotFound) {
 		t.Errorf("received: %v, expected: %v", err, base.ErrStrategyNotFound)
 	}
 
-	resp, err = LoadStrategyByName(dollarcostaverage.Name, false)
+	resp, err = LoadStrategyByName(dollarcostaverage.Name)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != dollarcostaverage.Name {
 		t.Error("expected dca")
 	}
-	resp, err = LoadStrategyByName(dollarcostaverage.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	if !resp.UsingSimultaneousProcessing() {
-		t.Error("expected true")
-	}
-
-	resp, err = LoadStrategyByName(rsi.Name, false)
+	resp, err = LoadStrategyByName(rsi.Name)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	if resp.Name() != rsi.Name {
 		t.Error("expected rsi")
-	}
-	_, err = LoadStrategyByName(rsi.Name, true)
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 }
 
@@ -82,7 +66,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	t.Parallel()
 
 	// invalid Handler
-	resp, err := createNewStrategy(dollarcostaverage.Name, false, nil)
+	resp, err := createNewStrategy(dollarcostaverage.Name, nil)
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("received '%v' expected '%v'", err, common.ErrNilPointer)
 	}
@@ -91,7 +75,7 @@ func TestCreateNewStrategy(t *testing.T) {
 	}
 
 	// mismatched name
-	resp, err = createNewStrategy(dollarcostaverage.Name, false, &customStrategy{})
+	resp, err = createNewStrategy(dollarcostaverage.Name, &customStrategy{})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -101,7 +85,7 @@ func TestCreateNewStrategy(t *testing.T) {
 
 	// valid
 	h := new(dollarcostaverage.Strategy)
-	resp, err = createNewStrategy(dollarcostaverage.Name, false, h)
+	resp, err = createNewStrategy(dollarcostaverage.Name, h)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -120,13 +104,7 @@ func (s *customStrategy) Name() string {
 func (s *customStrategy) Description() string {
 	return "this is a demonstration of loading strategies via custom plugins"
 }
-func (s *customStrategy) SupportsSimultaneousProcessing() bool {
-	return true
-}
-func (s *customStrategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) (signal.Event, error) {
-	return s.createSignal(d)
-}
-func (s *customStrategy) OnSimultaneousSignals(_ []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
+func (s *customStrategy) Execute(_ []data.Handler, _ funding.IFundingTransferer, _ portfolio.Handler) ([]signal.Event, error) {
 	return nil, nil
 }
 func (s *customStrategy) createSignal(_ data.Handler) (*signal.Signal, error) {

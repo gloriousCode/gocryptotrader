@@ -222,10 +222,10 @@ func (bt *BackTest) Run() error {
 					return nil
 				}
 				o := e.GetOffset()
-				if bt.Strategy.UsingSimultaneousProcessing() && bt.hasProcessedDataAtOffset[o] {
+				if bt.hasProcessedDataAtOffset[o] {
 					// only append one event, as simultaneous processing
 					// will retrieve all relevant events to process under
-					// processSimultaneousDataEvents()
+					// processDataEvents()
 					continue
 				}
 				bt.EventQueue.AppendEvent(e)
@@ -263,11 +263,7 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 	switch eType := ev.(type) {
 	case kline.Event:
 		// using kline.Event as signal.Event also matches data.Event
-		if bt.Strategy.UsingSimultaneousProcessing() {
-			err = bt.processSimultaneousDataEvents()
-		} else {
-			err = bt.processSingleDataEvent(eType, funds.FundReleaser())
-		}
+		err = bt.processDataEvents()
 	case signal.Event:
 		err = bt.processSignalEvent(eType, funds.FundReserver())
 	case order.Event:
@@ -297,38 +293,10 @@ func (bt *BackTest) handleEvent(ev common.Event) error {
 	return bt.Funding.CreateSnapshot(ev.GetTime())
 }
 
-// processSingleDataEvent will pass the event to the strategy and determine how it should be handled
-func (bt *BackTest) processSingleDataEvent(ev data.Event, funds funding.IFundReleaser) error {
-	err := bt.updateStatsForDataEvent(ev, funds)
-	if err != nil {
-		return err
-	}
-	d, err := bt.DataHolder.GetDataForCurrency(ev)
-	if err != nil {
-		return err
-	}
-	s, err := bt.Strategy.OnSignal(d, bt.Funding, bt.Portfolio)
-	if err != nil {
-		if errors.Is(err, base.ErrTooMuchBadData) {
-			// too much bad data is a severe error and backtesting must cease
-			return err
-		}
-		log.Errorf(common.Backtester, "OnSignal %v", err)
-		return nil
-	}
-	err = bt.Statistic.SetEventForOffset(s)
-	if err != nil {
-		log.Errorf(common.Backtester, "SetEventForOffset %v", err)
-	}
-	bt.EventQueue.AppendEvent(s)
-
-	return nil
-}
-
-// processSimultaneousDataEvents determines what signal events are generated and appended
+// processDataEvents determines what signal events are generated and appended
 // to the event queue. It will pass all currency events to the strategy to determine what
 // currencies to act upon
-func (bt *BackTest) processSimultaneousDataEvents() error {
+func (bt *BackTest) processDataEvents() error {
 	dataHolders, err := bt.DataHolder.GetAllData()
 	if err != nil {
 		return err
@@ -364,7 +332,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 		}
 		dataEvents = append(dataEvents, dataHolders[i])
 	}
-	signals, err := bt.Strategy.OnSimultaneousSignals(dataEvents, bt.Funding, bt.Portfolio)
+	signals, err := bt.Strategy.Execute(dataEvents, bt.Funding, bt.Portfolio)
 	if err != nil {
 		switch {
 		case errors.Is(err, base.ErrTooMuchBadData):
@@ -374,7 +342,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 			// event queue is being cleared with no data events to process
 			return nil
 		default:
-			log.Errorf(common.Backtester, "OnSimultaneousSignals %v", err)
+			log.Errorf(common.Backtester, "Execute %v", err)
 			return nil
 		}
 	}

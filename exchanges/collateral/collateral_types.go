@@ -5,6 +5,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Mode defines the different collateral types supported by exchanges
@@ -43,6 +44,7 @@ var supportedCollateralModes = SingleMode | MultiMode | GlobalMode
 // from positions
 type ByPosition struct {
 	PositionCurrency currency.Pair
+	Asset            asset.Item
 	Size             decimal.Decimal
 	OpenOrderSize    decimal.Decimal
 	PositionSize     decimal.Decimal
@@ -57,6 +59,7 @@ type ByPosition struct {
 // eg in Bybit ScaledCurrency is USDC
 type ByCurrency struct {
 	Currency                    currency.Code
+	Asset                       asset.Item
 	SkipContribution            bool
 	TotalFunds                  decimal.Decimal
 	AvailableForUseAsCollateral decimal.Decimal

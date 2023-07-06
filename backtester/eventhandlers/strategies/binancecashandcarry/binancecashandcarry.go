@@ -30,18 +30,6 @@ func (s *Strategy) Description() string {
 	return description
 }
 
-// OnSignal handles a data event and returns what action the strategy believes should occur
-// For rsi, this means returning a buy signal when rsi is at or below a certain level, and a
-// sell signal when it is at or above a certain level
-func (s *Strategy) OnSignal(data.Handler, funding.IFundingTransferer, portfolio.Handler) (signal.Event, error) {
-	return nil, base.ErrSimultaneousProcessingOnly
-}
-
-// SupportsSimultaneousProcessing this strategy only supports simultaneous signal processing
-func (s *Strategy) SupportsSimultaneousProcessing() bool {
-	return true
-}
-
 type cashCarrySignals struct {
 	spotSignal   data.Handler
 	futureSignal data.Handler
@@ -49,9 +37,9 @@ type cashCarrySignals struct {
 
 var errNotSetup = errors.New("sent incomplete signals")
 
-// OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
+// Execute analyses multiple data points simultaneously, allowing flexibility
 // in allowing a strategy to only place an order for X currency if Y currency's price is Z
-func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
+func (s *Strategy) Execute(d []data.Handler, f funding.IFundingTransferer, p portfolio.Handler) ([]signal.Event, error) {
 	if len(d) == 0 {
 		return nil, base.ErrNoDataToProcess
 	}

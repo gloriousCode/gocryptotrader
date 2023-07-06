@@ -34,22 +34,16 @@ var (
 
 func TestSetupFundingManager(t *testing.T) {
 	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !f.usingExchangeLevelFunding {
-		t.Errorf("expected '%v received '%v'", true, false)
 	}
 	if f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", false, true)
 	}
-	f, err = SetupFundingManager(&engine.ExchangeManager{}, false, true, true)
+	f, err = SetupFundingManager(&engine.ExchangeManager{}, true, true)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if f.usingExchangeLevelFunding {
-		t.Errorf("expected '%v received '%v'", false, true)
 	}
 	if !f.disableUSDTracking {
 		t.Errorf("expected '%v received '%v'", true, false)
@@ -61,7 +55,7 @@ func TestSetupFundingManager(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
+	f, err := SetupFundingManager(&engine.ExchangeManager{}, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
@@ -77,30 +71,15 @@ func TestReset(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if f.usingExchangeLevelFunding {
-		t.Errorf("expected '%v received '%v'", false, true)
-	}
 	if f.Exists(baseItem) {
 		t.Errorf("expected '%v received '%v'", false, true)
-	}
-}
-
-func TestIsUsingExchangeLevelFunding(t *testing.T) {
-	t.Parallel()
-	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	if !f.IsUsingExchangeLevelFunding() {
-		t.Errorf("expected '%v received '%v'", true, false)
 	}
 }
 
 func TestTransfer(t *testing.T) {
 	t.Parallel()
 	f := FundManager{
-		usingExchangeLevelFunding: false,
-		items:                     nil,
+		items: nil,
 	}
 	err := f.Transfer(decimal.Zero, nil, nil, false)
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -398,7 +377,6 @@ func TestGenerateReport(t *testing.T) {
 		t.Error("expected matching name")
 	}
 
-	f.usingExchangeLevelFunding = true
 	err = f.AddItem(&Item{
 		exchange:     exchName,
 		initialFunds: decimal.NewFromInt(100),

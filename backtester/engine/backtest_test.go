@@ -121,8 +121,7 @@ func TestSetupFromConfig(t *testing.T) {
 	if !errors.Is(err, holdings.ErrInitialFundsZero) {
 		t.Errorf("received: %v, expected: %v", err, holdings.ErrInitialFundsZero)
 	}
-	cfg.FundingSettings.UseExchangeLevelFunding = true
-	cfg.FundingSettings.ExchangeLevelFunding = []config.ExchangeLevelFunding{
+	cfg.FundingSettings.ExchangeWallets = []config.ExchangeWallet{
 		{
 			ExchangeName: testExchange,
 			Asset:        asset.Spot,
@@ -404,7 +403,7 @@ func TestLoadDataLive(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	t.Parallel()
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -423,10 +422,6 @@ func TestReset(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
-	if bt.Funding.IsUsingExchangeLevelFunding() {
-		t.Error("expected false")
-	}
-
 	bt = nil
 	err = bt.Reset()
 	if !errors.Is(err, gctcommon.ErrNilPointer) {
@@ -460,7 +455,7 @@ func TestFullCycle(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -596,7 +591,7 @@ func TestFullCycleMulti(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -628,7 +623,7 @@ func TestFullCycleMulti(t *testing.T) {
 		shutdown:                 make(chan struct{}),
 	}
 
-	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name, true)
+	bt.Strategy, err = strategies.LoadStrategyByName(dollarcostaverage.Name)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
@@ -826,7 +821,7 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
 	expectedError = nil
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -903,7 +898,7 @@ func TestProcessSignalEvent(t *testing.T) {
 		Base: de.Base,
 	}
 
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -969,7 +964,7 @@ func TestProcessOrderEvent(t *testing.T) {
 		Base: de.Base,
 	}
 
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
+	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, false)
 	if !errors.Is(err, expectedError) {
 		t.Errorf("received '%v' expected '%v'", err, expectedError)
 	}
@@ -1918,104 +1913,5 @@ func TestNewBacktesterFromConfigs(t *testing.T) {
 	}
 	if bt.MetaData.DateLoaded.IsZero() {
 		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")
-	}
-}
-
-func TestProcessSingleDataEvent(t *testing.T) {
-	t.Parallel()
-	bt := &BackTest{
-		Strategy:   &fakeStrat{},
-		Portfolio:  &fakeFolio{},
-		Statistic:  &fakeStats{},
-		Reports:    &fakeReport{},
-		Funding:    &fakeFunding{},
-		DataHolder: &data.HandlerHolder{},
-		EventQueue: &eventholder.Holder{},
-	}
-
-	err := bt.processSingleDataEvent(nil, nil)
-	if !errors.Is(err, common.ErrNilEvent) {
-		t.Errorf("received '%v' expected '%v'", err, common.ErrNilEvent)
-	}
-	cp := currency.NewPair(currency.BTC, currency.USDT)
-	a := asset.Spot
-	ev := &evkline.Kline{
-		Base: &event.Base{
-			Exchange:     testExchange,
-			Time:         time.Now(),
-			Interval:     gctkline.FifteenMin,
-			CurrencyPair: cp,
-			AssetType:    a,
-		},
-	}
-	err = bt.processSingleDataEvent(ev, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
-
-	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	collateral, err := funding.CreateCollateral(b, quote)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	bt.Funding = f
-	tt := time.Now()
-	bt.DataHolder = data.NewHandlerHolder()
-	k := &kline.DataFromKline{
-		Item: &gctkline.Item{
-			Exchange: testExchange,
-			Pair:     cp,
-			Asset:    a,
-			Interval: gctkline.FifteenMin,
-			Candles: []gctkline.Candle{{
-				Time:   tt,
-				Open:   1337,
-				High:   1337,
-				Low:    1337,
-				Close:  1337,
-				Volume: 1337,
-			}},
-		},
-		Base: &data.Base{},
-		RangeHolder: &gctkline.IntervalRangeHolder{
-			Start: gctkline.CreateIntervalTime(tt),
-			End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
-			Ranges: []gctkline.IntervalRange{
-				{
-					Start: gctkline.CreateIntervalTime(tt),
-					End:   gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
-					Intervals: []gctkline.IntervalData{
-						{
-							Start:   gctkline.CreateIntervalTime(tt),
-							End:     gctkline.CreateIntervalTime(tt.Add(gctkline.FifteenMin.Duration())),
-							HasData: true,
-						},
-					},
-				},
-			},
-		},
-	}
-	err = k.Load()
-	if !errors.Is(err, nil) {
-		t.Errorf("received: %v, expected: %v", err, nil)
-	}
-	err = bt.DataHolder.SetDataForCurrency(testExchange, a, cp, k)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
-	err = bt.processSingleDataEvent(ev, collateral)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
 	}
 }

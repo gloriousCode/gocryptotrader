@@ -1256,24 +1256,29 @@ message GetCollateralResponse {
   string available_collateral = 7;
   string maintenance_collateral = 8;
   string unrealised_pnl = 9;
-  repeated CollateralForCurrency currency_breakdown = 10;
+  map<string, CollateralByAsset> collateral_by_asset = 10;
   repeated CollateralByPosition position_breakdown = 11;
+}
+
+message CollateralByAsset {
+  repeated CollateralForCurrency collateral_for_currency = 1;
 }
 
 message CollateralForCurrency {
   string currency = 1;
-  bool excluded_from_collateral = 2;
-  string total_funds = 3;
-  string available_for_use_as_collateral = 4;
-  string approx_fair_market_value = 5;
-  string weighting = 6;
-  string collateral_contribution = 7;
-  string scaled_to_currency = 8;
-  string unrealised_pnl = 9;
-  string funds_in_use = 10;
-  string additional_collateral_used = 11;
-  CollateralUsedBreakdown used_breakdown = 12;
-  string error = 13;
+  string asset = 2;
+  bool excluded_from_collateral = 3;
+  string total_funds = 4;
+  string available_for_use_as_collateral = 5;
+  string approx_fair_market_value = 6;
+  string weighting = 7;
+  string collateral_contribution = 8;
+  string scaled_to_currency = 9;
+  string unrealised_pnl = 10;
+  string funds_in_use = 11;
+  string additional_collateral_used = 12;
+  CollateralUsedBreakdown used_breakdown = 13;
+  string error = 14;
 }
 
 message CollateralByPosition {

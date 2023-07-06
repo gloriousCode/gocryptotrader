@@ -2644,7 +2644,7 @@ func TestSetRequester(t *testing.T) {
 func TestGetCollateralCurrencyForContract(t *testing.T) {
 	t.Parallel()
 	b := Base{}
-	_, _, err := b.GetCollateralCurrencyForContract(asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
+	_, _, err := b.GetCollateralCurrencyForContract(context.TODO(), asset.Futures, currency.NewPair(currency.XRP, currency.BABYDOGE))
 	if !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNotYetImplemented)
 	}
