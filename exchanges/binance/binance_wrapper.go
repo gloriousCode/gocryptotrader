@@ -2712,14 +2712,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 							return nil, err
 						}
 						dmp := decimal.NewFromFloat(mp[0].MarkPrice)
+						ps := decimal.NewFromFloat(ai.Positions[j].PositionAmount)
 						resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
 							PositionCurrency: pair,
 							Asset:            assets[i],
-							// TODO determine difference
-							PositionSize:   decimal.NewFromFloat(ai.Positions[j].PositionAmount),
-							MarkPrice:      dmp,
-							RequiredMargin: decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
-							CollateralUsed: decimal.NewFromFloat(ai.Positions[j].PositionAmount).Mul(dmp),
+							Size:             ps.Mul(dmp),
+							PositionSize:     ps,
+							MarkPrice:        dmp,
+							RequiredMargin:   decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
+							CollateralUsed:   decimal.NewFromFloat(ai.Positions[j].PositionAmount).Mul(dmp),
 						})
 					}
 				}
@@ -2776,14 +2777,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 							return nil, err
 						}
 						dmp := decimal.NewFromFloat(mp[0].MarkPrice)
+						ps := decimal.NewFromFloat(ai.Positions[j].Amount)
 						resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
 							PositionCurrency: pair,
 							Asset:            assets[i],
-							// TODO determine difference
-							PositionSize:   decimal.NewFromFloat(ai.Positions[j].Amount),
-							MarkPrice:      dmp,
-							RequiredMargin: decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
-							CollateralUsed: decimal.NewFromFloat(ai.Positions[j].Amount).Mul(dmp),
+							Size:             ps.Mul(dmp),
+							PositionSize:     ps,
+							MarkPrice:        dmp,
+							RequiredMargin:   decimal.NewFromFloat(ai.Positions[j].MaintenanceMargin),
+							CollateralUsed:   decimal.NewFromFloat(ai.Positions[j].Amount).Mul(dmp),
 						})
 					}
 				}
@@ -2813,7 +2815,6 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 						ScaledCurrency:              curr,
 						UnrealisedPNL:               decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPNL),
 					})
-
 				}
 				resp.BreakdownByAsset[assets[i]] = bba
 			}

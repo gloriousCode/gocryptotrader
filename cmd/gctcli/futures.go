@@ -112,22 +112,22 @@ var futuresCommands = &cli.Command{
 				&cli.StringFlag{
 					Name:    "asset",
 					Aliases: []string{"a"},
-					Usage:   "the asset type of the currency pair, must be a futures type",
+					Usage:   "optional - filters collateral to only this asset",
 				},
 				&cli.BoolFlag{
 					Name:    "calculateoffline",
 					Aliases: []string{"c"},
-					Usage:   "use local scaling calculations instead of requesting the collateral values directly, depending on individual exchange support",
+					Usage:   "optional - use local scaling calculations instead of requesting the collateral values directly, depending on individual exchange support",
 				},
 				&cli.BoolFlag{
 					Name:    "includebreakdown",
 					Aliases: []string{"i"},
-					Usage:   "include a list of each held currency and its contribution to the overall collateral value",
+					Usage:   "optional - include a list of each held currency and its contribution to the overall collateral value",
 				},
 				&cli.BoolFlag{
 					Name:    "includezerovalues",
 					Aliases: []string{"z"},
-					Usage:   "include collateral values that are zero",
+					Usage:   "optional - include collateral values that are zero",
 				},
 			},
 		},
@@ -645,11 +645,12 @@ func getCollateral(c *cli.Context) error {
 	} else {
 		assetType = c.Args().Get(1)
 	}
-	err = isFuturesAsset(assetType)
-	if err != nil {
-		return err
+	if assetType != "" {
+		err = isFuturesAsset(assetType)
+		if err != nil {
+			return err
+		}
 	}
-
 	if c.IsSet("calculateoffline") {
 		calculateOffline = c.Bool("calculateoffline")
 	} else if c.Args().Get(2) != "" {

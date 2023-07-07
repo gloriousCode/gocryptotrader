@@ -4708,85 +4708,45 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, fmt.Errorf("%w Get Collateral for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
 
-	a, err := asset.New(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-
-	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
-	if err != nil {
-		return nil, err
-	}
-	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
-	}
-	ai, err := exch.FetchAccountInfo(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	creds, err := exch.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	subAccounts := make([]string, len(ai.Accounts))
-	var acc *account.SubAccount
-	for i := range ai.Accounts {
-		subAccounts[i] = ai.Accounts[i].ID
-		if ai.Accounts[i].ID == "main" && creds.SubAccount == "" {
-			acc = &ai.Accounts[i]
-			break
-		}
-		if strings.EqualFold(creds.SubAccount, ai.Accounts[i].ID) {
-			acc = &ai.Accounts[i]
-			break
-		}
-	}
-	if acc == nil {
-		return nil, fmt.Errorf("%w for %s %s and stored credentials - available subaccounts: %s",
-			errNoAccountInformation,
-			exch.GetName(),
-			creds.SubAccount,
-			strings.Join(subAccounts, ","))
-	}
-	var spotPairs currency.Pairs
-	if r.CalculateOffline {
-		spotPairs, err = exch.GetAvailablePairs(asset.Spot)
+	b := exch.GetBase()
+	var assetFilter asset.Item
+	if r.Asset != "" {
+		assetFilter, err = asset.New(r.Asset)
 		if err != nil {
-			return nil, fmt.Errorf("GetCollateral offline calculation error via GetAvailablePairs %s %s", exch.GetName(), err)
+			return nil, err
+		}
+		if !assetFilter.IsValid() {
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+		}
+		err = b.CurrencyPairs.IsAssetEnabled(assetFilter)
+		if err != nil {
+			return nil, fmt.Errorf("%v %w", assetFilter, errAssetTypeDisabled)
 		}
 	}
 
-	calculators := make([]order.CollateralCalculator, 0, len(acc.Currencies))
-	for i := range acc.Currencies {
-		total := decimal.NewFromFloat(acc.Currencies[i].Total)
-		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
-		cal := order.CollateralCalculator{
-			CalculateOffline:   r.CalculateOffline,
-			CollateralCurrency: acc.Currencies[i].Currency,
-			Asset:              a,
-			FreeCollateral:     free,
-			LockedCollateral:   total.Sub(free),
+	enabledAssets := b.GetAssetTypes(true)
+	var calculators []order.CollateralCalculator
+	for i := range enabledAssets {
+		if assetFilter != asset.Empty && assetFilter != enabledAssets[i] {
+			continue
 		}
-		if r.CalculateOffline &&
-			!acc.Currencies[i].Currency.Equal(currency.USD) {
-			var tick *ticker.Price
-			tickerCurr := currency.NewPair(acc.Currencies[i].Currency, currency.USD)
-			if !spotPairs.Contains(tickerCurr, true) {
-				// cannot price currency to calculate collateral
-				continue
-			}
-			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
-			if err != nil {
-				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err))
-				continue
-			}
-			if tick.Last == 0 {
-				continue
-			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+		ai, err := exch.FetchAccountInfo(ctx, enabledAssets[i])
+		if err != nil {
+			return nil, err
 		}
-		calculators = append(calculators, cal)
+		for j := range ai.Accounts {
+			if ai.Accounts[i].ID
+			for x := range ai.Accounts[j].Currencies {
+				calculators = append(calculators, order.CollateralCalculator{
+					CalculateOffline:   r.CalculateOffline,
+					CollateralCurrency: ai.Accounts[j].Currencies[x].Currency,
+					Asset:              enabledAssets[i],
+					FreeCollateral:     decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Free),
+					LockedCollateral:   decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Hold),
+				})
+			}
+		}
+
 	}
 
 	calc := &order.TotalCollateralCalculator{
