@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -736,20 +737,25 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	}
 
 	for i := range f.items {
-		if f.items[i].exchange == ev.GetExchange() &&
-			f.items[i].asset == futureAsset &&
-			f.items[i].currency.Equal(futureCurrency) {
-
-			for j := range collat.BreakdownByCurrency {
-				if !collat.BreakdownByCurrency[j].Currency.Equal(futureCurrency) {
+		if f.items[i].exchange == ev.GetExchange() {
+			if f.items[i].asset != futureAsset {
+				continue
+			}
+			var slice []collateral.ByCurrency
+			slice, ok = collat.BreakdownByAsset[f.items[i].asset]
+			if !ok {
+				continue
+			}
+			for j := range slice {
+				if !slice[j].Currency.Equal(futureCurrency) {
 					continue
 				}
 				if f.verbose {
-					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.BreakdownByCurrency[j].AvailableForUseAsCollateral)
+					log.Infof(common.FundManager, "Setting collateral %v %v %v to %v", f.items[i].exchange, f.items[i].asset, f.items[i].currency, collat.BreakdownByCurrency[j].CollateralAvailable)
 				}
-				f.items[i].available = collat.BreakdownByCurrency[j].AvailableForUseAsCollateral
+				f.items[i].available = collat.BreakdownByCurrency[j].CollateralAvailable
+				return nil
 			}
-			return nil
 		}
 	}
 	return fmt.Errorf("%w to allocate %v to %v %v %v", ErrFundsNotFound, collateralAmount, ev.GetExchange(), ev.GetAssetType(), futureCurrency)

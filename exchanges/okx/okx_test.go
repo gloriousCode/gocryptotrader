@@ -33,8 +33,8 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = false
-	useTestNet              = false
+	canManipulateRealOrders = !false
+	useTestNet              = !false
 )
 
 var ok = &Okx{}
@@ -3474,4 +3474,16 @@ func TestSetLeverage(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
+}
+
+func TestCalculateTotalCollateral(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	resp, err := ok.CalculateTotalCollateral(contextGenerate(), &order.TotalCollateralCalculator{
+		FetchPositions: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", resp)
 }

@@ -182,6 +182,7 @@ type FuturesCapabilities struct {
 	OrderManagerPositionTracking bool
 	Collateral                   bool
 	CollateralMode               bool
+	CollateralWallet             account.WalletType
 	Leverage                     bool
 }
 

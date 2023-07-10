@@ -306,33 +306,35 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *order.TotalCollate
 			LockedInSpotOrders:              decimal.NewFromInt(3),
 			LockedAsCollateral:              decimal.NewFromInt(3),
 		},
-		BreakdownByCurrency: []collateral.ByCurrency{
-			{
-				Currency:               currency.USD,
-				TotalFunds:             decimal.NewFromInt(1330),
-				CollateralContribution: decimal.NewFromInt(1330),
-				ScaledCurrency:         currency.USD,
-			},
-			{
-				Currency:   currency.DOGE,
-				TotalFunds: decimal.NewFromInt(1000),
-				ScaledUsed: decimal.NewFromInt(6),
-				ScaledUsedBreakdown: &collateral.UsedBreakdown{
-					LockedInStakes:                  decimal.NewFromInt(1),
-					LockedInNFTBids:                 decimal.NewFromInt(1),
-					LockedInFeeVoucher:              decimal.NewFromInt(1),
-					LockedInSpotMarginFundingOffers: decimal.NewFromInt(1),
-					LockedInSpotOrders:              decimal.NewFromInt(1),
-					LockedAsCollateral:              decimal.NewFromInt(1),
+		BreakdownByAsset: map[asset.Item][]collateral.ByCurrency{
+			asset.Futures: {
+				{
+					Currency:        currency.USD,
+					TotalFunds:      decimal.NewFromInt(1330),
+					ScaledAvailable: decimal.NewFromInt(1330),
+					ScaledCurrency:  currency.USD,
 				},
-				CollateralContribution: decimal.NewFromInt(4),
-				ScaledCurrency:         currency.USD,
-			},
-			{
-				Currency:               currency.XRP,
-				TotalFunds:             decimal.NewFromInt(1333333333333337),
-				CollateralContribution: decimal.NewFromInt(-3),
-				ScaledCurrency:         currency.USD,
+				{
+					Currency:   currency.DOGE,
+					TotalFunds: decimal.NewFromInt(1000),
+					ScaledUsed: decimal.NewFromInt(6),
+					ScaledUsedBreakdown: &collateral.UsedBreakdown{
+						LockedInStakes:                  decimal.NewFromInt(1),
+						LockedInNFTBids:                 decimal.NewFromInt(1),
+						LockedInFeeVoucher:              decimal.NewFromInt(1),
+						LockedInSpotMarginFundingOffers: decimal.NewFromInt(1),
+						LockedInSpotOrders:              decimal.NewFromInt(1),
+						LockedAsCollateral:              decimal.NewFromInt(1),
+					},
+					ScaledAvailable: decimal.NewFromInt(4),
+					ScaledCurrency:  currency.USD,
+				},
+				{
+					Currency:        currency.XRP,
+					TotalFunds:      decimal.NewFromInt(1333333333333337),
+					ScaledAvailable: decimal.NewFromInt(-3),
+					ScaledCurrency:  currency.USD,
+				},
 			},
 		},
 	}, nil
@@ -2426,8 +2428,8 @@ func TestGetCollateral(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received '%v', expected '%v'", err, nil)
 	}
-	if len(r.CurrencyBreakdown) != 3 {
-		t.Errorf("expected 3 currencies, received '%v'", len(r.CurrencyBreakdown))
+	if len(r.CollateralByAsset[asset.Futures.String()].CollateralForCurrency) != 3 {
+		t.Errorf("expected 3 currencies, received '%v'", len(r.CollateralByAsset[asset.Futures.String()].CollateralForCurrency))
 	}
 	if r.AvailableCollateral != "1337 USD" {
 		t.Errorf("received '%v' expected '1337 USD'", r.AvailableCollateral)

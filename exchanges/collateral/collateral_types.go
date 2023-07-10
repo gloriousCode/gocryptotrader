@@ -58,20 +58,21 @@ type ByPosition struct {
 // currency it is represented as
 // eg in Bybit ScaledCurrency is USDC
 type ByCurrency struct {
-	Currency                    currency.Code
-	Asset                       asset.Item
-	SkipContribution            bool
-	TotalFunds                  decimal.Decimal
-	AvailableForUseAsCollateral decimal.Decimal
-	CollateralContribution      decimal.Decimal
-	AdditionalCollateralUsed    decimal.Decimal
-	FairMarketValue             decimal.Decimal
-	Weighting                   decimal.Decimal
-	ScaledCurrency              currency.Code
-	UnrealisedPNL               decimal.Decimal
-	ScaledUsed                  decimal.Decimal
-	ScaledUsedBreakdown         *UsedBreakdown
-	Error                       error
+	Currency                 currency.Code
+	Asset                    asset.Item
+	SkipContribution         bool
+	TotalFunds               decimal.Decimal
+	FairMarketValue          decimal.Decimal
+	Weighting                decimal.Decimal
+	CollateralAvailable      decimal.Decimal
+	ScaledAvailable          decimal.Decimal
+	AdditionalCollateralUsed decimal.Decimal
+	CollateralUsed           decimal.Decimal
+	ScaledUsed               decimal.Decimal
+	ScaledUsedBreakdown      *UsedBreakdown
+	ScaledCurrency           currency.Code
+	UnrealisedPNL            decimal.Decimal
+	Error                    error
 }
 
 // UsedBreakdown provides a detailed

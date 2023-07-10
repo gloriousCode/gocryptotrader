@@ -47,8 +47,16 @@ type SubAccount struct {
 	Credentials Protected
 	ID          string
 	AssetType   asset.Item
+	WalletType  WalletType
 	Currencies  []Balance
 }
+
+type WalletType uint8
+
+const (
+	ByAccount   WalletType = iota
+	ByAssetType            = 1 << (iota - 1)
+)
 
 // Balance is a sub-type to store currency name and individual totals
 type Balance struct {

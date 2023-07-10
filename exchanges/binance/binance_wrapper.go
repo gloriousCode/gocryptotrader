@@ -167,10 +167,11 @@ func (b *Binance) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:      true,
-				Leverage:       true,
-				CollateralMode: true,
-				Collateral:     true,
+				Positions:        true,
+				Leverage:         true,
+				CollateralMode:   true,
+				Collateral:       true,
+				CollateralWallet: account.ByAssetType,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -801,6 +802,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	acc.AssetType = assetType
+	acc.WalletType = account.ByAssetType
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
@@ -2666,10 +2668,10 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *order.CollateralCalc
 	}
 	// Binance does not apply currency scaling
 	return &collateral.ByCurrency{
-		Currency:                    req.CollateralCurrency,
-		TotalFunds:                  req.FreeCollateral.Add(req.LockedCollateral),
-		AvailableForUseAsCollateral: req.FreeCollateral,
-		CollateralContribution:      req.FreeCollateral,
+		Currency:            req.CollateralCurrency,
+		TotalFunds:          req.FreeCollateral.Add(req.LockedCollateral),
+		CollateralAvailable: req.FreeCollateral,
+		ScaledAvailable:     req.FreeCollateral,
 		// AdditionalCollateralUsed:    ,
 		FairMarketValue: req.USDPrice,
 		Weighting:       decimal.NewFromInt(1),
@@ -2741,15 +2743,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 					}
 
 					bba = append(bba, collateral.ByCurrency{
-						Currency:                    curr,
-						Asset:                       assets[i],
-						TotalFunds:                  decimal.NewFromFloat(ai.Assets[j].WalletBalance),
-						AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
-						CollateralContribution:      decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
-						FairMarketValue:             decimal.NewFromFloat(fmv),
-						Weighting:                   decimal.NewFromInt(1),
-						ScaledCurrency:              curr,
-						UnrealisedPNL:               decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPnl),
+						Currency:            curr,
+						Asset:               assets[i],
+						TotalFunds:          decimal.NewFromFloat(ai.Assets[j].WalletBalance),
+						CollateralAvailable: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						ScaledAvailable:     decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						FairMarketValue:     decimal.NewFromFloat(fmv),
+						Weighting:           decimal.NewFromInt(1),
+						ScaledCurrency:      curr,
+						UnrealisedPNL:       decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPnl),
 					})
 
 				}
@@ -2805,15 +2807,15 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 					}
 
 					bba = append(bba, collateral.ByCurrency{
-						Currency:                    curr,
-						Asset:                       assets[i],
-						TotalFunds:                  decimal.NewFromFloat(ai.Assets[j].WalletBalance),
-						AvailableForUseAsCollateral: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
-						CollateralContribution:      decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
-						FairMarketValue:             decimal.NewFromFloat(fmv),
-						Weighting:                   decimal.NewFromInt(1),
-						ScaledCurrency:              curr,
-						UnrealisedPNL:               decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPNL),
+						Currency:            curr,
+						Asset:               assets[i],
+						TotalFunds:          decimal.NewFromFloat(ai.Assets[j].WalletBalance),
+						CollateralAvailable: decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						ScaledAvailable:     decimal.NewFromFloat(ai.Assets[j].AvailableBalance),
+						FairMarketValue:     decimal.NewFromFloat(fmv),
+						Weighting:           decimal.NewFromInt(1),
+						ScaledCurrency:      curr,
+						UnrealisedPNL:       decimal.NewFromFloat(ai.Assets[j].UnrealizedProfit + ai.Assets[j].CrossUnPNL),
 					})
 				}
 				resp.BreakdownByAsset[assets[i]] = bba
@@ -2830,13 +2832,13 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 				for j := range ai.Balances {
 					curr := currency.NewCode(ai.Balances[j].Asset)
 					bba = append(bba, collateral.ByCurrency{
-						Currency:                    curr,
-						Asset:                       assets[i],
-						TotalFunds:                  ai.Balances[j].Free.Add(ai.Balances[j].Locked),
-						AvailableForUseAsCollateral: decimal.Zero,
-						CollateralContribution:      decimal.Zero,
-						Weighting:                   decimal.Zero,
-						ScaledCurrency:              curr,
+						Currency:            curr,
+						Asset:               assets[i],
+						TotalFunds:          ai.Balances[j].Free.Add(ai.Balances[j].Locked),
+						CollateralAvailable: decimal.Zero,
+						ScaledAvailable:     decimal.Zero,
+						Weighting:           decimal.Zero,
+						ScaledCurrency:      curr,
 					})
 				}
 				resp.BreakdownByAsset[assets[i]] = bba

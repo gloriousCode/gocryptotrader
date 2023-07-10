@@ -222,6 +222,11 @@ func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// String for if you really wanted a string after converting it to a float
+func (f *StringToFloat64) String() string {
+	return strconv.FormatFloat(f.Float64(), 'f', -1, 64)
+}
+
 // Float64 returns the float64 value of the FloatString.
 func (f *StringToFloat64) Float64() float64 {
 	return float64(*f)

@@ -383,17 +383,17 @@ type DeliveryEstimatedPrice struct {
 
 // DiscountRate represents the discount rate amount, currency, and other discount related information.
 type DiscountRate struct {
-	Amount            string                 `json:"amt"`
-	Currency          string                 `json:"ccy"`
-	DiscountInfo      []DiscountRateInfoItem `json:"discountInfo"`
-	DiscountRateLevel string                 `json:"discountLv"`
+	Amount            convert.StringToFloat64 `json:"amt"`
+	Currency          string                  `json:"ccy"`
+	DiscountInfo      []DiscountRateInfoItem  `json:"discountInfo"`
+	DiscountRateLevel convert.StringToFloat64 `json:"discountLv"`
 }
 
 // DiscountRateInfoItem represents discount info list item for discount rate response
 type DiscountRateInfoItem struct {
-	DiscountRate string            `json:"discountRate"`
-	MaxAmount    okxNumericalValue `json:"maxAmt"`
-	MinAmount    okxNumericalValue `json:"minAmt"`
+	DiscountRate convert.StringToFloat64 `json:"discountRate"`
+	MaxAmount    convert.StringToFloat64 `json:"maxAmt"`
+	MinAmount    convert.StringToFloat64 `json:"minAmt"`
 }
 
 // ServerTime returning  the server time instance.
@@ -1220,16 +1220,16 @@ type ConvertHistory struct {
 
 // Account holds currency account balance and related information
 type Account struct {
-	AdjEq       okxNumericalValue `json:"adjEq"`
-	Details     []AccountDetail   `json:"details"`
-	Imr         okxNumericalValue `json:"imr"` // Frozen equity for open positions and pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
-	IsoEq       okxNumericalValue `json:"isoEq"`
-	MgnRatio    okxNumericalValue `json:"mgnRatio"`
-	Mmr         okxNumericalValue `json:"mmr"` // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd okxNumericalValue `json:"notionalUsd"`
-	OrdFroz     okxNumericalValue `json:"ordFroz"` // Margin frozen for pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
-	TotalEquity okxNumericalValue `json:"totalEq"` // Total Equity in USD level
-	UpdateTime  okxUnixMilliTime  `json:"uTime"`   // UpdateTime
+	AdjEq       convert.StringToFloat64 `json:"adjEq"`
+	Details     []AccountDetail         `json:"details"`
+	Imr         convert.StringToFloat64 `json:"imr"` // Frozen equity for open positions and pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
+	IsoEq       convert.StringToFloat64 `json:"isoEq"`
+	MgnRatio    convert.StringToFloat64 `json:"mgnRatio"`
+	Mmr         convert.StringToFloat64 `json:"mmr"` // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd convert.StringToFloat64 `json:"notionalUsd"`
+	OrdFroz     convert.StringToFloat64 `json:"ordFroz"` // Margin frozen for pending orders in USD level Applicable to Multi-currency margin and Portfolio margin
+	TotalEquity convert.StringToFloat64 `json:"totalEq"` // Total Equity in USD level
+	UpdateTime  okxUnixMilliTime        `json:"uTime"`   // UpdateTime
 }
 
 // AccountDetail account detail information.
@@ -1263,7 +1263,7 @@ type AccountDetail struct {
 // AccountPosition account position.
 type AccountPosition struct {
 	AutoDeleveraging             string                  `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
-	AvailablePosition            string                  `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
+	AvailablePosition            convert.StringToFloat64 `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
 	AveragePrice                 convert.StringToFloat64 `json:"avgPx"`
 	CreationTime                 okxUnixMilliTime        `json:"cTime"`
 	Currency                     string                  `json:"ccy"`

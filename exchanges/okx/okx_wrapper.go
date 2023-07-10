@@ -127,9 +127,11 @@ func (ok *Okx) SetDefaults() {
 				ModifyOrder:            true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:      true,
-				Leverage:       true,
-				CollateralMode: true,
+				Positions:        true,
+				Leverage:         true,
+				CollateralMode:   true,
+				Collateral:       true,
+				CollateralWallet: account.ByAccount,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
@@ -562,7 +564,7 @@ func (ok *Okx) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 		}
 	}
 	acc.Currencies = currencyBalances
-	acc.AssetType = assetType
+	acc.WalletType = account.ByAccount
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
@@ -1872,4 +1874,122 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 	default:
 		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+}
+
+func (ok *Okx) ScaleCollateral(ctx context.Context, req *order.CollateralCalculator) (*collateral.ByCurrency, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w CollateralCalculator", common.ErrNilPointer)
+	}
+	discount, err := ok.GetDiscountRateAndInterestFreeQuota(ctx, req.CollateralCurrency.String(), -1)
+	if err != nil {
+		return nil, err
+	}
+	if len(discount) != 1 {
+		// todo WOAH NELLY
+	}
+	discountMultiplier := decimal.NewFromInt(1)
+	for i := range discount[0].DiscountInfo {
+		if float64(i+1) != discount[0].DiscountRateLevel.Float64() {
+			continue
+		}
+		discountMultiplier = discount[0].DiscountInfo[i].DiscountRate.Decimal()
+		break
+	}
+
+	return &collateral.ByCurrency{
+		Currency:            req.CollateralCurrency,
+		TotalFunds:          req.FreeCollateral.Add(req.LockedCollateral),
+		CollateralAvailable: req.FreeCollateral,
+		ScaledAvailable:     req.FreeCollateral.Mul(discountMultiplier),
+		FairMarketValue:     req.USDPrice,
+		Weighting:           discountMultiplier,
+		ScaledCurrency:      req.CollateralCurrency,
+		ScaledUsed:          req.LockedCollateral.Mul(discountMultiplier),
+	}, nil
+}
+
+// CalculateTotalCollateral returns the total collateral per asset wallet
+// as Binance separates collateral calculation per asset eg CoinMarginedFutures and USDTMarginedFutures
+func (ok *Okx) CalculateTotalCollateral(ctx context.Context, req *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w TotalCollateralCalculator", common.ErrNilPointer)
+	}
+	if req.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
+	}
+	resp := &order.TotalCollateralResponse{
+		BreakdownByAsset: make(map[asset.Item][]collateral.ByCurrency),
+	}
+	balance, err := ok.AccountBalance(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	// okx uses a shared asset pool, using empty
+	bal := resp.BreakdownByAsset[asset.Empty]
+	for i := range balance {
+		for j := range balance[i].Details {
+			if balance[i].Details[j].AvailableBalance == 0 {
+				continue
+			}
+			var priceOfAsset, scaling decimal.Decimal
+			if !balance[i].Details[j].EquityOfCurrency.Decimal().IsZero() {
+				priceOfAsset = balance[i].Details[j].EquityUsd.Decimal().Div(balance[i].Details[j].EquityOfCurrency.Decimal())
+				resp.UsedCollateral = resp.UsedCollateral.Add(balance[i].Details[j].FrozenBalance.Decimal().Div(priceOfAsset))
+				resp.AvailableCollateral = resp.UsedCollateral.Add(balance[i].Details[j].AvailableEquity.Decimal().Div(priceOfAsset))
+				if balance[i].Details[j].DiscountEquity.Float64() != 0 {
+					usd := balance[i].Details[j].EquityUsd.Decimal()
+					scaled := balance[i].Details[j].DiscountEquity.Decimal()
+					scaling = decimal.NewFromInt(1).Add(scaled.Sub(usd).Div(usd))
+					fmt.Println(usd.Mul(scaling))
+					fmt.Println(usd.Mul(scaled))
+				} else {
+					scaling = decimal.NewFromInt(1)
+				}
+			}
+
+			scaleCurr := currency.NewCode(balance[i].Details[j].Currency)
+			bal = append(bal, collateral.ByCurrency{
+				Currency:            scaleCurr,
+				Asset:               asset.Empty,
+				TotalFunds:          balance[i].Details[j].AvailableEquity.Decimal().Add(balance[i].Details[j].FrozenBalance.Decimal()),
+				CollateralAvailable: balance[i].Details[j].AvailableEquity.Decimal(),
+				ScaledAvailable:     balance[i].Details[j].AvailableEquity.Decimal().Mul(scaling),
+				FairMarketValue:     balance[i].Details[j].EquityUsd.Decimal(),
+				Weighting:           scaling,
+				ScaledCurrency:      scaleCurr,
+				UnrealisedPNL:       balance[i].Details[j].IsoUpl.Decimal(),
+				ScaledUsed:          balance[i].Details[j].FrozenBalance.Decimal().Mul(scaling),
+			})
+			resp.AvailableCollateral = resp.AvailableCollateral.Add(balance[i].Details[j].AvailableEquity.Decimal())
+			resp.UsedCollateral = resp.UsedCollateral.Add(balance[i].Details[j].FrozenBalance.Decimal())
+			resp.UnrealisedPNL = resp.UnrealisedPNL.Add(balance[i].Details[j].UnrealizedProfit.Decimal())
+		}
+	}
+	resp.BreakdownByAsset[asset.Empty] = bal
+	if !req.FetchPositions {
+		return resp, nil
+	}
+	positions, err := ok.GetPositions(ctx, "", "", "")
+	if err != nil {
+		return nil, err
+	}
+	resp.BreakdownOfPositions = make([]collateral.ByPosition, len(positions))
+	for i := range positions {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(positions[i].InstrumentID)
+		if err != nil {
+			return nil, err
+		}
+		resp.BreakdownOfPositions[i] = collateral.ByPosition{
+			PositionCurrency: pair,
+			Asset:            positions[i].InstrumentType,
+			Size:             positions[i].QuantityOfPosition.Decimal(),
+			OpenOrderSize:    positions[i].AvailablePosition.Decimal(),
+			PositionSize:     positions[i].AvailablePosition.Decimal(),
+			MarkPrice:        positions[i].MarkPrice.Decimal(),
+			RequiredMargin:   positions[i].MaintenanceMarginRequirement.Decimal(),
+			CollateralUsed:   positions[i].NotionalUsd.Decimal(),
+		}
+	}
+	return resp, nil
 }

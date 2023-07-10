@@ -4707,6 +4707,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if !feat.FuturesCapabilities.Collateral {
 		return nil, fmt.Errorf("%w Get Collateral for exchange %v", common.ErrFunctionNotSupported, exch.GetName())
 	}
+	if r.CalculateOffline {
+		return nil, common.ErrFunctionNotSupported
+	}
 
 	b := exch.GetBase()
 	var assetFilter asset.Item
@@ -4724,35 +4727,43 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
+	creds, err := exch.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	enabledAssets := b.GetAssetTypes(true)
 	var calculators []order.CollateralCalculator
-	for i := range enabledAssets {
-		if assetFilter != asset.Empty && assetFilter != enabledAssets[i] {
-			continue
-		}
-		ai, err := exch.FetchAccountInfo(ctx, enabledAssets[i])
-		if err != nil {
-			return nil, err
-		}
-		for j := range ai.Accounts {
-			if ai.Accounts[i].ID
-			for x := range ai.Accounts[j].Currencies {
-				calculators = append(calculators, order.CollateralCalculator{
-					CalculateOffline:   r.CalculateOffline,
-					CollateralCurrency: ai.Accounts[j].Currencies[x].Currency,
-					Asset:              enabledAssets[i],
-					FreeCollateral:     decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Free),
-					LockedCollateral:   decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Hold),
-				})
+	if r.CalculateOffline {
+		// retrieve latest data from online to see if online calculations
+		// match offline calculations
+		for i := range enabledAssets {
+			if assetFilter != asset.Empty && assetFilter != enabledAssets[i] {
+				continue
 			}
+			ai, err := exch.FetchAccountInfo(ctx, enabledAssets[i])
+			if err != nil {
+				return nil, err
+			}
+			for j := range ai.Accounts {
+				for x := range ai.Accounts[j].Currencies {
+					calculators = append(calculators, order.CollateralCalculator{
+						CalculateOffline:   r.CalculateOffline,
+						CollateralCurrency: ai.Accounts[j].Currencies[x].Currency,
+						Asset:              enabledAssets[i],
+						FreeCollateral:     decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Free),
+						LockedCollateral:   decimal.NewFromFloat(ai.Accounts[j].Currencies[x].Hold),
+					})
+				}
+			}
+			// todo: add position retrieval for more thorough breakdown of collateral usage
 		}
-
 	}
 
 	calc := &order.TotalCollateralCalculator{
 		CollateralAssets: calculators,
 		CalculateOffline: r.CalculateOffline,
-		FetchPositions:   true,
+		FetchPositions:   !r.CalculateOffline,
 	}
 
 	c, err := exch.CalculateTotalCollateral(ctx, calc)
@@ -4781,6 +4792,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 	if c.UsedBreakdown != nil {
 		result.UsedBreakdown = &gctrpc.CollateralUsedBreakdown{}
+		// TODO: reevaluate categorisation as most of it is FTX style and SBF owes me money
 		if !c.UsedBreakdown.LockedInStakes.IsZero() {
 			result.UsedBreakdown.LockedInStakes = c.UsedBreakdown.LockedInStakes.String() + collateralDisplayCurrency
 		}
@@ -4828,10 +4840,10 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 					Currency:                    v[i].Currency.String(),
 					ExcludedFromCollateral:      v[i].SkipContribution,
 					TotalFunds:                  v[i].TotalFunds.String() + originalDisplayCurrency,
-					AvailableForUseAsCollateral: v[i].AvailableForUseAsCollateral.String() + originalDisplayCurrency,
+					AvailableForUseAsCollateral: v[i].CollateralAvailable.String() + originalDisplayCurrency,
 					ApproxFairMarketValue:       v[i].FairMarketValue.String() + collateralDisplayCurrency,
 					Weighting:                   v[i].Weighting.String(),
-					CollateralContribution:      v[i].CollateralContribution.String() + collateralDisplayCurrency,
+					CollateralContribution:      v[i].ScaledAvailable.String() + collateralDisplayCurrency,
 					ScaledToCurrency:            v[i].ScaledCurrency.String(),
 				}
 				if !v[i].AdditionalCollateralUsed.IsZero() {
