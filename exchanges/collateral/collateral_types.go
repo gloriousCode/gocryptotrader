@@ -41,6 +41,38 @@ var ErrInvalidCollateralMode = errors.New("invalid collateral mode")
 
 var supportedCollateralModes = SingleMode | MultiMode | GlobalMode
 
+// TotalCollateralCalculator holds many collateral calculators
+// to calculate total collateral standing with one struct
+type TotalCollateralCalculator struct {
+	FetchPositions bool
+	// Offline settings
+	CalculateOffline bool
+	CollateralAssets []Calculator
+}
+
+// Calculator is used to determine
+// the size of collateral holdings for an exchange
+// eg on Bybit, the collateral is scaled depending on what
+// currency it is
+type Calculator struct {
+	CalculateOffline   bool
+	CollateralCurrency currency.Code
+	Asset              asset.Item
+	USDPrice           decimal.Decimal
+	IsLiquidating      bool
+	IsForNewPosition   bool
+	FreeCollateral     decimal.Decimal
+	LockedCollateral   decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
+}
+
+// TotalCollateralResponse holds all collateral
+type TotalCollateralResponse struct {
+	ScaledPricing
+	BreakdownByAsset     map[asset.Item]ByAsset
+	BreakdownOfPositions []ByPosition
+}
+
 // ByPosition shows how much collateral is used
 // from positions
 type ByPosition struct {
@@ -54,6 +86,13 @@ type ByPosition struct {
 	CollateralUsed    decimal.Decimal
 	Mode              Mode
 	MarginType        margin.Type
+	UnrealisedPNL     decimal.Decimal
+}
+
+type ByAsset struct {
+	ScaledPricing
+	Asset      asset.Item
+	ByCurrency []ByCurrency
 }
 
 // ByCurrency individual collateral contribution
@@ -65,12 +104,12 @@ type ByCurrency struct {
 	Asset            asset.Item
 	SkipContribution bool
 	Pricing          Pricing
-	ScaledPricing    ScaledPricing
+	PricingUSDEquiv  ScaledPricing
+	PricingScaled    ScaledPricing
 
 	MarginRequirementCurrency    currency.Code
 	InitialMarginRequirement     decimal.Decimal
 	MaintenanceMarginRequirement decimal.Decimal
-	UnrealisedPNL                decimal.Decimal
 }
 
 // Pricing details collateral amounts for a currency
@@ -86,7 +125,11 @@ type Pricing struct {
 // impacts the pricing
 type ScaledPricing struct {
 	Pricing
-	MarkPrice        decimal.Decimal
+	MarkPrice decimal.Decimal
+	// GlobalScale is used when an exchange only has one form of scaling
+	GlobalScale decimal.Decimal
+	// ScalingBreakdown is used when an exchange has tiers
+	// to their collateral scaling
 	ScalingBreakdown []ScalingBreakdown
 }
 

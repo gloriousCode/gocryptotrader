@@ -1878,7 +1878,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 
 func (ok *Okx) ScaleCollateral(ctx context.Context, req *order.CollateralCalculator) (*collateral.ByCurrency, error) {
 	if req == nil {
-		return nil, fmt.Errorf("%w CollateralCalculator", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w Calculator", common.ErrNilPointer)
 	}
 	discount, err := ok.GetDiscountRateAndInterestFreeQuota(ctx, req.CollateralCurrency.String(), -1)
 	if err != nil {

@@ -62,28 +62,6 @@ type PNLCalculation interface {
 	GetCurrencyForRealisedPNL(realisedAsset asset.Item, realisedPair currency.Pair) (currency.Code, asset.Item, error)
 }
 
-// TotalCollateralResponse holds all collateral
-type TotalCollateralResponse struct {
-	CollateralCurrency               currency.Code
-	TotalValueOfPositiveSpotBalances decimal.Decimal
-	UsedCollateral                   decimal.Decimal
-	AvailableCollateral              decimal.Decimal
-	UnrealisedPNL                    decimal.Decimal
-	BreakdownByAsset                 map[asset.Item][]collateral.ByCurrency
-	BreakdownOfPositions             []collateral.ByPosition
-
-	// Legacy FTX collateral rules
-	// UsedBreakdown contains FTX specific rules on how collateral was used in their defined categories
-	// TODO if other exchanges detail collateral breakdown, change to a []collateral.BreakdownType
-	UsedBreakdown *collateral.UsedBreakdown
-	// AvailableMaintenanceCollateral is only used as a value for exchanges
-	// where maintenance collateral is scaled to a different rate than for new positions
-	// this was used in FTX
-	AvailableMaintenanceCollateral decimal.Decimal
-	// CollateralContributedByPositiveSpotBalances is a legacy FTX collateral contribution
-	CollateralContributedByPositiveSpotBalances decimal.Decimal
-}
-
 // PositionController manages all futures orders
 // across all exchanges assets and pairs
 // its purpose is to handle the minutia of tracking
@@ -177,33 +155,6 @@ type PositionTrackerSetup struct {
 	UseExchangePNLCalculation bool
 	OfflineCalculation        bool
 	PNLCalculator             PNLCalculation
-}
-
-// TotalCollateralCalculator holds many collateral calculators
-// to calculate total collateral standing with one struct
-type TotalCollateralCalculator struct {
-	FetchPositions bool
-
-	// Offline settings
-	CalculateOffline bool
-	CollateralAssets []CollateralCalculator
-}
-
-// CollateralCalculator is used to determine
-// the size of collateral holdings for an exchange
-// eg on Bybit, the collateral is scaled depending on what
-// currency it is
-type CollateralCalculator struct {
-	CalculateOffline   bool
-	CollateralCurrency currency.Code
-	Asset              asset.Item
-	Side               Side
-	USDPrice           decimal.Decimal
-	IsLiquidating      bool
-	IsForNewPosition   bool
-	FreeCollateral     decimal.Decimal
-	LockedCollateral   decimal.Decimal
-	UnrealisedPNL      decimal.Decimal
 }
 
 // PNLCalculator implements the PNLCalculation interface

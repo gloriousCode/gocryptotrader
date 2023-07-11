@@ -3073,7 +3073,7 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	t.Parallel()
 	b.Verbose = true
 	b.CurrencyPairs.SetAssetEnabled(asset.Spot, false)
-	resp, err := b.CalculateTotalCollateral(context.Background(), &order.TotalCollateralCalculator{
+	resp, err := b.CalculateTotalCollateral(context.Background(), &collateral.TotalCollateralCalculator{
 		FetchPositions: true,
 	})
 	if err != nil {
