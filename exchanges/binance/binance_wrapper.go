@@ -2666,18 +2666,37 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *order.CollateralCalc
 	if !req.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}
-	// Binance does not apply currency scaling
-	return &collateral.ByCurrency{
-		Currency: req.CollateralCurrency,
-		//TotalFunds:          req.FreeCollateral.Add(req.LockedCollateral),
-		//CollateralAvailable: req.FreeCollateral,
-		//ScaledAvailable:     req.FreeCollateral,
-		//// AdditionalCollateralUsed:    ,
-		//MarkPrice:      req.USDPrice.Mul(req.FreeCollateral.Add(req.LockedCollateral)),
-		//Weighting:      decimal.NewFromInt(1),
-		//ScaledCurrency: req.CollateralCurrency,
-		//ScaledUsed:     req.LockedCollateral,
-	}, nil
+	if req.CalculateOffline {
+		return &collateral.ByCurrency{
+			Currency: req.CollateralCurrency,
+			Asset:    req.Asset,
+			Pricing: collateral.Pricing{
+				Currency:  req.CollateralCurrency,
+				Total:     req.LockedCollateral.Add(req.FreeCollateral),
+				Available: req.FreeCollateral,
+				Used:      req.LockedCollateral,
+			},
+			// Binance doesn't scale collateral, just convert to USD value
+			ScaledPricing: collateral.ScaledPricing{
+				Pricing: collateral.Pricing{
+					Currency:  currency.USD,
+					Total:     req.LockedCollateral.Add(req.FreeCollateral).Mul(req.USDPrice),
+					Available: req.FreeCollateral.Mul(req.USDPrice),
+					Used:      req.LockedCollateral.Mul(req.USDPrice),
+				},
+				MarkPrice: req.USDPrice,
+			},
+			UnrealisedPNL: req.UnrealisedPNL,
+		}, nil
+	}
+	switch req.Asset {
+	case asset.USDTMarginedFutures:
+		b.UAccountBalanceV2(ctx)
+	case asset.CoinMarginedFutures:
+	case asset.Spot:
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
 }
 
 // CalculateTotalCollateral returns the total collateral per asset wallet
@@ -2756,7 +2775,6 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 						mpm[ai.Assets[j].Asset+"USDT"] = markPrice
 					}
 				}
-
 				bba = append(bba, collateral.ByCurrency{
 					Currency: curr,
 					Asset:    assets[i],
@@ -2881,14 +2899,17 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *order.Total
 			bba := resp.BreakdownByAsset[assets[i]]
 			for j := range ai.Balances {
 				curr := currency.NewCode(ai.Balances[j].Asset)
+				locked := ai.Balances[j].Locked.Decimal()
+				avail := ai.Balances[j].Free.Decimal()
 				bba = append(bba, collateral.ByCurrency{
 					Currency: curr,
 					Asset:    assets[i],
-					//TotalFunds:          ai.Balances[j].Free.Add(ai.Balances[j].Locked),
-					//CollateralAvailable: decimal.Zero,
-					//ScaledAvailable:     decimal.Zero,
-					//Weighting:           decimal.Zero,
-					//ScaledCurrency:      curr,
+					Pricing: collateral.Pricing{
+						Currency:  curr,
+						Total:     locked.Add(avail),
+						Available: avail,
+						Used:      locked,
+					},
 				})
 			}
 			resp.BreakdownByAsset[assets[i]] = bba
