@@ -6,6 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 // Mode defines the different collateral types supported by exchanges
@@ -43,14 +44,16 @@ var supportedCollateralModes = SingleMode | MultiMode | GlobalMode
 // ByPosition shows how much collateral is used
 // from positions
 type ByPosition struct {
-	PositionCurrency currency.Pair
-	Asset            asset.Item
-	Size             decimal.Decimal
-	OpenOrderSize    decimal.Decimal
-	PositionSize     decimal.Decimal
-	MarkPrice        decimal.Decimal
-	RequiredMargin   decimal.Decimal
-	CollateralUsed   decimal.Decimal
+	PositionCurrency  currency.Pair
+	Asset             asset.Item
+	Size              decimal.Decimal
+	MarkPrice         decimal.Decimal
+	MarkPriceCurrency currency.Code
+	PositionValue     decimal.Decimal
+	RequiredMargin    decimal.Decimal
+	CollateralUsed    decimal.Decimal
+	Mode              Mode
+	MarginType        margin.Type
 }
 
 // ByCurrency individual collateral contribution
@@ -58,32 +61,63 @@ type ByPosition struct {
 // currency it is represented as
 // eg in Bybit ScaledCurrency is USDC
 type ByCurrency struct {
-	Currency                 currency.Code
-	Asset                    asset.Item
-	SkipContribution         bool
-	TotalFunds               decimal.Decimal
-	FairMarketValue          decimal.Decimal
-	Weighting                decimal.Decimal
-	CollateralAvailable      decimal.Decimal
-	ScaledAvailable          decimal.Decimal
-	AdditionalCollateralUsed decimal.Decimal
-	CollateralUsed           decimal.Decimal
-	ScaledUsed               decimal.Decimal
-	ScaledUsedBreakdown      *UsedBreakdown
-	ScaledCurrency           currency.Code
-	UnrealisedPNL            decimal.Decimal
-	Error                    error
+	Currency         currency.Code
+	Asset            asset.Item
+	SkipContribution bool
+	Pricing          Pricing
+	ScaledPricing    ScaledPricing
+
+	MarginRequirementCurrency    currency.Code
+	InitialMarginRequirement     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	UnrealisedPNL                decimal.Decimal
 }
 
-// UsedBreakdown provides a detailed
-// breakdown of where collateral is currently being allocated
+// Pricing details collateral amounts for a currency
+type Pricing struct {
+	Currency      currency.Code
+	Total         decimal.Decimal
+	Available     decimal.Decimal
+	Used          decimal.Decimal
+	UsedBreakdown []UsedBreakdown
+}
+
+// ScaledPricing includes extra details on how the scaling
+// impacts the pricing
+type ScaledPricing struct {
+	Pricing
+	MarkPrice        decimal.Decimal
+	ScalingBreakdown []ScalingBreakdown
+}
+
+// ScalingBreakdown holds tiered scaling information
+type ScalingBreakdown struct {
+	Level         int64
+	StartingRange float64
+	EndingRange   float64
+
+	Amount       decimal.Decimal
+	Scale        decimal.Decimal
+	ScaledAmount decimal.Decimal
+}
+
+// UsedType details areas where collateral can be used
+type UsedType uint8
+
+const (
+	LockedInStakes UsedType = iota
+	LockedInNFTBids
+	LockedInFeeVoucher
+	LockedInSpotMarginFundingOffers
+	LockedInSpotOrders
+	LockedAsCollateral
+	UsedInPositions
+	UsedInSpotMarginBorrows
+)
+
+// UsedBreakdown details how collateral is being used
+// if the exchange provides the information
 type UsedBreakdown struct {
-	LockedInStakes                  decimal.Decimal
-	LockedInNFTBids                 decimal.Decimal
-	LockedInFeeVoucher              decimal.Decimal
-	LockedInSpotMarginFundingOffers decimal.Decimal
-	LockedInSpotOrders              decimal.Decimal
-	LockedAsCollateral              decimal.Decimal
-	UsedInPositions                 decimal.Decimal
-	UsedInSpotMarginBorrows         decimal.Decimal
+	UsedType UsedType
+	Amount   decimal.Decimal
 }

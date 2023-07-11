@@ -27,8 +27,8 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
-	useTestNet              = false
+	canManipulateRealOrders = !false
+	useTestNet              = !false
 )
 
 var (
@@ -3067,4 +3067,21 @@ func TestSetLeverage(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
+}
+
+func TestCalculateTotalCollateral(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	b.CurrencyPairs.SetAssetEnabled(asset.Spot, false)
+	resp, err := b.CalculateTotalCollateral(context.Background(), &order.TotalCollateralCalculator{
+		FetchPositions: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	result, err := json.MarshalIndent(resp, "", " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(result))
 }

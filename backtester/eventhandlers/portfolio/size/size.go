@@ -1,7 +1,6 @@
 package size
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -29,40 +28,40 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	}
 
 	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
-		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
-			CalculateOffline:   true,
-			CollateralCurrency: o.Pair().Base,
-			Asset:              fde.GetAssetType(),
-			Side:               gctorder.Short,
-			USDPrice:           fde.GetClosePrice(),
-			IsForNewPosition:   true,
-			FreeCollateral:     amountAvailable,
-		})
-		if err != nil {
-			return nil, decimal.Zero, err
-		}
-
-		sizedPrice := o.GetClosePrice()
-		if fde.GetClosePrice().GreaterThan(o.GetClosePrice()) {
-			// ensure limits are respected by using the largest price
-			sizedPrice = fde.GetClosePrice()
-		}
-
-		initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
-		oNotionalPosition := initialAmount.Mul(sizedPrice)
-		sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), sizedPrice, oNotionalPosition, cs, o)
-		if err != nil {
-			return nil, decimal.Zero, err
-		}
-		scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
-		excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
-		if excess.IsNegative() {
-			return nil, decimal.Zero, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
-		}
-		retOrder.SetAmount(sizedAmount)
-		fde.SetAmount(sizedAmount)
-
-		return retOrder, estFee, nil
+		//scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+		//	CalculateOffline:   true,
+		//	CollateralCurrency: o.Pair().Base,
+		//	Asset:              fde.GetAssetType(),
+		//	Side:               gctorder.Short,
+		//	USDPrice:           fde.GetClosePrice(),
+		//	IsForNewPosition:   true,
+		//	FreeCollateral:     amountAvailable,
+		//})
+		//if err != nil {
+		//	return nil, decimal.Zero, err
+		//}
+		//
+		//sizedPrice := o.GetClosePrice()
+		//if fde.GetClosePrice().GreaterThan(o.GetClosePrice()) {
+		//	// ensure limits are respected by using the largest price
+		//	sizedPrice = fde.GetClosePrice()
+		//}
+		//
+		//initialAmount := amountAvailable.Mul(scalingInfo.Weighting).Div(fde.GetClosePrice())
+		//oNotionalPosition := initialAmount.Mul(sizedPrice)
+		//sizedAmount, estFee, err := s.calculateAmount(o.GetDirection(), sizedPrice, oNotionalPosition, cs, o)
+		//if err != nil {
+		//	return nil, decimal.Zero, err
+		//}
+		//scaledCollateralFromAmount := sizedAmount.Mul(scalingInfo.Weighting)
+		//excess := amountAvailable.Sub(sizedAmount).Add(scaledCollateralFromAmount)
+		//if excess.IsNegative() {
+		//	return nil, decimal.Zero, fmt.Errorf("%w not enough funding for position", errCannotAllocate)
+		//}
+		//retOrder.SetAmount(sizedAmount)
+		//fde.SetAmount(sizedAmount)
+		//
+		//return retOrder, estFee, nil
 	}
 
 	amount, estFee, err := s.calculateAmount(retOrder.Direction, retOrder.ClosePrice, amountAvailable, cs, o)

@@ -4824,7 +4824,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				Currency:            c.BreakdownOfPositions[i].PositionCurrency.String(),
 				Size:                c.BreakdownOfPositions[i].Size.String(),
 				OpenOrderSize:       c.BreakdownOfPositions[i].OpenOrderSize.String(),
-				PositionSize:        c.BreakdownOfPositions[i].PositionSize.String(),
+				PositionSize:        c.BreakdownOfPositions[i].Value.String(),
 				MarkPrice:           c.BreakdownOfPositions[i].MarkPrice.String() + collateralDisplayCurrency,
 				RequiredMargin:      c.BreakdownOfPositions[i].RequiredMargin.String(),
 				TotalCollateralUsed: c.BreakdownOfPositions[i].CollateralUsed.String() + collateralDisplayCurrency,
@@ -4841,7 +4841,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 					ExcludedFromCollateral:      v[i].SkipContribution,
 					TotalFunds:                  v[i].TotalFunds.String() + originalDisplayCurrency,
 					AvailableForUseAsCollateral: v[i].CollateralAvailable.String() + originalDisplayCurrency,
-					ApproxFairMarketValue:       v[i].FairMarketValue.String() + collateralDisplayCurrency,
+					ApproxFairMarketValue:       v[i].MarkPrice.String() + collateralDisplayCurrency,
 					Weighting:                   v[i].Weighting.String(),
 					CollateralContribution:      v[i].ScaledAvailable.String() + collateralDisplayCurrency,
 					ScaledToCurrency:            v[i].ScaledCurrency.String(),
@@ -4858,7 +4858,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				}
 				if v[i].ScaledUsedBreakdown != nil {
 					breakDownDisplayCurrency := collateralDisplayCurrency
-					if v[i].Weighting.IsZero() && v[i].FairMarketValue.IsZero() {
+					if v[i].Weighting.IsZero() && v[i].MarkPrice.IsZero() {
 						// cannot determine value, show in like currency instead
 						breakDownDisplayCurrency = originalDisplayCurrency
 					}
