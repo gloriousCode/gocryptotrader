@@ -64,6 +64,7 @@ const (
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
 	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
+	uFuturesMultiAssetModeIndex   = "/fapi/v1/assetIndex"
 )
 
 // UServerTime gets the server time
@@ -1189,4 +1190,29 @@ func (b *Binance) GetAssetsMode(ctx context.Context) (bool, error) {
 		MultiAssetsMargin bool `json:"multiAssetsMargin"`
 	}
 	return result.MultiAssetsMargin, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, uFuturesMultiAssetsMargin, nil, uFuturesDefaultRate, &result)
+}
+
+type SuperButts struct {
+	Symbol                string                  `json:"symbol"`
+	Time                  binanceTime             `json:"time"`
+	Index                 convert.StringToFloat64 `json:"index"`
+	BidBuffer             convert.StringToFloat64 `json:"bidBuffer"`
+	AskBuffer             convert.StringToFloat64 `json:"askBuffer"`
+	BidRate               convert.StringToFloat64 `json:"bidRate"`
+	AskRate               convert.StringToFloat64 `json:"askRate"`
+	AutoExchangeBidBuffer convert.StringToFloat64 `json:"autoExchangeBidBuffer"`
+	AutoExchangeAskBuffer convert.StringToFloat64 `json:"autoExchangeAskBuffer"`
+	AutoExchangeBidRate   convert.StringToFloat64 `json:"autoExchangeBidRate"`
+	AutoExchangeAskRate   convert.StringToFloat64 `json:"autoExchangeAskRate"`
+}
+
+// MultiAssetsModeAssetIndex returns the USD conversion index for all currencies
+// allows for the calculation of collateral contribution
+func (b *Binance) MultiAssetsModeAssetIndex(ctx context.Context, symbol string) ([]SuperButts, error) {
+	var resp []SuperButts
+	var params string
+	if symbol != "" {
+		params = "?symbol=" + symbol
+	}
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, uFuturesMultiAssetModeIndex+params, uFuturesDefaultRate, &resp)
 }

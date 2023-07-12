@@ -68,7 +68,8 @@ type Calculator struct {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	ScaledPricing
+	Pricing
+	UnrealisedPNL        decimal.Decimal
 	BreakdownByAsset     map[asset.Item]ByAsset
 	BreakdownOfPositions []ByPosition
 }
@@ -84,13 +85,12 @@ type ByPosition struct {
 	PositionValue     decimal.Decimal
 	RequiredMargin    decimal.Decimal
 	CollateralUsed    decimal.Decimal
-	Mode              Mode
 	MarginType        margin.Type
 	UnrealisedPNL     decimal.Decimal
 }
 
 type ByAsset struct {
-	ScaledPricing
+	PricingScaled
 	Asset      asset.Item
 	ByCurrency []ByCurrency
 }
@@ -104,8 +104,8 @@ type ByCurrency struct {
 	Asset            asset.Item
 	SkipContribution bool
 	Pricing          Pricing
-	PricingUSDEquiv  ScaledPricing
-	PricingScaled    ScaledPricing
+	PricingUSDEquiv  PricingUSDEquiv
+	PricingScaled    PricingScaled
 
 	MarginRequirementCurrency    currency.Code
 	InitialMarginRequirement     decimal.Decimal
@@ -121,16 +121,23 @@ type Pricing struct {
 	UsedBreakdown []UsedBreakdown
 }
 
-// ScaledPricing includes extra details on how the scaling
-// impacts the pricing
-type ScaledPricing struct {
-	Pricing
-	MarkPrice decimal.Decimal
-	// GlobalScale is used when an exchange only has one form of scaling
-	GlobalScale decimal.Decimal
-	// ScalingBreakdown is used when an exchange has tiers
-	// to their collateral scaling
+type Scaling struct {
+	Scale decimal.Decimal
+	// ScalingBreakdown pricing can have tiers where they only scale in the ranges affected
 	ScalingBreakdown []ScalingBreakdown
+}
+
+// PricingScaled includes extra details on how the scaling
+// impacts the pricing
+type PricingScaled struct {
+	Pricing
+	Scaling
+}
+
+type PricingUSDEquiv struct {
+	Pricing
+	PriceScale             decimal.Decimal
+	CollateralContribution decimal.Decimal
 }
 
 // ScalingBreakdown holds tiered scaling information
@@ -138,10 +145,10 @@ type ScalingBreakdown struct {
 	Level         int64
 	StartingRange float64
 	EndingRange   float64
-
-	Amount       decimal.Decimal
-	Scale        decimal.Decimal
-	ScaledAmount decimal.Decimal
+	IsUsed        bool
+	Amount        decimal.Decimal
+	Scale         decimal.Decimal
+	ScaledAmount  decimal.Decimal
 }
 
 // UsedType details areas where collateral can be used

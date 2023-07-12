@@ -3085,3 +3085,13 @@ func TestCalculateTotalCollateral(t *testing.T) {
 	}
 	t.Log(string(result))
 }
+
+func TestMultiAssetsModeAssetIndex(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp, err := b.MultiAssetsModeAssetIndex(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+	t.Logf("%+v", resp)
+}

@@ -4760,7 +4760,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
-	calc := &order.TotalCollateralCalculator{
+	calc := &collateral.TotalCollateralCalculator{
 		CollateralAssets: calculators,
 		CalculateOffline: r.CalculateOffline,
 		FetchPositions:   !r.CalculateOffline,
@@ -4771,12 +4771,12 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 
-	var collateralDisplayCurrency = " " + c.CollateralCurrency.String()
+	var collateralDisplayCurrency = " " + c.Currency.String()
 	result := &gctrpc.GetCollateralResponse{
 		SubAccount:          creds.SubAccount,
-		CollateralCurrency:  c.CollateralCurrency.String(),
-		AvailableCollateral: c.AvailableCollateral.String() + collateralDisplayCurrency,
-		UsedCollateral:      c.UsedCollateral.String() + collateralDisplayCurrency,
+		CollateralCurrency:  c.Currency.String(),
+		AvailableCollateral: c.Available.String() + " " + collateralDisplayCurrency,
+		UsedCollateral:      c.Used.String() + " " + collateralDisplayCurrency,
 	}
 	if !c.CollateralContributedByPositiveSpotBalances.IsZero() {
 		result.CollateralContributedByPositiveSpotBalances = c.CollateralContributedByPositiveSpotBalances.String() + collateralDisplayCurrency

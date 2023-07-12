@@ -3,6 +3,7 @@ package binance
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -361,21 +362,21 @@ type FuturesAccountBalanceData struct {
 
 // FuturesAccountInformationPosition  holds account position data
 type FuturesAccountInformationPosition struct {
-	Symbol                 string    `json:"symbol"`
-	Amount                 float64   `json:"positionAmt,string"`
-	InitialMargin          float64   `json:"initialMargin,string"`
-	MaintenanceMargin      float64   `json:"maintMargin,string"`
-	UnrealizedProfit       float64   `json:"unrealizedProfit,string"`
-	PositionInitialMargin  float64   `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64   `json:"openOrderInitialMargin,string"`
-	Leverage               float64   `json:"leverage,string"`
-	Isolated               bool      `json:"isolated"`
-	PositionSide           string    `json:"positionSide"`
-	EntryPrice             float64   `json:"entryPrice,string"`
-	MaxQty                 float64   `json:"maxQty,string"`
-	UpdateTime             time.Time `json:"updateTime"`
-	NotionalValue          float64   `json:"notionalValue,string"`
-	IsolatedWallet         float64   `json:"isolatedWallet,string"`
+	Symbol                 string                  `json:"symbol"`
+	Amount                 convert.StringToFloat64 `json:"positionAmt"`
+	InitialMargin          convert.StringToFloat64 `json:"initialMargin"`
+	MaintenanceMargin      convert.StringToFloat64 `json:"maintMargin"`
+	UnrealizedProfit       convert.StringToFloat64 `json:"unrealizedProfit"`
+	PositionInitialMargin  convert.StringToFloat64 `json:"positionInitialMargin"`
+	OpenOrderInitialMargin convert.StringToFloat64 `json:"openOrderInitialMargin"`
+	Leverage               convert.StringToFloat64 `json:"leverage"`
+	Isolated               bool                    `json:"isolated"`
+	PositionSide           string                  `json:"positionSide"`
+	EntryPrice             convert.StringToFloat64 `json:"entryPrice"`
+	MaxQty                 convert.StringToFloat64 `json:"maxQty"`
+	UpdateTime             time.Time               `json:"updateTime"`
+	NotionalValue          convert.StringToFloat64 `json:"notionalValue"`
+	IsolatedWallet         convert.StringToFloat64 `json:"isolatedWallet"`
 }
 
 // FuturesAccountInformation stores account information for futures account
@@ -391,18 +392,18 @@ type FuturesAccountInformation struct {
 
 // FuturesAccountAsset holds account asset information
 type FuturesAccountAsset struct {
-	Asset                  string  `json:"asset"`
-	WalletBalance          float64 `json:"walletBalance,string"`
-	UnrealizedProfit       float64 `json:"unrealizedProfit,string"`
-	MarginBalance          float64 `json:"marginBalance,string"`
-	MaintenanceMargin      float64 `json:"maintMargin,string"`
-	InitialMargin          float64 `json:"initialMargin,string"`
-	PositionInitialMargin  float64 `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64 `json:"openOrderInitialMargin,string"`
-	MaxWithdrawAmount      float64 `json:"maxWithdrawAmount,string"`
-	CrossWalletBalance     float64 `json:"crossWalletBalance,string"`
-	CrossUnPNL             float64 `json:"crossUnPnl,string"`
-	AvailableBalance       float64 `json:"availableBalance,string"`
+	Asset                  string                  `json:"asset"`
+	WalletBalance          convert.StringToFloat64 `json:"walletBalance"`
+	UnrealizedProfit       convert.StringToFloat64 `json:"unrealizedProfit"`
+	MarginBalance          convert.StringToFloat64 `json:"marginBalance"`
+	MaintenanceMargin      convert.StringToFloat64 `json:"maintMargin"`
+	InitialMargin          convert.StringToFloat64 `json:"initialMargin"`
+	PositionInitialMargin  convert.StringToFloat64 `json:"positionInitialMargin"`
+	OpenOrderInitialMargin convert.StringToFloat64 `json:"openOrderInitialMargin"`
+	MaxWithdrawAmount      convert.StringToFloat64 `json:"maxWithdrawAmount"`
+	CrossWalletBalance     convert.StringToFloat64 `json:"crossWalletBalance"`
+	CrossUnPNL             convert.StringToFloat64 `json:"crossUnPnl"`
+	AvailableBalance       convert.StringToFloat64 `json:"availableBalance"`
 }
 
 // GenericAuthResponse is a general data response for a post auth request
@@ -445,21 +446,21 @@ type GetPositionMarginChangeHistoryData struct {
 
 // FuturesPositionInformation stores futures position info
 type FuturesPositionInformation struct {
-	Symbol           string      `json:"symbol"`
-	PositionAmount   float64     `json:"positionAmt,string"`
-	EntryPrice       float64     `json:"entryPrice,string"`
-	MarkPrice        float64     `json:"markPrice,string"`
-	UnRealizedProfit float64     `json:"unRealizedProfit,string"`
-	LiquidationPrice float64     `json:"liquidationPrice,string"`
-	Leverage         float64     `json:"leverage,string"`
-	MaxQty           float64     `json:"maxQty,string"`
-	MarginType       string      `json:"marginType"`
-	IsolatedMargin   float64     `json:"isolatedMargin,string"`
-	IsAutoAddMargin  bool        `json:"isAutoAddMargin,string"`
-	PositionSide     string      `json:"positionSide"`
-	NotionalValue    float64     `json:"notionalValue,string"`
-	IsolatedWallet   float64     `json:"isolatedWallet,string"`
-	UpdateTime       binanceTime `json:"updateTime"`
+	Symbol           string                  `json:"symbol"`
+	PositionAmount   convert.StringToFloat64 `json:"positionAmt"`
+	EntryPrice       convert.StringToFloat64 `json:"entryPrice"`
+	MarkPrice        convert.StringToFloat64 `json:"markPrice"`
+	UnRealizedProfit convert.StringToFloat64 `json:"unRealizedProfit"`
+	LiquidationPrice convert.StringToFloat64 `json:"liquidationPrice"`
+	Leverage         convert.StringToFloat64 `json:"leverage"`
+	MaxQty           convert.StringToFloat64 `json:"maxQty"`
+	MarginType       string                  `json:"marginType"`
+	IsolatedMargin   convert.StringToFloat64 `json:"isolatedMargin"`
+	IsAutoAddMargin  bool                    `json:"isAutoAddMargin,string"`
+	PositionSide     string                  `json:"positionSide"`
+	NotionalValue    convert.StringToFloat64 `json:"notionalValue"`
+	IsolatedWallet   convert.StringToFloat64 `json:"isolatedWallet"`
+	UpdateTime       binanceTime             `json:"updateTime"`
 }
 
 // FuturesAccountTradeList stores account trade list data
