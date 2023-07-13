@@ -68,10 +68,20 @@ type Calculator struct {
 
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
-	Pricing
+	Holdings
+
 	UnrealisedPNL        decimal.Decimal
 	BreakdownByAsset     map[asset.Item]ByAsset
 	BreakdownOfPositions []ByPosition
+}
+
+// Asset details collateral amounts for a currency
+type Holdings struct {
+	Currency      currency.Code
+	Total         decimal.Decimal
+	Available     decimal.Decimal
+	Used          decimal.Decimal
+	UsedBreakdown []UsedBreakdown
 }
 
 // ByPosition shows how much collateral is used
@@ -80,8 +90,9 @@ type ByPosition struct {
 	PositionCurrency  currency.Pair
 	Asset             asset.Item
 	Size              decimal.Decimal
+	IndexPrice        decimal.Decimal
 	MarkPrice         decimal.Decimal
-	MarkPriceCurrency currency.Code
+	MarkIndexCurrency currency.Code
 	PositionValue     decimal.Decimal
 	RequiredMargin    decimal.Decimal
 	CollateralUsed    decimal.Decimal
@@ -90,7 +101,7 @@ type ByPosition struct {
 }
 
 type ByAsset struct {
-	PricingScaled
+	Holdings
 	Asset      asset.Item
 	ByCurrency []ByCurrency
 }
@@ -103,41 +114,28 @@ type ByCurrency struct {
 	Currency         currency.Code
 	Asset            asset.Item
 	SkipContribution bool
-	Pricing          Pricing
-	PricingUSDEquiv  PricingUSDEquiv
-	PricingScaled    PricingScaled
-
-	MarginRequirementCurrency    currency.Code
-	InitialMarginRequirement     decimal.Decimal
-	MaintenanceMarginRequirement decimal.Decimal
+	Holdings         Holdings
+	HoldingsScaled   HoldingsScaled
+	HoldingsUSDEquiv HoldingsUSDEquiv
 }
 
-// Pricing details collateral amounts for a currency
-type Pricing struct {
-	Currency      currency.Code
-	Total         decimal.Decimal
-	Available     decimal.Decimal
-	Used          decimal.Decimal
-	UsedBreakdown []UsedBreakdown
-}
-
-type Scaling struct {
+type AssetScaledPricing struct {
 	Scale decimal.Decimal
+	Price decimal.Decimal
 	// ScalingBreakdown pricing can have tiers where they only scale in the ranges affected
 	ScalingBreakdown []ScalingBreakdown
 }
 
-// PricingScaled includes extra details on how the scaling
+// HoldingsScaled includes extra details on how the scaling
 // impacts the pricing
-type PricingScaled struct {
-	Pricing
-	Scaling
+type HoldingsScaled struct {
+	Holdings
+	AssetScaledPricing
 }
 
-type PricingUSDEquiv struct {
-	Pricing
-	PriceScale             decimal.Decimal
-	CollateralContribution decimal.Decimal
+type HoldingsUSDEquiv struct {
+	Holdings
+	Price decimal.Decimal
 }
 
 // ScalingBreakdown holds tiered scaling information

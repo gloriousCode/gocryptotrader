@@ -294,14 +294,14 @@ type AggregatedTrade struct {
 
 // IndexMarkPrice stores data for index and mark prices
 type IndexMarkPrice struct {
-	Symbol               string  `json:"symbol"`
-	Pair                 string  `json:"pair"`
-	MarkPrice            float64 `json:"markPrice,string"`
-	IndexPrice           float64 `json:"indexPrice,string"`
-	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
-	LastFundingRate      string  `json:"lastFundingRate"`
-	NextFundingTime      int64   `json:"nextFundingTime"`
-	Time                 int64   `json:"time"`
+	Symbol               string                  `json:"symbol"`
+	Pair                 string                  `json:"pair"`
+	MarkPrice            convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice           convert.StringToFloat64 `json:"indexPrice"`
+	EstimatedSettlePrice convert.StringToFloat64 `json:"estimatedSettlePrice"`
+	LastFundingRate      string                  `json:"lastFundingRate"`
+	NextFundingTime      int64                   `json:"nextFundingTime"`
+	Time                 int64                   `json:"time"`
 }
 
 // CandleStick holds kline data

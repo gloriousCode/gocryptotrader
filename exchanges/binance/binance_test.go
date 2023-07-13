@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -3092,6 +3093,38 @@ func TestMultiAssetsModeAssetIndex(t *testing.T) {
 	resp, err := b.MultiAssetsModeAssetIndex(context.Background(), "")
 	if err != nil {
 		t.Error(err)
+	}
+	t.Logf("%+v", resp)
+}
+
+func TestCalculateTheThingForTheCurrency(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp := b.calculateTheThingForTheCurrency(context.Background(), []collateral.ByCurrency{
+		{
+			Currency:         currency.BTC,
+			Asset:            asset.USDTMarginedFutures,
+			SkipContribution: false,
+			Holdings: collateral.Holdings{
+				Currency:      currency.Code{},
+				Total:         decimal.NewFromFloat(14466.05153880).Mul(decimal.NewFromFloat(0.01103971)),
+				Available:     decimal.NewFromFloat(18842.87172703).Mul(decimal.NewFromFloat(0.01103971)),
+				Used:          decimal.NewFromFloat(4376.24227378).Mul(decimal.NewFromFloat(0.01103971)),
+				UsedBreakdown: nil,
+			},
+		},
+	})
+	t.Logf("%+v", resp[0].Holdings)
+	t.Logf("%+v", resp[0].HoldingsScaled)
+	t.Logf("%+v", resp[0].HoldingsScaled.Available.Add(resp[0].HoldingsScaled.Used))
+}
+
+func TestManual(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp, err := b.LetsDoItManually()
+	if err != nil {
+		t.Fatal(err)
 	}
 	t.Logf("%+v", resp)
 }

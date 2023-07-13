@@ -2671,20 +2671,20 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *collateral.Calculato
 		return &collateral.ByCurrency{
 			Currency: req.CollateralCurrency,
 			Asset:    req.Asset,
-			Pricing: collateral.Pricing{
+			Holdings: collateral.Holdings{
 				Currency:  req.CollateralCurrency,
 				Total:     req.LockedCollateral.Add(req.FreeCollateral),
 				Available: req.FreeCollateral,
 				Used:      req.LockedCollateral,
 			},
-			PricingUSDEquiv: collateral.PricingUSDEquiv{
-				Pricing: collateral.Pricing{
+			HoldingsUSDEquiv: collateral.HoldingsUSDEquiv{
+				Holdings: collateral.Holdings{
 					Currency:  currency.USD,
 					Total:     req.LockedCollateral.Add(req.FreeCollateral).Mul(req.USDPrice),
 					Available: req.FreeCollateral.Mul(req.USDPrice),
 					Used:      req.LockedCollateral.Mul(req.USDPrice),
 				},
-				PriceScale: req.USDPrice,
+				//PriceScale: req.USDPrice,
 			},
 		}, nil
 	}
@@ -2699,39 +2699,22 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *collateral.Calculato
 				continue
 			}
 			curr := currency.NewCode(ai.Assets[j].Asset)
-			markPrice := decimal.NewFromInt(1)
-			if !b.isUSDQuoteCoin(curr) {
-				mpp := currency.NewPair(curr, currency.USDT)
-				var markPrices []UMarkPrice
-				markPrices, err = b.UGetMarkPrice(ctx, mpp)
-				if err != nil {
-					return nil, err
-				}
-				markPrice = decimal.NewFromFloat(markPrices[0].MarkPrice)
-			}
 			resp := &collateral.ByCurrency{
 				Currency: curr,
 				Asset:    asset.USDTMarginedFutures,
-				Pricing: collateral.Pricing{
+				Holdings: collateral.Holdings{
 					Currency:  curr,
 					Total:     ai.Assets[j].WalletBalance.Decimal(),
 					Available: ai.Assets[j].AvailableBalance.Decimal(),
 					Used:      ai.Assets[j].WalletBalance.Decimal().Sub(ai.Assets[j].AvailableBalance.Decimal()),
 				},
-
-				MarginRequirementCurrency:    curr,
-				InitialMarginRequirement:     ai.Assets[j].InitialMargin.Decimal(),
-				MaintenanceMarginRequirement: ai.Assets[j].MaintenanceMargin.Decimal(),
 			}
 			if !b.isUSDQuoteCoin(curr) {
-				resp.PricingUSDEquiv = collateral.PricingUSDEquiv{
-					Pricing: collateral.Pricing{
-						Currency:  currency.USDT,
-						Total:     markPrice.Mul(ai.Assets[j].WalletBalance.Decimal()),
-						Available: markPrice.Mul(ai.Assets[j].AvailableBalance.Decimal()),
-						Used:      markPrice.Mul(ai.Assets[j].WalletBalance.Decimal()).Sub(ai.Assets[j].AvailableBalance.Decimal()),
+				resp.HoldingsUSDEquiv = collateral.HoldingsUSDEquiv{
+					Holdings: collateral.Holdings{
+						Currency: currency.USDT,
 					},
-					PriceScale: markPrice,
+					//	PriceScale: markPrice,
 				}
 			}
 			return resp, nil
@@ -2753,31 +2736,27 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *collateral.Calculato
 				if err != nil {
 					return nil, err
 				}
-				markPrice = decimal.NewFromFloat(indexMarkPrices[0].MarkPrice)
+				markPrice = indexMarkPrices[0].MarkPrice.Decimal()
 			}
 			resp := &collateral.ByCurrency{
 				Currency: curr,
 				Asset:    asset.CoinMarginedFutures,
-				Pricing: collateral.Pricing{
+				Holdings: collateral.Holdings{
 					Currency:  curr,
 					Total:     ai.Assets[j].WalletBalance.Decimal(),
 					Available: ai.Assets[j].AvailableBalance.Decimal(),
 					Used:      ai.Assets[j].WalletBalance.Decimal().Sub(ai.Assets[j].AvailableBalance.Decimal()),
 				},
-
-				MarginRequirementCurrency:    curr,
-				InitialMarginRequirement:     ai.Assets[j].InitialMargin.Decimal(),
-				MaintenanceMarginRequirement: ai.Assets[j].MaintenanceMargin.Decimal(),
 			}
 			if !b.isUSDQuoteCoin(curr) {
-				resp.PricingUSDEquiv = collateral.PricingUSDEquiv{
-					Pricing: collateral.Pricing{
+				resp.HoldingsUSDEquiv = collateral.HoldingsUSDEquiv{
+					Holdings: collateral.Holdings{
 						Currency:  currency.USD,
 						Total:     markPrice.Mul(ai.Assets[j].WalletBalance.Decimal()),
 						Available: markPrice.Mul(ai.Assets[j].AvailableBalance.Decimal()),
 						Used:      markPrice.Mul(ai.Assets[j].WalletBalance.Decimal().Sub(ai.Assets[j].AvailableBalance.Decimal())),
 					},
-					PriceScale: markPrice,
+					//	PriceScale: markPrice,
 				}
 			}
 			return resp, nil
@@ -2806,7 +2785,7 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *collateral.Calculato
 			resp := &collateral.ByCurrency{
 				Currency: curr,
 				Asset:    asset.Spot,
-				Pricing: collateral.Pricing{
+				Holdings: collateral.Holdings{
 					Currency:  curr,
 					Total:     locked.Add(avail),
 					Available: avail,
@@ -2814,14 +2793,14 @@ func (b *Binance) ScaleCollateral(ctx context.Context, req *collateral.Calculato
 				},
 			}
 			if !b.isUSDQuoteCoin(curr) {
-				resp.PricingUSDEquiv = collateral.PricingUSDEquiv{
-					Pricing: collateral.Pricing{
+				resp.HoldingsUSDEquiv = collateral.HoldingsUSDEquiv{
+					Holdings: collateral.Holdings{
 						Currency:  currency.USDT,
 						Total:     locked.Add(avail).Mul(tickLast),
 						Available: avail.Mul(tickLast),
 						Used:      locked.Mul(tickLast),
 					},
-					PriceScale: tickLast,
+					//	PriceScale: tickLast,
 				}
 			}
 			return resp, nil
@@ -2840,7 +2819,7 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 	}
 
 	resp := &collateral.TotalCollateralResponse{
-		Pricing: collateral.Pricing{
+		Holdings: collateral.Holdings{
 			Currency: currency.USD,
 		},
 		BreakdownByAsset: make(map[asset.Item]collateral.ByAsset),
@@ -2857,229 +2836,216 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 			mbba := resp.BreakdownByAsset[scaled.Asset]
 			mbba.Currency = currency.USD
 			mbba.ByCurrency = append(mbba.ByCurrency, *scaled)
-			mbba.Total = mbba.Total.Add(scaled.PricingUSDEquiv.Total)
-			mbba.Available = mbba.Available.Add(scaled.PricingUSDEquiv.Available)
-			mbba.Used = mbba.Used.Add(scaled.PricingUSDEquiv.Used)
+			mbba.Total = mbba.Total.Add(scaled.HoldingsUSDEquiv.Total)
+			mbba.Available = mbba.Available.Add(scaled.HoldingsUSDEquiv.Available)
+			mbba.Used = mbba.Used.Add(scaled.HoldingsUSDEquiv.Used)
 
 			resp.BreakdownByAsset[scaled.Asset] = mbba
-			resp.Available = resp.Available.Add(scaled.PricingUSDEquiv.Available)
-			resp.Used = resp.Used.Add(scaled.PricingUSDEquiv.Used)
-			resp.Total = resp.Total.Add(scaled.PricingUSDEquiv.Total)
+			resp.Available = resp.Available.Add(scaled.HoldingsUSDEquiv.Available)
+			resp.Used = resp.Used.Add(scaled.HoldingsUSDEquiv.Used)
+			resp.Total = resp.Total.Add(scaled.HoldingsUSDEquiv.Total)
 		}
 		return resp, nil
 	}
 	assets := b.CurrencyPairs.GetAssetTypes(true)
-	for i := range assets {
-		switch assets[i] {
+	for x := range assets {
+		switch assets[x] {
 		case asset.USDTMarginedFutures:
-			// mpm allows sharing of mark price values across position and asset
-			mpm := make(map[string]decimal.Decimal)
 			ai, err := b.UAccountInformationV2(ctx)
+			resp.Total = resp.Total.Add(ai.TotalWalletBalance.Decimal())
+			resp.Available = resp.Available.Add(ai.AvailableBalance.Decimal())
+			resp.Used = resp.Used.Add(ai.TotalUnrealizedProfit.Decimal())
+
 			if err != nil {
 				return nil, err
 			}
 			if req.FetchPositions {
-				for j := range ai.Positions {
-					if ai.Positions[j].PositionAmount == 0 {
+				for y := range ai.Positions {
+					if ai.Positions[y].PositionAmount == 0 {
 						continue
 					}
-					pair, err := currency.NewPairFromString(ai.Positions[j].Symbol)
+					pair, err := currency.NewPairFromString(ai.Positions[y].Symbol)
 					if err != nil {
 						return nil, err
 					}
-					var markPrice decimal.Decimal
-					if markPriceVal, ok := mpm[pair.String()]; ok {
-						markPrice = markPriceVal
-					} else {
-						var markPrices []UMarkPrice
-						markPrices, err = b.UGetMarkPrice(ctx, pair)
-						if err != nil {
-							return nil, err
-						}
-						markPrice = decimal.NewFromFloat(markPrices[0].MarkPrice)
-						mpm[pair.String()] = markPrice
+					var markPrice, indexPrice decimal.Decimal
+					var markPrices []UMarkPrice
+					markPrices, err = b.UGetMarkPrice(ctx, pair)
+					if err != nil {
+						return nil, err
 					}
-					size := ai.Positions[j].PositionAmount.Decimal()
+					markPrice = markPrices[0].MarkPrice.Decimal()
+					indexPrice = markPrices[0].IndexPrice.Decimal()
+					size := ai.Positions[y].PositionAmount.Decimal()
 					marginType := margin.Multi
-					if ai.Positions[j].Isolated {
+					if ai.Positions[y].Isolated {
 						marginType = margin.Isolated
 					}
 					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
 						PositionCurrency:  pair,
-						Asset:             assets[i],
+						Asset:             assets[x],
 						Size:              size,
 						PositionValue:     size.Mul(markPrice),
 						MarkPrice:         markPrice,
-						RequiredMargin:    ai.Positions[j].MaintenanceMargin.Decimal(),
-						CollateralUsed:    ai.Positions[j].PositionAmount.Decimal().Mul(markPrice),
-						UnrealisedPNL:     ai.Positions[j].UnrealisedProfit.Decimal(),
+						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
+						CollateralUsed:    ai.Positions[y].PositionAmount.Decimal().Mul(markPrice),
+						UnrealisedPNL:     ai.Positions[y].UnrealisedProfit.Decimal(),
 						MarginType:        marginType,
-						MarkPriceCurrency: currency.USDT,
+						MarkIndexCurrency: currency.USDT,
+						IndexPrice:        indexPrice,
 					})
-					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[j].UnrealisedProfit.Decimal())
+					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealisedProfit.Decimal())
 				}
 			}
-			bba := resp.BreakdownByAsset[assets[i]]
-			for j := range ai.Assets {
-				if ai.Assets[j].WalletBalance == 0 {
+			bba := resp.BreakdownByAsset[assets[x]]
+			bba.Currency = currency.USD
+			multiAssetModeAssetIndex, err := b.MultiAssetsModeAssetIndex(ctx, "")
+			if err != nil {
+				return nil, err
+			}
+			for y := range ai.Assets {
+				if ai.Assets[y].WalletBalance == 0 {
 					continue
 				}
-				curr := currency.NewCode(ai.Assets[j].Asset)
-				markPrice := decimal.NewFromInt(1)
-				if !curr.Equal(currency.USDT) && !curr.Equal(currency.BUSD) {
-					if markPriceVal, ok := mpm[ai.Assets[j].Asset+"USDT"]; ok {
-						markPrice = markPriceVal
-					} else {
-						mpp := currency.NewPair(curr, currency.USDT)
-						var markPrices []UMarkPrice
-						markPrices, err = b.UGetMarkPrice(ctx, mpp)
-						if err != nil {
-							return nil, err
-						}
-						markPrice = decimal.NewFromFloat(markPrices[0].IndexPrice)
-						mpm[ai.Assets[j].Asset+"USDT"] = markPrice
+				var usdPrice decimal.Decimal
+				for z := range multiAssetModeAssetIndex {
+					if multiAssetModeAssetIndex[z].Symbol != ai.Assets[y].Asset+"USD" {
+						continue
 					}
+					usdPrice = decimal.Min(multiAssetModeAssetIndex[z].BidRate.Decimal(), multiAssetModeAssetIndex[z].AskRate.Decimal())
 				}
-				//b.GetIndexAndMarkPrice()
-
-				//min := math.Min(tick.Bid, tick.Ask)
-				//fmt.Println("AvailableBalance: ", decimal.NewFromFloat(min).Mul(ai.Assets[j].MarginBalance.Decimal()))
-				//fmt.Println("MarginBalance: ", decimal.NewFromFloat(min).Mul(ai.Assets[j].AvailableBalance.Decimal()))
-
+				curr := currency.NewCode(ai.Assets[y].Asset)
 				cbc := collateral.ByCurrency{
 					Currency: curr,
-					Asset:    assets[i],
-					Pricing: collateral.Pricing{
+					Asset:    assets[x],
+					Holdings: collateral.Holdings{
 						Currency:  curr,
-						Total:     ai.Assets[j].MarginBalance.Decimal(),
-						Available: ai.Assets[j].AvailableBalance.Decimal(),
-						Used:      ai.Assets[j].UnrealizedProfit.Decimal(),
+						Total:     ai.Assets[y].WalletBalance.Decimal(),
+						Available: ai.Assets[y].AvailableBalance.Decimal(),
+						Used:      ai.Assets[y].UnrealizedProfit.Decimal(),
 					},
-					PricingUSDEquiv: collateral.PricingUSDEquiv{
-						Pricing: collateral.Pricing{
+					HoldingsUSDEquiv: collateral.HoldingsUSDEquiv{
+						Holdings: collateral.Holdings{
 							Currency:  currency.USD,
-							Total:     markPrice.Mul(ai.Assets[j].MarginBalance.Decimal()),
-							Available: markPrice.Mul(ai.Assets[j].AvailableBalance.Decimal()),
-							Used:      markPrice.Mul(ai.Assets[j].UnrealizedProfit.Decimal()),
+							Total:     usdPrice.Mul(ai.Assets[y].WalletBalance.Decimal()),
+							Available: ai.Assets[y].AvailableBalance.Decimal(),
+							Used:      ai.Assets[y].UnrealizedProfit.Decimal(),
 						},
-						PriceScale: markPrice,
-						//CollateralContribution: decimal.Min(),
+						Price: usdPrice,
 					},
-					MarginRequirementCurrency:    curr,
-					InitialMarginRequirement:     ai.Assets[j].InitialMargin.Decimal(),
-					MaintenanceMarginRequirement: ai.Assets[j].MaintenanceMargin.Decimal(),
 				}
 				bba.ByCurrency = append(bba.ByCurrency, cbc)
-				resp.Used = resp.Used.Add(cbc.PricingUSDEquiv.Used)
-				resp.Total = resp.Used.Add(cbc.PricingUSDEquiv.Total)
-				resp.Available = resp.Used.Add(cbc.PricingUSDEquiv.Available)
+				bba.Total = bba.Total.Add(cbc.HoldingsUSDEquiv.Total)
+				bba.Available = bba.Available.Add(cbc.HoldingsUSDEquiv.Available)
+				bba.Used = bba.Used.Add(cbc.HoldingsUSDEquiv.Used)
 			}
-			resp.BreakdownByAsset[assets[i]] = bba
+
+			resp.BreakdownByAsset[assets[x]] = bba
 		case asset.CoinMarginedFutures:
 			ai, err := b.GetFuturesAccountInfo(ctx)
 			if err != nil {
 				return nil, err
 			}
-			// mpm allows sharing of mark price values across position and asset
-			mpm := make(map[string]decimal.Decimal)
+
+			var indexMarkPrices []IndexMarkPrice
+			indexMarkPrices, err = b.GetIndexAndMarkPrice(ctx, "", "")
+			if err != nil {
+				return nil, err
+			}
+
 			if req.FetchPositions {
-				for j := range ai.Positions {
-					if ai.Positions[j].Amount == 0 {
+				for y := range ai.Positions {
+					if ai.Positions[y].Amount == 0 {
 						continue
 					}
 					var pair currency.Pair
-					pair, err = currency.NewPairFromString(ai.Positions[j].Symbol)
+					pair, err = currency.NewPairFromString(ai.Positions[y].Symbol)
 					if err != nil {
 						return nil, err
 					}
-					var markPrice decimal.Decimal
-					if markPriceVal, ok := mpm[pair.Base.String()]; ok {
-						markPrice = markPriceVal
-					} else {
-						var indexMarkPrices []IndexMarkPrice
-						indexMarkPrices, err = b.GetIndexAndMarkPrice(ctx, "", pair.Base.String())
-						if err != nil {
-							return nil, err
+					var markPrice, indexPrice decimal.Decimal
+					for z := range indexMarkPrices {
+						if indexMarkPrices[z].Symbol != ai.Positions[y].Symbol {
+							continue
 						}
-						markPrice = decimal.NewFromFloat(indexMarkPrices[0].MarkPrice)
-						mpm[pair.Base.String()] = markPrice
+						markPrice = indexMarkPrices[z].MarkPrice.Decimal()
+						indexPrice = indexMarkPrices[z].IndexPrice.Decimal()
+						break
 					}
-					amount := ai.Positions[j].Amount.Decimal()
+					amount := ai.Positions[y].Amount.Decimal()
 					mMode := margin.Multi
-					if ai.Positions[j].Isolated {
+					if ai.Positions[y].Isolated {
 						mMode = margin.Isolated
 					}
 					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
 						PositionCurrency:  pair,
-						Asset:             assets[i],
+						Asset:             assets[x],
 						Size:              amount,
 						PositionValue:     amount.Mul(markPrice),
 						MarkPrice:         markPrice,
-						RequiredMargin:    ai.Positions[j].MaintenanceMargin.Decimal(),
-						CollateralUsed:    ai.Positions[j].Amount.Decimal().Mul(markPrice),
+						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
+						CollateralUsed:    ai.Positions[y].Amount.Decimal().Mul(markPrice),
 						MarginType:        mMode,
-						MarkPriceCurrency: currency.USD,
-						UnrealisedPNL:     ai.Positions[j].UnrealizedProfit.Decimal(),
+						MarkIndexCurrency: currency.USD,
+						IndexPrice:        indexPrice,
+						UnrealisedPNL:     ai.Positions[y].UnrealizedProfit.Decimal(),
 					})
-					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[j].UnrealizedProfit.Decimal())
+					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealizedProfit.Decimal())
 				}
-
 			}
-			bba := resp.BreakdownByAsset[assets[i]]
-			for j := range ai.Assets {
-				if ai.Assets[j].WalletBalance == 0 {
+			bba := resp.BreakdownByAsset[assets[x]]
+			bba.Currency = currency.USDT
+			for y := range ai.Assets {
+				if ai.Assets[y].WalletBalance == 0 {
 					continue
 				}
-				curr := currency.NewCode(ai.Assets[j].Asset)
-				markPrice := decimal.NewFromInt(1)
-				if !curr.Equal(currency.USDT) {
-					markPriceVal, ok := mpm[ai.Assets[j].Asset+"USD"]
-					if ok {
-						markPrice = markPriceVal // save on an API call
-					} else {
-						var indexMarkPrices []IndexMarkPrice
-						indexMarkPrices, err = b.GetIndexAndMarkPrice(ctx, "", ai.Assets[j].Asset+"USD")
-						if err != nil {
-							return nil, err
-						}
-						markPrice = decimal.NewFromFloat(indexMarkPrices[0].MarkPrice)
+				var markPrice decimal.Decimal
+				for z := range indexMarkPrices {
+					if indexMarkPrices[z].Symbol != ai.Assets[y].Asset+"USD" {
+						continue
 					}
+					markPrice = indexMarkPrices[z].MarkPrice.Decimal()
+					break
 				}
-
+				curr := currency.NewCode(ai.Assets[y].Asset)
 				cbc := collateral.ByCurrency{
 					Currency: curr,
-					Asset:    assets[i],
-					Pricing: collateral.Pricing{
+					Asset:    assets[x],
+					Holdings: collateral.Holdings{
 						Currency:  curr,
-						Total:     ai.Assets[j].MarginBalance.Decimal(),
-						Available: ai.Assets[j].AvailableBalance.Decimal(),
-						Used:      ai.Assets[j].UnrealizedProfit.Decimal(),
+						Total:     ai.Assets[y].WalletBalance.Decimal(),
+						Available: ai.Assets[y].AvailableBalance.Decimal(),
+						Used:      ai.Assets[y].UnrealizedProfit.Decimal(),
 					},
-					PricingUSDEquiv: collateral.PricingUSDEquiv{
-						Pricing: collateral.Pricing{
+					HoldingsUSDEquiv: collateral.HoldingsUSDEquiv{
+						Holdings: collateral.Holdings{
 							Currency:  currency.USD,
-							Total:     markPrice.Mul(ai.Assets[j].MarginBalance.Decimal()),
-							Available: markPrice.Mul(ai.Assets[j].AvailableBalance.Decimal()),
-							Used:      markPrice.Mul(ai.Assets[j].UnrealizedProfit.Decimal()),
+							Total:     markPrice.Mul(ai.Assets[y].WalletBalance.Decimal()),
+							Available: markPrice.Mul(ai.Assets[y].AvailableBalance.Decimal()),
+							Used:      markPrice.Mul(ai.Assets[y].UnrealizedProfit.Decimal()),
 						},
-						PriceScale: markPrice,
+						Price: markPrice,
 					},
-					MarginRequirementCurrency:    curr,
-					InitialMarginRequirement:     ai.Assets[j].InitialMargin.Decimal(),
-					MaintenanceMarginRequirement: ai.Assets[j].MaintenanceMargin.Decimal(),
 				}
 				bba.ByCurrency = append(bba.ByCurrency, cbc)
-				resp.Used = resp.Used.Add(cbc.PricingUSDEquiv.Used)
-				resp.Total = resp.Used.Add(cbc.PricingUSDEquiv.Total)
-				resp.Available = resp.Used.Add(cbc.PricingUSDEquiv.Available)
+
+				bba.Total = bba.Total.Add(ai.Assets[y].WalletBalance.Decimal())
+				bba.Available = bba.Available.Add(ai.Assets[y].AvailableBalance.Decimal())
+				bba.Used = bba.Used.Add(ai.Assets[y].UnrealizedProfit.Decimal())
+
+				resp.Total = resp.Total.Add(ai.Assets[y].WalletBalance.Decimal())
+				resp.Available = resp.Available.Add(ai.Assets[y].AvailableBalance.Decimal())
+				resp.Used = resp.Used.Add(ai.Assets[y].UnrealizedProfit.Decimal())
 			}
-			resp.BreakdownByAsset[assets[i]] = bba
+			resp.BreakdownByAsset[assets[x]] = bba
 		case asset.Spot:
 			ai, err := b.GetAccount(ctx)
 			if err != nil {
 				return nil, err
 			}
-			bba := resp.BreakdownByAsset[assets[i]]
+
+			bba := resp.BreakdownByAsset[assets[x]]
+			bba.Currency = currency.USDT
 			for j := range ai.Balances {
 				if ai.Balances[j].Locked.Decimal().Add(ai.Balances[j].Free.Decimal()).IsZero() {
 					continue
@@ -3098,8 +3064,8 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				avail := ai.Balances[j].Free.Decimal()
 				spotVal := collateral.ByCurrency{
 					Currency: curr,
-					Asset:    assets[i],
-					Pricing: collateral.Pricing{
+					Asset:    assets[x],
+					Holdings: collateral.Holdings{
 						Currency:  curr,
 						Total:     locked.Add(avail),
 						Available: avail,
@@ -3107,26 +3073,35 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 					},
 				}
 				if !curr.Equal(currency.USDT) {
-					spotVal.PricingUSDEquiv = collateral.PricingUSDEquiv{
-						Pricing: collateral.Pricing{
+					spotVal.HoldingsUSDEquiv = collateral.HoldingsUSDEquiv{
+						Holdings: collateral.Holdings{
 							Currency:  currency.USDT,
 							Total:     locked.Add(avail).Mul(tickLast),
 							Available: avail.Mul(tickLast),
 							Used:      locked.Mul(tickLast),
 						},
-						PriceScale: tickLast,
+						Price: tickLast,
 					}
-					resp.Used = resp.Used.Add(spotVal.PricingUSDEquiv.Used)
-					resp.Total = resp.Used.Add(spotVal.PricingUSDEquiv.Total)
-					resp.Available = resp.Used.Add(spotVal.PricingUSDEquiv.Available)
+					resp.Total = resp.Total.Add(spotVal.HoldingsUSDEquiv.Total)
+					resp.Available = resp.Available.Add(spotVal.HoldingsUSDEquiv.Available)
+					resp.Used = resp.Used.Add(spotVal.HoldingsUSDEquiv.Used)
+
+					bba.Total = bba.Total.Add(spotVal.HoldingsUSDEquiv.Total)
+					bba.Available = bba.Available.Add(spotVal.HoldingsUSDEquiv.Available)
+					bba.Used = bba.Used.Add(spotVal.HoldingsUSDEquiv.Used)
+
 				} else {
-					resp.Used = resp.Used.Add(spotVal.Pricing.Used)
-					resp.Total = resp.Used.Add(spotVal.Pricing.Total)
-					resp.Available = resp.Used.Add(spotVal.Pricing.Available)
+					resp.Total = resp.Total.Add(avail).Add(locked)
+					resp.Available = resp.Available.Add(avail)
+					resp.Used = resp.Used.Add(locked)
+
+					bba.Total = bba.Total.Add(avail).Add(locked)
+					bba.Available = bba.Available.Add(avail)
+					bba.Used = bba.Used.Add(locked)
 				}
 				bba.ByCurrency = append(bba.ByCurrency, spotVal)
 			}
-			resp.BreakdownByAsset[assets[i]] = bba
+			resp.BreakdownByAsset[assets[x]] = bba
 		default:
 			continue
 		}
@@ -3143,18 +3118,85 @@ type Butts33000 struct {
 	CollateralContribution decimal.Decimal
 }
 
-func (b *Binance) calculateTheThingForTheCurrency(ctx context.Context, what []collateral.ByCurrency) {
-	resp, err := b.MultiAssetsModeAssetIndex(ctx, "")
+func (b *Binance) calculateTheThingForTheCurrency(ctx context.Context, collateralByCurrency []collateral.ByCurrency) []collateral.ByCurrency {
+	multiAssetModeAssetIndex, err := b.MultiAssetsModeAssetIndex(ctx, "")
 	if err != nil {
 		panic(err)
 	}
-	var resp []Butts33000
-	for i := range resp {
-		for j := range what {
-			if resp[i].Symbol != what[j].Currency.Upper().String()+"USD" {
+	for i := range multiAssetModeAssetIndex {
+		for j := range collateralByCurrency {
+			if multiAssetModeAssetIndex[i].Symbol != collateralByCurrency[j].Currency.Upper().String()+"USD" {
+				continue
+			}
+			mineroo := decimal.Min(multiAssetModeAssetIndex[i].BidRate.Decimal(), multiAssetModeAssetIndex[i].AskRate.Decimal())
+			collateralByCurrency[j].HoldingsUSDEquiv = collateral.HoldingsUSDEquiv{
+				Holdings: collateral.Holdings{
+					Currency:  currency.USD,
+					Total:     collateralByCurrency[j].Holdings.Total.Mul(mineroo),
+					Available: collateralByCurrency[j].Holdings.Available.Mul(mineroo),
+					Used:      collateralByCurrency[j].Holdings.Used.Mul(mineroo),
+				},
+				Price: mineroo,
+			}
+		}
+	}
+	return collateralByCurrency
+}
+
+type thing struct {
+	Coin                   currency.Code
+	USDBidAsk              decimal.Decimal
+	InitialMarginRatio     decimal.Decimal
+	MaintenanceMarginRatio decimal.Decimal
+	WalletBalance          decimal.Decimal
+	UnrealisedPNL          decimal.Decimal
+	MarginBalance          decimal.Decimal
+	InitialMarginThing     decimal.Decimal
+	MaintenanceMarginThing decimal.Decimal
+	AssetContribution      decimal.Decimal
+}
+
+func (b *Binance) LetsDoItManually() ([]thing, error) {
+	var resp []thing
+	ai, err := b.UAccountInformationV2(context.Background())
+	if err != nil {
+		return nil, err
+	}
+
+	multiAssetModeAssetIndex, err := b.MultiAssetsModeAssetIndex(context.Background(), "")
+	if err != nil {
+		return nil, err
+	}
+	for j := range ai.Assets {
+		if ai.Assets[j].WalletBalance == 0 {
+			continue
+		}
+		for x := range multiAssetModeAssetIndex {
+			if multiAssetModeAssetIndex[x].Symbol != ai.Assets[j].Asset+"USD" {
 				continue
 			}
 
+			// margin balance is asset * Price + PNL
+			// available balance include leverage
+			bidAsk := decimal.Min(multiAssetModeAssetIndex[x].BidRate.Decimal(), multiAssetModeAssetIndex[x].AskRate.Decimal())
+			fmt.Println(bidAsk)
+			fmt.Println(ai.Assets[j].UnrealizedProfit.Decimal())
+			fmt.Println(ai.Assets[j].AvailableBalance.Decimal())
+			fmt.Println(ai.Assets[j].Asset, " margin balance: ", ai.Assets[j].MarginBalance.Decimal().Mul(bidAsk))
+			fmt.Println(ai.Assets[j].Asset, " wallet balance: ", ai.Assets[j].WalletBalance.Decimal().Mul(bidAsk).Add(ai.Assets[j].UnrealizedProfit.Decimal()))
+			fmt.Println(ai.Assets[j].Asset, " cross wallet balance: ", ai.Assets[j].CrossWalletBalance.Decimal().Mul(bidAsk).Add(ai.Assets[j].UnrealizedProfit.Decimal()))
+			//resp = append(resp, thing{
+			//	Coin:                   currency.NewCode(ai.Assets[j].Asset),
+			//	USDBidAsk:              bidAsk,
+			//	InitialMarginRatio:     ai.Assets[j].OpenOrderInitialMargin.Decimal(),
+			//	MaintenanceMarginRatio: ai.Assets[j].MaintenanceMargin.Decimal(),
+			//	WalletBalance:          ai.Assets[j].WalletBalance.Decimal(),
+			//	UnrealisedPNL:          ai.Assets[j].UnrealizedProfit.Decimal(),
+			//	MarginBalance:          ai.Assets[j].MarginBalance.Decimal(),
+			//	InitialMarginThing:     bidAsk.Mul(ai.Assets[j].OpenOrderInitialMargin.Decimal()).Mul(ai.Assets[j].WalletBalance.Decimal()),
+			//})
 		}
+
 	}
+	return resp, nil
 }
