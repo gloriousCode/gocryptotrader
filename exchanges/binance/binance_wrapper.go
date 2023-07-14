@@ -2859,46 +2859,9 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 			if err != nil {
 				return nil, err
 			}
-			if req.FetchPositions {
-				for y := range ai.Positions {
-					if ai.Positions[y].PositionAmount == 0 {
-						continue
-					}
-					pair, err := currency.NewPairFromString(ai.Positions[y].Symbol)
-					if err != nil {
-						return nil, err
-					}
-					var markPrice, indexPrice decimal.Decimal
-					var markPrices []UMarkPrice
-					markPrices, err = b.UGetMarkPrice(ctx, pair)
-					if err != nil {
-						return nil, err
-					}
-					markPrice = markPrices[0].MarkPrice.Decimal()
-					indexPrice = markPrices[0].IndexPrice.Decimal()
-					size := ai.Positions[y].PositionAmount.Decimal()
-					marginType := margin.Multi
-					if ai.Positions[y].Isolated {
-						marginType = margin.Isolated
-					}
-					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
-						PositionCurrency:  pair,
-						Asset:             assets[x],
-						Size:              size,
-						PositionValue:     size.Mul(markPrice),
-						MarkPrice:         markPrice,
-						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
-						CollateralUsed:    ai.Positions[y].PositionAmount.Decimal().Mul(markPrice),
-						UnrealisedPNL:     ai.Positions[y].UnrealisedProfit.Decimal(),
-						MarginType:        marginType,
-						MarkIndexCurrency: currency.USDT,
-						IndexPrice:        indexPrice,
-					})
-					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealisedProfit.Decimal())
-				}
-			}
 			bba := resp.BreakdownByAsset[assets[x]]
 			bba.Currency = currency.USD
+			bba.Asset = assets[x]
 			multiAssetModeAssetIndex, err := b.MultiAssetsModeAssetIndex(ctx, "")
 			if err != nil {
 				return nil, err
@@ -2928,8 +2891,8 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 						Holdings: collateral.Holdings{
 							Currency:  currency.USD,
 							Total:     usdPrice.Mul(ai.Assets[y].WalletBalance.Decimal()),
-							Available: ai.Assets[y].AvailableBalance.Decimal(),
-							Used:      ai.Assets[y].UnrealizedProfit.Decimal(),
+							Available: usdPrice.Mul(ai.Assets[y].AvailableBalance.Decimal()),
+							Used:      usdPrice.Mul(ai.Assets[y].UnrealizedProfit.Decimal()),
 						},
 						Price: usdPrice,
 					},
@@ -2940,7 +2903,49 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				bba.Used = bba.Used.Add(cbc.HoldingsUSDEquiv.Used)
 			}
 
+			if req.FetchPositions {
+				for y := range ai.Positions {
+					if ai.Positions[y].PositionAmount == 0 {
+						continue
+					}
+					pair, err := currency.NewPairFromString(ai.Positions[y].Symbol)
+					if err != nil {
+						return nil, err
+					}
+					var markPrice, indexPrice decimal.Decimal
+					var markPrices []UMarkPrice
+					markPrices, err = b.UGetMarkPrice(ctx, pair)
+					if err != nil {
+						return nil, err
+					}
+					markPrice = markPrices[0].MarkPrice.Decimal()
+					indexPrice = markPrices[0].IndexPrice.Decimal()
+					size := ai.Positions[y].PositionAmount.Decimal()
+					marginType := margin.Multi
+					if ai.Positions[y].Isolated {
+						marginType = margin.Isolated
+					}
+					bba.BreakdownOfPositions = append(bba.BreakdownOfPositions, collateral.ByPosition{
+						PositionCurrency:  pair,
+						Asset:             assets[x],
+						Size:              size,
+						NotionalSize:      size.Mul(markPrice),
+						MarkPrice:         markPrice,
+						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
+						CollateralUsed:    ai.Positions[y].PositionAmount.Decimal().Mul(markPrice),
+						UnrealisedPNL:     ai.Positions[y].UnrealisedProfit.Decimal(),
+						MarginType:        marginType,
+						MarkIndexCurrency: currency.USDT,
+						IndexPrice:        indexPrice,
+					})
+					bba.MaintenanceMargin = bba.MaintenanceMargin.Add(ai.Positions[y].MaintenanceMargin.Decimal())
+					resp.MaintenanceMargin = resp.MaintenanceMargin.Add(ai.Positions[y].MaintenanceMargin.Decimal())
+					bba.UnrealisedPNL = bba.UnrealisedPNL.Add(ai.Positions[y].UnrealisedProfit.Decimal())
+					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealisedProfit.Decimal())
+				}
+			}
 			resp.BreakdownByAsset[assets[x]] = bba
+
 		case asset.CoinMarginedFutures:
 			ai, err := b.GetFuturesAccountInfo(ctx)
 			if err != nil {
@@ -2953,47 +2958,8 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				return nil, err
 			}
 
-			if req.FetchPositions {
-				for y := range ai.Positions {
-					if ai.Positions[y].Amount == 0 {
-						continue
-					}
-					var pair currency.Pair
-					pair, err = currency.NewPairFromString(ai.Positions[y].Symbol)
-					if err != nil {
-						return nil, err
-					}
-					var markPrice, indexPrice decimal.Decimal
-					for z := range indexMarkPrices {
-						if indexMarkPrices[z].Symbol != ai.Positions[y].Symbol {
-							continue
-						}
-						markPrice = indexMarkPrices[z].MarkPrice.Decimal()
-						indexPrice = indexMarkPrices[z].IndexPrice.Decimal()
-						break
-					}
-					amount := ai.Positions[y].Amount.Decimal()
-					mMode := margin.Multi
-					if ai.Positions[y].Isolated {
-						mMode = margin.Isolated
-					}
-					resp.BreakdownOfPositions = append(resp.BreakdownOfPositions, collateral.ByPosition{
-						PositionCurrency:  pair,
-						Asset:             assets[x],
-						Size:              amount,
-						PositionValue:     amount.Mul(markPrice),
-						MarkPrice:         markPrice,
-						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
-						CollateralUsed:    ai.Positions[y].Amount.Decimal().Mul(markPrice),
-						MarginType:        mMode,
-						MarkIndexCurrency: currency.USD,
-						IndexPrice:        indexPrice,
-						UnrealisedPNL:     ai.Positions[y].UnrealizedProfit.Decimal(),
-					})
-					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealizedProfit.Decimal())
-				}
-			}
 			bba := resp.BreakdownByAsset[assets[x]]
+			bba.Asset = assets[x]
 			bba.Currency = currency.USDT
 			for y := range ai.Assets {
 				if ai.Assets[y].WalletBalance == 0 {
@@ -3001,7 +2967,7 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				}
 				var markPrice decimal.Decimal
 				for z := range indexMarkPrices {
-					if indexMarkPrices[z].Symbol != ai.Assets[y].Asset+"USD" {
+					if indexMarkPrices[z].Pair != ai.Assets[y].Asset+"USD" {
 						continue
 					}
 					markPrice = indexMarkPrices[z].MarkPrice.Decimal()
@@ -3037,6 +3003,51 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				resp.Available = resp.Available.Add(ai.Assets[y].AvailableBalance.Decimal())
 				resp.Used = resp.Used.Add(ai.Assets[y].UnrealizedProfit.Decimal())
 			}
+			if req.FetchPositions {
+				for y := range ai.Positions {
+					if ai.Positions[y].Amount == 0 {
+						continue
+					}
+					var pair currency.Pair
+					pair, err = currency.NewPairFromString(ai.Positions[y].Symbol)
+					if err != nil {
+						return nil, err
+					}
+					var markPrice, indexPrice decimal.Decimal
+					for z := range indexMarkPrices {
+						if indexMarkPrices[z].Symbol != ai.Positions[y].Symbol {
+							continue
+						}
+						markPrice = indexMarkPrices[z].MarkPrice.Decimal()
+						indexPrice = indexMarkPrices[z].IndexPrice.Decimal()
+						break
+					}
+					amount := ai.Positions[y].Amount.Decimal()
+					mMode := margin.Multi
+					if ai.Positions[y].Isolated {
+						mMode = margin.Isolated
+					}
+					fmt.Printf("\n%+v", ai.Positions[y])
+					bba.BreakdownOfPositions = append(bba.BreakdownOfPositions, collateral.ByPosition{
+						PositionCurrency:  pair,
+						Asset:             assets[x],
+						Size:              amount,
+						NotionalSize:      amount.Mul(ai.Positions[y].Leverage.Decimal()).Mul(markPrice),
+						MarkPrice:         markPrice,
+						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
+						CollateralUsed:    ai.Positions[y].Amount.Decimal().Mul(markPrice),
+						MarginType:        mMode,
+						MarkIndexCurrency: currency.USD,
+						IndexPrice:        indexPrice,
+						UnrealisedPNL:     ai.Positions[y].UnrealizedProfit.Decimal(),
+						Leverage:          ai.Positions[y].Leverage.Decimal(),
+					})
+					bba.MaintenanceMargin = bba.MaintenanceMargin.Add(ai.Positions[y].MaintenanceMargin.Decimal())
+					bba.UnrealisedPNL = bba.UnrealisedPNL.Add(ai.Positions[y].UnrealizedProfit.Decimal())
+					resp.MaintenanceMargin = resp.MaintenanceMargin.Add(ai.Positions[y].MaintenanceMargin.Decimal())
+					resp.UnrealisedPNL = resp.UnrealisedPNL.Add(ai.Positions[y].UnrealizedProfit.Decimal())
+				}
+			}
 			resp.BreakdownByAsset[assets[x]] = bba
 		case asset.Spot:
 			ai, err := b.GetAccount(ctx)
@@ -3045,6 +3056,7 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 			}
 
 			bba := resp.BreakdownByAsset[assets[x]]
+			bba.Asset = assets[x]
 			bba.Currency = currency.USDT
 			for j := range ai.Balances {
 				if ai.Balances[j].Locked.Decimal().Add(ai.Balances[j].Free.Decimal()).IsZero() {

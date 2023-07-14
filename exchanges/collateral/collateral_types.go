@@ -69,10 +69,9 @@ type Calculator struct {
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
 	Holdings
-
-	UnrealisedPNL        decimal.Decimal
-	BreakdownByAsset     map[asset.Item]ByAsset
-	BreakdownOfPositions []ByPosition
+	MaintenanceMargin decimal.Decimal
+	UnrealisedPNL     decimal.Decimal
+	BreakdownByAsset  map[asset.Item]ByAsset
 }
 
 // Asset details collateral amounts for a currency
@@ -93,17 +92,21 @@ type ByPosition struct {
 	IndexPrice        decimal.Decimal
 	MarkPrice         decimal.Decimal
 	MarkIndexCurrency currency.Code
-	PositionValue     decimal.Decimal
+	NotionalSize      decimal.Decimal
 	RequiredMargin    decimal.Decimal
 	CollateralUsed    decimal.Decimal
 	MarginType        margin.Type
 	UnrealisedPNL     decimal.Decimal
+	Leverage          decimal.Decimal
 }
 
 type ByAsset struct {
+	Asset asset.Item
 	Holdings
-	Asset      asset.Item
-	ByCurrency []ByCurrency
+	MaintenanceMargin    decimal.Decimal
+	UnrealisedPNL        decimal.Decimal
+	ByCurrency           []ByCurrency
+	BreakdownOfPositions []ByPosition
 }
 
 // ByCurrency individual collateral contribution
