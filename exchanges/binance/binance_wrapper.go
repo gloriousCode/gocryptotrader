@@ -3004,9 +3004,20 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 				resp.Used = resp.Used.Add(ai.Assets[y].UnrealizedProfit.Decimal())
 			}
 			if req.FetchPositions {
+				ei, err := b.FuturesExchangeInfo(ctx)
+				if err != nil {
+					return nil, err
+				}
 				for y := range ai.Positions {
 					if ai.Positions[y].Amount == 0 {
 						continue
+					}
+					multiplier := decimal.NewFromInt(1)
+					for z := range ei.Symbols {
+						if ei.Symbols[z].Symbol != ai.Positions[y].Symbol {
+							continue
+						}
+						multiplier = decimal.NewFromInt(ei.Symbols[z].ContractSize)
 					}
 					var pair currency.Pair
 					pair, err = currency.NewPairFromString(ai.Positions[y].Symbol)
@@ -3032,7 +3043,7 @@ func (b *Binance) CalculateTotalCollateral(ctx context.Context, req *collateral.
 						PositionCurrency:  pair,
 						Asset:             assets[x],
 						Size:              amount,
-						NotionalSize:      amount.Mul(ai.Positions[y].Leverage.Decimal()).Mul(markPrice),
+						NotionalSize:      amount.Mul(multiplier),
 						MarkPrice:         markPrice,
 						RequiredMargin:    ai.Positions[y].MaintenanceMargin.Decimal(),
 						CollateralUsed:    ai.Positions[y].Amount.Decimal().Mul(markPrice),
