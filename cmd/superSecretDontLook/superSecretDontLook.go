@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -18,54 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
-
-type FuturesPairDetails struct {
-	Exchange     string
-	Contract     futures.Contract
-	SuperCompare currency.Pair
-	LastPrice    float64
-}
-
-var m sync.Mutex
-
-type SpotPairDetails struct {
-	Exchange  string
-	Pair      currency.Pair
-	LastPrice float64
-}
-
-type ComboHolder struct {
-	ExchangeAssetTicker map[string]FuturesPairDetails
-}
-
-type HolderHolder struct {
-	ComparableCurrencyPairs map[string]ComboHolder
-}
-
-type Deals []CashCarryDeal
-
-func (d Deals) BestDeal() *CashCarryDeal {
-	var bestDeal *CashCarryDeal
-	for i := range d {
-		if bestDeal == nil {
-			bestDeal = &d[i]
-		}
-		if d[i].PriceDifference.GreaterThan(bestDeal.PriceDifference) {
-			bestDeal = &d[i]
-		}
-	}
-	return bestDeal
-}
-
-type CashCarryDeal struct {
-	PriceDifference decimal.Decimal
-	BasePrice       decimal.Decimal
-	EndPrice        decimal.Decimal
-	IsFuturesBase   bool
-	BaseSpot        SpotPairDetails
-	BaseFutures     FuturesPairDetails
-	EndFutures      FuturesPairDetails
-}
 
 var (
 	btcUSDOnly bool = true
@@ -105,16 +57,17 @@ func main() {
 					err = exchanges[it].UpdateTickers(context.Background(), enabledAssets[j])
 					if err != nil {
 						if errors.Is(err, common.ErrFunctionNotSupported) {
-							updateTickerByPair(it, enabledAssets, err, exchanges)
+							updateTickersByPair(it, enabledAssets, err, exchanges)
 						} else {
 							fmt.Println(err)
-							return
+							continue
 						}
 					}
 				}
 			} else {
-				err = updateTickerByPair(it, enabledAssets, err, exchanges)
+				err = updateTickersByPair(it, enabledAssets, err, exchanges)
 				if err != nil {
+					fmt.Println(err)
 					return
 				}
 			}
@@ -122,31 +75,77 @@ func main() {
 	}
 	wg.Wait()
 
-exchangeroo:
-	for i := range exchanges {
-		enabledAssets := exchanges[i].GetAssetTypes(true)
-		for j := range enabledAssets {
-			enabledPairs, err := exchanges[i].GetEnabledPairs(enabledAssets[j])
-			if err != nil {
-				fmt.Println(err, exchanges[i].GetName(), enabledAssets[j])
-				continue exchangeroo
+	for k, v := range cashAndCarryHolder.ComparableCurrencyPairs {
+		for k2, v2 := range v.ExchangeAssetTicker {
+			var cp currency.Pair
+			a := asset.Spot
+			if v2.Contract == nil {
+				cp = v2.SuperCompare
+			} else {
+				cp = v2.Contract.Name
+				a = v2.Contract.Asset
 			}
-			enabledPairs = enabledPairs.Format(formatting)
-			for x := range enabledPairs {
-				lastPrice, err := ticker.FindLast(enabledPairs[x], enabledAssets[j])
-				if err != nil {
-					fmt.Println(err, exchanges[i].GetName(), enabledAssets[j], enabledPairs[x])
-					continue exchangeroo
-				}
-				if allDetailsForPair, ok := cashAndCarryHolder.ComparableCurrencyPairs[enabledPairs[x].String()]; ok {
-					if detailsForExchangeAsset, ok := allDetailsForPair.ExchangeAssetTicker[exchanges[i].GetName()+enabledAssets[j].String()]; ok {
-						detailsForExchangeAsset.LastPrice = lastPrice
-						cashAndCarryHolder.ComparableCurrencyPairs[enabledPairs[x].String()].ExchangeAssetTicker[exchanges[i].GetName()+enabledAssets[j].String()] = detailsForExchangeAsset
-					}
+			tick, err := ticker.GetTicker(v2.Exchange.GetName(), cp, a)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			if tick.Last == 0 && tick.Close == 0 && tick.Bid == 0 && tick.Ask == 0 {
+				fmt.Println(v2.Exchange.GetName(), cp, a, "NO TICKER!")
+				continue
+			}
+			v2.LastPrice = tick.Last
+			v2.Close = tick.Close
+			v2.Bid = tick.Bid
+			v2.Ask = tick.Ask
+			cashAndCarryHolder.ComparableCurrencyPairs[k].ExchangeAssetTicker[k2] = v2
+		}
+	}
+
+	type result struct {
+		contract   PairDetails
+		comparison float64
+	}
+
+	type spotPairs struct {
+		exchange    string
+		pair        currency.Pair
+		spotLast    float64
+		comparisons []result
+	}
+
+	var butts []spotPairs
+	for _, v := range cashAndCarryHolder.ComparableCurrencyPairs {
+		for _, v2 := range v.ExchangeAssetTicker {
+			if v2.Contract == nil {
+				butts = append(butts, spotPairs{
+					exchange: v2.Exchange.GetName(),
+					pair:     v2.SuperCompare,
+					spotLast: v2.LastPrice,
+				})
+			}
+		}
+	}
+	for _, v := range cashAndCarryHolder.ComparableCurrencyPairs {
+		for _, v2 := range v.ExchangeAssetTicker {
+			if v2.Contract != nil {
+				for i := range butts {
+					butts[i].comparisons = append(butts[i].comparisons, result{
+						contract: v2,
+					})
 				}
 			}
 		}
 	}
+
+	for i := range butts {
+		for j := range butts[i].comparisons {
+			if butts[i].comparisons[j].contract.LastPrice > 0 {
+				butts[i].comparisons[j].comparison = math.CalculatePercentageDifference(butts[i].comparisons[j].contract.LastPrice, butts[i].spotLast)
+			}
+		}
+	}
+
 	// Traverse ALL exchanges that support the underlying currency
 	// build final map of all pairings, spot and futures
 
@@ -156,7 +155,7 @@ exchangeroo:
 	fmt.Println("hi")
 }
 
-func updateTickerByPair(it int, enabledAssets asset.Items, err error, exchanges []exchange.IBotExchange) error {
+func updateTickersByPair(it int, enabledAssets asset.Items, err error, exchanges []exchange.IBotExchange) error {
 	for j := range enabledAssets {
 		var enabledPairs currency.Pairs
 		enabledPairs, err = exchanges[it].GetEnabledPairs(enabledAssets[j])
@@ -166,8 +165,9 @@ func updateTickerByPair(it int, enabledAssets asset.Items, err error, exchanges 
 		for z := range enabledPairs {
 			_, err = exchanges[it].UpdateTicker(context.Background(), enabledPairs[z], enabledAssets[j])
 			if err != nil {
-				_, err = exchanges[it].UpdateTicker(context.Background(), enabledPairs[z], enabledAssets[j])
-				return err
+				//_, err = exchanges[it].UpdateTicker(context.Background(), enabledPairs[z], enabledAssets[j])
+				fmt.Println(err)
+				continue
 			}
 		}
 	}
@@ -185,21 +185,19 @@ func disableIrrelevantSpotPairs(exchs []exchange.IBotExchange, wg *sync.WaitGrou
 			for j := range enabledPairs {
 				m.Lock()
 				lookup, ok := contractComparer.ComparableCurrencyPairs[enabledPairs[j].String()]
-				m.Unlock()
 				if ok {
 					if lookup.ExchangeAssetTicker == nil {
-						lookup.ExchangeAssetTicker = make(map[string]FuturesPairDetails)
+						lookup.ExchangeAssetTicker = make(map[string]PairDetails)
 					}
-					lookup.ExchangeAssetTicker[exchs[it].GetName()+asset.Spot.String()] = FuturesPairDetails{
-						Exchange:     b.Name,
+					lookup.ExchangeAssetTicker[exchs[it].GetName()+asset.Spot.String()] = PairDetails{
+						Exchange:     exchs[it],
 						SuperCompare: enabledPairs[j],
 					}
-					m.Lock()
 					contractComparer.ComparableCurrencyPairs[enabledPairs[j].String()] = lookup
-					m.Unlock()
 
 					fmt.Println("found ", enabledPairs[j].String())
 				}
+				m.Unlock()
 				if !ok {
 					err := b.CurrencyPairs.DisablePair(asset.Spot, enabledPairs[j])
 					if err != nil {
@@ -283,11 +281,11 @@ func loadFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, for
 					m.Lock()
 					lookup := contractHolder[pairStr]
 					if lookup.ExchangeAssetTicker == nil {
-						lookup.ExchangeAssetTicker = make(map[string]FuturesPairDetails)
+						lookup.ExchangeAssetTicker = make(map[string]PairDetails)
 					}
-					lookup.ExchangeAssetTicker[exchs[it].GetName()+enabledAssets[j].String()] = FuturesPairDetails{
-						Exchange:     exchs[it].GetName(),
-						Contract:     contracts[x],
+					lookup.ExchangeAssetTicker[exchs[it].GetName()+enabledAssets[j].String()] = PairDetails{
+						Exchange:     exchs[it],
+						Contract:     &contracts[x],
 						SuperCompare: superCompare,
 					}
 					err = b.CurrencyPairs.EnablePair(contracts[x].Asset, contracts[x].Name)
