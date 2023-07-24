@@ -602,29 +602,56 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 	case asset.USDCMarginedFutures:
-		tick, err := by.GetUSDCSymbols(ctx, formattedPair)
-		if err != nil {
-			return nil, err
-		}
+		if formattedPair.Quote.Equal(currency.USD) || formattedPair.Quote.Equal(currency.PERP) {
+			tick, err := by.GetUSDCSymbols(ctx, formattedPair)
+			if err != nil {
+				return nil, err
+			}
 
-		cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
-		if err != nil {
-			return nil, err
-		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.LastPrice.Float64(),
-			High:         tick.High24h.Float64(),
-			Low:          tick.Low24h.Float64(),
-			Bid:          tick.Bid.Float64(),
-			Ask:          tick.Ask.Float64(),
-			Volume:       tick.Volume24h.Float64(),
-			Pair:         cp,
-			ExchangeName: by.Name,
-			AssetType:    assetType})
-		if err != nil {
-			return nil, err
-		}
+			cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
+			if err != nil {
+				return nil, err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick.LastPrice.Float64(),
+				High:         tick.High24h.Float64(),
+				Low:          tick.Low24h.Float64(),
+				Bid:          tick.Bid.Float64(),
+				Ask:          tick.Ask.Float64(),
+				Volume:       tick.Volume24h.Float64(),
+				Pair:         cp,
+				ExchangeName: by.Name,
+				AssetType:    assetType})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
+			if err != nil {
+				return nil, err
+			}
 
+			for y := range tick {
+				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
+				if err != nil {
+					return nil, err
+				}
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick[y].LastPrice.Float64(),
+					High:         tick[y].HighPrice24h.Float64(),
+					Low:          tick[y].LowPrice24h.Float64(),
+					Bid:          tick[y].BidPrice.Float64(),
+					Ask:          tick[y].AskPrice.Float64(),
+					Volume:       tick[y].Volume24h,
+					Open:         tick[y].OpenValue.Float64(),
+					Pair:         cp,
+					ExchangeName: by.Name,
+					AssetType:    assetType})
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}

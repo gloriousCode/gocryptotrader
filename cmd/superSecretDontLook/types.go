@@ -1,30 +1,29 @@
 package main
 
 import (
-	"sync"
-
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
-type PairDetails struct {
-	Exchange     exchange.IBotExchange
-	Contract     *futures.Contract
-	SuperCompare currency.Pair
-	LastPrice    float64
-	Ask          float64
-	Bid          float64
-	Close        float64
-}
-
-var m sync.Mutex
-
 type SpotPairDetails struct {
 	Exchange  string
 	Pair      currency.Pair
 	LastPrice float64
+}
+
+type PairDetails struct {
+	Exchange     exchange.IBotExchange
+	Contract     *futures.Contract
+	SpotBase     currency.Pair
+	SuperCompare currency.Pair
+	LastPrice    float64
+	Volume       float64
+	QuoteVolume  float64
+	Ask          float64
+	Bid          float64
+	Close        float64
 }
 
 type ComboHolder struct {
