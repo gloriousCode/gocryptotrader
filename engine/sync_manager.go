@@ -39,8 +39,8 @@ var (
 	errCouldNotSyncNewData = errors.New("could not sync new data")
 )
 
-// setupSyncManager starts a new CurrencyPairSyncer
-func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
+// SetupSyncManager starts a new CurrencyPairSyncer
+func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeManager, remoteConfig *config.RemoteControlConfig, websocketRoutineManagerEnabled bool) (*syncManager, error) {
 	if c == nil {
 		return nil, fmt.Errorf("%T %w", c, common.ErrNilPointer)
 	}

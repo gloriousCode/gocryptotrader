@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -19,72 +20,81 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-)
-
-var (
-	btcUSDOnly bool = true
-	formatting      = currency.PairFormat{
-		Uppercase: true,
-		Delimiter: "-",
-	}
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 func main() {
+	defaultLogSettings := log.GenDefaultSettings()
+
+	err := log.SetGlobalLogConfig(defaultLogSettings)
+	if err != nil {
+		panic(err)
+
+	}
+	err = log.SetupGlobalLogger("lol", false)
+	if err != nil {
+		panic(err)
+	}
 	exchangeManager := engine.NewExchangeManager()
 	wg := &sync.WaitGroup{}
-	setupExchangeManager(wg, exchangeManager)
+	setupExchanges(wg, exchangeManager)
+	sm, err := engine.SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:       true,
+		SynchronizeContinuously: true,
+		FiatDisplayCurrency:     currency.USD,
+		PairFormatDisplay:       &formatting,
+		Verbose:                 true,
+	}, exchangeManager, &config.RemoteControlConfig{}, true)
+	if err != nil {
+		panic(err)
+	}
+	om, err := engine.SetupOrderManager(exchangeManager, &Butts{}, wg, false, false, 0)
+	if err != nil {
+		panic(err)
+	}
+	wrm, err := engine.SetupWebsocketRoutineManager(exchangeManager, om, sm, &currency.Config{
+		CurrencyPairFormat:  &formatting,
+		FiatDisplayCurrency: currency.USD,
+	}, false)
 
 	exchanges, err := exchangeManager.GetExchanges()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	futuresContracts := loadFuturesContracts(exchanges, wg, formatting)
+	futuresContracts, err := loadFuturesContracts(exchanges, wg, formatting)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	//outputLikeContracts(futuresContracts)
 	cashAndCarryHolder := HolderHolder{futuresContracts}
 	// now check for any of the good ones with SPOT crossovers
 	disableIrrelevantSpotPairs(exchanges, wg, formatting, &cashAndCarryHolder)
-	for i := range exchanges {
-		wg.Add(1)
-		go func(it int) {
-			defer wg.Done()
-			b := exchanges[it].GetBase()
-			enabledAssets := b.GetAssetTypes(true)
-			if b.Features.Supports.RESTCapabilities.TickerBatching {
-				for j := range enabledAssets {
-					if len(b.CurrencyPairs.Pairs[enabledAssets[j]].Enabled) == 0 {
-						continue
-					}
-					err = exchanges[it].UpdateTickers(context.Background(), enabledAssets[j])
-					if err != nil {
-						if errors.Is(err, common.ErrFunctionNotSupported) {
-							updateTickersByPair(it, enabledAssets, err, exchanges)
-						} else {
-							fmt.Println(err)
-							continue
-						}
-					}
-				}
-			} else {
-				err = updateTickersByPair(it, enabledAssets, err, exchanges)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-			}
-		}(i)
+
+	err = sm.Start()
+	if err != nil {
+		log.Errorln(log.SyncMgr, err)
 	}
-	wg.Wait()
+	err = wrm.Start()
+	if err != nil {
+		panic(err)
+	}
+
+	err = sm.WaitForInitialSync()
+	if err != nil {
+		log.Errorln(log.SyncMgr, err)
+	}
 
 	for k, v := range cashAndCarryHolder.ComparableCurrencyPairs {
 		for k2, v2 := range v.ExchangeAssetTicker {
 			var cp currency.Pair
 			a := asset.Spot
-			if v2.Contract == nil {
-				cp = v2.SpotBase
+			if v2.FuturesContract == nil {
+				cp = v2.SpotPair
 			} else {
-				cp = v2.Contract.Name
-				a = v2.Contract.Asset
+				cp = v2.FuturesContract.Name
+				a = v2.FuturesContract.Asset
 			}
 			tick, err := ticker.GetTicker(v2.Exchange.GetName(), cp, a)
 			if err != nil {
@@ -92,7 +102,11 @@ func main() {
 				continue
 			}
 			if tick.Last == 0 && tick.Close == 0 && tick.Bid == 0 && tick.Ask == 0 {
-				fmt.Println(v2.Exchange.GetName(), cp, a, "NO TICKER!")
+				b := v2.Exchange.GetBase()
+				err = b.CurrencyPairs.DisablePair(a, cp)
+				if err != nil {
+					log.Errorln(log.ExchangeSys, err)
+				}
 				continue
 			}
 			v2.LastPrice = tick.Last
@@ -105,39 +119,33 @@ func main() {
 		}
 	}
 
-	type result struct {
-		contract               PairDetails
-		comparison             float64
-		annualisedRateOfReturn float64
-	}
-
-	type spotPairs struct {
-		exchange    string
-		pair        currency.Pair
-		spotLast    float64
-		volume      float64
-		comparisons []result
-	}
-
 	var spotVersusContracts []spotPairs
 	for _, v := range cashAndCarryHolder.ComparableCurrencyPairs {
 		for _, v2 := range v.ExchangeAssetTicker {
-			if v2.Contract == nil {
+			if v2.FuturesContract == nil {
 				spotVersusContracts = append(spotVersusContracts, spotPairs{
-					exchange: v2.Exchange.GetName(),
-					pair:     v2.SuperCompare,
-					spotLast: v2.LastPrice,
-					volume:   v2.Volume,
+					exchange:     v2.Exchange.GetName(),
+					pair:         v2.SpotPair,
+					superCompare: v2.ComparePair,
+					spotLast:     v2.LastPrice,
+					volume:       v2.Volume,
 				})
 			}
 		}
 	}
 	for _, v := range cashAndCarryHolder.ComparableCurrencyPairs {
 		for _, v2 := range v.ExchangeAssetTicker {
-			if v2.Contract != nil {
+			if v2.FuturesContract != nil {
 				for i := range spotVersusContracts {
+					contractCompare := getComparablePair(v2.FuturesContract.Underlying)
+					if !contractCompare.Equal(spotVersusContracts[i].superCompare) {
+						continue
+					}
 					spotVersusContracts[i].comparisons = append(spotVersusContracts[i].comparisons, result{
-						contract: v2,
+						contract:     v2,
+						baseExchange: spotVersusContracts[i].exchange,
+						baseAsset:    asset.Spot,
+						baseCurr:     spotVersusContracts[i].pair,
 					})
 				}
 			}
@@ -151,7 +159,7 @@ func main() {
 				spotVersusContracts[i].comparisons[j].annualisedRateOfReturn = calculateAnnualisedRateOfReturn(
 					spotVersusContracts[i].spotLast,
 					spotVersusContracts[i].comparisons[j].contract.LastPrice,
-					spotVersusContracts[i].comparisons[j].contract.Contract.EndDate.Sub(time.Now()))
+					spotVersusContracts[i].comparisons[j].contract.FuturesContract.EndDate.Sub(time.Now()))
 			}
 		}
 	}
@@ -162,7 +170,25 @@ func main() {
 	// retrieve ticker of all assets of interest
 
 	// compare difference to spot prices
-	fmt.Println("hi")
+	var index int64
+
+	var biggest result
+	for i := range spotVersusContracts {
+		for j := range spotVersusContracts[i].comparisons {
+			index++
+			if biggest.annualisedRateOfReturn < spotVersusContracts[i].comparisons[j].annualisedRateOfReturn {
+				biggest = result{
+					baseExchange:           spotVersusContracts[i].exchange,
+					baseCurr:               spotVersusContracts[i].pair,
+					baseAsset:              asset.Spot,
+					contract:               spotVersusContracts[i].comparisons[j].contract,
+					comparison:             spotVersusContracts[i].comparisons[j].comparison,
+					annualisedRateOfReturn: spotVersusContracts[i].comparisons[j].annualisedRateOfReturn,
+				}
+			}
+		}
+	}
+	fmt.Println(biggest)
 }
 
 func calculateAnnualisedRateOfReturn(spotPrice, futuresPrice float64, timeUntilExpiry time.Duration) float64 {
@@ -179,25 +205,6 @@ func calculateAnnualisedRateOfReturn(spotPrice, futuresPrice float64, timeUntilE
 	annualizedReturn := math.Pow(1+rateOfReturn, 1/float64(years)) - 1
 
 	return annualizedReturn * 100
-}
-
-func updateTickersByPair(it int, enabledAssets asset.Items, err error, exchanges []exchange.IBotExchange) error {
-	for j := range enabledAssets {
-		var enabledPairs currency.Pairs
-		enabledPairs, err = exchanges[it].GetEnabledPairs(enabledAssets[j])
-		if err != nil {
-			return err
-		}
-		for z := range enabledPairs {
-			_, err = exchanges[it].UpdateTicker(context.Background(), enabledPairs[z], enabledAssets[j])
-			if err != nil {
-				//_, err = exchanges[it].UpdateTicker(context.Background(), enabledPairs[z], enabledAssets[j])
-				fmt.Println(err)
-				continue
-			}
-		}
-	}
-	return nil
 }
 
 func disableIrrelevantSpotPairs(exchs []exchange.IBotExchange, wg *sync.WaitGroup, formatting currency.PairFormat, contractComparer *HolderHolder) {
@@ -217,9 +224,9 @@ func disableIrrelevantSpotPairs(exchs []exchange.IBotExchange, wg *sync.WaitGrou
 						lookup.ExchangeAssetTicker = make(map[string]PairDetails)
 					}
 					lookup.ExchangeAssetTicker[exchs[it].GetName()+asset.Spot.String()] = PairDetails{
-						Exchange:     exchs[it],
-						SuperCompare: superCompare,
-						SpotBase:     enabledPairs[j],
+						Exchange:    exchs[it],
+						ComparePair: superCompare,
+						SpotPair:    enabledPairs[j],
 					}
 					contractComparer.ComparableCurrencyPairs[enabledPairs[j].String()] = lookup
 				}
@@ -247,8 +254,7 @@ func getComparablePair(cp currency.Pair) currency.Pair {
 		superCompare = currency.NewPair(cp.Base, currency.BTC)
 	}
 	// add option to group close enough currencies like USD, USDT, BUSD and USDC
-	if cp.Quote == currency.USD ||
-		cp.Quote == currency.USDT ||
+	if cp.Quote == currency.USDT ||
 		cp.Quote == currency.BUSD ||
 		cp.Quote == currency.USDC {
 		superCompare = currency.NewPair(cp.Base, currency.USD)
@@ -257,31 +263,8 @@ func getComparablePair(cp currency.Pair) currency.Pair {
 	return superCompare.Format(formatting)
 }
 
-func outputLikeContracts(contractComparer map[string]ComboHolder) {
-	//for k, v := range contractComparer {
-	//	canWrite := false
-	//	sb := strings.Builder{}
-	//	sb.WriteString(k + ": \n")
-	//	for z := range v {
-	//		if !v.ExchangeAssetTicker[z].Contract.IsActive {
-	//			continue
-	//		}
-	//		if v.ExchangeAssetTicker[z].Contract.Type == futures.Perpetual {
-	//			// for now
-	//			continue
-	//		}
-	//		canWrite = true
-	//		sb.WriteString(v.ExchangeAssetTicker[z].Exchange + " " + v.ExchangeAssetTicker[z].Contract.Name.String() + "\n")
-	//	}
-	//	sb.WriteString("END \n\n")
-	//	if canWrite {
-	//		fmt.Println(sb.String())
-	//	}
-	//}
-}
-
-func loadFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, formatting currency.PairFormat) (sync.Map, error) {
-	var response sync.Map
+func loadFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, formatting currency.PairFormat) (map[string]ComboHolder, error) {
+	response := make(map[string]ComboHolder)
 	for i := range exchs {
 		wg.Add(1)
 		go func(it int) {
@@ -301,30 +284,24 @@ func loadFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, for
 					return
 				}
 				for x := range contracts {
+					if ignorePerps && contracts[x].Type == futures.Perpetual {
+						continue
+					}
 					// Add in base equivalents, mainly in the form of XBT == BTC
 					superCompare := getComparablePair(contracts[x].Underlying)
 					pairStr := formatting.Format(superCompare)
 					if btcUSDOnly && pairStr != "BTC-USD" {
 						continue
 					}
-					var lookup ComboHolder
-					anyLookup, ok := response.Load(pairStr)
+					m.Lock()
+					lookup, ok := response[pairStr]
 					if !ok {
-						return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, pairStr)
-					} else {
-						lookup, ok = anyLookup.(ComboHolder)
-						if !ok {
-							return nil, common.GetTypeAssertError("ComboHolder", anyLookup)
-						}
-					}
-
-					if lookup.ExchangeAssetTicker == nil {
-						lookup.ExchangeAssetTicker = make(map[string]PairDetails)
+						lookup = ComboHolder{ExchangeAssetTicker: make(map[string]PairDetails)}
 					}
 					lookup.ExchangeAssetTicker[exchs[it].GetName()+enabledAssets[j].String()] = PairDetails{
-						Exchange:     exchs[it],
-						Contract:     &contracts[x],
-						SuperCompare: superCompare,
+						Exchange:        exchs[it],
+						FuturesContract: &contracts[x],
+						ComparePair:     superCompare,
 					}
 					err = b.CurrencyPairs.EnablePair(contracts[x].Asset, contracts[x].Name)
 					if err != nil {
@@ -334,28 +311,32 @@ func loadFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, for
 							err = b.CurrencyPairs.StorePairs(contracts[x].Asset, availPairs, false)
 							if err != nil {
 								fmt.Println(err)
+								m.Unlock()
 								continue
 							}
 							err = b.CurrencyPairs.EnablePair(contracts[x].Asset, contracts[x].Name)
 							if err != nil {
 								fmt.Println(err)
+								m.Unlock()
 								continue
 							}
 						} else {
 							fmt.Println(err)
+							m.Unlock()
 							continue
 						}
 					}
-					response.Store(pairStr, lookup)
+					response[pairStr] = lookup
+					m.Unlock()
 				}
 			}
 		}(i)
 	}
 	wg.Wait()
-	return contractHolder
+	return response, nil
 }
 
-func setupExchangeManager(wg *sync.WaitGroup, exchangeManager *engine.ExchangeManager) {
+func setupExchanges(wg *sync.WaitGroup, exchangeManager *engine.ExchangeManager) {
 	exchanges := exchange.Exchanges
 	bannedExchanges := []string{"okcoin international", "itbit", "bitflyer", "alphapoint", "yobit"}
 	for i := range exchanges {
@@ -370,11 +351,17 @@ func setupExchangeManager(wg *sync.WaitGroup, exchangeManager *engine.ExchangeMa
 				fmt.Println(err)
 				return
 			}
+			b := exch.GetBase()
 			conf, err := exch.GetDefaultConfig(context.Background())
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
+			if b.Features.Supports.Websocket {
+				conf.Features.Enabled.Websocket = true
+				conf.Websocket = convert.BoolPtr(true)
+			}
+
 			assets := conf.CurrencyPairs.GetAssetTypes(false)
 			var hasSpot, hasFutures bool
 			var assetsToDisableAllPairs []asset.Item
@@ -408,7 +395,6 @@ func setupExchangeManager(wg *sync.WaitGroup, exchangeManager *engine.ExchangeMa
 					fmt.Println(err)
 					return
 				}
-				b := exch.GetBase()
 
 				for j := range assetsToDisableAllPairs {
 					b.CurrencyPairs.Pairs[assetsToDisableAllPairs[j]].Enabled = currency.Pairs{}

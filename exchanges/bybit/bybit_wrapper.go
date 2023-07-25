@@ -602,12 +602,37 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 		}
 
 	case asset.USDCMarginedFutures:
-		if formattedPair.Quote.Equal(currency.USD) || formattedPair.Quote.Equal(currency.PERP) {
-			tick, err := by.GetUSDCSymbols(ctx, formattedPair)
-			if err != nil {
-				return nil, err
+		tick, err := by.GetUSDCSymbols(ctx, formattedPair)
+		if err != nil || tick.Symbol == "" {
+			tick2, err2 := by.GetV3Ticker(ctx, formattedPair)
+			if err2 != nil {
+				return nil, err2
 			}
-
+			if len(tick2) == 0 {
+				return nil, nil
+			}
+			for y := range tick2 {
+				var cp currency.Pair
+				cp, err2 = by.extractCurrencyPair(tick2[y].Symbol, assetType)
+				if err2 != nil {
+					return nil, err2
+				}
+				err2 = ticker.ProcessTicker(&ticker.Price{
+					Last:         tick2[y].LastPrice.Float64(),
+					High:         tick2[y].HighPrice24H.Float64(),
+					Low:          tick2[y].LowPrice24H.Float64(),
+					Bid:          tick2[y].BidPrice.Float64(),
+					Ask:          tick2[y].AskPrice.Float64(),
+					Volume:       tick2[y].Volume24H.Float64(),
+					Open:         tick2[y].OpenInterest.Float64(),
+					Pair:         cp,
+					ExchangeName: by.Name,
+					AssetType:    assetType})
+				if err2 != nil {
+					return nil, err2
+				}
+			}
+		} else {
 			cp, err := by.extractCurrencyPair(tick.Symbol, assetType)
 			if err != nil {
 				return nil, err
@@ -624,32 +649,6 @@ func (by *Bybit) UpdateTicker(ctx context.Context, p currency.Pair, assetType as
 				AssetType:    assetType})
 			if err != nil {
 				return nil, err
-			}
-		} else {
-			tick, err := by.GetFuturesSymbolPriceTicker(ctx, formattedPair)
-			if err != nil {
-				return nil, err
-			}
-
-			for y := range tick {
-				cp, err := by.extractCurrencyPair(tick[y].Symbol, assetType)
-				if err != nil {
-					return nil, err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice24h.Float64(),
-					Low:          tick[y].LowPrice24h.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume24h,
-					Open:         tick[y].OpenValue.Float64(),
-					Pair:         cp,
-					ExchangeName: by.Name,
-					AssetType:    assetType})
-				if err != nil {
-					return nil, err
-				}
 			}
 		}
 	default:

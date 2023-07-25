@@ -17,8 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
+// SetupWebsocketRoutineManager creates a new websocket routine manager
+func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
