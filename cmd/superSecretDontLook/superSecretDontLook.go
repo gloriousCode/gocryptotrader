@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
@@ -174,6 +176,7 @@ func main() {
 
 	var biggest result
 	for i := range spotVersusContracts {
+		renderTable(&spotVersusContracts[i])
 		for j := range spotVersusContracts[i].comparisons {
 			index++
 			if biggest.annualisedRateOfReturn < spotVersusContracts[i].comparisons[j].annualisedRateOfReturn {
@@ -205,6 +208,25 @@ func calculateAnnualisedRateOfReturn(spotPrice, futuresPrice float64, timeUntilE
 	annualizedReturn := math.Pow(1+rateOfReturn, 1/float64(years)) - 1
 
 	return annualizedReturn * 100
+}
+
+func renderTable(pairs *spotPairs) {
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{pairs.exchange, asset.Spot, pairs.pair})
+	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Start", "End", "Diff", "ARoR"})
+	for i := range pairs.comparisons {
+		t.AppendRow(table.Row{i + 1,
+			pairs.comparisons[i].contract.Exchange.GetName(),
+			pairs.comparisons[i].contract.FuturesContract.Asset,
+			pairs.comparisons[i].contract.FuturesContract.Name,
+			pairs.comparisons[i].contract.FuturesContract.StartDate,
+			pairs.comparisons[i].contract.FuturesContract.EndDate,
+			pairs.comparisons[i].comparison,
+			pairs.comparisons[i].annualisedRateOfReturn})
+	}
+	t.AppendSeparator()
+	t.Render()
 }
 
 func disableIrrelevantSpotPairs(exchs []exchange.IBotExchange, wg *sync.WaitGroup, formatting currency.PairFormat, contractComparer *HolderHolder) {
