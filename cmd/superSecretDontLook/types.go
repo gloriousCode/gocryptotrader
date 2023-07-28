@@ -1,8 +1,6 @@
 package main
 
 import (
-	"sync"
-
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -10,26 +8,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
-var (
-	btcUSDOnly  = true
-	ignorePerps = true
-	formatting  = currency.PairFormat{
-		Uppercase: true,
-		Delimiter: "-",
-	}
-	m sync.Mutex
-)
-
 type Butts struct{}
 
 func (b *Butts) PushEvent(evt base.Event) {}
 
 type PairDetails struct {
+	ComparePair currency.Pair
+	Key         string
+
 	Exchange               exchange.IBotExchange
 	Asset                  asset.Item
 	FuturesContract        *futures.Contract
 	SpotPair               currency.Pair
-	ComparePair            currency.Pair
 	LastPrice              float64
 	Volume                 float64
 	QuoteVolume            float64
@@ -43,18 +33,14 @@ type PairDetails struct {
 }
 
 type ComboHolder struct {
-	ExchangeAssetTicker map[string]PairDetails
-}
-
-type HolderHolder struct {
-	ComparableCurrencyPairs map[string]ComboHolder
+	ExchangeAssetTicker []*PairDetails
 }
 
 type result struct {
 	baseExchange           string
 	baseCurr               currency.Pair
 	baseAsset              asset.Item
-	contract               PairDetails
+	contract               *PairDetails
 	comparison             float64
 	annualisedRateOfReturn float64
 }
@@ -66,4 +52,9 @@ type spotPairs struct {
 	spotLast     float64
 	volume       float64
 	comparisons  []result
+}
+
+type contractComparer struct {
+	Main      *PairDetails
+	Comparers []PairDetails
 }
