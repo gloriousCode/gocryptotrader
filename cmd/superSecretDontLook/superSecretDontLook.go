@@ -26,26 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-func (c *contractComparer) SortComparersByExpiry() {
-	sort.Slice(c.Comparers, func(i, j int) bool {
-		return c.Comparers[i].FuturesContract.EndDate.Before(c.Comparers[j].FuturesContract.EndDate)
-	})
-}
-
-func (c *contractComparer) SortComparersByAnnualRateOfReturn() {
-	sort.Slice(c.Comparers, func(i, j int) bool {
-		return c.Comparers[i].AnnualisedRateOfReturn > c.Comparers[j].AnnualisedRateOfReturn
-	})
-}
-
-type allOverComparer []contractComparer
-
-func (a allOverComparer) SortByComparerAnnualRateOfReturn() {
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].Comparers[0].AnnualisedRateOfReturn > a[j].Comparers[0].AnnualisedRateOfReturn
-	})
-}
-
 var (
 	binanceOnly = false
 	btcUSDOnly  = true
@@ -56,6 +36,13 @@ var (
 	}
 	m sync.Mutex
 )
+
+// I need to:
+// sort the tables by gain
+// include price of spot
+// include price of comparison
+// include volume of each
+// create new table of the best ones?
 
 func main() {
 	defaultLogSettings := log.GenDefaultSettings()
@@ -549,4 +536,24 @@ func setupExchanges(wg *sync.WaitGroup, exchangeManager *engine.ExchangeManager)
 		}(i)
 	}
 	wg.Wait()
+}
+
+func (c *contractComparer) SortComparersByExpiry() {
+	sort.Slice(c.Comparers, func(i, j int) bool {
+		return c.Comparers[i].FuturesContract.EndDate.Before(c.Comparers[j].FuturesContract.EndDate)
+	})
+}
+
+func (c *contractComparer) SortComparersByAnnualRateOfReturn() {
+	sort.Slice(c.Comparers, func(i, j int) bool {
+		return c.Comparers[i].AnnualisedRateOfReturn > c.Comparers[j].AnnualisedRateOfReturn
+	})
+}
+
+type allOverComparer []contractComparer
+
+func (a allOverComparer) SortByComparerAnnualRateOfReturn() {
+	sort.Slice(a, func(i, j int) bool {
+		return a[i].Comparers[0].AnnualisedRateOfReturn > a[j].Comparers[0].AnnualisedRateOfReturn
+	})
 }
