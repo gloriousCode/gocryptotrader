@@ -12,9 +12,18 @@ type Butts struct{}
 
 func (b *Butts) PushEvent(evt base.Event) {}
 
+type Key struct {
+	Exchange        string
+	Asset           asset.Item
+	PairBase        *currency.Item
+	PairQuote       *currency.Item
+	UnderlyingBase  *currency.Item
+	UnderlyingQuote *currency.Item
+}
+
 type PairDetails struct {
 	ComparePair currency.Pair
-	Key         string
+	Key         Key
 
 	Exchange               exchange.IBotExchange
 	Asset                  asset.Item
@@ -33,10 +42,13 @@ type PairDetails struct {
 }
 
 type ComboHolder struct {
-	ExchangeAssetTicker []*PairDetails
+	ExchangeAssetTicker PairDetailsPointerHolder
 }
 
+type PairDetailsPointerHolder []*PairDetails
+
 type result struct {
+	Key                    Key
 	baseExchange           string
 	baseCurr               currency.Pair
 	baseAsset              asset.Item

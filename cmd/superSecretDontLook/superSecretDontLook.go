@@ -43,6 +43,12 @@ var (
 // include price of comparison
 // include volume of each
 // create new table of the best ones?
+// best average currency to compare
+
+// one big table
+// all spot on the Y axis
+// all futures on the X axis
+// additional Y axis futures with optional filling
 
 func main() {
 	defaultLogSettings := log.GenDefaultSettings()
@@ -108,7 +114,7 @@ func main() {
 
 	var spotComparers allOverComparer
 	var futuresComparers allOverComparer
-	uniqueHelperForDumbIdiotsLikeMe := make(map[string]bool)
+	uniqueHelperForDumbIdiotsLikeMe := make(map[Key]bool)
 
 	for k, v := range comparableCurrencyToContracts {
 		var futuresOnly []PairDetails
@@ -158,10 +164,11 @@ func main() {
 		spotComparers = append(spotComparers, spotComparer)
 
 		for r := range futuresOnly {
-			if _, ok := uniqueHelperForDumbIdiotsLikeMe[futuresOnly[r].GetUniqueMapKey()]; ok {
+			uniqueMapKey := futuresOnly[r].GetUniqueMapKey()
+			if _, ok := uniqueHelperForDumbIdiotsLikeMe[uniqueMapKey]; ok {
 				continue
 			} else {
-				uniqueHelperForDumbIdiotsLikeMe[futuresOnly[r].GetUniqueMapKey()] = true
+				uniqueHelperForDumbIdiotsLikeMe[uniqueMapKey] = true
 			}
 			addition := contractComparer{
 				Main: &futuresOnly[r],
@@ -199,7 +206,7 @@ func main() {
 
 	for i := range spotComparers {
 		for j := range spotComparers[i].Comparers {
-			if spotComparers[i].Comparers[j].LastPrice == 0 || spotComparers[i].Main.LastPrice == 0 {
+			if spotComparers[i].Comparers[j].LastPrice == 0 || spotComparers[i].Main == nil || spotComparers[i].Main.LastPrice == 0 {
 				continue
 			}
 			spotComparers[i].Comparers[j].ComparisonToContract = gctmath.CalculatePercentageDifference(spotComparers[i].Comparers[j].LastPrice, spotComparers[i].Main.LastPrice)
@@ -234,15 +241,27 @@ func main() {
 			}
 		}
 	}
-	for _, v := range comparableCurrencyToContracts {
-		for _, v2 := range v.ExchangeAssetTicker {
-			if v2.FuturesContract != nil {
-				for i := range spotVersusContracts {
+
+	// for each spot pair to compare to futures
+	for i := range spotVersusContracts {
+		// add each comparable futures contract
+		for _, v := range comparableCurrencyToContracts {
+			v
+		comparisons:
+			for _, v2 := range v.ExchangeAssetTicker {
+				if v2.FuturesContract != nil {
 					contractCompare := getComparablePair(v2.FuturesContract.Underlying)
 					if !contractCompare.Equal(spotVersusContracts[i].superCompare) {
 						continue
 					}
+					key := v2.GetUniqueMapKey()
+					for j := range spotVersusContracts[i].comparisons {
+						if spotVersusContracts[i].comparisons[j].Key == key {
+							continue comparisons
+						}
+					}
 					spotVersusContracts[i].comparisons = append(spotVersusContracts[i].comparisons, result{
+						Key:          key,
 						contract:     v2,
 						baseExchange: spotVersusContracts[i].exchange,
 						baseAsset:    asset.Spot,
@@ -293,14 +312,26 @@ func main() {
 	fmt.Println(biggest)
 }
 
-func (p *PairDetails) GetUniqueMapKey() string {
-	if p.Key != "" {
+func (p *PairDetails) GetUniqueMapKey() Key {
+	if p.Key != (Key{}) {
 		return p.Key
 	}
 	if p.Asset.IsFutures() {
-		p.Key = strings.ToLower(p.Exchange.GetName() + "-" + p.Asset.String() + "-" + p.FuturesContract.Name.String())
+		p.Key = Key{
+			Exchange:        strings.ToLower(p.Exchange.GetName()),
+			Asset:           p.Asset,
+			PairBase:        p.FuturesContract.Name.Base.Item,
+			PairQuote:       p.FuturesContract.Name.Quote.Item,
+			UnderlyingBase:  p.FuturesContract.Underlying.Base.Item,
+			UnderlyingQuote: p.FuturesContract.Underlying.Quote.Item,
+		}
 	} else {
-		p.Key = strings.ToLower(p.Exchange.GetName() + "-" + p.Asset.String() + "-" + p.SpotPair.String())
+		p.Key = Key{
+			Exchange:  strings.ToLower(p.Exchange.GetName()),
+			Asset:     p.Asset,
+			PairBase:  p.SpotPair.Base.Item,
+			PairQuote: p.SpotPair.Quote.Item,
+		}
 	}
 	return p.Key
 }
@@ -321,20 +352,47 @@ func calculateAnnualisedRateOfReturn(spotPrice, futuresPrice float64, timeUntilE
 	return annualizedReturn * 100
 }
 
+func generateVol(price, vol, quoteVol float64) float64 {
+	if quoteVol > 0 {
+		return quoteVol
+	}
+	if vol < 500 {
+		return vol * price
+	}
+	return vol
+}
+
 func renderTable(pairs *spotPairs) {
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{pairs.exchange, asset.Spot, pairs.pair})
-	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Start", "End", "Diff", "ARoR"})
+
+	t.AppendHeader(table.Row{
+		pairs.exchange,
+		asset.Spot,
+		pairs.pair,
+		"$" + convert.FloatToHumanFriendlyString(pairs.spotLast, 2, ".", ","),
+		convert.FloatToHumanFriendlyString(generateVol(pairs.volume, pairs.spotLast, 0), 2, ".", ","),
+	})
+	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Price $", "Diff $", "Start", "End", "Days left", "Diff %", "ARoR %", "Volume 24hr $"})
+	pairs.SortComparisons()
 	for i := range pairs.comparisons {
-		t.AppendRow(table.Row{i + 1,
-			pairs.comparisons[i].contract.Exchange.GetName(),
-			pairs.comparisons[i].contract.FuturesContract.Asset,
-			pairs.comparisons[i].contract.FuturesContract.Name,
-			pairs.comparisons[i].contract.FuturesContract.StartDate,
-			pairs.comparisons[i].contract.FuturesContract.EndDate,
-			pairs.comparisons[i].comparison,
-			pairs.comparisons[i].annualisedRateOfReturn})
+		if pairs.comparisons[i].comparison > 0 {
+			t.AppendRow(table.Row{i + 1,
+				pairs.comparisons[i].contract.Exchange.GetName(),
+				pairs.comparisons[i].contract.FuturesContract.Asset,
+				pairs.comparisons[i].contract.FuturesContract.Name,
+				"$" + convert.FloatToHumanFriendlyString(pairs.comparisons[i].contract.LastPrice, 2, ".", ","),
+				"$" + convert.FloatToHumanFriendlyString(pairs.comparisons[i].contract.LastPrice-pairs.spotLast, 2, ".", ","),
+				pairs.comparisons[i].contract.FuturesContract.StartDate,
+				pairs.comparisons[i].contract.FuturesContract.EndDate,
+				time.Until(pairs.comparisons[i].contract.FuturesContract.EndDate).Hours() / 24,
+				convert.FloatToHumanFriendlyString(pairs.comparisons[i].comparison, 2, ".", ",") + "%",
+				convert.FloatToHumanFriendlyString(pairs.comparisons[i].annualisedRateOfReturn, 2, ".", ",") + "%",
+				convert.FloatToHumanFriendlyString(generateVol(pairs.comparisons[i].contract.LastPrice, pairs.comparisons[i].contract.Volume, pairs.comparisons[i].contract.QuoteVolume), 2, ".", ","),
+			})
+		} else {
+			log.Warnln(log.OrderBook, pairs.comparisons[i].contract.Exchange.GetName(), pairs.comparisons[i].contract.FuturesContract.Name, pairs.comparisons[i].contract.LastPrice, "has a zero comparison")
+		}
 	}
 	t.AppendSeparator()
 	t.Render()
@@ -554,6 +612,42 @@ type allOverComparer []contractComparer
 
 func (a allOverComparer) SortByComparerAnnualRateOfReturn() {
 	sort.Slice(a, func(i, j int) bool {
+		if len(a[i].Comparers) == 0 || len(a[j].Comparers) == 0 {
+			return false
+		}
 		return a[i].Comparers[0].AnnualisedRateOfReturn > a[j].Comparers[0].AnnualisedRateOfReturn
 	})
+}
+
+func (s *spotPairs) SortComparisons() {
+	sort.Slice(s.comparisons, func(i, j int) bool {
+		return s.comparisons[i].comparison > s.comparisons[j].comparison
+	})
+}
+
+func (s PairDetailsPointerHolder) GetBestUnderThirtyDays() *PairDetails {
+	var best PairDetails
+	for i := range s {
+		if s[i].FuturesContract.EndDate.After(time.Now().AddDate(0, 0, 30)) {
+			continue
+		}
+	}
+	return &best
+}
+
+func (s PairDetailsPointerHolder) GetBestOverThirtyDays() {
+	var best PairDetails
+	for i := range s {
+		if s[i].FuturesContract.EndDate.Before(time.Now().AddDate(0, 0, 30)) {
+			continue
+		}
+	}
+}
+
+func (s PairDetailsPointerHolder) GetBestDiff() {
+
+}
+
+func (s PairDetailsPointerHolder) GetBestAror() {
+
 }
