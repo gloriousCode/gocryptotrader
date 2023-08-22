@@ -496,7 +496,7 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Settings.EnableExchangeSyncManager {
+	if bot.Config.SyncManagerConfig.Enabled && bot.Settings.EnableExchangeSyncManager {
 		cfg := bot.Config.SyncManagerConfig
 		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing
 		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing
