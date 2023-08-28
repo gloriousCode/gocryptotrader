@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -70,7 +72,6 @@ func main() {
 		SynchronizeContinuously: true,
 		FiatDisplayCurrency:     currency.USD,
 		PairFormatDisplay:       &formatting,
-		Verbose:                 true,
 	}, exchangeManager, &config.RemoteControlConfig{}, true)
 	if err != nil {
 		panic(err)
@@ -111,6 +112,7 @@ func main() {
 	if err != nil {
 		log.Errorln(log.SyncMgr, err)
 	}
+	clearScreen()
 
 	var spotComparers allOverComparer
 	var futuresComparers allOverComparer
@@ -246,7 +248,6 @@ func main() {
 	for i := range spotVersusContracts {
 		// add each comparable futures contract
 		for _, v := range comparableCurrencyToContracts {
-			v
 		comparisons:
 			for _, v2 := range v.ExchangeAssetTicker {
 				if v2.FuturesContract != nil {
@@ -636,7 +637,6 @@ func (s PairDetailsPointerHolder) GetBestUnderThirtyDays() *PairDetails {
 }
 
 func (s PairDetailsPointerHolder) GetBestOverThirtyDays() {
-	var best PairDetails
 	for i := range s {
 		if s[i].FuturesContract.EndDate.Before(time.Now().AddDate(0, 0, 30)) {
 			continue
@@ -650,4 +650,17 @@ func (s PairDetailsPointerHolder) GetBestDiff() {
 
 func (s PairDetailsPointerHolder) GetBestAror() {
 
+}
+
+func clearScreen() error {
+	switch runtime.GOOS {
+	case "windows":
+		cmd := exec.Command("cmd", "/c", "cls")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
+	default:
+		cmd := exec.Command("clear")
+		cmd.Stdout = os.Stdout
+		return cmd.Run()
+	}
 }
