@@ -176,19 +176,19 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		return errors.New("setting up new connection error: websocket is nil")
 	}
 	if c == (ConnectionSetup{}) {
-		return errors.New("setting up new connection error: websocket connection configuration empty")
+		return errors.New(w.exchangeName + " setting up new connection error: websocket connection configuration empty")
 	}
 
 	if w.exchangeName == "" {
-		return errors.New("setting up new connection error: exchange name not set, please call setup first")
+		return errors.New(w.exchangeName + " setting up new connection error: exchange name not set, please call setup first")
 	}
 
 	if w.TrafficAlert == nil {
-		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
+		return errors.New(w.exchangeName + " setting up new connection error: traffic alert is nil, please call setup first")
 	}
 
 	if w.ReadMessageErrors == nil {
-		return errors.New("setting up new connection error: read message errors is nil, please call setup first")
+		return errors.New(w.exchangeName + " setting up new connection error: read message errors is nil, please call setup first")
 	}
 
 	connectionURL := w.GetWebsocketURL()

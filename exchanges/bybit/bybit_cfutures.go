@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"net/http"
 	"net/url"
@@ -184,7 +183,6 @@ func (by *Bybit) GetV3Ticker(ctx context.Context, symbol currency.Pair) ([]V3Der
 	params.Set("symbol", symbolValue)
 
 	path := common.EncodeURLValues("/derivatives"+bybitV3Version+cfuturesSymbolPriceTicker, params)
-	fmt.Println(path)
 	return resp.Result.List, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 

@@ -526,7 +526,9 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			splitter := strings.Split(tick[y].Symbol, "_")
+
+			cp, err := currency.NewPairFromStrings(splitter[0], strings.Join(splitter[1:], ""))
 			if err != nil {
 				return err
 			}
@@ -2278,7 +2280,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		for i := range ei.Symbols {
 			var cp currency.Pair
 			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			if len(splitter) != 2 {
+			if len(splitter) <= 1 {
 				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
 			}
 			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])

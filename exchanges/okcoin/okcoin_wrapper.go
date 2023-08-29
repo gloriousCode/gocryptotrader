@@ -35,7 +35,7 @@ func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = o.BaseCurrencies
 
-	err := o.Setup(exchCfg)
+	err := o.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}

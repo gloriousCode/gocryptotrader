@@ -462,7 +462,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		if err != nil {
 			return nil, err
 		}
-
+		last, err := h.GetLastTrade(ctx, p)
+		if err != nil {
+			return nil, err
+		}
 		if len(marketData.Tick.Bid) == 0 {
 			return nil, fmt.Errorf("invalid data for bid")
 		}
@@ -479,6 +482,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Pair:         p,
 			Bid:          marketData.Tick.Bid[0],
 			Ask:          marketData.Tick.Ask[0],
+			Last:         last.Tick.Data[0].Price,
 			ExchangeName: h.Name,
 			AssetType:    a,
 		})
@@ -487,6 +491,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		}
 	case asset.Futures:
 		marketData, err := h.FGetMarketOverviewData(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		last, err := h.FLastTradeData(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -502,6 +510,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: h.Name,
 			AssetType:    a,
+			Last:         last.Tick.Data[0].Price,
 		})
 		if err != nil {
 			return nil, err

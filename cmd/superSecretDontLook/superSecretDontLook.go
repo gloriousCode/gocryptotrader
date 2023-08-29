@@ -54,20 +54,11 @@ var (
 
 func main() {
 	defaultLogSettings := log.GenDefaultSettings()
-
-	err := log.SetGlobalLogConfig(defaultLogSettings)
-	if err != nil {
-		panic(err)
-
-	}
-	err = log.SetupGlobalLogger("lol", false)
-	if err != nil {
-		panic(err)
-	}
 	exchangeManager := engine.NewExchangeManager()
 	wg := &sync.WaitGroup{}
 	setupExchanges(wg, exchangeManager)
 	sm, err := engine.SetupSyncManager(&config.SyncManagerConfig{
+		Enabled:                 true,
 		SynchronizeTicker:       true,
 		SynchronizeContinuously: true,
 		FiatDisplayCurrency:     currency.USD,
@@ -90,6 +81,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+
 	comparableCurrencyToContracts, err := loadAndCategoriseFuturesContracts(exchanges, wg, formatting)
 	if err != nil {
 		fmt.Println(err)
@@ -112,7 +104,15 @@ func main() {
 	if err != nil {
 		log.Errorln(log.SyncMgr, err)
 	}
-	clearScreen()
+	err = log.SetGlobalLogConfig(defaultLogSettings)
+	if err != nil {
+		panic(err)
+
+	}
+	err = log.SetupGlobalLogger("lol", false)
+	if err != nil {
+		panic(err)
+	}
 
 	var spotComparers allOverComparer
 	var futuresComparers allOverComparer
@@ -129,8 +129,20 @@ func main() {
 			} else {
 				cp = v2.FuturesContract.Name
 				a = v2.FuturesContract.Asset
+			}
+			switch strings.ToLower(v2.Exchange.GetName()) {
+			case "binance":
+				if a == asset.CoinMarginedFutures {
+					cp, err = currency.NewPairFromString(cp.String())
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+				}
+			default:
 
 			}
+
 			tick, err := ticker.GetTicker(v2.Exchange.GetName(), cp, a)
 			if err != nil {
 				fmt.Println(err)
@@ -251,7 +263,7 @@ func main() {
 		comparisons:
 			for _, v2 := range v.ExchangeAssetTicker {
 				if v2.FuturesContract != nil {
-					contractCompare := getComparablePair(v2.FuturesContract.Underlying)
+					contractCompare := getComparablePair(v2.ComparePair)
 					if !contractCompare.Equal(spotVersusContracts[i].superCompare) {
 						continue
 					}
@@ -281,6 +293,8 @@ func main() {
 					spotVersusContracts[i].spotLast,
 					spotVersusContracts[i].comparisons[j].contract.LastPrice,
 					spotVersusContracts[i].comparisons[j].contract.FuturesContract.EndDate.Sub(time.Now()))
+			} else {
+				fmt.Println(spotVersusContracts[i].exchange, spotVersusContracts[i].pair, spotVersusContracts[i].spotLast, spotVersusContracts[i].comparisons[j].contract.Exchange.GetName(), spotVersusContracts[i].comparisons[j].contract.Asset, spotVersusContracts[i].comparisons[j].contract.FuturesContract.Name, spotVersusContracts[i].comparisons[j].contract.ComparePair, spotVersusContracts[i].comparisons[j].contract.LastPrice)
 			}
 		}
 	}
@@ -377,7 +391,7 @@ func renderTable(pairs *spotPairs) {
 	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Price $", "Diff $", "Start", "End", "Days left", "Diff %", "ARoR %", "Volume 24hr $"})
 	pairs.SortComparisons()
 	for i := range pairs.comparisons {
-		if pairs.comparisons[i].comparison > 0 {
+		if pairs.comparisons[i].comparison != 0 {
 			t.AppendRow(table.Row{i + 1,
 				pairs.comparisons[i].contract.Exchange.GetName(),
 				pairs.comparisons[i].contract.FuturesContract.Asset,
@@ -392,7 +406,7 @@ func renderTable(pairs *spotPairs) {
 				convert.FloatToHumanFriendlyString(generateVol(pairs.comparisons[i].contract.LastPrice, pairs.comparisons[i].contract.Volume, pairs.comparisons[i].contract.QuoteVolume), 2, ".", ","),
 			})
 		} else {
-			log.Warnln(log.OrderBook, pairs.comparisons[i].contract.Exchange.GetName(), pairs.comparisons[i].contract.FuturesContract.Name, pairs.comparisons[i].contract.LastPrice, "has a zero comparison")
+			log.Warnln(log.OrderBook, pairs.comparisons[i].contract.Exchange.GetName(), pairs.comparisons[i].contract.FuturesContract.Name, pairs.comparisons[i].contract.LastPrice, " has a zero comparison")
 		}
 	}
 	t.AppendSeparator()
@@ -456,7 +470,6 @@ func getComparablePair(cp currency.Pair) currency.Pair {
 func loadAndCategoriseFuturesContracts(exchs []exchange.IBotExchange, wg *sync.WaitGroup, formatting currency.PairFormat) (map[string]ComboHolder, error) {
 	response := make(map[string]ComboHolder)
 	for i := range exchs {
-
 		wg.Add(1)
 		go func(it int) {
 			defer wg.Done()
@@ -526,7 +539,7 @@ func loadAndCategoriseFuturesContracts(exchs []exchange.IBotExchange, wg *sync.W
 
 func setupExchanges(wg *sync.WaitGroup, exchangeManager *engine.ExchangeManager) {
 	exchanges := exchange.Exchanges
-	bannedExchanges := []string{"okcoin international", "itbit", "bitflyer", "alphapoint", "yobit"}
+	bannedExchanges := []string{"poloniex", "itbit", "bitflyer", "alphapoint", "yobit"}
 	for i := range exchanges {
 		if binanceOnly && strings.ToLower(exchanges[i]) != "binance" {
 			continue
@@ -547,6 +560,15 @@ func setupExchanges(wg *sync.WaitGroup, exchangeManager *engine.ExchangeManager)
 			if err != nil {
 				fmt.Println(err)
 				return
+			}
+			if b == nil {
+				panic("woah")
+			}
+			if conf == nil {
+				panic("wow")
+			}
+			if conf.Features == nil {
+				panic("another")
 			}
 			if b.Features.Supports.Websocket {
 				conf.Features.Enabled.Websocket = true
