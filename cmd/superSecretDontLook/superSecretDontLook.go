@@ -26,13 +26,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 var (
-	binanceOnly = false
-	btcUSDOnly  = true
-	ignorePerps = true
-	formatting  = currency.PairFormat{
+	binanceOnly    = false
+	btcUSDOnly     = true
+	ignorePerps    = true
+	continuousSync = false
+	formatting     = currency.PairFormat{
 		Uppercase: true,
 		Delimiter: "-",
 	}
@@ -114,8 +116,32 @@ func main() {
 		panic(err)
 	}
 
-	var spotComparers allOverComparer
-	var futuresComparers allOverComparer
+	if !continuousSync {
+		doEverything(comparableCurrencyToContracts)
+		return
+	}
+	shut := make(chan struct{})
+	go waitForInterrupt(shut)
+	doEverything(comparableCurrencyToContracts)
+	timer := time.NewTicker(time.Second * 10)
+	fmt.Print("\033c")
+	go func() {
+		for {
+			select {
+			case <-timer.C:
+				fmt.Print("\033c")
+				doEverything(comparableCurrencyToContracts)
+			case <-shut:
+				return
+			}
+		}
+	}()
+	<-shut
+}
+
+func doEverything(comparableCurrencyToContracts map[string]ComboHolder) {
+	var spotComparers, futuresComparers allOverComparer
+	var err error
 	uniqueHelperForDumbIdiotsLikeMe := make(map[Key]bool)
 
 	for k, v := range comparableCurrencyToContracts {
@@ -139,8 +165,6 @@ func main() {
 						continue
 					}
 				}
-			default:
-
 			}
 
 			tick, err := ticker.GetTicker(v2.Exchange.GetName(), cp, a)
@@ -324,7 +348,12 @@ func main() {
 			}
 		}
 	}
-	fmt.Println(biggest)
+}
+
+func waitForInterrupt(waiter chan<- struct{}) {
+	interrupt := signaler.WaitForInterrupt()
+	log.Infof(log.Global, "Captured %v, shutdown requested.\n", interrupt)
+	close(waiter)
 }
 
 func (p *PairDetails) GetUniqueMapKey() Key {
@@ -388,7 +417,7 @@ func renderTable(pairs *spotPairs) {
 		"$" + convert.FloatToHumanFriendlyString(pairs.spotLast, 2, ".", ","),
 		convert.FloatToHumanFriendlyString(generateVol(pairs.volume, pairs.spotLast, 0), 2, ".", ","),
 	})
-	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Price $", "Diff $", "Start", "End", "Days left", "Diff %", "ARoR %", "Volume 24hr $"})
+	t.AppendHeader(table.Row{"#", "Exchange", "Asset", "Pair", "Underlying", "Comparable", "Price $", "Diff $", "Start", "End", "Days left", "Diff %", "ARoR %", "Volume 24hr $"})
 	pairs.SortComparisons()
 	for i := range pairs.comparisons {
 		if pairs.comparisons[i].comparison != 0 {
@@ -396,6 +425,8 @@ func renderTable(pairs *spotPairs) {
 				pairs.comparisons[i].contract.Exchange.GetName(),
 				pairs.comparisons[i].contract.FuturesContract.Asset,
 				pairs.comparisons[i].contract.FuturesContract.Name,
+				pairs.comparisons[i].contract.FuturesContract.Underlying,
+				pairs.comparisons[i].contract.ComparePair,
 				"$" + convert.FloatToHumanFriendlyString(pairs.comparisons[i].contract.LastPrice, 2, ".", ","),
 				"$" + convert.FloatToHumanFriendlyString(pairs.comparisons[i].contract.LastPrice-pairs.spotLast, 2, ".", ","),
 				pairs.comparisons[i].contract.FuturesContract.StartDate,
@@ -451,16 +482,16 @@ func disableIrrelevantSpotPairs(exchs []exchange.IBotExchange, wg *sync.WaitGrou
 
 func getComparablePair(cp currency.Pair) currency.Pair {
 	superCompare := cp
-	if cp.Base == currency.XBT {
+	if cp.Base.Equal(currency.XBT) {
 		superCompare = currency.NewPair(currency.BTC, cp.Quote)
 	}
-	if cp.Quote == currency.XBT {
+	if cp.Quote.Equal(currency.XBT) {
 		superCompare = currency.NewPair(cp.Base, currency.BTC)
 	}
 	// add option to group close enough currencies like USD, USDT, BUSD and USDC
-	if cp.Quote == currency.USDT ||
-		cp.Quote == currency.BUSD ||
-		cp.Quote == currency.USDC {
+	if cp.Quote.Equal(currency.USDT) ||
+		cp.Quote.Equal(currency.BUSD) ||
+		cp.Quote.Equal(currency.USDC) {
 		superCompare = currency.NewPair(cp.Base, currency.USD)
 	}
 
