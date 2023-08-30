@@ -440,6 +440,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 	}
 	switch a {
 	case asset.Spot:
+		last, err := h.GetLastTrade(ctx, p)
+		if err != nil {
+			return nil, err
+		}
 		tickerData, err := h.Get24HrMarketSummary(ctx, p)
 		if err != nil {
 			return nil, err
@@ -450,6 +454,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Volume:       tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
+			Last:         last.Tick.Data[0].Price,
 			Pair:         p,
 			ExchangeName: h.Name,
 			AssetType:    asset.Spot,
