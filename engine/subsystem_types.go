@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -77,6 +78,7 @@ type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
+	PrintFundingRateSummary(*fundingrate.LatestRateResponse, string, error)
 	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
 }
 

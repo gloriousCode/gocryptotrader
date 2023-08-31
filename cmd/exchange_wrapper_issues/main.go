@@ -514,13 +514,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{""}),
 			})
 
-			fundingRateRequest := &fundingrate.RatesRequest{
+			fundingRateRequest := &fundingrate.HistoricalRatesRequest{
 				Asset:     assetTypes[i],
 				Pair:      p,
 				StartDate: time.Now().Add(-time.Hour),
 				EndDate:   time.Now(),
 			}
-			var fundingRateResponse *fundingrate.Rates
+			var fundingRateResponse *fundingrate.HistoricalRates
 			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
 			msg = ""
 			if err != nil {

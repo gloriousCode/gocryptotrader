@@ -143,6 +143,7 @@ type SyncManagerConfig struct {
 	SynchronizeTicker       bool                 `json:"synchronizeTicker"`
 	SynchronizeOrderbook    bool                 `json:"synchronizeOrderbook"`
 	SynchronizeTrades       bool                 `json:"synchronizeTrades"`
+	FundingRates            SyncJob              `json:"synchronizeFundingRates"`
 	SynchronizeContinuously bool                 `json:"synchronizeContinuously"`
 	TimeoutREST             time.Duration        `json:"timeoutREST"`
 	TimeoutWebsocket        time.Duration        `json:"timeoutWebsocket"`
@@ -154,6 +155,12 @@ type SyncManagerConfig struct {
 	LogSyncUpdateEvents     bool `json:"logSyncUpdateEvents"`
 	LogSwitchProtocolEvents bool `json:"logSwitchProtocolEvents"`
 	LogInitialSyncEvents    bool `json:"logInitialSyncEvents"`
+}
+
+type SyncJob struct {
+	EnableSync       bool          `json:"enableSync"`
+	TimeoutREST      time.Duration `json:"timeoutREST"`
+	TimeoutWebsocket time.Duration `json:"timeoutWebsocket"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

@@ -3247,7 +3247,7 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r := &fundingrate.RatesRequest{
+	r := &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
 		PaymentCurrency:      currency.USDT,

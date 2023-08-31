@@ -510,7 +510,7 @@ var excludedMethodNames = map[string]struct{}{
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
 	"GetPositionSummary":               {},
-	"GetLatestFundingRate":             {},
+	"GetLatestFundingRates":            {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI

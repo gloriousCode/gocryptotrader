@@ -2,18 +2,52 @@ package fundingrate
 
 import (
 	"errors"
+	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
-var ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+var (
+	// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
+	ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+	// ErrExchangeNameUnset is returned when an exchange name is not set
+	ErrExchangeNameUnset = errors.New("funding rate exchange name not set")
 
-// RatesRequest is used to request funding rate details for a position
-type RatesRequest struct {
+	errPairNotSet           = errors.New("funding rate currency pair not set")
+	errAssetTypeNotSet      = errors.New("funding rate asset type not set")
+	errInvalidFundingRate   = errors.New("invalid funding rate")
+	errFundingRateTimeUnset = errors.New("funding rate time unset")
+	errFundingRateNotFound  = errors.New("funding rate not found")
+	errExchangeNameIsEmpty  = errors.New("exchange name is empty")
+)
+
+var (
+	// service stores the latest and upcoming funding rates
+	service *Service
+)
+
+// Service holds fundingRate information for each individual exchange
+type Service struct {
+	FundingRates map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*LatestRateWithDispatchIDs
+	Exchange     map[string]uuid.UUID
+	mux          *dispatch.Mux
+	mu           sync.Mutex
+}
+
+// LatestRateWithDispatchIDs struct holds the fundingRate information for a currency pair and type
+type LatestRateWithDispatchIDs struct {
+	LatestRateResponse
+	Main  uuid.UUID
+	Assoc []uuid.UUID
+}
+
+// HistoricalRatesRequest is used to request funding rate details for a position
+type HistoricalRatesRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
 	// PaymentCurrency is an optional parameter depending on exchange API
@@ -30,8 +64,8 @@ type RatesRequest struct {
 	RespectHistoryLimits bool
 }
 
-// Rates is used to return funding rate details for a position
-type Rates struct {
+// HistoricalRates is used to return funding rate details for a position
+type HistoricalRates struct {
 	Exchange              string
 	Asset                 asset.Item
 	Pair                  currency.Pair

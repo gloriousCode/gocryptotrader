@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -252,6 +253,45 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
+	case []fundingrate.LatestRateResponse:
+		for x := range d {
+			if m.syncer.IsRunning() {
+				err := m.syncer.WebsocketUpdate(exchName,
+					d[x].Pair,
+					d[x].Asset,
+					SyncItemFundingRate,
+					nil)
+				if err != nil {
+					return err
+				}
+			}
+			err := fundingrate.ProcessFundingRate(&d[x])
+			if err != nil {
+				return err
+			}
+			m.syncer.PrintFundingRateSummary(&d[x], "websocket", err)
+		}
+	case *fundingrate.LatestRateResponse:
+		if m.syncer.IsRunning() {
+			err := m.syncer.WebsocketUpdate(exchName,
+				d.Pair,
+				d.Asset,
+				SyncItemFundingRate,
+				nil)
+			if err != nil {
+				return err
+			}
+		}
+		err := fundingrate.ProcessFundingRate(d)
+		if err != nil {
+			return err
+		}
+		m.syncer.PrintFundingRateSummary(d, "websocket", err)
+	case fundingrate.LatestRateResponse,
+		order.Detail,
+		ticker.Price,
+		orderbook.Depth:
+		return errUseAPointer
 	case stream.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
@@ -347,6 +387,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				m.printAccountHoldingsChangeSummary(d[x])
 			}
 		}
+
 	case []trade.Data:
 		if m.verbose {
 			log.Infof(log.Trade, "%+v", d)

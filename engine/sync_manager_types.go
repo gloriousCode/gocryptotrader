@@ -28,6 +28,7 @@ type currencyPairKey struct {
 // currencyPairSyncAgent stores the sync agent info
 type currencyPairSyncAgent struct {
 	currencyPairKey
+	isPerp   *bool
 	Created  time.Time
 	trackers []*syncBase
 	locks    []sync.Mutex
@@ -47,8 +48,9 @@ type syncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            map[currencyPairKey]*currencyPairSyncAgent
-	tickerBatchLastRequested map[string]time.Time
+	currencyPairs                 map[currencyPairKey]*currencyPairSyncAgent
+	tickerBatchLastRequested      map[string]time.Time
+	fundingRateBatchLastRequested map[string]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
 	config          config.SyncManagerConfig

@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -28,6 +30,7 @@ const (
 	SyncItemTicker syncItemType = iota
 	SyncItemOrderbook
 	SyncItemTrade
+	SyncItemFundingRate
 	SyncManagerName = "exchange_syncer"
 )
 
@@ -323,6 +326,19 @@ func (m *syncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 		}
 	}
 
+	if m.config.FundingRates.EnableSync {
+		if m.config.Verbose {
+			log.Debugf(log.SyncMgr,
+				"%s: Added funding rate sync item %v: using websocket: %v using REST: %v",
+				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemFundingRate].IsUsingWebsocket,
+				c.trackers[SyncItemFundingRate].IsUsingREST)
+		}
+		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
+			m.initSyncWG.Add(1)
+			createdCounter++
+		}
+	}
+
 	if m.currencyPairs == nil {
 		m.currencyPairs = make(map[currencyPairKey]*currencyPairSyncAgent)
 	}
@@ -355,6 +371,10 @@ func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 			return nil
 		}
 	case SyncItemTrade:
+		if !m.config.SynchronizeTrades {
+			return nil
+		}
+	case SyncItemFundingRate:
 		if !m.config.SynchronizeTrades {
 			return nil
 		}
@@ -400,7 +420,7 @@ func (m *syncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 
 // update notifies the syncManager to change the last updated time for a exchange asset pair
 func (m *syncManager) update(c *currencyPairSyncAgent, syncType syncItemType, err error) error {
-	if syncType < SyncItemTicker || syncType > SyncItemTrade {
+	if syncType < SyncItemTicker || syncType > SyncItemFundingRate {
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
 
@@ -514,9 +534,107 @@ func (m *syncManager) worker() {
 						if m.config.SynchronizeTrades {
 							m.syncTrades(c)
 						}
+						if m.config.FundingRates.EnableSync {
+							m.syncFundingRates(c, e)
+						}
 					}
 				}
 			}
+		}
+	}
+}
+
+func (m *syncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBotExchange) {
+	if !c.locks[SyncItemFundingRate].TryLock() {
+		return
+	}
+	defer c.locks[SyncItemFundingRate].Unlock()
+
+	if c.isPerp == nil {
+		if c.AssetType.IsFutures() {
+			isPerp, err := e.IsPerpetualFutureCurrency(c.AssetType, c.Pair)
+			c.isPerp = convert.BoolPtr(isPerp && err == nil)
+		} else {
+			c.isPerp = convert.BoolPtr(false)
+		}
+	}
+	if !*c.isPerp {
+		return
+	}
+
+	exchangeName := e.GetName()
+
+	s := c.trackers[SyncItemFundingRate]
+
+	if s.IsUsingWebsocket &&
+		e.SupportsREST() &&
+		time.Since(s.LastUpdated) > m.config.FundingRates.TimeoutWebsocket &&
+		time.Since(c.Created) > m.config.FundingRates.TimeoutWebsocket {
+		// Downgrade to REST
+		s.IsUsingWebsocket = false
+		s.IsUsingREST = true
+		if m.config.LogSwitchProtocolEvents {
+			log.Warnf(log.SyncMgr,
+				"%s %s %s: No funding rate update after %s, switching from websocket to REST",
+				c.Exchange,
+				m.FormatCurrency(c.Pair),
+				strings.ToUpper(c.AssetType.String()),
+				m.config.FundingRates.TimeoutWebsocket,
+			)
+		}
+	}
+
+	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.FundingRates.TimeoutREST {
+		var result []fundingrate.LatestRateResponse
+		var err error
+		b := e.GetBase()
+		if b.Features.Supports.RESTCapabilities.FundingRateBatching {
+			m.mux.Lock()
+			batchLastDone, ok := m.fundingRateBatchLastRequested[e.GetName()]
+			if !ok {
+				m.fundingRateBatchLastRequested[exchangeName] = time.Time{}
+			}
+			m.mux.Unlock()
+
+			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
+				m.mux.Lock()
+				if m.config.Verbose {
+					log.Debugf(log.SyncMgr, "Initialising %s REST funding rate batching", exchangeName)
+				}
+				result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
+					Asset:                c.AssetType,
+					Pair:                 currency.EMPTYPAIR,
+					IncludePredictedRate: true,
+				})
+				m.tickerBatchLastRequested[exchangeName] = time.Now()
+				m.mux.Unlock()
+			} else {
+				if m.config.Verbose {
+					log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
+				}
+				result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
+					Asset:                c.AssetType,
+					Pair:                 c.Pair,
+					IncludePredictedRate: true,
+				})
+			}
+		} else {
+			result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
+				Asset:                c.AssetType,
+				Pair:                 c.Pair,
+				IncludePredictedRate: true,
+			})
+		}
+		for i := range result {
+			err = fundingrate.ProcessFundingRate(&result[i])
+			if err != nil {
+				continue
+			}
+			m.PrintFundingRateSummary(&result[i], "REST", err)
+		}
+		updateErr := m.update(c, SyncItemFundingRate, err)
+		if updateErr != nil {
+			log.Errorln(log.SyncMgr, updateErr)
 		}
 	}
 }
@@ -694,6 +812,37 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 		origPrice,
 		origCurrency,
 	)
+}
+
+func (m *syncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResponse, protocol string, err error) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+	if !m.config.FundingRates.EnableSync {
+		return
+	}
+	if err != nil {
+		if errors.Is(err, common.ErrNotYetImplemented) || errors.Is(err, common.ErrFunctionNotSupported) {
+			return
+		}
+		log.Errorf(log.SyncMgr, "Failed to get %s funding rate. Error: %s",
+			protocol,
+			err)
+		return
+	}
+	if !m.config.LogSyncUpdateEvents {
+		return
+	}
+
+	log.Infof(log.SyncMgr, "%s %s %s %s FUNDINGRATE: CURRENT: $%v from %v PREDICTED: $%v from %v",
+		result.Exchange,
+		protocol,
+		m.FormatCurrency(result.Pair),
+		strings.ToUpper(result.Asset.String()),
+		result.LatestRate.Rate,
+		result.LatestRate.Time,
+		result.PredictedUpcomingRate.Rate,
+		result.PredictedUpcomingRate.Time)
 }
 
 // PrintTickerSummary outputs the ticker results
@@ -902,6 +1051,8 @@ func (s syncItemType) String() string {
 		return "Orderbook"
 	case SyncItemTrade:
 		return "Trade"
+	case SyncItemFundingRate:
+		return "Funding Rate"
 	default:
 		return fmt.Sprintf("Invalid syncItemType: %d", s)
 	}

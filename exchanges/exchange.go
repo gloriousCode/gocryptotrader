@@ -1506,7 +1506,7 @@ func (b *Base) GetPositionSummary(context.Context, *futures.PositionSummaryReque
 }
 
 // GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1521,7 +1521,7 @@ func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequ
 }
 
 // GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+func (b *Base) GetFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

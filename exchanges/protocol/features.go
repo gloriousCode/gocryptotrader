@@ -32,6 +32,8 @@ type Features struct {
 	AccountInfo         bool `json:"accountInfo,omitempty"`
 	FiatDeposit         bool `json:"fiatDeposit,omitempty"`
 	DeadMansSwitch      bool `json:"deadMansSwitch,omitempty"`
+	FundingRateFetching bool `json:"fundingRateFetching"`
+	FundingRateBatching bool `json:"fundingRateBatching,omitempty"`
 	// FullPayloadSubscribe flushes and changes full subscription on websocket
 	// connection by subscribing with full default stream channel list
 	FullPayloadSubscribe              bool `json:"fullPayloadSubscribe,omitempty"`

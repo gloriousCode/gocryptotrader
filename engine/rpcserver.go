@@ -4548,8 +4548,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			var fundingDetails *fundingrate.Rates
-			fundingDetails, err = exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
+			var fundingDetails *fundingrate.HistoricalRates
+			fundingDetails, err = exch.GetFundingRates(ctx, &fundingrate.HistoricalRatesRequest{
 				Asset:                pos[i].Asset,
 				Pair:                 pos[i].Pair,
 				StartDate:            pos[i].Orders[0].Date,
@@ -4690,7 +4690,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 
-	funding, err := exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
+	funding, err := exch.GetFundingRates(ctx, &fundingrate.HistoricalRatesRequest{
 		Asset:                a,
 		Pair:                 cp,
 		StartDate:            start,
@@ -4782,7 +4782,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	if err != nil {
 		return nil, err
 	}
-	funding, err := exch.GetLatestFundingRate(ctx, &fundingrate.LatestRateRequest{
+	funding, err := exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
 		Asset:                a,
 		Pair:                 cp,
 		IncludePredictedRate: r.IncludePredicted,

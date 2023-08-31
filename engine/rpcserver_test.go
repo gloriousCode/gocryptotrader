@@ -132,9 +132,9 @@ func (f fExchange) GetLatestFundingRate(_ context.Context, request *fundingrate.
 	}, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.Rates{
+	return &fundingrate.HistoricalRates{
 		Exchange:  f.GetName(),
 		Asset:     request.Asset,
 		Pair:      request.Pair,
