@@ -521,7 +521,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				EndDate:   time.Now(),
 			}
 			var fundingRateResponse *fundingrate.HistoricalRates
-			fundingRateResponse, err = e.GetFundingRates(context.TODO(), fundingRateRequest)
+			fundingRateResponse, err = e.GetHistoricalFundingRates(context.TODO(), fundingRateRequest)
 			msg = ""
 			if err != nil {
 				msg = err.Error()

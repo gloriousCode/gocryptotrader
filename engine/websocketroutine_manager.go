@@ -269,7 +269,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			if err != nil {
 				return err
 			}
-			m.syncer.PrintFundingRateSummary(&d[x], "websocket", err)
+			m.syncer.PrintFundingRateSummary(&d[x], "websocket", !d[x].PredictedUpcomingRate.Time.IsZero(), err)
 		}
 	case *fundingrate.LatestRateResponse:
 		if m.syncer.IsRunning() {
@@ -286,7 +286,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		if err != nil {
 			return err
 		}
-		m.syncer.PrintFundingRateSummary(d, "websocket", err)
+		m.syncer.PrintFundingRateSummary(d, "websocket", !d.PredictedUpcomingRate.Time.IsZero(), err)
 	case fundingrate.LatestRateResponse,
 		order.Detail,
 		ticker.Price,

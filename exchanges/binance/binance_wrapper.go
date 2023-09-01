@@ -2129,8 +2129,8 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 }
 
-// GetFundingRates returns funding rates for a given asset and currency for a time period
-func (b *Binance) GetFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}

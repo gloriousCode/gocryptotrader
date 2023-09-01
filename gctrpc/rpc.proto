@@ -1217,6 +1217,16 @@ message GetLatestFundingRateResponse {
   FundingData rate = 1;
 }
 
+message GetLatestFundingRatesRequest {
+  string exchange = 1;
+  string asset = 2;
+  bool include_predicted = 3;
+}
+
+message GetLatestFundingRatesResponse {
+  repeated FundingData rate = 1;
+}
+
 message ShutdownRequest {}
 
 message ShutdownResponse {}
@@ -1870,6 +1880,9 @@ service GoCryptoTraderService {
   }
   rpc GetLatestFundingRate(GetLatestFundingRateRequest) returns (GetLatestFundingRateResponse) {
     option (google.api.http) = {get: "/v1/getlatestfundingrate"};
+  }
+  rpc GetLatestFundingRates(GetLatestFundingRatesRequest) returns (GetLatestFundingRatesResponse) {
+    option (google.api.http) = {get: "/v1/getlatestfundingrates"};
   }
   rpc GetOrderbookMovement(GetOrderbookMovementRequest) returns (GetOrderbookMovementResponse) {
     option (google.api.http) = {get: "/v1/getorderbookmovement"};

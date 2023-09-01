@@ -975,7 +975,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.GetHistoricalFundingRates(context.Background(), cp, 0, 0)
+	_, err = h.GetHistoricalFundingRatesForPair(context.Background(), cp, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}

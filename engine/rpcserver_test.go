@@ -112,27 +112,29 @@ func (f fExchange) GetFuturesPositions(_ context.Context, req *futures.Positions
 	return resp, nil
 }
 
-func (f fExchange) GetLatestFundingRate(_ context.Context, request *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+func (f fExchange) GetLatestFundingRates(_ context.Context, request *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.LatestRateResponse{
-		Exchange: f.GetName(),
-		Asset:    request.Asset,
-		Pair:     request.Pair,
-		LatestRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
+	return []fundingrate.LatestRateResponse{
+		{
+			Exchange: f.GetName(),
+			Asset:    request.Asset,
+			Pair:     request.Pair,
+			LatestRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			PredictedUpcomingRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			TimeOfNextRate: time.Now(),
 		},
-		PredictedUpcomingRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
-		},
-		TimeOfNextRate: time.Now(),
 	}, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+func (f fExchange) GetHistoricalFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	leet := decimal.NewFromInt(1337)
 	return &fundingrate.HistoricalRates{
 		Exchange:  f.GetName(),
@@ -3124,6 +3126,92 @@ func TestGetLatestFundingRate(t *testing.T) {
 	}
 	request.IncludePredicted = true
 	_, err = s.GetLatestFundingRate(context.Background(), request)
+	if !errors.Is(err, nil) {
+		t.Errorf("received: '%v' but expected: '%v'", err, nil)
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+
+	cp, err := currency.NewPairFromString("btc-perp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		RequestFormat: &currency.PairFormat{Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+		AssetEnabled:  convert.BoolPtr(true),
+		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
+		RequestFormat: &currency.PairFormat{Delimiter: "/"},
+		Available:     currency.Pairs{cp},
+		Enabled:       currency.Pairs{cp},
+	}
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, time.Hour)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+	om.started = 1
+	s := RPCServer{
+		Engine: &Engine{
+			ExchangeManager: em,
+			currencyStateManager: &CurrencyStateManager{
+				started:          1,
+				iExchangeManager: em,
+			},
+			OrderManager: om,
+		},
+	}
+
+	_, err = s.GetLatestFundingRates(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
+	}
+	request := &gctrpc.GetLatestFundingRatesRequest{}
+	_, err = s.GetLatestFundingRates(context.Background(), request)
+	if !errors.Is(err, ErrExchangeNameIsEmpty) {
+		t.Errorf("received: '%v' but expected: '%v'", err, ErrExchangeNameIsEmpty)
+	}
+	request.Exchange = exch.GetName()
+	_, err = s.GetLatestFundingRates(context.Background(), request)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
+	}
+
+	request.Asset = asset.Spot.String()
+	_, err = s.GetLatestFundingRates(context.Background(), request)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received: '%v' but expected: '%v'", err, futures.ErrNotFuturesAsset)
+	}
+
+	request.Asset = asset.Futures.String()
+	request.IncludePredicted = true
+	_, err = s.GetLatestFundingRates(context.Background(), request)
 	if !errors.Is(err, nil) {
 		t.Errorf("received: '%v' but expected: '%v'", err, nil)
 	}

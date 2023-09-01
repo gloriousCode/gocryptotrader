@@ -146,7 +146,7 @@ type FuturesManagement interface {
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*futures.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
 	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
-	GetFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error)
+	GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error)
 	GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)

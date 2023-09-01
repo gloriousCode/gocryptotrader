@@ -344,8 +344,8 @@ func (h *HUOBI) GetLiquidationOrders(ctx context.Context, contract currency.Pair
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
-// GetHistoricalFundingRates gets historical funding rates for perpetual futures
-func (h *HUOBI) GetHistoricalFundingRates(ctx context.Context, code currency.Pair, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
+// GetHistoricalFundingRatesForPair gets historical funding rates for perpetual futures
+func (h *HUOBI) GetHistoricalFundingRatesForPair(ctx context.Context, code currency.Pair, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
 	var resp HistoricalFundingRateData
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {

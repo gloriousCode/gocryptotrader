@@ -2811,7 +2811,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	s, e := getTime()
-	_, err := b.GetFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+	_, err := b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:            s,
@@ -2823,7 +2823,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+	_, err = b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:       s,
@@ -2843,7 +2843,7 @@ func TestGetFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(b) {
 		r.IncludePayments = true
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2853,7 +2853,7 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}

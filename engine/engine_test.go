@@ -355,7 +355,8 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"itbit", // due to unsupported API
+	"itbit",    // due to unsupported API
+	"poloniex", // due to API closure // TODO: remove when API is fixed
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {

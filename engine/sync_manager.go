@@ -89,7 +89,8 @@ func setupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
-		tickerBatchLastRequested:       make(map[string]time.Time),
+		tickerBatchLastRequested:       make(map[string]map[asset.Item]time.Time),
+		fundingRateBatchLastRequested:  make(map[string]map[asset.Item]time.Time),
 		currencyPairs:                  make(map[currencyPairKey]*currencyPairSyncAgent),
 	}
 
@@ -262,8 +263,8 @@ func newCurrencyPairSyncAgent(k currencyPairKey) *currencyPairSyncAgent {
 	return &currencyPairSyncAgent{
 		currencyPairKey: k,
 		Created:         time.Now(),
-		locks:           make([]sync.Mutex, SyncItemTrade+1),
-		trackers:        make([]*syncBase, SyncItemTrade+1),
+		locks:           make([]sync.Mutex, SyncItemFundingRate+1),
+		trackers:        make([]*syncBase, SyncItemFundingRate+1),
 	}
 }
 func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent {
@@ -285,6 +286,11 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 	if m.config.SynchronizeTrades {
 		s := s
 		c.trackers[SyncItemTrade] = &s
+	}
+
+	if m.config.FundingRates.EnableSync {
+		s := s
+		c.trackers[SyncItemFundingRate] = &s
 	}
 
 	if m.config.SynchronizeTicker {
@@ -330,7 +336,7 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added funding rate sync item %v: using websocket: %v using REST: %v",
-				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemFundingRate].IsUsingWebsocket,
+				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemFundingRate].IsUsingWebsocket && m.config.FundingRates.EnableWebsocketSync,
 				c.trackers[SyncItemFundingRate].IsUsingREST)
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
@@ -565,8 +571,9 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 	exchangeName := e.GetName()
 
 	s := c.trackers[SyncItemFundingRate]
-
-	if m.config.FundingRates.EnableWebsocketSync &&
+	if !m.config.FundingRates.EnableWebsocketSync && !s.IsUsingREST {
+		s.IsUsingREST = true
+	} else if m.config.FundingRates.EnableWebsocketSync &&
 		s.IsUsingWebsocket &&
 		e.SupportsREST() &&
 		time.Since(s.LastUpdated) > m.config.FundingRates.TimeoutWebsocket &&
@@ -591,39 +598,42 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 		b := e.GetBase()
 		if b.Features.Supports.RESTCapabilities.FundingRateBatching {
 			m.mux.Lock()
-			batchLastDone, ok := m.fundingRateBatchLastRequested[e.GetName()]
+			batchLastDone, ok := m.fundingRateBatchLastRequested[exchangeName][c.AssetType]
 			if !ok {
-				m.fundingRateBatchLastRequested[exchangeName] = time.Time{}
+				if _, ok = m.fundingRateBatchLastRequested[exchangeName]; !ok {
+					m.fundingRateBatchLastRequested[exchangeName] = make(map[asset.Item]time.Time)
+				}
+				m.fundingRateBatchLastRequested[exchangeName][c.AssetType] = time.Time{}
 			}
 			m.mux.Unlock()
 
-			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.TimeoutREST {
-				m.mux.Lock()
+			if batchLastDone.IsZero() || time.Since(batchLastDone) > m.config.FundingRates.TimeoutREST {
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST funding rate batching", exchangeName)
 				}
 				result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
 					Asset:                c.AssetType,
 					Pair:                 currency.EMPTYPAIR,
-					IncludePredictedRate: true,
+					IncludePredictedRate: b.Features.Supports.RESTCapabilities.PredictedFundingRate,
 				})
-				m.tickerBatchLastRequested[exchangeName] = time.Now()
+				m.mux.Lock()
+				m.fundingRateBatchLastRequested[exchangeName][c.AssetType] = time.Now()
 				m.mux.Unlock()
 			} else {
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 				}
-				result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
-					Asset:                c.AssetType,
-					Pair:                 c.Pair,
-					IncludePredictedRate: true,
-				})
+				var fr *fundingrate.LatestRateResponse
+				fr, err = fundingrate.GetFundingRate(c.Exchange, c.Pair, c.AssetType)
+				if err == nil {
+					result = []fundingrate.LatestRateResponse{*fr}
+				}
 			}
 		} else {
 			result, err = e.GetLatestFundingRates(context.TODO(), &fundingrate.LatestRateRequest{
 				Asset:                c.AssetType,
 				Pair:                 c.Pair,
-				IncludePredictedRate: true,
+				IncludePredictedRate: b.Features.Supports.RESTCapabilities.PredictedFundingRate,
 			})
 		}
 		for i := range result {
@@ -631,7 +641,10 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 			if err != nil {
 				continue
 			}
-			m.PrintFundingRateSummary(&result[i], "REST", err)
+			if !result[i].Pair.Equal(c.Pair) {
+				continue
+			}
+			m.PrintFundingRateSummary(&result[i], "REST", b.Features.Supports.RESTCapabilities.PredictedFundingRate, err)
 		}
 		updateErr := m.update(c, SyncItemFundingRate, err)
 		if updateErr != nil {
@@ -675,9 +688,12 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 
 		if e.SupportsRESTTickerBatchUpdates() {
 			m.mux.Lock()
-			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()]
+			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()][c.AssetType]
 			if !ok {
-				m.tickerBatchLastRequested[exchangeName] = time.Time{}
+				if _, ok = m.tickerBatchLastRequested[exchangeName]; !ok {
+					m.tickerBatchLastRequested[exchangeName] = make(map[asset.Item]time.Time)
+				}
+				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Time{}
 			}
 			m.mux.Unlock()
 
@@ -690,7 +706,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if err == nil {
 					result, err = e.FetchTicker(context.TODO(), c.Pair, c.AssetType)
 				}
-				m.tickerBatchLastRequested[exchangeName] = time.Now()
+				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Now()
 				m.mux.Unlock()
 			} else {
 				if m.config.Verbose {
@@ -816,7 +832,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 	)
 }
 
-func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResponse, protocol string, err error) {
+func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResponse, protocol string, hasPredicted bool, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -836,15 +852,27 @@ func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResp
 		return
 	}
 
-	log.Infof(log.SyncMgr, "%s %s %s %s FUNDINGRATE: CURRENT: $%v from %v PREDICTED: $%v from %v",
-		result.Exchange,
-		protocol,
-		m.FormatCurrency(result.Pair),
-		strings.ToUpper(result.Asset.String()),
-		result.LatestRate.Rate,
-		result.LatestRate.Time,
-		result.PredictedUpcomingRate.Rate,
-		result.PredictedUpcomingRate.Time)
+	msg := "%s %s %s %s FUNDINGRATE: CURRENT: $%v from %v"
+	if !hasPredicted {
+		log.Infof(log.SyncMgr, msg,
+			result.Exchange,
+			protocol,
+			m.FormatCurrency(result.Pair),
+			strings.ToUpper(result.Asset.String()),
+			result.LatestRate.Rate,
+			result.LatestRate.Time)
+	} else {
+		msg += " PREDICTED: $%v from %v"
+		log.Infof(log.SyncMgr, msg,
+			result.Exchange,
+			protocol,
+			m.FormatCurrency(result.Pair),
+			strings.ToUpper(result.Asset.String()),
+			result.LatestRate.Rate,
+			result.LatestRate.Time,
+			result.PredictedUpcomingRate.Rate,
+			result.PredictedUpcomingRate.Time)
+	}
 }
 
 // PrintTickerSummary outputs the ticker results

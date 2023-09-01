@@ -3258,19 +3258,19 @@ func TestGetFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(ok) {
 		r.IncludePayments = true
 	}
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if err != nil {
 		t.Error(err)
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
 		t.Error(err)
 	}
 
 	r.RespectHistoryLimits = true
-	_, err = ok.GetFundingRates(contextGenerate(), r)
+	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
 	if err != nil {
 		t.Error(err)
 	}

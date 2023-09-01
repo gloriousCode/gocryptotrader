@@ -105,6 +105,8 @@ func (ok *Okx) SetDefaults() {
 				DepositHistory:        true,
 				WithdrawalHistory:     true,
 				ModifyOrder:           true,
+				FundingRateFetching:   true,
+				PredictedFundingRate:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -1554,7 +1556,7 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
-// GetLatestFundingRate returns the latest funding rate for a given asset and currency
+// GetLatestFundingRates returns the latest funding rate for a given asset and currency
 func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1584,11 +1586,11 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 			Rate: fr.NextFundingRate.Decimal(),
 		}
 	}
-	return &pairRate, nil
+	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
 
-// GetFundingRates returns funding rates for a given asset and currency for a time period
-func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}

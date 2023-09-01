@@ -2336,6 +2336,48 @@
         ]
       }
     },
+    "/v1/getlatestfundingrates": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetLatestFundingRates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetLatestFundingRatesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "includePredicted",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getloggerdetails": {
       "get": {
         "operationId": "GoCryptoTraderService_GetLoggerDetails",
@@ -5783,6 +5825,18 @@
       "properties": {
         "rate": {
           "$ref": "#/definitions/gctrpcFundingData"
+        }
+      }
+    },
+    "gctrpcGetLatestFundingRatesResponse": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
         }
       }
     },

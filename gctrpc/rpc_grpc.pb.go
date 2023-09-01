@@ -122,6 +122,7 @@ const (
 	GoCryptoTraderService_GetAllManagedPositions_FullMethodName            = "/gctrpc.GoCryptoTraderService/GetAllManagedPositions"
 	GoCryptoTraderService_GetFundingRates_FullMethodName                   = "/gctrpc.GoCryptoTraderService/GetFundingRates"
 	GoCryptoTraderService_GetLatestFundingRate_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetLatestFundingRate"
+	GoCryptoTraderService_GetLatestFundingRates_FullMethodName             = "/gctrpc.GoCryptoTraderService/GetLatestFundingRates"
 	GoCryptoTraderService_GetOrderbookMovement_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetOrderbookMovement"
 	GoCryptoTraderService_GetOrderbookAmountByNominal_FullMethodName       = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByNominal"
 	GoCryptoTraderService_GetOrderbookAmountByImpact_FullMethodName        = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByImpact"
@@ -234,6 +235,7 @@ type GoCryptoTraderServiceClient interface {
 	GetAllManagedPositions(ctx context.Context, in *GetAllManagedPositionsRequest, opts ...grpc.CallOption) (*GetManagedPositionsResponse, error)
 	GetFundingRates(ctx context.Context, in *GetFundingRatesRequest, opts ...grpc.CallOption) (*GetFundingRatesResponse, error)
 	GetLatestFundingRate(ctx context.Context, in *GetLatestFundingRateRequest, opts ...grpc.CallOption) (*GetLatestFundingRateResponse, error)
+	GetLatestFundingRates(ctx context.Context, in *GetLatestFundingRatesRequest, opts ...grpc.CallOption) (*GetLatestFundingRatesResponse, error)
 	GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
@@ -1312,6 +1314,15 @@ func (c *goCryptoTraderServiceClient) GetLatestFundingRate(ctx context.Context, 
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetLatestFundingRates(ctx context.Context, in *GetLatestFundingRatesRequest, opts ...grpc.CallOption) (*GetLatestFundingRatesResponse, error) {
+	out := new(GetLatestFundingRatesResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetLatestFundingRates_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *goCryptoTraderServiceClient) GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error) {
 	out := new(GetOrderbookMovementResponse)
 	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetOrderbookMovement_FullMethodName, in, out, opts...)
@@ -1446,6 +1457,7 @@ type GoCryptoTraderServiceServer interface {
 	GetAllManagedPositions(context.Context, *GetAllManagedPositionsRequest) (*GetManagedPositionsResponse, error)
 	GetFundingRates(context.Context, *GetFundingRatesRequest) (*GetFundingRatesResponse, error)
 	GetLatestFundingRate(context.Context, *GetLatestFundingRateRequest) (*GetLatestFundingRateResponse, error)
+	GetLatestFundingRates(context.Context, *GetLatestFundingRatesRequest) (*GetLatestFundingRatesResponse, error)
 	GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
@@ -1764,6 +1776,9 @@ func (UnimplementedGoCryptoTraderServiceServer) GetFundingRates(context.Context,
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetLatestFundingRate(context.Context, *GetLatestFundingRateRequest) (*GetLatestFundingRateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetLatestFundingRate not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetLatestFundingRates(context.Context, *GetLatestFundingRatesRequest) (*GetLatestFundingRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetLatestFundingRates not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookMovement not implemented")
@@ -3659,6 +3674,24 @@ func _GoCryptoTraderService_GetLatestFundingRate_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetLatestFundingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLatestFundingRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetLatestFundingRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetLatestFundingRates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetLatestFundingRates(ctx, req.(*GetLatestFundingRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GoCryptoTraderService_GetOrderbookMovement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetOrderbookMovementRequest)
 	if err := dec(in); err != nil {
@@ -4107,6 +4140,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLatestFundingRate",
 			Handler:    _GoCryptoTraderService_GetLatestFundingRate_Handler,
+		},
+		{
+			MethodName: "GetLatestFundingRates",
+			Handler:    _GoCryptoTraderService_GetLatestFundingRates_Handler,
 		},
 		{
 			MethodName: "GetOrderbookMovement",

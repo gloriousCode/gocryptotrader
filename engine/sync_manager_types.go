@@ -49,8 +49,8 @@ type SyncManager struct {
 	inService                      sync.WaitGroup
 
 	currencyPairs                 map[currencyPairKey]*currencyPairSyncAgent
-	tickerBatchLastRequested      map[string]time.Time
-	fundingRateBatchLastRequested map[string]time.Time
+	tickerBatchLastRequested      map[string]map[asset.Item]time.Time
+	fundingRateBatchLastRequested map[string]map[asset.Item]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
 	config          config.SyncManagerConfig
