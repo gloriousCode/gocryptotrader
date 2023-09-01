@@ -96,7 +96,7 @@ func TestSyncManagerStart(t *testing.T) {
 
 func TestSyncManagerStop(t *testing.T) {
 	t.Parallel()
-	var m *syncManager
+	var m *SyncManager
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
@@ -150,7 +150,7 @@ func TestPrintConvertCurrencyFormat(t *testing.T) {
 
 func TestPrintTickerSummary(t *testing.T) {
 	t.Parallel()
-	var m *syncManager
+	var m *SyncManager
 	m.PrintTickerSummary(&ticker.Price{}, "REST", nil)
 
 	em := NewExchangeManager()
@@ -192,7 +192,7 @@ func TestPrintTickerSummary(t *testing.T) {
 
 func TestPrintOrderbookSummary(t *testing.T) {
 	t.Parallel()
-	var m *syncManager
+	var m *SyncManager
 	m.PrintOrderbookSummary(nil, "REST", nil)
 
 	em := NewExchangeManager()
@@ -242,13 +242,13 @@ func TestRelayWebsocketEvent(t *testing.T) {
 }
 
 func TestWaitForInitialSync(t *testing.T) {
-	var m *syncManager
+	var m *SyncManager
 	err := m.WaitForInitialSync()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
 	}
 
-	m = &syncManager{}
+	m = &SyncManager{}
 	err = m.WaitForInitialSync()
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)
@@ -263,13 +263,13 @@ func TestWaitForInitialSync(t *testing.T) {
 
 func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	t.Parallel()
-	var m *syncManager
+	var m *SyncManager
 	err := m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Fatalf("received %v, but expected: %v", err, ErrNilSubsystem)
 	}
 
-	m = &syncManager{}
+	m = &SyncManager{}
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received %v, but expected: %v", err, ErrSubSystemNotStarted)

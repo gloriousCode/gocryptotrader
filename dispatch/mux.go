@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	errMuxIsNil = errors.New("mux is nil")
+	// ErrMuxIsNil is returned when the mux is nil
+	ErrMuxIsNil = errors.New("mux is nil")
+
 	errIDNotSet = errors.New("id not set")
 	errNoData   = errors.New("data payload is nil")
 	errNoIDs    = errors.New("no IDs to publish data to")
@@ -27,7 +29,7 @@ func GetNewMux(d *Dispatcher) *Mux {
 // and returns the associated pipe
 func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 	if m == nil {
-		return Pipe{}, errMuxIsNil
+		return Pipe{}, ErrMuxIsNil
 	}
 
 	if id.IsNil() {
@@ -45,7 +47,7 @@ func (m *Mux) Subscribe(id uuid.UUID) (Pipe, error) {
 // Unsubscribe returns channel to the pool for the full signature set
 func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 	if m == nil {
-		return errMuxIsNil
+		return ErrMuxIsNil
 	}
 	return m.d.unsubscribe(id, ch)
 }
@@ -54,7 +56,7 @@ func (m *Mux) Unsubscribe(id uuid.UUID, ch chan interface{}) error {
 // required pipes.
 func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
 	if m == nil {
-		return errMuxIsNil
+		return ErrMuxIsNil
 	}
 
 	if data == nil {
@@ -80,7 +82,7 @@ func (m *Mux) Publish(data interface{}, ids ...uuid.UUID) error {
 // GetID a new unique ID to track routing information in the dispatch system
 func (m *Mux) GetID() (uuid.UUID, error) {
 	if m == nil {
-		return uuid.UUID{}, errMuxIsNil
+		return uuid.UUID{}, ErrMuxIsNil
 	}
 	return m.d.getNewID(uuid.NewV4)
 }

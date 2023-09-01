@@ -36,7 +36,7 @@ type Engine struct {
 	apiServer               *apiServerManager
 	CommunicationsManager   *CommunicationManager
 	connectionManager       *connectionManager
-	currencyPairSyncer      *syncManager
+	currencyPairSyncer      *SyncManager
 	DatabaseManager         *DatabaseConnectionManager
 	DepositAddressManager   *DepositAddressManager
 	eventManager            *eventManager

@@ -157,10 +157,14 @@ type SyncManagerConfig struct {
 	LogInitialSyncEvents    bool `json:"logInitialSyncEvents"`
 }
 
+// SyncJob allows for finer-grained control over synchronising data
 type SyncJob struct {
-	EnableSync       bool          `json:"enableSync"`
-	TimeoutREST      time.Duration `json:"timeoutREST"`
-	TimeoutWebsocket time.Duration `json:"timeoutWebsocket"`
+	EnableSync bool `json:"enableSync"`
+	// EnableWebsocketSync allows a sync job to ignore websocket updates
+	// and only go via REST, useful for jobs that don't yet have websocket support
+	EnableWebsocketSync bool          `json:"enableWebsocketSync"`
+	TimeoutREST         time.Duration `json:"timeoutREST"`
+	TimeoutWebsocket    time.Duration `json:"timeoutWebsocket"`
 }
 
 // ConnectionMonitorConfig defines the connection monitor variables to ensure

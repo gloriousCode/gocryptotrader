@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -23,7 +24,6 @@ var (
 	errInvalidFundingRate   = errors.New("invalid funding rate")
 	errFundingRateTimeUnset = errors.New("funding rate time unset")
 	errFundingRateNotFound  = errors.New("funding rate not found")
-	errExchangeNameIsEmpty  = errors.New("exchange name is empty")
 )
 
 var (
@@ -37,6 +37,10 @@ type Service struct {
 	Exchange     map[string]uuid.UUID
 	mux          *dispatch.Mux
 	mu           sync.Mutex
+	// alerter is used to alert other systems of a funding rate change
+	// it is used to alert when any funding rate is changed rather than
+	// an individual funding rate subscription
+	alerter alert.Notice
 }
 
 // LatestRateWithDispatchIDs struct holds the fundingRate information for a currency pair and type
