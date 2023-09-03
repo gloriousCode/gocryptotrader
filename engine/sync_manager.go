@@ -644,7 +644,7 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 			if !result[i].Pair.Equal(c.Pair) {
 				continue
 			}
-			m.PrintFundingRateSummary(&result[i], "REST", b.Features.Supports.RESTCapabilities.PredictedFundingRate, err)
+			m.PrintFundingRateSummary(&result[i], "REST", err)
 		}
 		updateErr := m.update(c, SyncItemFundingRate, err)
 		if updateErr != nil {
@@ -832,7 +832,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 	)
 }
 
-func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResponse, protocol string, hasPredicted bool, err error) {
+func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResponse, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -852,12 +852,12 @@ func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResp
 		return
 	}
 
-	msg := "%s %s %s %s FUNDINGRATE: CURRENT: $%v from %v"
-	if !hasPredicted {
+	msg := "%s %s %s %s %s FUNDINGRATE: CURRENT: $%v from %v"
+	if result.PredictedUpcomingRate.Time.IsZero() {
 		log.Infof(log.SyncMgr, msg,
 			result.Exchange,
 			protocol,
-			m.FormatCurrency(result.Pair),
+			result.Pair.Format(m.format),
 			strings.ToUpper(result.Asset.String()),
 			result.LatestRate.Rate,
 			result.LatestRate.Time)
@@ -866,7 +866,7 @@ func (m *SyncManager) PrintFundingRateSummary(result *fundingrate.LatestRateResp
 		log.Infof(log.SyncMgr, msg,
 			result.Exchange,
 			protocol,
-			m.FormatCurrency(result.Pair),
+			result.Pair.Format(m.format),
 			strings.ToUpper(result.Asset.String()),
 			result.LatestRate.Rate,
 			result.LatestRate.Time,

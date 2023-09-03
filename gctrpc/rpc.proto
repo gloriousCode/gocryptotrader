@@ -1227,6 +1227,19 @@ message GetLatestFundingRatesResponse {
   repeated FundingData rate = 1;
 }
 
+message GetFundingRateStreamRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+}
+
+message GetExchangeFundingRateStreamRequest {
+  string exchange = 1;
+}
+
+message GetAllFundingRatesRequest {}
+
+
 message ShutdownRequest {}
 
 message ShutdownResponse {}

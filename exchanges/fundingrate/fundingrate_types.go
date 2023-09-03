@@ -97,6 +97,7 @@ type LatestRateResponse struct {
 	Pair                  currency.Pair
 	LatestRate            Rate
 	PredictedUpcomingRate Rate
+	TimeRequested         time.Time
 	TimeOfNextRate        time.Time
 }
 

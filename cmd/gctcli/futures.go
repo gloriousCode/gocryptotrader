@@ -212,7 +212,7 @@ var futuresCommands = &cli.Command{
 			},
 		},
 		{
-			Name:      "getfundingrates",
+			Name:      "gethistoricalfundingrates",
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
 			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
@@ -298,7 +298,204 @@ var futuresCommands = &cli.Command{
 				},
 			},
 		},
+		{
+			Name:      "getfundingratestream",
+			Usage:     "gets the funding rate stream for a specific currency pair and exchange",
+			ArgsUsage: "<exchange> <pair> <asset>",
+			Action:    getFundingRateStream,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "currency pair",
+				},
+			},
+		},
+		{
+			Name:      "getexchangefundingratestream",
+			Usage:     "gets the funding rates for an exchange",
+			ArgsUsage: "<exchange>",
+			Action:    getExchangeFundingRateStream,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve futures positions from",
+				},
+			},
+		},
+		{
+			Name:      "getallfundingrates",
+			Usage:     "returns all tracked funding rates",
+			ArgsUsage: "",
+			Action:    getAllFundingRates,
+		},
 	},
+}
+
+func getFundingRateStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchangeName string
+	var pair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetFundingRateStream(c.Context,
+		&gctrpc.GetFundingRateStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
+			},
+			AssetType: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Funding rate stream for %s %s:\n\n", exchangeName, resp.Pair)
+		if resp.Error != "" {
+			fmt.Printf("%s\n", resp.Error)
+			continue
+		}
+
+		fmt.Println("\t\tBids\t\t\t\tAsks")
+		fmt.Println()
+
+	}
+}
+
+func getExchangeFundingRateStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetExchangeFundingRateStream(c.Context,
+		&gctrpc.GetExchangeFundingRateStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		resp, err := result.Recv()
+		if err != nil {
+			return err
+		}
+
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Funding rate streamed for %s %s", exchangeName, resp.Pair)
+		if resp.Error != "" {
+			fmt.Printf("%s\n", resp.Error)
+		}
+		for i := range resp {
+			fmt.Printf("Funding rate: %f\n", resp[i].FundingRate)
+		}
+	}
+}
+
+func getAllFundingRates(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetManagedPosition(c.Context,
+		&gctrpc.GetAllFundingRatesRequest{})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
 }
 
 func getManagedPosition(c *cli.Context) error {
