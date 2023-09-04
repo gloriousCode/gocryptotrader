@@ -185,6 +185,7 @@ type FuturesCapabilities struct {
 	Collateral                   bool
 	CollateralMode               bool
 	Leverage                     bool
+	FundingRateBatching          map[asset.Item]bool
 }
 
 // Endpoints stores running url endpoints for exchanges

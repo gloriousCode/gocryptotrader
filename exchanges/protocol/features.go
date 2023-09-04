@@ -34,7 +34,6 @@ type Features struct {
 	DeadMansSwitch       bool `json:"deadMansSwitch,omitempty"`
 	FundingRateFetching  bool `json:"fundingRateFetching"`
 	PredictedFundingRate bool `json:"predictedFundingRate,omitempty"`
-	FundingRateBatching  bool `json:"fundingRateBatching,omitempty"`
 	// FullPayloadSubscribe flushes and changes full subscription on websocket
 	// connection by subscribing with full default stream channel list
 	FullPayloadSubscribe              bool `json:"fullPayloadSubscribe,omitempty"`

@@ -147,7 +147,6 @@ func (b *Binance) SetDefaults() {
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
 				FundingRateFetching:            true,
-				FundingRateBatching:            true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -171,6 +170,9 @@ func (b *Binance) SetDefaults() {
 			FuturesCapabilities: exchange.FuturesCapabilities{
 				FundingRates:         true,
 				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.USDTMarginedFutures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{

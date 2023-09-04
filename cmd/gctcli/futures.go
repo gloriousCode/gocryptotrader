@@ -1078,6 +1078,7 @@ func getFundingRateStream(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("Result returned at ", time.Now().Truncate(time.Second))
 		renderFundingRateTable(fmt.Sprintf("Funding Rates for %v %v %v %v", resp.Rate.Exchange, resp.Rate.Asset, resp.Rate.Pair.Base+resp.Rate.Pair.Delimiter+resp.Rate.Pair.Quote), []*gctrpc.FundingData{resp.Rate})
 	}
 }
@@ -1123,6 +1124,7 @@ func getExchangeFundingRateStream(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("Result returned at ", time.Now().Truncate(time.Second))
 		renderFundingRateTable("Funding Rates for "+resp.Exchange, resp.Rate)
 	}
 }
@@ -1175,6 +1177,7 @@ func getAllFundingRatesStream(c *cli.Context) error {
 	}
 
 	var resp *gctrpc.GetAllFundingRatesStreamResponse
+	timeDelay := time.Duration(delay) * time.Second
 	for {
 		resp, err = result.Recv()
 		if err != nil {
@@ -1187,6 +1190,9 @@ func getAllFundingRatesStream(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
+		tt := time.Now().Round(time.Second)
+		fmt.Println("Result returned at ", tt)
+		fmt.Println("Next update expected at", tt.Add(timeDelay))
 		renderFundingRateTable("All Managed Funding Rates Stream", resp.Rate)
 	}
 }

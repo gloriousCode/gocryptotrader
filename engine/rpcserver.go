@@ -4830,20 +4830,20 @@ func (s *RPCServer) GetLatestFundingRates(ctx context.Context, r *gctrpc.GetLate
 		return nil, err
 	}
 
-	b := exch.GetBase()
-	if !b.Features.Supports.RESTCapabilities.FundingRateBatching {
-		if b.Features.Supports.RESTCapabilities.FundingRateFetching {
-			return nil, fmt.Errorf("%w use command GetLatestFundingRate", common.ErrFunctionNotSupported)
-		}
-		return nil, fmt.Errorf("%w for %v %v", common.ErrFunctionNotSupported, r.Exchange, r.Asset)
-	}
-
 	a, err := asset.New(r.Asset)
 	if err != nil {
 		return nil, err
 	}
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
+	}
+
+	b := exch.GetBase()
+	if _, ok := b.Features.Supports.FuturesCapabilities.FundingRateBatching[a]; !ok {
+		if b.Features.Supports.RESTCapabilities.FundingRateFetching {
+			return nil, fmt.Errorf("%w use command GetLatestFundingRate", common.ErrFunctionNotSupported)
+		}
+		return nil, fmt.Errorf("%w for %v %v", common.ErrFunctionNotSupported, r.Exchange, r.Asset)
 	}
 
 	fundingRates, err := exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
@@ -5783,10 +5783,14 @@ func generateRPCFundingRate(fundingRate *fundingrate.LatestRateResponse) *gctrpc
 	return resp
 }
 
+// sortFundingRates is a more complex sort by exchange, asset, pair
 func sortFundingRates(input []fundingrate.LatestRateResponse) {
 	sort.Slice(input, func(i, j int) bool {
 		if input[i].Exchange != input[j].Exchange {
 			return input[i].Exchange < input[j].Exchange
+		}
+		if input[i].Asset.String() != input[j].Asset.String() {
+			return input[i].Asset.String() < input[j].Asset.String()
 		}
 		return input[i].Pair.String() < input[j].Pair.String()
 	})
@@ -5871,6 +5875,9 @@ func (s *RPCServer) GetAllFundingRates(_ context.Context, _ *gctrpc.GetAllFundin
 
 // GetAllFundingRatesStream returns all funding rates at set intervals
 func (s *RPCServer) GetAllFundingRatesStream(r *gctrpc.GetAllFundingRatesStreamRequest, stream gctrpc.GoCryptoTraderService_GetAllFundingRatesStreamServer) error {
+	if r.Delay <= 0 {
+		r.Delay = 5
+	}
 	rates := fundingrate.GetAllFundingRates()
 	sortFundingRates(rates)
 
@@ -5881,7 +5888,8 @@ func (s *RPCServer) GetAllFundingRatesStream(r *gctrpc.GetAllFundingRatesStreamR
 		resp.Rate[i] = generateRPCFundingRate(&rates[i])
 	}
 	for {
-		fundingrate.GetAllFundingRates()
+		rates = fundingrate.GetAllFundingRates()
+		sortFundingRates(rates)
 		resp = &gctrpc.GetAllFundingRatesStreamResponse{
 			Rate: make([]*gctrpc.FundingData, len(rates)),
 		}

@@ -605,7 +605,7 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 		var err error
 		b := e.GetBase()
 
-		if b.Features.Supports.RESTCapabilities.FundingRateBatching {
+		if _, ok := b.Features.Supports.FuturesCapabilities.FundingRateBatching[c.AssetType]; ok {
 			m.mux.Lock()
 			batchLastDone, ok := m.fundingRateBatchLastRequested[exchangeName][c.AssetType]
 			if !ok {
