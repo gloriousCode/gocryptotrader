@@ -184,13 +184,21 @@ func (s *Service) processFundingRate(p *LatestRateResponse) error {
 		s.mu.Unlock()
 		return nil
 	}
-
+	if p.TimeChecked.IsZero() {
+		// used to help a trader know when the funding rate was last checked
+		p.TimeChecked = time.Now()
+	}
 	t.LatestRateResponse = *p
 	//nolint: gocritic // combining lists into a new one isn't a crime
 	ids := append(t.Assoc, t.Main)
 	s.mu.Unlock()
 	s.alerter.Alert()
 	return s.mux.Publish(p, ids...)
+}
+
+// GetAllFundingRates returns all stored funding rates
+func GetAllFundingRates() []LatestRateResponse {
+	return service.getAllRates()
 }
 
 // ReturnAllRatesOnUpdate helper func which returns all rates on an update
@@ -229,6 +237,31 @@ func (s *Service) getAllRates() []LatestRateResponse {
 		}
 	}
 	return rates
+}
+
+// GetFundingRatesForExchange returns all fundingRates for a given exchange
+func GetFundingRatesForExchange(exch string) ([]LatestRateResponse, error) {
+	return service.getAllRatesForExchange(exch)
+}
+
+// getAllRates returns all fundingRates
+func (s *Service) getAllRatesForExchange(exch string) ([]LatestRateResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var rates []LatestRateResponse
+	exch = strings.ToLower(exch)
+	exchangeRates, ok := s.FundingRates[exch]
+	if !ok {
+		return nil, fmt.Errorf("%w for %s exchange", errFundingRateNotFound, exch)
+	}
+	for _, baseMap := range exchangeRates {
+		for _, quoteMap := range baseMap {
+			for _, rate := range quoteMap {
+				rates = append(rates, rate.LatestRateResponse)
+			}
+		}
+	}
+	return rates, nil
 }
 
 // setItemID retrieves and sets dispatch mux publish IDs

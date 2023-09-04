@@ -5687,3 +5687,212 @@ func (s *RPCServer) GetOrderbookAmountByImpact(_ context.Context, r *gctrpc.GetO
 		AverageOrderCost:                    impact.AverageOrderCost,
 	}, nil
 }
+
+// GetFundingRateStream streams the requested funding rate
+func (s *RPCServer) GetFundingRateStream(r *gctrpc.GetFundingRateStreamRequest, stream gctrpc.GoCryptoTraderService_GetFundingRateStreamServer) error {
+	a, err := asset.New(r.Asset)
+	if err != nil {
+		return err
+	}
+
+	if !a.IsFutures() {
+		return futures.ErrNotFuturesAsset
+	}
+	p := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
+
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	err = checkParams(r.Exchange, exch, a, p)
+	if err != nil {
+		return err
+	}
+
+	// stream the current stored rate without waiting for a dispatch update
+	fr, err := fundingrate.GetFundingRate(r.Exchange, p, a)
+	if err != nil {
+		return err
+	}
+
+	resp := &gctrpc.GetFundingRateStreamResponse{
+		Rate: generateRPCFundingRate(fr),
+	}
+	err = stream.Send(resp)
+	if err != nil {
+		return err
+	}
+
+	pipe, err := fundingrate.SubscribeFundingRate(r.Exchange, p, a)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		pipeErr := pipe.Release()
+		if pipeErr != nil {
+			log.Errorln(log.DispatchMgr, pipeErr)
+		}
+	}()
+
+	for {
+		data, ok := <-pipe.Channel()
+		if !ok {
+			return errDispatchSystem
+		}
+
+		fundingRate, ok := data.(*fundingrate.LatestRateResponse)
+		if !ok {
+			return common.GetTypeAssertError("*fundingrate.LatestRateResponse", data)
+		}
+		resp.Rate = generateRPCFundingRate(fundingRate)
+		err = stream.Send(resp)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func generateRPCFundingRate(fundingRate *fundingrate.LatestRateResponse) *gctrpc.FundingData {
+	resp := &gctrpc.FundingData{
+		Exchange: fundingRate.Exchange,
+		Asset:    fundingRate.Asset.String(),
+		Pair: &gctrpc.CurrencyPair{
+			Base:      fundingRate.Pair.Base.String(),
+			Quote:     fundingRate.Pair.Quote.String(),
+			Delimiter: currency.DashDelimiter,
+		},
+		LatestRate: &gctrpc.FundingRate{
+			Date: fundingRate.LatestRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate: fundingRate.LatestRate.Rate.String(),
+		},
+		TimeOfNextRate: fundingRate.TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone),
+		LastChecked:    fundingRate.TimeChecked.Format(common.SimpleTimeFormatWithTimezone),
+	}
+	if !fundingRate.PredictedUpcomingRate.Time.IsZero() {
+		resp.UpcomingRate = &gctrpc.FundingRate{
+			Date: fundingRate.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate: fundingRate.PredictedUpcomingRate.Rate.String(),
+		}
+	}
+	return resp
+}
+
+func sortFundingRates(input []fundingrate.LatestRateResponse) {
+	sort.Slice(input, func(i, j int) bool {
+		if input[i].Exchange != input[j].Exchange {
+			return input[i].Exchange < input[j].Exchange
+		}
+		return input[i].Pair.String() < input[j].Pair.String()
+	})
+}
+
+// GetExchangeFundingRateStream streams the all exchange funding rates
+func (s *RPCServer) GetExchangeFundingRateStream(r *gctrpc.GetExchangeFundingRateStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeFundingRateStreamServer) error {
+	_, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	// stream the current stored rates without waiting for a dispatch update
+	resp, err := getExchangeFundingRates(r.Exchange)
+	if err != nil {
+		return err
+	}
+	err = stream.Send(resp)
+	if err != nil {
+		return err
+	}
+
+	pipe, err := fundingrate.SubscribeToExchangeFundingRates(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		pipeErr := pipe.Release()
+		if pipeErr != nil {
+			log.Errorln(log.DispatchMgr, pipeErr)
+		}
+	}()
+
+	for {
+		// pipe updates with an individual rate,
+		// we wish to return all related rates per update
+		_, ok := <-pipe.Channel()
+		if !ok {
+			return errDispatchSystem
+		}
+		resp, err = getExchangeFundingRates(r.Exchange)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(resp)
+		if err != nil {
+			return err
+		}
+	}
+}
+
+func getExchangeFundingRates(exch string) (*gctrpc.GetExchangeFundingRateStreamResponse, error) {
+	rates, err := fundingrate.GetFundingRatesForExchange(exch)
+	if err != nil {
+		return nil, err
+	}
+	sortFundingRates(rates)
+	resp := &gctrpc.GetExchangeFundingRateStreamResponse{
+		Exchange: exch,
+		Rate:     make([]*gctrpc.FundingData, len(rates)),
+	}
+	for i := range rates {
+		resp.Rate[i] = generateRPCFundingRate(&rates[i])
+	}
+	return resp, nil
+}
+
+// GetAllFundingRates returns all the funding rates that are tracked
+func (s *RPCServer) GetAllFundingRates(_ context.Context, _ *gctrpc.GetAllFundingRatesRequest) (*gctrpc.GetAllFundingRatesResponse, error) {
+	rates := fundingrate.GetAllFundingRates()
+	sortFundingRates(rates)
+	resp := &gctrpc.GetAllFundingRatesResponse{
+		Rate: make([]*gctrpc.FundingData, len(rates)),
+	}
+
+	for i := range rates {
+		resp.Rate[i] = generateRPCFundingRate(&rates[i])
+	}
+	return resp, nil
+}
+
+// GetAllFundingRatesStream returns all funding rates at set intervals
+func (s *RPCServer) GetAllFundingRatesStream(r *gctrpc.GetAllFundingRatesStreamRequest, stream gctrpc.GoCryptoTraderService_GetAllFundingRatesStreamServer) error {
+	rates := fundingrate.GetAllFundingRates()
+	sortFundingRates(rates)
+
+	resp := &gctrpc.GetAllFundingRatesStreamResponse{
+		Rate: make([]*gctrpc.FundingData, len(rates)),
+	}
+	for i := range rates {
+		resp.Rate[i] = generateRPCFundingRate(&rates[i])
+	}
+	for {
+		fundingrate.GetAllFundingRates()
+		resp = &gctrpc.GetAllFundingRatesStreamResponse{
+			Rate: make([]*gctrpc.FundingData, len(rates)),
+		}
+		for i := range rates {
+			resp.Rate[i] = generateRPCFundingRate(&rates[i])
+		}
+		err := stream.Send(resp)
+		if err != nil {
+			return err
+		}
+		// all funding rates update quite frequently, easier to batch
+		time.Sleep(time.Duration(r.Delay) * time.Second)
+	}
+}

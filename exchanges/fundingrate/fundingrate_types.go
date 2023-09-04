@@ -46,8 +46,9 @@ type Service struct {
 // LatestRateWithDispatchIDs struct holds the fundingRate information for a currency pair and type
 type LatestRateWithDispatchIDs struct {
 	LatestRateResponse
-	Main  uuid.UUID
-	Assoc []uuid.UUID
+	LastChecked time.Time
+	Main        uuid.UUID
+	Assoc       []uuid.UUID
 }
 
 // HistoricalRatesRequest is used to request funding rate details for a position
@@ -97,8 +98,8 @@ type LatestRateResponse struct {
 	Pair                  currency.Pair
 	LatestRate            Rate
 	PredictedUpcomingRate Rate
-	TimeRequested         time.Time
 	TimeOfNextRate        time.Time
+	TimeChecked           time.Time
 }
 
 // Rate holds details for an individual funding rate

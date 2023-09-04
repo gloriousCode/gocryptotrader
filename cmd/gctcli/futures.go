@@ -3,10 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -216,7 +218,7 @@ var futuresCommands = &cli.Command{
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
 			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
-			Action:    getFundingRates,
+			Action:    getHistoricalFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "exchange",
@@ -300,7 +302,7 @@ var futuresCommands = &cli.Command{
 		},
 		{
 			Name:      "getfundingratestream",
-			Usage:     "gets the funding rate stream for a specific currency pair and exchange",
+			Usage:     "streams the funding rates of a specific currency pair and exchange and updates",
 			ArgsUsage: "<exchange> <pair> <asset>",
 			Action:    getFundingRateStream,
 			Flags: []cli.Flag{
@@ -323,7 +325,7 @@ var futuresCommands = &cli.Command{
 		},
 		{
 			Name:      "getexchangefundingratestream",
-			Usage:     "gets the funding rates for an exchange",
+			Usage:     "streams the funding rates for an exchange and updates",
 			ArgsUsage: "<exchange>",
 			Action:    getExchangeFundingRateStream,
 			Flags: []cli.Flag{
@@ -340,162 +342,20 @@ var futuresCommands = &cli.Command{
 			ArgsUsage: "",
 			Action:    getAllFundingRates,
 		},
-	},
-}
-
-func getFundingRateStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	var exchangeName string
-	var pair string
-	var assetType string
-
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
-	}
-
-	if !validPair(pair) {
-		return errInvalidPair
-	}
-
-	if c.IsSet("asset") {
-		assetType = c.String("asset")
-	} else {
-		assetType = c.Args().Get(2)
-	}
-
-	assetType = strings.ToLower(assetType)
-
-	if !validAsset(assetType) {
-		return errInvalidAsset
-	}
-
-	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
-	if err != nil {
-		return err
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetFundingRateStream(c.Context,
-		&gctrpc.GetFundingRateStreamRequest{
-			Exchange: exchangeName,
-			Pair: &gctrpc.CurrencyPair{
-				Base:      p.Base.String(),
-				Quote:     p.Quote.String(),
-				Delimiter: p.Delimiter,
+		{
+			Name:      "getallfundingratesstream",
+			Usage:     "streams all tracked funding rates and updates at set intervals",
+			ArgsUsage: "<delay>",
+			Action:    getAllFundingRatesStream,
+			Flags: []cli.Flag{
+				&cli.Int64Flag{
+					Name:    "delay",
+					Aliases: []string{"d"},
+					Usage:   "the delay between updates in seconds. Default 5",
+				},
 			},
-			AssetType: assetType,
 		},
-	)
-
-	if err != nil {
-		return err
-	}
-
-	for {
-		resp, err := result.Recv()
-		if err != nil {
-			return err
-		}
-
-		err = clearScreen()
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Funding rate stream for %s %s:\n\n", exchangeName, resp.Pair)
-		if resp.Error != "" {
-			fmt.Printf("%s\n", resp.Error)
-			continue
-		}
-
-		fmt.Println("\t\tBids\t\t\t\tAsks")
-		fmt.Println()
-
-	}
-}
-
-func getExchangeFundingRateStream(c *cli.Context) error {
-	if c.NArg() == 0 && c.NumFlags() == 0 {
-		return cli.ShowSubcommandHelp(c)
-	}
-
-	var exchangeName string
-	if c.IsSet("exchange") {
-		exchangeName = c.String("exchange")
-	} else {
-		exchangeName = c.Args().First()
-	}
-
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetExchangeFundingRateStream(c.Context,
-		&gctrpc.GetExchangeFundingRateStreamRequest{
-			Exchange: exchangeName,
-		})
-
-	if err != nil {
-		return err
-	}
-
-	for {
-		resp, err := result.Recv()
-		if err != nil {
-			return err
-		}
-
-		err = clearScreen()
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Funding rate streamed for %s %s", exchangeName, resp.Pair)
-		if resp.Error != "" {
-			fmt.Printf("%s\n", resp.Error)
-		}
-		for i := range resp {
-			fmt.Printf("Funding rate: %f\n", resp[i].FundingRate)
-		}
-	}
-}
-
-func getAllFundingRates(c *cli.Context) error {
-	conn, cancel, err := setupClient(c)
-	if err != nil {
-		return err
-	}
-	defer closeConn(conn, cancel)
-
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetManagedPosition(c.Context,
-		&gctrpc.GetAllFundingRatesRequest{})
-	if err != nil {
-		return err
-	}
-
-	jsonOutput(result)
-	return nil
+	},
 }
 
 func getManagedPosition(c *cli.Context) error {
@@ -941,7 +801,7 @@ func getCollateral(c *cli.Context) error {
 	return nil
 }
 
-func getFundingRates(c *cli.Context) error {
+func getHistoricalFundingRates(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -1138,4 +998,232 @@ func getLatestFundingRate(c *cli.Context) error {
 
 	jsonOutput(result)
 	return nil
+}
+
+func getFundingRateStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchangeName string
+	var pair string
+	var assetType string
+
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("pair") {
+		pair = c.String("pair")
+	} else {
+		pair = c.Args().Get(1)
+	}
+
+	if !validPair(pair) {
+		return errInvalidPair
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(2)
+	}
+
+	assetType = strings.ToLower(assetType)
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	p, err := currency.NewPairDelimiter(pair, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetFundingRateStream(c.Context,
+		&gctrpc.GetFundingRateStreamRequest{
+			Exchange: exchangeName,
+			Pair: &gctrpc.CurrencyPair{
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+				Delimiter: p.Delimiter,
+			},
+			Asset: assetType,
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	var resp *gctrpc.GetFundingRateStreamResponse
+	for {
+		resp, err = result.Recv()
+		if err != nil {
+			return err
+		}
+		if resp == nil {
+			continue
+		}
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+		renderFundingRateTable(fmt.Sprintf("Funding Rates for %v %v %v %v", resp.Rate.Exchange, resp.Rate.Asset, resp.Rate.Pair.Base+resp.Rate.Pair.Delimiter+resp.Rate.Pair.Quote), []*gctrpc.FundingData{resp.Rate})
+	}
+}
+
+func getExchangeFundingRateStream(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetExchangeFundingRateStream(c.Context,
+		&gctrpc.GetExchangeFundingRateStreamRequest{
+			Exchange: exchangeName,
+		})
+
+	if err != nil {
+		return err
+	}
+
+	var resp *gctrpc.GetExchangeFundingRateStreamResponse
+	for {
+		resp, err = result.Recv()
+		if err != nil {
+			return err
+		}
+		if resp == nil {
+			continue
+		}
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+		renderFundingRateTable("Funding Rates for "+resp.Exchange, resp.Rate)
+	}
+}
+
+func getAllFundingRates(c *cli.Context) error {
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	resp, err := client.GetAllFundingRates(c.Context, &gctrpc.GetAllFundingRatesRequest{})
+	if err != nil {
+		return err
+	}
+
+	renderFundingRateTable("All Funding Rates", resp.Rate)
+	return nil
+}
+
+func getAllFundingRatesStream(c *cli.Context) error {
+	var delay int64
+	var err error
+	if c.IsSet("delay") {
+		delay = c.Int64("delay")
+	} else {
+		if c.Args().First() != "" {
+			delay, err = strconv.ParseInt(c.Args().First(), 10, 64)
+			if err != nil {
+				return err
+			}
+		} else {
+			delay = 5
+		}
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetAllFundingRatesStream(c.Context, &gctrpc.GetAllFundingRatesStreamRequest{
+		Delay: delay,
+	})
+	if err != nil {
+		return err
+	}
+
+	var resp *gctrpc.GetAllFundingRatesStreamResponse
+	for {
+		resp, err = result.Recv()
+		if err != nil {
+			return err
+		}
+		if resp == nil {
+			continue
+		}
+		err = clearScreen()
+		if err != nil {
+			return err
+		}
+		renderFundingRateTable("All Managed Funding Rates Stream", resp.Rate)
+	}
+}
+
+func renderFundingRateTable(tableTitle string, resp []*gctrpc.FundingData) {
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{tableTitle})
+	t.AppendHeader(table.Row{"Exchange", "Asset", "Pair", "Rate", "Time", "Upcoming Rate", "Upcoming Rate Time", "Time of Next Update", "Time last checked"})
+	for i := range resp {
+		if resp[i].LatestRate.Rate[0] != '-' {
+			// helps align things and looks nicer
+			resp[i].LatestRate.Rate = "+" + resp[i].LatestRate.Rate
+		}
+		row := table.Row{
+			resp[i].Exchange,
+			resp[i].Asset,
+			resp[i].Pair.Base + resp[i].Pair.Delimiter + resp[i].Pair.Quote,
+			resp[i].LatestRate.Rate,
+			resp[i].LatestRate.Date,
+		}
+		if resp[i].UpcomingRate == nil {
+			row = append(row, "")
+			row = append(row, "")
+		} else {
+			if resp[i].UpcomingRate.Rate[0] != '-' {
+				resp[i].UpcomingRate.Rate = "+" + resp[i].UpcomingRate.Rate
+			}
+			row = append(row, resp[i].UpcomingRate.Rate)
+			row = append(row, resp[i].UpcomingRate.Date)
+		}
+		row = append(row,
+			resp[i].TimeOfNextRate,
+			resp[i].LastChecked,
+		)
+		t.AppendRow(row)
+		t.AppendSeparator()
+	}
+	t.Render()
 }

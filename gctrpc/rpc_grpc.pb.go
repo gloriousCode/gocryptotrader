@@ -126,6 +126,10 @@ const (
 	GoCryptoTraderService_GetOrderbookMovement_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetOrderbookMovement"
 	GoCryptoTraderService_GetOrderbookAmountByNominal_FullMethodName       = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByNominal"
 	GoCryptoTraderService_GetOrderbookAmountByImpact_FullMethodName        = "/gctrpc.GoCryptoTraderService/GetOrderbookAmountByImpact"
+	GoCryptoTraderService_GetFundingRateStream_FullMethodName              = "/gctrpc.GoCryptoTraderService/GetFundingRateStream"
+	GoCryptoTraderService_GetExchangeFundingRateStream_FullMethodName      = "/gctrpc.GoCryptoTraderService/GetExchangeFundingRateStream"
+	GoCryptoTraderService_GetAllFundingRates_FullMethodName                = "/gctrpc.GoCryptoTraderService/GetAllFundingRates"
+	GoCryptoTraderService_GetAllFundingRatesStream_FullMethodName          = "/gctrpc.GoCryptoTraderService/GetAllFundingRatesStream"
 )
 
 // GoCryptoTraderServiceClient is the client API for GoCryptoTraderService service.
@@ -239,6 +243,10 @@ type GoCryptoTraderServiceClient interface {
 	GetOrderbookMovement(ctx context.Context, in *GetOrderbookMovementRequest, opts ...grpc.CallOption) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(ctx context.Context, in *GetOrderbookAmountByNominalRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(ctx context.Context, in *GetOrderbookAmountByImpactRequest, opts ...grpc.CallOption) (*GetOrderbookAmountByImpactResponse, error)
+	GetFundingRateStream(ctx context.Context, in *GetFundingRateStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetFundingRateStreamClient, error)
+	GetExchangeFundingRateStream(ctx context.Context, in *GetExchangeFundingRateStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetExchangeFundingRateStreamClient, error)
+	GetAllFundingRates(ctx context.Context, in *GetAllFundingRatesRequest, opts ...grpc.CallOption) (*GetAllFundingRatesResponse, error)
+	GetAllFundingRatesStream(ctx context.Context, in *GetAllFundingRatesStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAllFundingRatesStreamClient, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1350,6 +1358,111 @@ func (c *goCryptoTraderServiceClient) GetOrderbookAmountByImpact(ctx context.Con
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetFundingRateStream(ctx context.Context, in *GetFundingRateStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetFundingRateStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[6], GoCryptoTraderService_GetFundingRateStream_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &goCryptoTraderServiceGetFundingRateStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GoCryptoTraderService_GetFundingRateStreamClient interface {
+	Recv() (*GetFundingRateStreamResponse, error)
+	grpc.ClientStream
+}
+
+type goCryptoTraderServiceGetFundingRateStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *goCryptoTraderServiceGetFundingRateStreamClient) Recv() (*GetFundingRateStreamResponse, error) {
+	m := new(GetFundingRateStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetExchangeFundingRateStream(ctx context.Context, in *GetExchangeFundingRateStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetExchangeFundingRateStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[7], GoCryptoTraderService_GetExchangeFundingRateStream_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &goCryptoTraderServiceGetExchangeFundingRateStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GoCryptoTraderService_GetExchangeFundingRateStreamClient interface {
+	Recv() (*GetExchangeFundingRateStreamResponse, error)
+	grpc.ClientStream
+}
+
+type goCryptoTraderServiceGetExchangeFundingRateStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *goCryptoTraderServiceGetExchangeFundingRateStreamClient) Recv() (*GetExchangeFundingRateStreamResponse, error) {
+	m := new(GetExchangeFundingRateStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetAllFundingRates(ctx context.Context, in *GetAllFundingRatesRequest, opts ...grpc.CallOption) (*GetAllFundingRatesResponse, error) {
+	out := new(GetAllFundingRatesResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetAllFundingRates_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *goCryptoTraderServiceClient) GetAllFundingRatesStream(ctx context.Context, in *GetAllFundingRatesStreamRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetAllFundingRatesStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[8], GoCryptoTraderService_GetAllFundingRatesStream_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &goCryptoTraderServiceGetAllFundingRatesStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GoCryptoTraderService_GetAllFundingRatesStreamClient interface {
+	Recv() (*GetAllFundingRatesStreamResponse, error)
+	grpc.ClientStream
+}
+
+type goCryptoTraderServiceGetAllFundingRatesStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *goCryptoTraderServiceGetAllFundingRatesStreamClient) Recv() (*GetAllFundingRatesStreamResponse, error) {
+	m := new(GetAllFundingRatesStreamResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1461,6 +1574,10 @@ type GoCryptoTraderServiceServer interface {
 	GetOrderbookMovement(context.Context, *GetOrderbookMovementRequest) (*GetOrderbookMovementResponse, error)
 	GetOrderbookAmountByNominal(context.Context, *GetOrderbookAmountByNominalRequest) (*GetOrderbookAmountByNominalResponse, error)
 	GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error)
+	GetFundingRateStream(*GetFundingRateStreamRequest, GoCryptoTraderService_GetFundingRateStreamServer) error
+	GetExchangeFundingRateStream(*GetExchangeFundingRateStreamRequest, GoCryptoTraderService_GetExchangeFundingRateStreamServer) error
+	GetAllFundingRates(context.Context, *GetAllFundingRatesRequest) (*GetAllFundingRatesResponse, error)
+	GetAllFundingRatesStream(*GetAllFundingRatesStreamRequest, GoCryptoTraderService_GetAllFundingRatesStreamServer) error
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1788,6 +1905,18 @@ func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByNominal(cont
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookAmountByImpact(context.Context, *GetOrderbookAmountByImpactRequest) (*GetOrderbookAmountByImpactResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetOrderbookAmountByImpact not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetFundingRateStream(*GetFundingRateStreamRequest, GoCryptoTraderService_GetFundingRateStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetFundingRateStream not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetExchangeFundingRateStream(*GetExchangeFundingRateStreamRequest, GoCryptoTraderService_GetExchangeFundingRateStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetExchangeFundingRateStream not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetAllFundingRates(context.Context, *GetAllFundingRatesRequest) (*GetAllFundingRatesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAllFundingRates not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetAllFundingRatesStream(*GetAllFundingRatesStreamRequest, GoCryptoTraderService_GetAllFundingRatesStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetAllFundingRatesStream not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3746,6 +3875,87 @@ func _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetFundingRateStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetFundingRateStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GoCryptoTraderServiceServer).GetFundingRateStream(m, &goCryptoTraderServiceGetFundingRateStreamServer{stream})
+}
+
+type GoCryptoTraderService_GetFundingRateStreamServer interface {
+	Send(*GetFundingRateStreamResponse) error
+	grpc.ServerStream
+}
+
+type goCryptoTraderServiceGetFundingRateStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *goCryptoTraderServiceGetFundingRateStreamServer) Send(m *GetFundingRateStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _GoCryptoTraderService_GetExchangeFundingRateStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetExchangeFundingRateStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GoCryptoTraderServiceServer).GetExchangeFundingRateStream(m, &goCryptoTraderServiceGetExchangeFundingRateStreamServer{stream})
+}
+
+type GoCryptoTraderService_GetExchangeFundingRateStreamServer interface {
+	Send(*GetExchangeFundingRateStreamResponse) error
+	grpc.ServerStream
+}
+
+type goCryptoTraderServiceGetExchangeFundingRateStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *goCryptoTraderServiceGetExchangeFundingRateStreamServer) Send(m *GetExchangeFundingRateStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _GoCryptoTraderService_GetAllFundingRates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAllFundingRatesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetAllFundingRates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetAllFundingRates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetAllFundingRates(ctx, req.(*GetAllFundingRatesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_GetAllFundingRatesStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetAllFundingRatesStreamRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GoCryptoTraderServiceServer).GetAllFundingRatesStream(m, &goCryptoTraderServiceGetAllFundingRatesStreamServer{stream})
+}
+
+type GoCryptoTraderService_GetAllFundingRatesStreamServer interface {
+	Send(*GetAllFundingRatesStreamResponse) error
+	grpc.ServerStream
+}
+
+type goCryptoTraderServiceGetAllFundingRatesStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *goCryptoTraderServiceGetAllFundingRatesStreamServer) Send(m *GetAllFundingRatesStreamResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4157,6 +4367,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetOrderbookAmountByImpact",
 			Handler:    _GoCryptoTraderService_GetOrderbookAmountByImpact_Handler,
 		},
+		{
+			MethodName: "GetAllFundingRates",
+			Handler:    _GoCryptoTraderService_GetAllFundingRates_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -4187,6 +4401,21 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetHistoricTrades",
 			Handler:       _GoCryptoTraderService_GetHistoricTrades_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetFundingRateStream",
+			Handler:       _GoCryptoTraderService_GetFundingRateStream_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetExchangeFundingRateStream",
+			Handler:       _GoCryptoTraderService_GetExchangeFundingRateStream_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "GetAllFundingRatesStream",
+			Handler:       _GoCryptoTraderService_GetAllFundingRatesStream_Handler,
 			ServerStreams: true,
 		},
 	},

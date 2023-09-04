@@ -2269,14 +2269,10 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
 	if a == asset.CoinMarginedFutures {
-		if cp.Quote.Equal(currency.PERP) {
-			return true, nil
-		}
+		return cp.Quote.Equal(currency.PERP), nil
 	}
 	if a == asset.USDTMarginedFutures {
-		if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
-			return true, nil
-		}
+		return cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD), nil
 	}
 	return false, nil
 }

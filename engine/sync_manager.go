@@ -569,6 +569,14 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 	}
 
 	exchangeName := e.GetName()
+	enabledPairs, err := e.GetEnabledPairs(c.AssetType)
+	if err != nil {
+		log.Errorf(log.SyncMgr,
+			"%s failed to get enabled pairs. Err: %s",
+			e.GetName(),
+			err)
+		return
+	}
 
 	s := c.trackers[SyncItemFundingRate]
 	if !m.config.FundingRates.EnableWebsocketSync && !s.IsUsingREST {
@@ -596,6 +604,7 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 		var result []fundingrate.LatestRateResponse
 		var err error
 		b := e.GetBase()
+
 		if b.Features.Supports.RESTCapabilities.FundingRateBatching {
 			m.mux.Lock()
 			batchLastDone, ok := m.fundingRateBatchLastRequested[exchangeName][c.AssetType]
@@ -636,7 +645,11 @@ func (m *SyncManager) syncFundingRates(c *currencyPairSyncAgent, e exchange.IBot
 				IncludePredictedRate: b.Features.Supports.RESTCapabilities.PredictedFundingRate,
 			})
 		}
+
 		for i := range result {
+			if !enabledPairs.Contains(result[i].Pair, false) {
+				continue
+			}
 			err = fundingrate.ProcessFundingRate(&result[i])
 			if err != nil {
 				continue

@@ -1135,6 +1135,68 @@
         ]
       }
     },
+    "/v1/getallfundingrates": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetAllFundingRates",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetAllFundingRatesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getallfundingratesstream": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetAllFundingRatesStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcGetAllFundingRatesStreamResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcGetAllFundingRatesStreamResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "delay",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getallmanagedpositions": {
       "get": {
         "operationId": "GoCryptoTraderService_GetAllManagedPositions",
@@ -1605,6 +1667,45 @@
         ]
       }
     },
+    "/v1/getexchangefundingratestream": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetExchangeFundingRateStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcGetExchangeFundingRateStreamResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcGetExchangeFundingRateStreamResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getexchangeinfo": {
       "get": {
         "operationId": "GoCryptoTraderService_GetExchangeInfo",
@@ -1954,6 +2055,69 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
+    "/v1/getfundingratestream": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetFundingRateStream",
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/definitions/gctrpcGetFundingRateStreamResponse"
+                },
+                "error": {
+                  "$ref": "#/definitions/rpcStatus"
+                }
+              },
+              "title": "Stream result of gctrpcGetFundingRateStreamResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.delimiter",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.base",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pair.quote",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
@@ -5174,6 +5338,9 @@
         },
         "timeOfNextRate": {
           "type": "string"
+        },
+        "lastChecked": {
+          "type": "string"
         }
       }
     },
@@ -5430,6 +5597,30 @@
         }
       }
     },
+    "gctrpcGetAllFundingRatesResponse": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
+        }
+      }
+    },
+    "gctrpcGetAllFundingRatesStreamResponse": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
+        }
+      }
+    },
     "gctrpcGetAuditEventResponse": {
       "type": "object",
       "properties": {
@@ -5612,6 +5803,21 @@
         }
       }
     },
+    "gctrpcGetExchangeFundingRateStreamResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "rate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcFundingData"
+          }
+        }
+      }
+    },
     "gctrpcGetExchangeInfoResponse": {
       "type": "object",
       "properties": {
@@ -5720,6 +5926,14 @@
             "type": "object",
             "$ref": "#/definitions/gctrpcForexRatesConversion"
           }
+        }
+      }
+    },
+    "gctrpcGetFundingRateStreamResponse": {
+      "type": "object",
+      "properties": {
+        "rate": {
+          "$ref": "#/definitions/gctrpcFundingData"
         }
       }
     },

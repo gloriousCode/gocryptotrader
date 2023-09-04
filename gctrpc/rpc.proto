@@ -1047,6 +1047,7 @@ message FundingData {
   string payment_sum = 10;
   string payment_message = 11;
   string time_of_next_rate = 12;
+  string last_checked = 13;
 }
 
 message FuturesPositionStats {
@@ -1233,12 +1234,32 @@ message GetFundingRateStreamRequest {
   CurrencyPair pair = 3;
 }
 
+message GetFundingRateStreamResponse {
+  FundingData rate = 1;
+}
+
 message GetExchangeFundingRateStreamRequest {
   string exchange = 1;
 }
 
+message GetExchangeFundingRateStreamResponse {
+  string exchange = 1;
+  repeated FundingData rate = 2;
+}
+
 message GetAllFundingRatesRequest {}
 
+message GetAllFundingRatesResponse {
+  repeated FundingData rate = 1;
+}
+
+message GetAllFundingRatesStreamRequest {
+  int64 delay = 1;
+}
+
+message GetAllFundingRatesStreamResponse {
+  repeated FundingData rate = 1;
+}
 
 message ShutdownRequest {}
 
@@ -1905,5 +1926,17 @@ service GoCryptoTraderService {
   }
   rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
     option (google.api.http) = {get: "/v1/getorderbookamountbyimpact"};
+  }
+  rpc GetFundingRateStream(GetFundingRateStreamRequest) returns (stream GetFundingRateStreamResponse) {
+    option (google.api.http) = {get: "/v1/getfundingratestream"};
+  }
+  rpc GetExchangeFundingRateStream(GetExchangeFundingRateStreamRequest) returns (stream GetExchangeFundingRateStreamResponse) {
+    option (google.api.http) = {get: "/v1/getexchangefundingratestream"};
+  }
+  rpc GetAllFundingRates(GetAllFundingRatesRequest) returns (GetAllFundingRatesResponse) {
+    option (google.api.http) = {get: "/v1/getallfundingrates"};
+  }
+  rpc GetAllFundingRatesStream(GetAllFundingRatesStreamRequest) returns (stream GetAllFundingRatesStreamResponse) {
+    option (google.api.http) = {get: "/v1/getallfundingratesstream"};
   }
 }
