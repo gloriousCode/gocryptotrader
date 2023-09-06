@@ -2859,7 +2859,7 @@ func TestGetFundingRates(t *testing.T) {
 	}
 }
 
-func TestGetLatestFundingRate(t *testing.T) {
+func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,

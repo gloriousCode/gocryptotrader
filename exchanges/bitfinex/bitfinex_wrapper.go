@@ -125,6 +125,7 @@ func (b *Bitfinex) SetDefaults() {
 				MultiChainDeposits:                true,
 				MultiChainWithdrawals:             true,
 				MultiChainDepositRequiresChainSet: true,
+				FundingRateFetching:               true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				AccountBalance:         true,
@@ -149,6 +150,13 @@ func (b *Bitfinex) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates:         true,
+				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Margin: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{

@@ -159,7 +159,7 @@ func (b *Binance) SetDefaults() {
 				GetOrders:              true,
 				Subscribe:              true,
 				Unsubscribe:            true,
-				FundingRateFetching:    true,
+				FundingRateFetching:    false, // supported but not implemented
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.NoFiatWithdrawals,

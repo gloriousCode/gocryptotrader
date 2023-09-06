@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2408,4 +2410,76 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 		ct = futures.SemiAnnually
 	}
 	return ct, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates
+func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if !r.Asset.IsFutures() {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotFuturesAsset, r.Asset)
+	}
+	switch r.Asset {
+	case asset.CoinMarginedFutures:
+
+	case asset.USDTMarginedFutures:
+
+	case asset.USDCMarginedFutures:
+
+	}
+	by.GetLastFundingRate(ctx, r.Pair)
+
+	format, err := b.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := format.Format(r.Pair)
+	rates, err := b.GetMarketSummary(ctx, fPair, false)
+	if err != nil {
+		return nil, err
+	}
+
+	pairs, err := b.GetEnabledPairs(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
+	for i := range rates {
+		var cp currency.Pair
+		cp, err = pairs.DeriveFrom(rates[i].Symbol)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		var isPerp bool
+		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		tt := time.Now().Truncate(time.Hour)
+		resp = append(resp, fundingrate.LatestRateResponse{
+			Exchange: b.Name,
+			Asset:    r.Asset,
+			Pair:     cp,
+			LatestRate: fundingrate.Rate{
+				Time: time.Now().Truncate(time.Hour),
+				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+			},
+			TimeOfNextRate: tt.Add(time.Hour),
+			TimeChecked:    time.Now(),
+		})
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (by *Bybit) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
+	return a == asset.Futures && p.Quote.Equal(currency.PFC), nil
 }
