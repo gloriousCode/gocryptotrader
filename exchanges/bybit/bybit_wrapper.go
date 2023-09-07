@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2412,6 +2410,7 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 	return ct, nil
 }
 
+/*
 // GetLatestFundingRates returns the latest funding rates
 func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
@@ -2479,6 +2478,8 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	return resp, nil
 }
 
+
+*/
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (by *Bybit) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
 	return a == asset.Futures && p.Quote.Equal(currency.PFC), nil

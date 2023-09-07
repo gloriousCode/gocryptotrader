@@ -1079,7 +1079,7 @@ func getFundingRateStream(c *cli.Context) error {
 			return err
 		}
 		fmt.Println("Result returned at ", time.Now().Truncate(time.Second))
-		renderFundingRateTable(fmt.Sprintf("Funding Rates for %v %v %v %v", resp.Rate.Exchange, resp.Rate.Asset, resp.Rate.Pair.Base+resp.Rate.Pair.Delimiter+resp.Rate.Pair.Quote), []*gctrpc.FundingData{resp.Rate})
+		renderFundingRateTable(fmt.Sprintf("Funding Rates for %v %v %v", resp.Rate.Exchange, resp.Rate.Asset, resp.Rate.Pair.Base+resp.Rate.Pair.Delimiter+resp.Rate.Pair.Quote), []*gctrpc.FundingData{resp.Rate})
 	}
 }
 

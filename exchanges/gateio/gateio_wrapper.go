@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2150,6 +2149,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	return g.LoadLimits(limits)
 }
 
+/*
 // GetLatestFundingRates returns the latest funding rates
 func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
@@ -2211,6 +2211,8 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	return resp, nil
 }
 
+
+*/
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
 	return a == asset.Futures && p.Quote.Equal(currency.PFC), nil
