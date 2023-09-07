@@ -441,13 +441,14 @@ type WebsocketOrderbookSnapshot struct {
 	Type      string      `json:"type"`
 	Bids      [][2]string `json:"bids"`
 	Asks      [][2]string `json:"asks"`
+	Time      time.Time   `json:"time"`
 }
 
 // WebsocketL2Update defines an update on the L2 orderbooks
 type WebsocketL2Update struct {
 	Type      string      `json:"type"`
 	ProductID string      `json:"product_id"`
-	Time      string      `json:"time"`
+	Time      time.Time   `json:"time"`
 	Changes   [][3]string `json:"changes"`
 }
 
@@ -498,3 +499,20 @@ var (
 	// CoinbaseRequestParamsTimeIOC IOC
 	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 )
+
+// TransferHistory returns wallet transfer history
+type TransferHistory struct {
+	ID          string    `json:"id"`
+	Type        string    `json:"type"`
+	CreatedAt   string    `json:"created_at"`
+	CompletedAt string    `json:"completed_at"`
+	CanceledAt  time.Time `json:"canceled_at"`
+	ProcessedAt time.Time `json:"processed_at"`
+	UserNonce   int64     `json:"user_nonce"`
+	Amount      string    `json:"amount"`
+	Details     struct {
+		CoinbaseAccountID       string `json:"coinbase_account_id"`
+		CoinbaseTransactionID   string `json:"coinbase_transaction_id"`
+		CoinbasePaymentMethodID string `json:"coinbase_payment_method_id"`
+	} `json:"details"`
+}

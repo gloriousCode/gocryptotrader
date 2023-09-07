@@ -216,7 +216,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| OKCoin International | Yes | Yes | No |
+| Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
@@ -246,7 +246,7 @@ var Exchanges = []string{
 	"itbit",
 	"kraken",
 	"lbank",
-	"okcoin international",
+	"okcoin",
 	"okx",
 	"poloniex",
 	"yobit",
@@ -495,13 +495,12 @@ func (f *FTX) SendAuthHTTPRequest(ctx context.Context, method, path string, data
 			Headers:       headers,
 			Body:          body,
 			Result:        result,
-			AuthRequest:   true,
 			Verbose:       f.Verbose,
 			HTTPDebugging: f.HTTPDebugging,
 			HTTPRecording: f.HTTPRecording,
 		}
 		return item, nil
-	}
+	}, request.AuthenticatedRequest)
 
 	endpoint := request.Unset // Used in conjunction with the rate limiting 
 	// system defined in the exchange package to slow down outbound requests

@@ -324,7 +324,7 @@ func TestWithdrawFiat(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -1450,7 +1450,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
 	if err := bi.SeedLocalCacheWithBook(p, &book); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if err := bi.wsHandleData(update1); err != nil {
 		t.Error(err)

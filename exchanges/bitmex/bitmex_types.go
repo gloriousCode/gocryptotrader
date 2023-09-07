@@ -322,11 +322,12 @@ type Order struct {
 
 // OrderBookL2 contains order book l2
 type OrderBookL2 struct {
-	ID     int64   `json:"id"`
-	Price  float64 `json:"price"`
-	Side   string  `json:"side"`
-	Size   int64   `json:"size"`
-	Symbol string  `json:"symbol"`
+	ID        int64     `json:"id"`
+	Price     float64   `json:"price"`
+	Side      string    `json:"side"`
+	Size      int64     `json:"size"`
+	Symbol    string    `json:"symbol"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Position Summary of Open and Closed Positions
@@ -564,12 +565,13 @@ type AffiliateStatus struct {
 type TransactionInfo struct {
 	Account        int64     `json:"account"`
 	Address        string    `json:"address"`
-	Amount         int64     `json:"amount"`
+	Amount         float64   `json:"amount"`
 	Currency       string    `json:"currency"`
-	Fee            int64     `json:"fee"`
+	Fee            float64   `json:"fee"`
 	Text           string    `json:"text"`
 	Timestamp      time.Time `json:"timestamp"`
 	TransactID     string    `json:"transactID"`
+	Network        string    `json:"network"`
 	TransactStatus string    `json:"transactStatus"`
 	TransactTime   string    `json:"transactTime"`
 	TransactType   string    `json:"transactType"`

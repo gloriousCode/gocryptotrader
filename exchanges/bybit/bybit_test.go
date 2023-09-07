@@ -3,8 +3,6 @@ package bybit
 import (
 	"context"
 	"errors"
-	"log"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,12 +10,10 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -31,52 +27,6 @@ const (
 )
 
 var b = &Bybit{}
-
-func TestMain(m *testing.M) {
-	b.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = false
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 100
-	err = b.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	os.Exit(m.Run())
-}
 
 func TestStart(t *testing.T) {
 	t.Parallel()
@@ -128,7 +78,13 @@ func TestGetTrades(t *testing.T) {
 
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetKlines(context.Background(), "BTCUSDT", "5m", 2000, time.Now().Add(-time.Hour*1), time.Now())
+	s := time.Now().Add(-time.Hour)
+	e := time.Now()
+	if mockTests {
+		s = time.Unix(1691897100, 0).Round(kline.FiveMin.Duration())
+		e = time.Unix(1691907100, 0).Round(kline.FiveMin.Duration())
+	}
+	_, err := b.GetKlines(context.Background(), "BTCUSDT", "5m", 2000, s, e)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2067,7 +2023,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.UpdateTicker(context.Background(), pair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
@@ -2083,18 +2038,27 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Futures update dynamically, so fetch the available tradable futures for this test
-	availPairs, err := b.FetchTradablePairs(context.Background(), asset.Futures)
-	if err != nil {
-		t.Fatal(err)
+	var pairs currency.Pairs
+	if mockTests {
+		var pair2 currency.Pair
+		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		if err != nil {
+			t.Fatal(err)
+		}
+		pairs = pairs.Add(pair2)
+	} else {
+		// Futures update dynamically, so fetch the available tradable futures for this test
+		pairs, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Needs to be set before calling extractCurrencyPair
+		if err = b.SetPairs(pairs, asset.Futures, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	// Needs to be set before calling extractCurrencyPair
-	if err = b.SetPairs(availPairs, asset.Futures, true); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = b.UpdateTicker(context.Background(), availPairs[0], asset.Futures)
+	_, err = b.UpdateTicker(context.Background(), pairs[0], asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2178,12 +2142,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2238,25 +2197,28 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	end := time.Now()
-	start := end.AddDate(0, 0, -3)
+	e := time.Now()
+	s := e.AddDate(0, 0, -3)
+	if mockTests {
+		s = time.Unix(1691897100, 0).Truncate(kline.OneDay.Duration())
+		e = time.Unix(1692007100, 0).Truncate(kline.OneDay.Duration())
+	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.USDTMarginedFutures, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair, asset.USDTMarginedFutures, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
 
-	pair1, err := currency.NewPairFromString("BTCUSD")
+	pair1, err := currency.NewPairFromString("BTC-USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2265,8 +2227,17 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var pair2 currency.Pair
+	if mockTests {
+		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		pair2 = enabled[0]
+	}
 
-	_, err = b.GetHistoricCandles(context.Background(), enabled[0], asset.Futures, kline.OneHour, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair2, asset.Futures, kline.OneHour, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2276,7 +2247,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2288,16 +2259,19 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	e := time.Now()
+	s := e.AddDate(0, 0, -3)
+	if mockTests {
+		s = time.Unix(1691897100, 0).Truncate(kline.OneDay.Duration())
+		e = time.Unix(1692007100, 0).Truncate(kline.OneDay.Duration())
+	}
 
-	startTime := time.Now().Add(-time.Hour * 24 * 3)
-	end := time.Now().Add(-time.Hour * 1)
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneMin, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, kline.OneMin, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.USDTMarginedFutures, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2306,8 +2280,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair1, asset.CoinMarginedFutures, kline.OneHour, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2316,8 +2289,17 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var pair2 currency.Pair
+	if mockTests {
+		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		pair2 = enabled[0]
+	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), enabled[0], asset.Futures, kline.OneDay, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair2, asset.Futures, kline.OneHour, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2327,7 +2309,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, kline.FiveMin, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), pair3, asset.USDCMarginedFutures, kline.OneDay, s, e)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2699,7 +2681,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestSpot = order.GetOrdersRequest{
+	var getOrdersRequestSpot = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -2711,7 +2693,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	var getOrdersRequestUMF = order.GetOrdersRequest{
+	var getOrdersRequestUMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
 		Side:      order.AnySide,
@@ -2728,7 +2710,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestCMF = order.GetOrdersRequest{
+	var getOrdersRequestCMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
 		Side:      order.AnySide,
@@ -2745,7 +2727,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestFutures = order.GetOrdersRequest{
+	var getOrdersRequestFutures = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
 		Side:      order.AnySide,
@@ -2762,7 +2744,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestUSDC = order.GetOrdersRequest{
+	var getOrdersRequestUSDC = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
 		Side:      order.AnySide,
@@ -2784,7 +2766,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestSpot = order.GetOrdersRequest{
+	var getOrdersRequestSpot = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.Spot,
 		Type:      order.AnyType,
@@ -2796,7 +2778,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 
-	var getOrdersRequestUMF = order.GetOrdersRequest{
+	var getOrdersRequestUMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair},
 		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
@@ -2813,7 +2795,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestCMF = order.GetOrdersRequest{
+	var getOrdersRequestCMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair1},
 		AssetType: asset.CoinMarginedFutures,
 		Type:      order.AnyType,
@@ -2830,7 +2812,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestFutures = order.GetOrdersRequest{
+	var getOrdersRequestFutures = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair2},
 		AssetType: asset.Futures,
 		Type:      order.AnyType,
@@ -2847,7 +2829,7 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var getOrdersRequestUSDC = order.GetOrdersRequest{
+	var getOrdersRequestUSDC = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{pair3},
 		AssetType: asset.USDCMarginedFutures,
 		Type:      order.AnyType,
@@ -2979,8 +2961,11 @@ func TestGetUSDCKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetUSDCKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	s := time.Now().Add(-time.Hour)
+	if mockTests {
+		s = time.Unix(1691897100, 0)
+	}
+	_, err = b.GetUSDCKlines(context.Background(), pair, "5", s, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2992,8 +2977,11 @@ func TestGetUSDCMarkPriceKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetUSDCMarkPriceKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	s := time.Now().Add(-time.Hour)
+	if mockTests {
+		s = time.Unix(1691897100, 0)
+	}
+	_, err = b.GetUSDCMarkPriceKlines(context.Background(), pair, "5", s, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3005,8 +2993,11 @@ func TestGetUSDCIndexPriceKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = b.GetUSDCIndexPriceKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	s := time.Now().Add(-time.Hour)
+	if mockTests {
+		s = time.Unix(1691897100, 0)
+	}
+	_, err = b.GetUSDCIndexPriceKlines(context.Background(), pair, "5", s, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3018,8 +3009,12 @@ func TestGetUSDCPremiumIndexKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	s := time.Now().Add(-time.Hour)
+	if mockTests {
+		s = time.Unix(1692077100, 0)
+	}
 
-	_, err = b.GetUSDCPremiumIndexKlines(context.Background(), pair, "5", time.Now().Add(-time.Hour), 0)
+	_, err = b.GetUSDCPremiumIndexKlines(context.Background(), pair, "5", s, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3333,8 +3328,26 @@ func TestGetUSDCPredictedFundingRate(t *testing.T) {
 	}
 }
 
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip("test it not relevant in a mock setting")
+	}
 	supportedAssets := b.GetAssetTypes(false)
 	ctx := context.Background()
 	for x := range supportedAssets {
@@ -3360,9 +3373,12 @@ func TestUpdateTickers(t *testing.T) {
 func TestGetTickersV5(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetTickersV5(context.Background(), "bruh", "", "")
-	if err != nil && err.Error() != "Illegal category" {
-		t.Error(err)
+	var err error
+	if !mockTests {
+		_, err = b.GetTickersV5(context.Background(), "bruh", "", "")
+		if err != nil && err.Error() != "Illegal category" {
+			t.Error(err)
+		}
 	}
 
 	_, err = b.GetTickersV5(context.Background(), "option", "", "")

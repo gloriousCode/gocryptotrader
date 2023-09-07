@@ -437,7 +437,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
@@ -453,7 +453,7 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Pairs:     []currency.Pair{testPair},
@@ -852,7 +852,8 @@ func TestWsOrderbook(t *testing.T) {
     "type": "snapshot",
     "product_id": "BTC-USD",
     "bids": [["10101.10", "0.45054140"]],
-    "asks": [["10102.55", "0.57753524"]]
+    "asks": [["10102.55", "0.57753524"]],
+	"time":"2023-08-15T06:46:55.376250Z"
 }`)
 	err := c.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -862,7 +863,7 @@ func TestWsOrderbook(t *testing.T) {
 	pressXToJSON = []byte(`{
   "type": "l2update",
   "product_id": "BTC-USD",
-  "time": "2019-08-14T20:42:27.265Z",
+  "time": "2023-08-15T06:46:57.933713Z",
   "changes": [
     [
       "buy",
@@ -1057,6 +1058,15 @@ func TestGetHistoricTrades(t *testing.T) {
 	_, err := c.GetHistoricTrades(context.Background(),
 		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
+	}
+}
+
+func TestGetTransfers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetTransfers(context.Background(), "", "", 100, time.Time{}, time.Time{})
+	if err != nil {
 		t.Error(err)
 	}
 }

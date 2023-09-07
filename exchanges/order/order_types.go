@@ -23,6 +23,8 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
+	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
+	ErrUnsupportedOrderType       = errors.New("unsupported order type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates = errors.New("no rates")
 
@@ -69,6 +71,8 @@ type Submit struct {
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay time.Duration
+	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
+	TradeMode string
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -253,17 +257,19 @@ type TradeHistory struct {
 	Total       float64
 }
 
-// GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
-type GetOrdersRequest struct {
-	Type      Type
-	Side      Side
-	StartTime time.Time
-	EndTime   time.Time
-	OrderID   string
+// MultiOrderRequest used for GetOrderHistory and GetOpenOrders wrapper functions
+type MultiOrderRequest struct {
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
 	Pairs     currency.Pairs
 	AssetType asset.Item
+	Type      Type
+	Side      Side
+	StartTime time.Time
+	EndTime   time.Time
+	// FromOrderID for some APIs require order history searching
+	// from a specific orderID rather than via timestamps
+	FromOrderID string
 }
 
 // Status defines order status types
@@ -315,6 +321,8 @@ const (
 	Liquidation
 	Trigger
 	OptimalLimitIOC
+	OCO             // One-cancels-the-other order
+	ConditionalStop // One-way stop order
 )
 
 // Side enforces a standard for order sides across the code base
@@ -368,5 +376,5 @@ type ClassificationError struct {
 
 // FilteredOrders defines orders that have been filtered at the wrapper level
 // forcing required filter operations when calling method Filter() on
-// GetOrdersRequest.
+// MultiOrderRequest.
 type FilteredOrders []Detail

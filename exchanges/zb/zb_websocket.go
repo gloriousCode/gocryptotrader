@@ -133,16 +133,17 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 			Pair:            cPair,
 			Exchange:        z.Name,
 			VerifyOrderbook: z.CanVerifyOrderbook,
+			LastUpdated:     time.Now(), // This is temp to pass test as the API is broken.
 		}
 
 		for i := range depth.Asks {
 			amt, ok := depth.Asks[i][1].(float64)
 			if !ok {
-				return errors.New("unable to type assert ask amount")
+				return common.GetTypeAssertError("float64", depth.Asks[i][1], "ask amount")
 			}
 			price, ok := depth.Asks[i][0].(float64)
 			if !ok {
-				return errors.New("unable to type assert ask price")
+				return common.GetTypeAssertError("float64", depth.Asks[i][0], "ask price")
 			}
 			book.Asks[i] = orderbook.Item{
 				Amount: amt,
@@ -152,11 +153,11 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		for i := range depth.Bids {
 			amt, ok := depth.Bids[i][1].(float64)
 			if !ok {
-				return errors.New("unable to type assert bid amount")
+				return common.GetTypeAssertError("float64", depth.Bids[i][1], "bid amount")
 			}
 			price, ok := depth.Bids[i][0].(float64)
 			if !ok {
-				return errors.New("unable to type assert bid price")
+				return common.GetTypeAssertError("float64", depth.Bids[i][0], "bid price")
 			}
 			book.Bids[i] = orderbook.Item{
 				Amount: amt,

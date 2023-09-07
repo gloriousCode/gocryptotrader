@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Binance is the overarching type across the Binance package
@@ -36,6 +35,9 @@ const (
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
 
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
@@ -49,6 +51,9 @@ const (
 	userAccountStream = "/api/v3/userDataStream"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 	historicalTrades  = "/api/v3/historicalTrades"
+
+	// Margin endpoints
+	marginInterestHistory = "/sapi/v1/margin/interestHistory"
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
@@ -74,12 +79,45 @@ const (
 	withdrawHistory  = "/sapi/v1/capital/withdraw/history"
 	depositAddress   = "/sapi/v1/capital/deposit/address"
 
-	defaultRecvWindow     = 5 * time.Second
-	binanceSAPITimeLayout = "2006-01-02 15:04:05"
+	// Crypto loan endpoints
+	loanIncomeHistory            = "/sapi/v1/loan/income"
+	loanBorrow                   = "/sapi/v1/loan/borrow"
+	loanBorrowHistory            = "/sapi/v1/loan/borrow/history"
+	loanOngoingOrders            = "/sapi/v1/loan/ongoing/orders"
+	loanRepay                    = "/sapi/v1/loan/repay"
+	loanRepaymentHistory         = "/sapi/v1/loan/repay/history"
+	loanAdjustLTV                = "/sapi/v1/loan/adjust/ltv"
+	loanLTVAdjustmentHistory     = "/sapi/v1/loan/ltv/adjustment/history"
+	loanableAssetsData           = "/sapi/v1/loan/loanable/data"
+	loanCollateralAssetsData     = "/sapi/v1/loan/collateral/data"
+	loanCheckCollateralRepayRate = "/sapi/v1/loan/repay/collateral/rate"
+	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
+
+	// Flexible loan endpoints
+	flexibleLoanBorrow               = "/sapi/v1/loan/flexible/borrow"
+	flexibleLoanOngoingOrders        = "/sapi/v1/loan/flexible/ongoing/orders"
+	flexibleLoanBorrowHistory        = "/sapi/v1/loan/flexible/borrow/history"
+	flexibleLoanRepay                = "/sapi/v1/loan/flexible/repay"
+	flexibleLoanRepayHistory         = "/sapi/v1/loan/flexible/repay/history"
+	flexibleLoanAdjustLTV            = "/sapi/v1/loan/flexible/adjust/ltv"
+	flexibleLoanLTVHistory           = "/sapi/v1/loan/flexible/ltv/adjustment/history"
+	flexibleLoanAssetsData           = "/sapi/v1/loan/flexible/loanable/data"
+	flexibleLoanCollateralAssetsData = "/sapi/v1/loan/flexible/collateral/data"
+
+	defaultRecvWindow = 5 * time.Second
 )
 
-// GetInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetInterestHistory(ctx context.Context) (MarginInfoData, error) {
+var (
+	errLoanCoinMustBeSet                      = errors.New("loan coin must bet set")
+	errLoanTermMustBeSet                      = errors.New("loan term must be set")
+	errCollateralCoinMustBeSet                = errors.New("collateral coin must be set")
+	errOrderIDMustBeSet                       = errors.New("orderID must be set")
+	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
+	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
+)
+
+// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
+func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
 	var resp MarginInfoData
 	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
 		return resp, err
@@ -214,17 +252,48 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
+// GetUserMarginInterestHistory returns margin interest history for the user
+func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
+	params := url.Values{}
+
+	if !assetCurrency.IsEmpty() {
+		params.Set("asset", assetCurrency.String())
+	}
+	if !isolatedSymbol.IsEmpty() {
+		fPair, err := b.FormatSymbol(isolatedSymbol, asset.Margin)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("isolatedSymbol", fPair)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if currentPage > 0 {
+		params.Set("current", strconv.FormatInt(currentPage, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if archived {
+		params.Set("archived", "true")
+	}
+
+	path := marginInterestHistory + "?" + params.Encode()
+	var resp UserMarginInterestHistoryResponse
+	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+}
+
 // GetAggregatedTrades returns aggregated trade activity.
 // If more than one hour of data is requested or asked limit is not supported by exchange
 // then the trades are collected with multiple backend requests.
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	params.Set("symbol", symbol)
+	params.Set("symbol", arg.Symbol.String())
 	// if the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := false
@@ -296,8 +365,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
-				log.Warnln(log.ExchangeSys, err.Error())
-				return resp, err
+				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
 		}
 		fromID = resp[len(resp)-1].ATradeID
@@ -318,7 +386,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			spotDefaultRate,
 			&additionalTrades)
 		if err != nil {
-			return resp, err
+			return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 		}
 		lastIndex := len(additionalTrades)
 		if !arg.EndTime.IsZero() {
@@ -382,14 +450,14 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 	responseData, ok := resp.([]interface{})
 	if !ok {
-		return nil, errors.New("unable to type assert responseData")
+		return nil, common.GetTypeAssertError("[]interface{}", resp)
 	}
 
 	klineData := make([]CandleStick, len(responseData))
 	for x := range responseData {
 		individualData, ok := responseData[x].([]interface{})
 		if !ok {
-			return nil, errors.New("unable to type assert individualData")
+			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
 		}
 		if len(individualData) != 12 {
 			return nil, errors.New("unexpected kline data length")
@@ -420,7 +488,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 			return nil, err
 		}
 		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, errors.New("unable to type assert trade count")
+			return nil, common.GetTypeAssertError("float64", individualData[8])
 		}
 		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
 			return nil, err
@@ -751,7 +819,7 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.UnauthenticatedRequest)
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
@@ -780,7 +848,7 @@ func (b *Binance) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL,
 
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
@@ -825,11 +893,10 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 			Path:          fullPath,
 			Headers:       headers,
 			Result:        &interim,
-			AuthRequest:   true,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
@@ -1115,7 +1182,6 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		Path:          endpointPath + userAccountStream,
 		Headers:       headers,
 		Result:        &resp,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1123,7 +1189,7 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 	if err != nil {
 		return "", err
 	}
@@ -1156,7 +1222,6 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		Method:        http.MethodPut,
 		Path:          path,
 		Headers:       headers,
-		AuthRequest:   true,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
@@ -1164,7 +1229,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
-	})
+	}, request.AuthenticatedRequest)
 }
 
 // FetchSpotExchangeLimits fetches spot order execution limits
@@ -1235,4 +1300,476 @@ func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLe
 		}
 	}
 	return limits, nil
+}
+
+// CryptoLoanIncomeHistory returns crypto loan income history
+func (b *Binance) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Code, loanType string, startTime, endTime time.Time, limit int64) ([]CryptoLoansIncomeHistory, error) {
+	params := url.Values{}
+	if !curr.IsEmpty() {
+		params.Set("asset", curr.String())
+	}
+	if loanType != "" {
+		params.Set("type", loanType)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp []CryptoLoansIncomeHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanIncomeHistory, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanBorrow borrows crypto
+func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, loanAmount float64, collateralCoin currency.Code, collateralAmount float64, loanTerm int64) ([]CryptoLoanBorrow, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if loanTerm <= 0 {
+		return nil, errLoanTermMustBeSet
+	}
+	if loanAmount == 0 && collateralAmount == 0 {
+		return nil, errEitherLoanOrCollateralAmountsMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	if loanAmount != 0 {
+		params.Set("loanAmount", strconv.FormatFloat(loanAmount, 'f', -1, 64))
+	}
+	params.Set("collateralCoin", collateralCoin.String())
+	if collateralAmount != 0 {
+		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
+	}
+	params.Set("loanTerm", strconv.FormatInt(loanTerm, 10))
+
+	var resp []CryptoLoanBorrow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanBorrow, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanBorrowHistory gets loan borrow history
+func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*LoanBorrowHistory, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp LoanBorrowHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanBorrowHistory, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanOngoingOrders obtains ongoing loan orders
+func (b *Binance) CryptoLoanOngoingOrders(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, current, limit int64) (*CryptoLoanOngoingOrder, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp CryptoLoanOngoingOrder
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanOngoingOrders, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanRepay repays a crypto loan
+func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount float64, repayType int64, collateralReturn bool) ([]CryptoLoanRepay, error) {
+	if orderID <= 0 {
+		return nil, errOrderIDMustBeSet
+	}
+	if amount <= 0 {
+		return nil, errAmountMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if repayType != 0 {
+		params.Set("type", strconv.FormatInt(repayType, 10))
+	}
+	params.Set("collateralReturn", strconv.FormatBool(collateralReturn))
+
+	var resp []CryptoLoanRepay
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanRepay, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanRepaymentHistory gets the crypto loan repayment history
+func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanRepayHistory, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp CryptoLoanRepayHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanRepaymentHistory, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanAdjustLTV adjusts the LTV of a crypto loan
+func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce bool, amount float64) (*CryptoLoanAdjustLTV, error) {
+	if orderID <= 0 {
+		return nil, errOrderIDMustBeSet
+	}
+	if amount <= 0 {
+		return nil, errAmountMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	direction := "ADDITIONAL"
+	if reduce {
+		direction = "REDUCED"
+	}
+	params.Set("direction", direction)
+
+	var resp CryptoLoanAdjustLTV
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanAdjustLTV, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanLTVAdjustmentHistory gets the crypto loan LTV adjustment history
+func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanLTVAdjustmentHistory, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp CryptoLoanLTVAdjustmentHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanLTVAdjustmentHistory, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanAssetsData gets the loanable assets data
+func (b *Binance) CryptoLoanAssetsData(ctx context.Context, loanCoin currency.Code, vipLevel int64) (*LoanableAssetsData, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if vipLevel != 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+
+	var resp LoanableAssetsData
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanableAssetsData, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanCollateralAssetsData gets the collateral assets data
+func (b *Binance) CryptoLoanCollateralAssetsData(ctx context.Context, collateralCoin currency.Code, vipLevel int64) (*CollateralAssetData, error) {
+	params := url.Values{}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if vipLevel != 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+
+	var resp CollateralAssetData
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCollateralAssetsData, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanCheckCollateralRepayRate checks the collateral repay rate
+func (b *Binance) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64) (*CollateralRepayRate, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if amount <= 0 {
+		return nil, errAmountMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("collateralCoin", collateralCoin.String())
+	params.Set("repayAmount", strconv.FormatFloat(amount, 'f', -1, 64))
+
+	var resp CollateralRepayRate
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCheckCollateralRepayRate, params, spotDefaultRate, &resp)
+}
+
+// CryptoLoanCustomiseMarginCall customises a loan's margin call
+func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int64, collateralCoin currency.Code, marginCallValue float64) (*CustomiseMarginCall, error) {
+	if marginCallValue <= 0 {
+		return nil, errors.New("marginCallValue must not be <= 0")
+	}
+
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	params.Set("marginCall", strconv.FormatFloat(marginCallValue, 'f', -1, 64))
+
+	var resp CustomiseMarginCall
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanCustomiseMarginCall, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanBorrow creates a flexible loan
+func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCoin currency.Code, loanAmount, collateralAmount float64) (*FlexibleLoanBorrow, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if loanAmount == 0 && collateralAmount == 0 {
+		return nil, errEitherLoanOrCollateralAmountsMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	if loanAmount != 0 {
+		params.Set("loanAmount", strconv.FormatFloat(loanAmount, 'f', -1, 64))
+	}
+	params.Set("collateralCoin", collateralCoin.String())
+	if collateralAmount != 0 {
+		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
+	}
+
+	var resp FlexibleLoanBorrow
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanBorrow, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanOngoingOrders gets the flexible loan ongoing orders
+func (b *Binance) FlexibleLoanOngoingOrders(ctx context.Context, loanCoin, collateralCoin currency.Code, current, limit int64) (*FlexibleLoanOngoingOrder, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp FlexibleLoanOngoingOrder
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanOngoingOrders, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanBorrowHistory gets the flexible loan borrow history
+func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanBorrowHistory, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp FlexibleLoanBorrowHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanBorrowHistory, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanRepay repays a flexible loan
+func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64, collateralReturn, fullRepayment bool) (*FlexibleLoanRepay, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if amount <= 0 {
+		return nil, errAmountMustBeSet
+	}
+
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("collateralCoin", collateralCoin.String())
+	params.Set("repayAmount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("collateralReturn", strconv.FormatBool(collateralReturn))
+	if fullRepayment {
+		params.Set("fullRepayment", "true")
+	}
+
+	var resp FlexibleLoanRepay
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanRepay, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanRepayHistory gets the flexible loan repayment history
+func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanRepayHistory, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp FlexibleLoanRepayHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanRepayHistory, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
+func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64, reduce bool) (*FlexibleLoanAdjustLTV, error) {
+	if loanCoin.IsEmpty() {
+		return nil, errLoanCoinMustBeSet
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, errCollateralCoinMustBeSet
+	}
+	if amount <= 0 {
+		return nil, errAmountMustBeSet
+	}
+
+	direction := "ADDITIONAL"
+	if reduce {
+		direction = "REDUCED"
+	}
+
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("collateralCoin", collateralCoin.String())
+	params.Set("adjustmentAmount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("direction", direction)
+
+	var resp FlexibleLoanAdjustLTV
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanAdjustLTV, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanLTVAdjustmentHistory gets the flexible loan LTV adjustment history
+func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLTVAdjustmentHistory, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	var resp FlexibleLoanLTVAdjustmentHistory
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanLTVHistory, params, spotDefaultRate, &resp)
+}
+
+// FlexibleLoanAssetsData gets the flexible loan assets data
+func (b *Binance) FlexibleLoanAssetsData(ctx context.Context, loanCoin currency.Code) (*FlexibleLoanAssetsData, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+
+	var resp FlexibleLoanAssetsData
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanAssetsData, params, spotDefaultRate, &resp)
+}
+
+// FlexibleCollateralAssetsData gets the flexible loan collateral assets data
+func (b *Binance) FlexibleCollateralAssetsData(ctx context.Context, collateralCoin currency.Code) (*FlexibleCollateralAssetsData, error) {
+	params := url.Values{}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+
+	var resp FlexibleCollateralAssetsData
+	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanCollateralAssetsData, params, spotDefaultRate, &resp)
 }

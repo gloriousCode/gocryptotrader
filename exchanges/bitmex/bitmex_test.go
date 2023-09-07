@@ -189,9 +189,9 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFundingHistory(context.Background())
+	_, err := b.GetAccountFundingHistory(context.Background())
 	if err == nil {
-		t.Error("GetFundingHistory() Expected error")
+		t.Error("GetAccountFundingHistory() Expected error")
 	}
 }
 
@@ -590,7 +590,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		AssetType: asset.Spot,
 		Side:      order.AnySide,
@@ -606,7 +606,7 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	var getOrdersRequest = order.GetOrdersRequest{
+	var getOrdersRequest = order.MultiOrderRequest{
 		Type:      order.AnyType,
 		Pairs:     []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)},
 		AssetType: asset.Spot,
@@ -941,7 +941,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "attributes":{"id":"sorted","symbol":"grouped"},
       "action":"partial",
       "data":[
-        {"symbol":"ETHUSD","id":17999992000,"side":"Sell","size":100,"price":80},
+        {"symbol":"ETHUSD","id":17999992000,"side":"Sell","size":100,"price":80,"timestamp":"2017-04-04T22:16:38.461Z"},
         {"symbol":"ETHUSD","id":17999993000,"side":"Sell","size":20,"price":70},
         {"symbol":"ETHUSD","id":17999994000,"side":"Sell","size":10,"price":60},
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":10,"price":50},
@@ -958,7 +958,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"update",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5,"timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
@@ -981,7 +981,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
@@ -993,7 +993,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "table":"orderBookL2_25",
       "action":"delete",
       "data":[
-        {"symbol":"ETHUSD","id":17999995000,"side":"Buy"}
+        {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
@@ -1186,5 +1186,49 @@ func TestGetActionFromString(t *testing.T) {
 
 	if action != orderbook.UpdateInsert {
 		t.Fatalf("received: '%v' but expected: '%v'", action, orderbook.UpdateInsert)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+
+	_, err := b.GetOrderInfo(context.Background(), "1234", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelBatchOrders(context.Background(), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      currency.NewPair(currency.BTC, currency.USD),
+		},
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
