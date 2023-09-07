@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -3154,7 +3155,16 @@ func getFirstTradablePairOfAssets() {
 	if err != nil {
 		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
 	}
-	futuresTradablePair = enabledPairs[len(enabledPairs)-1]
+
+	if len(enabledPairs) == 0 {
+		availPairs, err := g.GetAvailablePairs(asset.Futures)
+		if err != nil {
+			log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Futures)
+		}
+		futuresTradablePair = availPairs[len(availPairs)-1]
+	} else {
+		futuresTradablePair = enabledPairs[len(enabledPairs)-1]
+	}
 	enabledPairs, err = g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		log.Fatalf("GateIO %v, trying to get %v enabled pairs error", err, asset.Options)
@@ -3407,4 +3417,33 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	_, err = g.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.BTC, currency.USD),
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := g.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	for i := range resp {
+		t.Log(resp[i])
+	}
+
 }

@@ -2876,14 +2876,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	cp, err := currency.NewPairFromString("BTCUSD_PERP")
-	if err != nil {
-		t.Error(err)
-	}
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
-		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)
