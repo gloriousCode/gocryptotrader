@@ -516,7 +516,7 @@ func (bot *Engine) Start() error {
 			bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 			cfg.NumWorkers = bot.Settings.SyncWorkersCount
 		}
-		if s, err := setupSyncManager(
+		if s, err := SetupSyncManager(
 			&cfg,
 			bot.ExchangeManager,
 			&bot.Config.RemoteControl,

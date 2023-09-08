@@ -93,6 +93,8 @@ func (g *Gateio) SetDefaults() {
 				CryptoWithdrawalFee:   true,
 				MultiChainDeposits:    true,
 				MultiChainWithdrawals: true,
+				PredictedFundingRate:  true,
+				FundingRateFetching:   true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -2177,7 +2179,7 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if err != nil {
 			return nil, err
 		}
-		resp[0] = contractToFundingRate(g.Name, r.Asset, fPair, contract)
+		resp[0] = contractToFundingRate(g.Name, r.Asset, fPair, contract, r.IncludePredictedRate)
 		return resp, nil
 	}
 
@@ -2205,15 +2207,15 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			if !pairs.Contains(cp, false) {
 				continue
 			}
-			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j]))
+			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j], r.IncludePredictedRate))
 		}
 	}
 
 	return resp, nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract) fundingrate.LatestRateResponse {
-	return fundingrate.LatestRateResponse{
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
 		Pair:     fPair,
@@ -2221,13 +2223,16 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 			Time: contract.FundingNextApply.Time().Add(-time.Duration(contract.FundingInterval) * time.Second),
 			Rate: contract.FundingRate.Decimal(),
 		},
-		PredictedUpcomingRate: fundingrate.Rate{
-			Time: contract.FundingNextApply.Time(),
-			Rate: contract.FundingRateIndicative.Decimal(),
-		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
 		TimeChecked:    time.Now(),
 	}
+	if includeUpcomingRate {
+		resp.PredictedUpcomingRate = fundingrate.Rate{
+			Time: contract.FundingNextApply.Time(),
+			Rate: contract.FundingRateIndicative.Decimal(),
+		}
+	}
+	return resp
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future

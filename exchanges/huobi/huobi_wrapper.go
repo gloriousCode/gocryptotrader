@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -124,6 +125,7 @@ func (h *HUOBI) SetDefaults() {
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
 				FundingRateFetching:            true,
+				PredictedFundingRate:           true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
@@ -137,6 +139,8 @@ func (h *HUOBI) SetDefaults() {
 				GetOrder:               true,
 				GetOrders:              true,
 				TickerFetching:         true,
+				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
+
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -2208,56 +2212,35 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 	if r.Asset != asset.CoinMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	h.GetEstimatedFundingRates()
-	h.GetSwapFundingRates()
-	if !r.Pair.IsEmpty() {
-		resp := make([]fundingrate.LatestRateResponse, 1)
-		fPair, err := h.FormatExchangeCurrency(r.Pair, r.Asset)
-		if err != nil {
-			return nil, err
-		}
-		var settle string
-		settle, err = h.getSettlementFromCurrency(fPair, true)
-		contract, err := h.GetSingleContract(ctx, settle, fPair.String())
-		if err != nil {
-			return nil, err
-		}
-		resp[0] = contractToFundingRate(g.Name, r.Asset, fPair, contract)
-		return resp, nil
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
 	}
 
-	var resp []fundingrate.LatestRateResponse
-	settleCurrencies := []string{"btc", "usdt", "usd"}
-	pairs, err := g.GetEnabledPairs(asset.Futures)
+	rateResp, err := h.GetSwapFundingRates(ctx, r.Pair)
 	if err != nil {
 		return nil, err
 	}
-
-	for i := range settleCurrencies {
-		contracts, err := g.GetAllFutureContracts(ctx, settleCurrencies[i])
-		if err != nil {
-			return nil, err
-		}
-		for j := range contracts {
-			p := strings.ToUpper(contracts[j].Name)
-			if !h.IsValidPairString(p) {
-				continue
-			}
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return nil, err
-			}
-			if !pairs.Contains(cp, false) {
-				continue
-			}
-			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j]))
+	rate := fundingrate.LatestRateResponse{
+		Exchange: h.Name,
+		Asset:    r.Asset,
+		Pair:     r.Pair,
+		LatestRate: fundingrate.Rate{
+			Time: time.UnixMilli(rateResp.FundingTime),
+			Rate: decimal.NewFromFloat(rateResp.FundingRate),
+		},
+		TimeOfNextRate: time.UnixMilli(rateResp.NextFundingTime),
+		TimeChecked:    time.Now(),
+	}
+	if r.IncludePredictedRate {
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.TimeOfNextRate,
+			Rate: decimal.NewFromFloat(rateResp.EstimatedRate),
 		}
 	}
-
-	return resp, nil
+	return []fundingrate.LatestRateResponse{rate}, nil
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (h *HUOBI) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
-	return a == asset.Futures, nil
+	return a == asset.CoinMarginedFutures, nil
 }

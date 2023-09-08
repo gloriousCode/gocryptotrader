@@ -982,7 +982,7 @@ func (h *HUOBI) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]S
 		Data []SwapMarketsData `json:"data"`
 	}
 	var result response
-	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapMarkets+vals.Encode(), &result)
+	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapMarkets+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -1002,7 +1002,7 @@ func (h *HUOBI) GetSwapFundingRates(ctx context.Context, contract currency.Pair)
 		Data FundingRatesData `json:"data"`
 	}
 	var result response
-	err = h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapFunding+vals.Encode(), &result)
+	err = h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapFunding+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return FundingRatesData{}, errors.New(result.ErrorMessage)
 	}

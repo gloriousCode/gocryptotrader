@@ -132,7 +132,9 @@ func (s *Service) processFundingRate(p *LatestRateResponse) error {
 		return fmt.Errorf("%s %w", p.Exchange, errPairNotSet)
 	}
 
-	if p.LatestRate.Time.IsZero() {
+	if p.LatestRate.Time.IsZero() && p.LatestRate.Rate.IsZero() {
+		// a rate can be zero and not all exchanges provide a time,
+		// but both being zero is not a valid funding rate
 		return fmt.Errorf("%s %s %w",
 			p.Exchange,
 			p.Pair,

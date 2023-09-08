@@ -284,6 +284,7 @@ var (
 	ARK              = NewCode("ARK")
 	MOD              = NewCode("MOD")
 	ENJ              = NewCode("ENJ")
+	PF               = NewCode("PF")
 	PFC              = NewCode("PFC")
 	STORJ            = NewCode("STORJ")
 	RCN              = NewCode("RCN")

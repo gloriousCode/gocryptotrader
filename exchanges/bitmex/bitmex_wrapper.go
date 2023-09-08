@@ -135,7 +135,7 @@ func (b *Bitmex) SetDefaults() {
 				DeadMansSwitch:         true,
 				GetOrders:              true,
 				GetOrder:               true,
-				FundingRateFetching:    false, // supported but not implemented
+				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
 				FundingRates:         true,

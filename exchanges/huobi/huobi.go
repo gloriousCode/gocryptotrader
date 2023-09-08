@@ -126,7 +126,7 @@ func (h *HUOBI) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) 
 		return result, err
 	}
 	params.Set("symbol", symbolValue)
-	return result, h.SendHTTPRequest(ctx, exchange.RestSpot, huobi24HrMarketSummary+params.Encode(), &result)
+	return result, h.SendHTTPRequest(ctx, exchange.RestSpot, huobi24HrMarketSummary+"?"+params.Encode(), &result)
 }
 
 // GetTickers returns the ticker for the specified symbol
