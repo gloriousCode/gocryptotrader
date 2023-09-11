@@ -1556,10 +1556,13 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
-// GetLatestFundingRates returns the latest funding rate for a given asset and currency
+// GetLatestFundingRates returns the latest funding rates data
 func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.PerpetualSwap {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
 	}
 	format, err := ok.GetPairFormat(r.Asset, true)
 	if err != nil {

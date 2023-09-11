@@ -1166,13 +1166,8 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	}
 	resp := make([]futures.Contract, 0, len(marketSummary))
 	for i := range marketSummary {
-		splitter := strings.Split(marketSummary[i].Symbol, marketSummary[i].Base)
-		if len(splitter) != 2 {
-			log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketSummary[i].Symbol, marketSummary[i].Base)
-			continue
-		}
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, splitter[1])
+		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
 		if err != nil {
 			return nil, err
 		}
@@ -1220,7 +1215,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	return resp, nil
 }
 
-// GetLatestFundingRates returns the latest funding rates
+// GetLatestFundingRates returns the latest funding rates data
 func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)

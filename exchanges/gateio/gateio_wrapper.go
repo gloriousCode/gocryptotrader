@@ -2158,7 +2158,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	return g.LoadLimits(limits)
 }
 
-// GetLatestFundingRates returns the latest funding rates
+// GetLatestFundingRates returns the latest funding rates data
 func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)

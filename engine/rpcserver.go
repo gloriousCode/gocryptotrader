@@ -4820,7 +4820,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	return &response, nil
 }
 
-// GetLatestFundingRates returns the latest funding rates for an exchange and asset
+// GetLatestFundingRates returns the latest funding rates data
 func (s *RPCServer) GetLatestFundingRates(ctx context.Context, r *gctrpc.GetLatestFundingRatesRequest) (*gctrpc.GetLatestFundingRatesResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w GetLatestFundingRateRequest", common.ErrNilPointer)

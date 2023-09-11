@@ -1785,7 +1785,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	return resp, nil
 }
 
-// GetLatestFundingRates returns the latest funding rates
+// GetLatestFundingRates returns the latest funding rates data
 func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
