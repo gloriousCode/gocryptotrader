@@ -112,29 +112,31 @@ func (f fExchange) GetFuturesPositions(_ context.Context, req *futures.Positions
 	return resp, nil
 }
 
-func (f fExchange) GetLatestFundingRate(_ context.Context, request *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+func (f fExchange) GetLatestFundingRates(_ context.Context, request *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.LatestRateResponse{
-		Exchange: f.GetName(),
-		Asset:    request.Asset,
-		Pair:     request.Pair,
-		LatestRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
+	return []fundingrate.LatestRateResponse{
+		{
+			Exchange: f.GetName(),
+			Asset:    request.Asset,
+			Pair:     request.Pair,
+			LatestRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			PredictedUpcomingRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			TimeOfNextRate: time.Now(),
 		},
-		PredictedUpcomingRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
-		},
-		TimeOfNextRate: time.Now(),
 	}, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+func (f fExchange) GetHistoricalFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.Rates{
+	return &fundingrate.HistoricalRates{
 		Exchange:  f.GetName(),
 		Asset:     request.Asset,
 		Pair:      request.Pair,

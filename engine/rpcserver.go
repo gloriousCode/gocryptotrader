@@ -4548,8 +4548,8 @@ func (s *RPCServer) GetFuturesPositions(ctx context.Context, r *gctrpc.GetFuture
 			if pos[i].Status == order.Closed {
 				endDate = pos[i].Orders[len(pos[i].Orders)-1].Date
 			}
-			var fundingDetails *fundingrate.Rates
-			fundingDetails, err = exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
+			var fundingDetails *fundingrate.HistoricalRates
+			fundingDetails, err = exch.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{
 				Asset:                pos[i].Asset,
 				Pair:                 pos[i].Pair,
 				StartDate:            pos[i].Orders[0].Date,
@@ -4690,7 +4690,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 
-	funding, err := exch.GetFundingRates(ctx, &fundingrate.RatesRequest{
+	funding, err := exch.GetHistoricalFundingRates(ctx, &fundingrate.HistoricalRatesRequest{
 		Asset:                a,
 		Pair:                 cp,
 		StartDate:            start,
@@ -4782,7 +4782,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	if err != nil {
 		return nil, err
 	}
-	funding, err := exch.GetLatestFundingRate(ctx, &fundingrate.LatestRateRequest{
+	fundingRates, err := exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
 		Asset:                a,
 		Pair:                 cp,
 		IncludePredictedRate: r.IncludePredicted,
@@ -4790,27 +4790,30 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	if err != nil {
 		return nil, err
 	}
+	if len(fundingRates) != 1 {
+		return nil, errUnexpectedResponseSize
+	}
 	var response gctrpc.GetLatestFundingRateResponse
 	fundingData := &gctrpc.FundingData{
 		Exchange: r.Exchange,
 		Asset:    r.Asset,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: funding.Pair.Delimiter,
-			Base:      funding.Pair.Base.String(),
-			Quote:     funding.Pair.Quote.String(),
+			Delimiter: fundingRates[0].Pair.Delimiter,
+			Base:      fundingRates[0].Pair.Base.String(),
+			Quote:     fundingRates[0].Pair.Quote.String(),
 		},
 		LatestRate: &gctrpc.FundingRate{
-			Date: funding.LatestRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate: funding.LatestRate.Rate.String(),
+			Date: fundingRates[0].LatestRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate: fundingRates[0].LatestRate.Rate.String(),
 		},
 	}
-	if !funding.TimeOfNextRate.IsZero() {
-		fundingData.TimeOfNextRate = funding.TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
+	if !fundingRates[0].TimeOfNextRate.IsZero() {
+		fundingData.TimeOfNextRate = fundingRates[0].TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
 	}
 	if r.IncludePredicted {
 		fundingData.UpcomingRate = &gctrpc.FundingRate{
-			Date: funding.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate: funding.PredictedUpcomingRate.Rate.String(),
+			Date: fundingRates[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate: fundingRates[0].PredictedUpcomingRate.Rate.String(),
 		}
 	}
 	response.Rate = fundingData

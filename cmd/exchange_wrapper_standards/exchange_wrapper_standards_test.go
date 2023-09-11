@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -270,6 +272,7 @@ var (
 	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
 	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	latestRateRequest     = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -459,6 +462,12 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
 		})
+	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
+		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
+			Asset:                argGenerator.AssetParams.Asset,
+			Pair:                 argGenerator.AssetParams.Pair,
+			IncludePredictedRate: true,
+		})
 	default:
 		input = reflect.Zero(argGenerator.MethodInputType)
 	}
@@ -502,14 +511,13 @@ var excludedMethodNames = map[string]struct{}{
 	"GetCollateralCurrencyForContract": {},
 	"GetCurrencyForRealisedPNL":        {},
 	"GetFuturesPositions":              {},
-	"GetFundingRates":                  {},
+	"GetHistoricalFundingRates":        {},
 	"IsPerpetualFutureCurrency":        {},
 	"GetMarginRatesHistory":            {},
 	"CalculatePNL":                     {},
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
 	"GetPositionSummary":               {},
-	"GetLatestFundingRate":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -547,6 +555,8 @@ var acceptableErrors = []error{
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
+	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
+	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
