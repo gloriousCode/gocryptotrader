@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	errNilOrderManager                 = errors.New("nil order manager received")
 	errNilCurrencyPairSyncer           = errors.New("nil currency pair syncer received")
 	errNilCurrencyConfig               = errors.New("nil currency config received")
 	errNilCurrencyPairFormat           = errors.New("nil currency pair format received")

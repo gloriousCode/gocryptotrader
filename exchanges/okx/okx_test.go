@@ -19,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -3146,13 +3147,13 @@ func TestInstrument(t *testing.T) {
 	if i.Category != "1" {
 		t.Error("expected 1 category")
 	}
-	if i.ContractMultiplier != "1" {
+	if i.ContractMultiplier != 1 {
 		t.Error("expected 1 contract multiplier")
 	}
 	if i.ContractType != "linear" {
 		t.Error("expected linear contract type")
 	}
-	if i.ContractValue != "0.0001" {
+	if i.ContractValue.Float64() != 0.0001 {
 		t.Error("expected 0.0001 contract value")
 	}
 	if i.ContractValueCurrency != currency.BTC.String() {
@@ -3167,7 +3168,8 @@ func TestInstrument(t *testing.T) {
 	if i.InstrumentID != "BTC-USDC-SWAP" {
 		t.Error("expected BTC-USDC-SWAP instrument ID")
 	}
-	if i.InstrumentType != asset.PerpetualSwap {
+	swap := ok.GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
+	if i.InstrumentType != swap {
 		t.Error("expected SWAP instrument type")
 	}
 	if i.MaxLeverage != 125 {
@@ -3373,5 +3375,26 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("received %v expected %v", assets, asset.Spot)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }

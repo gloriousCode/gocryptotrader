@@ -79,14 +79,14 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 
 	m2, ok := m1[p.Base.Item]
 	if !ok {
-		return nil, fmt.Errorf("no tickers associated with base currency %s",
-			p.Base)
+		return nil, fmt.Errorf("no tickers associated with base currency %s for %s %s %s",
+			p.Base, exchange, a, p)
 	}
 
 	m3, ok := m2[p.Quote.Item]
 	if !ok {
-		return nil, fmt.Errorf("no tickers associated with quote currency %s",
-			p.Quote)
+		return nil, fmt.Errorf("no tickers associated with quote currency %s for %s %s %s",
+			p.Quote, exchange, a, p)
 	}
 
 	t, ok := m3[a]

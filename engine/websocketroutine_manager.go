@@ -17,10 +17,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
+// SetupWebsocketRoutineManager creates a new websocket routine manager
+func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
+	}
+	if orderManager == nil {
+		return nil, errNilOrderManager
 	}
 	if syncer == nil {
 		return nil, errNilCurrencyPairSyncer
@@ -284,9 +287,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
@@ -310,9 +310,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
 				err := m.orderManager.Add(&d[x])

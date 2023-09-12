@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -439,6 +440,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 	}
 	switch a {
 	case asset.Spot:
+		last, err := h.GetLastTrade(ctx, p)
+		if err != nil {
+			return nil, err
+		}
 		tickerData, err := h.Get24HrMarketSummary(ctx, p)
 		if err != nil {
 			return nil, err
@@ -449,6 +454,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Volume:       tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
+			Last:         last.Tick.Data[0].Price,
 			Pair:         p,
 			ExchangeName: h.Name,
 			AssetType:    asset.Spot,
@@ -461,7 +467,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		if err != nil {
 			return nil, err
 		}
-
+		last, err := h.GetLastTrade(ctx, p)
+		if err != nil {
+			return nil, err
+		}
 		if len(marketData.Tick.Bid) == 0 {
 			return nil, fmt.Errorf("invalid data for bid")
 		}
@@ -478,6 +487,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Pair:         p,
 			Bid:          marketData.Tick.Bid[0],
 			Ask:          marketData.Tick.Ask[0],
+			Last:         last.Tick.Data[0].Price,
 			ExchangeName: h.Name,
 			AssetType:    a,
 		})
@@ -486,6 +496,10 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		}
 	case asset.Futures:
 		marketData, err := h.FGetMarketOverviewData(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		last, err := h.FLastTradeData(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -501,6 +515,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: h.Name,
 			AssetType:    a,
+			Last:         last.Tick.Data[0].Price,
 		})
 		if err != nil {
 			return nil, err
@@ -2087,4 +2102,108 @@ func (h *HUOBI) GetAvailableTransferChains(ctx context.Context, cryptocurrency c
 // GetServerTime returns the current exchange server time.
 func (h *HUOBI) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return h.GetCurrentServerTime(ctx)
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !h.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	switch item {
+	case asset.CoinMarginedFutures:
+		result, err := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(result))
+		for x := range result {
+			contractSplitIndex := strings.Split(result[x].ContractCode, currency.DashDelimiter)
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromStrings(contractSplitIndex[0], contractSplitIndex[1])
+			if err != nil {
+				return nil, err
+			}
+			underlying, err = currency.NewPairFromStrings(result[x].Symbol, "USD")
+			if err != nil {
+				return nil, err
+			}
+			var s time.Time
+			s, err = time.Parse("20060102", result[x].CreateDate)
+			if err != nil {
+				return nil, err
+			}
+
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				IsActive:             result[x].ContractStatus == 1,
+				Type:                 futures.Perpetual,
+				SettlementCurrencies: currency.Currencies{currency.USD},
+				Multiplier:           result[x].ContractSize,
+			})
+		}
+		return resp, nil
+	case asset.Futures:
+		result, err := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(result.Data))
+		for x := range result.Data {
+			contractSplitIndex := strings.Split(result.Data[x].ContractCode, result.Data[x].Symbol)
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromStrings(result.Data[x].Symbol, contractSplitIndex[1])
+			if err != nil {
+				return nil, err
+			}
+			underlying, err = currency.NewPairFromStrings(result.Data[x].Symbol, "USD")
+			if err != nil {
+				return nil, err
+			}
+			var s, e time.Time
+			s, err = time.Parse("20060102", result.Data[x].CreateDate)
+			if err != nil {
+				return nil, err
+			}
+			if result.Data[x].DeliveryTime > 0 {
+				e = time.UnixMilli(result.Data[x].DeliveryTime)
+			} else {
+				e = time.UnixMilli(result.Data[x].SettlementTime)
+			}
+			contractLength := e.Sub(s)
+			var ct futures.ContractType
+			switch {
+			case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Weekly
+			case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Fortnightly
+			case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Quarterly
+			case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.HalfYearly
+			default:
+				ct = futures.Perpetual
+			}
+
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				IsActive:             result.Data[x].ContractStatus == 1,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USD},
+				Multiplier:           result.Data[x].ContractSize,
+			})
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }

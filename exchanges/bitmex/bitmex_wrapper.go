@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1103,4 +1106,122 @@ func (b *Bitmex) getOrderType(id int64) (order.Type, error) {
 		return order.UnknownType, fmt.Errorf("unhandled order type for '%d': %w", id, order.ErrTypeIsInvalid)
 	}
 	return o, nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !b.SupportsAsset(item) || item == asset.Index {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]futures.Contract, 0, len(marketInfo))
+	switch item {
+	case asset.PerpetualContract:
+		for x := range marketInfo {
+			if marketInfo[x].Typ != perpetualContractID {
+				continue
+			}
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
+			}
+			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			if err != nil {
+				return nil, err
+			}
+			var s time.Time
+			if marketInfo[x].Front != "" {
+				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
+				if err != nil {
+					return nil, err
+				}
+			}
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				IsActive:             marketInfo[x].State == "Open",
+				Type:                 futures.Perpetual,
+				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+				Multiplier:           float64(marketInfo[x].Multiplier),
+				LatestRate: fundingrate.Rate{
+					Time: marketInfo[x].FundingTimestamp,
+					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
+				},
+			})
+		}
+	case asset.Futures:
+		for x := range marketInfo {
+			if marketInfo[x].Typ != futuresID {
+				continue
+			}
+			var cp, underlying currency.Pair
+			splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+			if len(splitter) != 2 {
+				log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+				continue
+			}
+			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
+			if err != nil {
+				return nil, err
+			}
+			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+			if err != nil {
+				return nil, err
+			}
+			var s, e time.Time
+			if marketInfo[x].Front != "" {
+				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if marketInfo[x].Expiry != "" {
+				e, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
+				if err != nil {
+					return nil, err
+				}
+			}
+			var ct futures.ContractType
+			contractDuration := e.Sub(s)
+			switch {
+			case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Weekly
+			case contractDuration <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Fortnightly
+			case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Monthly
+			case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Quarterly
+			case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.HalfYearly
+			case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.NineMonthly
+			case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Yearly
+			}
+			resp = append(resp, futures.Contract{
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				IsActive:             marketInfo[x].State == "Open",
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+				Multiplier:           float64(marketInfo[x].Multiplier),
+			})
+		}
+	}
+	return resp, nil
 }

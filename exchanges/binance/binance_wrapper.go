@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -525,7 +526,9 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			splitter := strings.Split(tick[y].Symbol, "_")
+
+			cp, err := currency.NewPairFromStrings(splitter[0], strings.Join(splitter[1:], ""))
 			if err != nil {
 				return err
 			}
@@ -2260,4 +2263,84 @@ func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (boo
 		}
 	}
 	return false, nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	switch item {
+	case asset.USDTMarginedFutures:
+		ei, err := b.UExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			if len(splitter) <= 1 {
+				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
+			}
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].Status == "TRADING",
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	case asset.CoinMarginedFutures:
+		ei, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.PERP) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }

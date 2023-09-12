@@ -53,6 +53,31 @@ type FuturesCandleStickWithStringParam struct {
 	TurnOver convert.StringToFloat64 `json:"turnover"`
 }
 
+type V3DerivateivesTicker struct {
+	Symbol                 string                  `json:"symbol"`
+	BidPrice               convert.StringToFloat64 `json:"bidPrice"`
+	AskPrice               convert.StringToFloat64 `json:"askPrice"`
+	LastPrice              convert.StringToFloat64 `json:"lastPrice"`
+	LastTickDirection      string                  `json:"lastTickDirection"`
+	PrevPrice24H           convert.StringToFloat64 `json:"prevPrice24h"`
+	Price24HPcnt           convert.StringToFloat64 `json:"price24hPcnt"`
+	HighPrice24H           convert.StringToFloat64 `json:"highPrice24h"`
+	LowPrice24H            convert.StringToFloat64 `json:"lowPrice24h"`
+	PrevPrice1H            convert.StringToFloat64 `json:"prevPrice1h"`
+	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
+	IndexPrice             convert.StringToFloat64 `json:"indexPrice"`
+	OpenInterest           convert.StringToFloat64 `json:"openInterest"`
+	Turnover24H            convert.StringToFloat64 `json:"turnover24h"`
+	Volume24H              convert.StringToFloat64 `json:"volume24h"`
+	FundingRate            convert.StringToFloat64 `json:"fundingRate"`
+	NextFundingTime        string                  `json:"nextFundingTime"`
+	PredictedDeliveryPrice convert.StringToFloat64 `json:"predictedDeliveryPrice"`
+	BasisRate              convert.StringToFloat64 `json:"basisRate"`
+	DeliveryFeeRate        convert.StringToFloat64 `json:"deliveryFeeRate"`
+	DeliveryTime           string                  `json:"deliveryTime"`
+	OpenInterestValue      convert.StringToFloat64 `json:"openInterestValue"`
+}
+
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
 	Symbol                 string                  `json:"symbol"`

@@ -390,6 +390,7 @@ func (g *Gemini) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 		Ask:          tick.Ask,
 		Open:         tick.Open,
 		Close:        tick.Close,
+		Last:         tick.Close,
 		Pair:         fPair,
 		ExchangeName: g.Name,
 		AssetType:    a})
