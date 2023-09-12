@@ -359,23 +359,23 @@ func TestMux(t *testing.T) {
 	t.Parallel()
 	var mux *Mux
 	_, err := mux.Subscribe(uuid.Nil)
-	if !errors.Is(err, errMuxIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMuxIsNil)
+	if !errors.Is(err, ErrMuxIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrMuxIsNil)
 	}
 
 	err = mux.Unsubscribe(uuid.Nil, nil)
-	if !errors.Is(err, errMuxIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMuxIsNil)
+	if !errors.Is(err, ErrMuxIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrMuxIsNil)
 	}
 
 	err = mux.Publish(nil)
-	if !errors.Is(err, errMuxIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMuxIsNil)
+	if !errors.Is(err, ErrMuxIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrMuxIsNil)
 	}
 
 	_, err = mux.GetID()
-	if !errors.Is(err, errMuxIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errMuxIsNil)
+	if !errors.Is(err, ErrMuxIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrMuxIsNil)
 	}
 
 	d := NewDispatcher()
