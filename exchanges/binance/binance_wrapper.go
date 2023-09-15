@@ -2324,6 +2324,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,
@@ -2357,6 +2358,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
 				Name:           cp,
 				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
 				Asset:          item,

@@ -1155,6 +1155,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				}
 			}
 			resp = append(resp, futures.Contract{
+				Exchange:             b.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,
@@ -1220,6 +1221,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				ct = futures.Yearly
 			}
 			resp = append(resp, futures.Contract{
+				Exchange:             b.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,

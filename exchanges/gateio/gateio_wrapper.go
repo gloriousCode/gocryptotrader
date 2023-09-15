@@ -2022,6 +2022,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 				c := futures.Contract{
+					Exchange:             g.Name,
 					Name:                 name,
 					Underlying:           name,
 					Asset:                item,
@@ -2083,6 +2084,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					ct = futures.LongDated
 				}
 				contractsToAdd[j] = futures.Contract{
+					Exchange:             g.Name,
 					Name:                 name,
 					Underlying:           underlying,
 					Asset:                item,

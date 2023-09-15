@@ -2243,6 +2243,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,
@@ -2323,6 +2324,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,
@@ -2397,6 +2399,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
 				Name:                 cp,
 				Underlying:           underlying,
 				Asset:                item,
