@@ -2100,15 +2100,17 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
-
 			var cp currency.Pair
 			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
-			resp[i] = fundingrate.LatestRateResponse{
+			resp = append(resp, fundingrate.LatestRateResponse{
 				Exchange: b.Name,
 				Asset:    r.Asset,
 				Pair:     cp,
@@ -2117,7 +2119,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
 				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
-			}
+			})
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
@@ -2126,14 +2128,17 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
 			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
-			resp[i] = fundingrate.LatestRateResponse{
+			resp = append(resp, fundingrate.LatestRateResponse{
 				Exchange: b.Name,
 				Asset:    r.Asset,
 				Pair:     cp,
@@ -2142,7 +2147,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 					Rate: mp[i].LastFundingRate.Decimal(),
 				},
 				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
-			}
+			})
 		}
 		return resp, nil
 	}
