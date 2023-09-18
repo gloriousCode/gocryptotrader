@@ -22,6 +22,17 @@ type PairAssetKey struct {
 	Asset asset.Item
 }
 
+// ExchangeAssetKey is a unique map key signature for exchange and asset
+type ExchangeAssetKey struct {
+	Exchange string
+	Asset    asset.Item
+}
+
+type PairKey struct {
+	Base  *currency.Item
+	Quote *currency.Item
+}
+
 // SubAccountCurrencyAssetKey is a unique map key signature for subaccount, currency code and asset
 type SubAccountCurrencyAssetKey struct {
 	SubAccount string

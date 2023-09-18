@@ -2089,7 +2089,10 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		}
 		fPair = r.Pair.Format(format)
 	}
-
+	availPairs, err := b.GetAvailablePairs(r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	switch r.Asset {
 	case asset.USDTMarginedFutures:
 		var mp []UMarkPrice
@@ -2099,8 +2102,9 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		}
 		resp := make([]fundingrate.LatestRateResponse, len(mp))
 		for i := range mp {
+
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -2125,7 +2129,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		resp := make([]fundingrate.LatestRateResponse, len(mp))
 		for i := range mp {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
 				return nil, err
 			}

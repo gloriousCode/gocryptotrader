@@ -1126,113 +1126,120 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 
-	marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500})
+	enabledPairs, err := b.GetEnabledPairs(item)
 	if err != nil {
 		return nil, err
 	}
+	enabledLen := len(enabledPairs)
+	resp := make([]futures.Contract, 0, enabledLen)
+	for i := 0; i < enabledLen; i += 500 {
+		marketInfo, err := b.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500, Start: int32(i)})
+		if err != nil {
+			return nil, err
+		}
+		switch item {
+		case asset.PerpetualContract:
+			for x := range marketInfo {
+				if marketInfo[x].Typ != perpetualContractID {
+					continue
+				}
+				var cp, underlying currency.Pair
+				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+				if err != nil {
+					return nil, err
+				}
+				underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+				if err != nil {
+					return nil, err
+				}
+				var s time.Time
+				if marketInfo[x].Front != "" {
+					s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
+					if err != nil {
+						return nil, err
+					}
+				}
+				resp = append(resp, futures.Contract{
+					Exchange:             b.Name,
+					Name:                 cp,
+					Underlying:           underlying,
+					Asset:                item,
+					StartDate:            s,
+					IsActive:             marketInfo[x].State == "Open",
+					Type:                 futures.Perpetual,
+					SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+					Multiplier:           float64(marketInfo[x].Multiplier),
+					LatestRate: fundingrate.Rate{
+						Time: marketInfo[x].FundingTimestamp,
+						Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
+					},
+				})
+			}
+		case asset.Futures:
+			for x := range marketInfo {
+				if marketInfo[x].Typ != futuresID {
+					continue
+				}
+				var cp, underlying currency.Pair
+				splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+				if len(splitter) != 2 {
+					log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+					continue
+				}
+				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
+				if err != nil {
+					return nil, err
+				}
+				underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
+				if err != nil {
+					return nil, err
+				}
+				var s, e time.Time
+				if marketInfo[x].Front != "" {
+					s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
+					if err != nil {
+						return nil, err
+					}
+				}
+				if marketInfo[x].Expiry != "" {
+					e, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
+					if err != nil {
+						return nil, err
+					}
+				}
+				var ct futures.ContractType
+				contractDuration := e.Sub(s)
+				switch {
+				case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Weekly
+				case contractDuration <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+					ct = futures.Fortnightly
+				case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Monthly
+				case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Quarterly
+				case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.HalfYearly
+				case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.NineMonthly
+				case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
+					ct = futures.Yearly
+				}
+				resp = append(resp, futures.Contract{
+					Exchange:             b.Name,
+					Name:                 cp,
+					Underlying:           underlying,
+					Asset:                item,
+					StartDate:            s,
+					EndDate:              e,
+					IsActive:             marketInfo[x].State == "Open",
+					Type:                 ct,
+					SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
+					Multiplier:           float64(marketInfo[x].Multiplier),
+				})
+			}
+		}
 
-	resp := make([]futures.Contract, 0, len(marketInfo))
-	switch item {
-	case asset.PerpetualContract:
-		for x := range marketInfo {
-			if marketInfo[x].Typ != perpetualContractID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-			if err != nil {
-				return nil, err
-			}
-			var s time.Time
-			if marketInfo[x].Front != "" {
-				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
-				if err != nil {
-					return nil, err
-				}
-			}
-			resp = append(resp, futures.Contract{
-				Exchange:             b.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				IsActive:             marketInfo[x].State == "Open",
-				Type:                 futures.Perpetual,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           float64(marketInfo[x].Multiplier),
-				LatestRate: fundingrate.Rate{
-					Time: marketInfo[x].FundingTimestamp,
-					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
-				},
-			})
-		}
-	case asset.Futures:
-		for x := range marketInfo {
-			if marketInfo[x].Typ != futuresID {
-				continue
-			}
-			var cp, underlying currency.Pair
-			splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-			if len(splitter) != 2 {
-				log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-				continue
-			}
-			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
-			if err != nil {
-				return nil, err
-			}
-			underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-			if err != nil {
-				return nil, err
-			}
-			var s, e time.Time
-			if marketInfo[x].Front != "" {
-				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if marketInfo[x].Expiry != "" {
-				e, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
-				if err != nil {
-					return nil, err
-				}
-			}
-			var ct futures.ContractType
-			contractDuration := e.Sub(s)
-			switch {
-			case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
-				ct = futures.Weekly
-			case contractDuration <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
-				ct = futures.Fortnightly
-			case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.Monthly
-			case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.Quarterly
-			case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.HalfYearly
-			case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.NineMonthly
-			case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
-				ct = futures.Yearly
-			}
-			resp = append(resp, futures.Contract{
-				Exchange:             b.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
-				IsActive:             marketInfo[x].State == "Open",
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           float64(marketInfo[x].Multiplier),
-			})
-		}
 	}
 	return resp, nil
 }
@@ -1253,55 +1260,66 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	if err != nil {
 		return nil, err
 	}
-	count := "1"
+	var rates []Funding
+	var resp []fundingrate.LatestRateResponse
+	var symbol string
+
+	count := 500
+	enabledPairs, err := b.GetEnabledPairs(r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	if r.Pair.IsEmpty() {
-		count = "500"
-	}
 
-	fPair := format.Format(r.Pair)
-	rates, err := b.GetFullFundingHistory(ctx, fPair, count, "", "", "", true, time.Time{}, time.Time{})
-	if err != nil {
-		return nil, err
-	}
-
-	pairs, err := b.GetEnabledPairs(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
-	// Bitmex returns historical rates from this endpoint, we only want the latest
-	latestRateSymbol := make(map[string]bool)
-	for i := range rates {
-		if _, ok := latestRateSymbol[rates[i].Symbol]; ok {
-			continue
+		if len(enabledPairs) > count {
+			count = len(enabledPairs)
 		}
-		latestRateSymbol[rates[i].Symbol] = true
-		var nr time.Time
-		var cp currency.Pair
-		nr, err = time.Parse(time.RFC3339, rates[i].FundingInterval)
+	} else {
+		count = 1
+		symbol = format.Format(r.Pair)
+	}
+	for i := 0; i < count; i += 500 {
+		// make sure we only get the latest rates
+		tt := time.Now().Add(-time.Hour * 16).Format("2006-01-02 15:04")
+		rates, err = b.GetFullFundingHistory(ctx, symbol, strconv.FormatInt(int64(count), 10), `{"startTime":"`+tt+`"}`, "", strconv.FormatInt(int64(i), 10), true, time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
-		cp, err = pairs.DeriveFrom(rates[i].Symbol)
-		if err != nil {
-			if errors.Is(err, currency.ErrPairNotFound) {
+
+		// Bitmex returns historical rates from this endpoint, we only want the latest
+		latestRateSymbol := make(map[string]bool)
+		for j := range rates {
+			if _, ok := latestRateSymbol[rates[j].Symbol]; ok {
 				continue
 			}
-			return nil, err
+			latestRateSymbol[rates[j].Symbol] = true
+			var nr time.Time
+			var cp currency.Pair
+			nr, err = time.Parse(time.RFC3339, rates[j].FundingInterval)
+			if err != nil {
+				return nil, err
+			}
+			cp, err = enabledPairs.DeriveFrom(rates[j].Symbol)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return nil, err
+			}
+			resp = append(resp, fundingrate.LatestRateResponse{
+				Exchange: b.Name,
+				Asset:    r.Asset,
+				Pair:     cp,
+				LatestRate: fundingrate.Rate{
+					Time: rates[j].Timestamp,
+					Rate: decimal.NewFromFloat(rates[j].FundingRate),
+				},
+				TimeOfNextRate: rates[j].Timestamp.Add(time.Duration(nr.Nanosecond())),
+				TimeChecked:    time.Now(),
+			})
 		}
-		resp = append(resp, fundingrate.LatestRateResponse{
-			Exchange: b.Name,
-			Asset:    r.Asset,
-			Pair:     cp,
-			LatestRate: fundingrate.Rate{
-				Time: rates[i].Timestamp,
-				Rate: decimal.NewFromFloat(rates[i].FundingRate),
-			},
-			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Nanosecond())),
-			TimeChecked:    time.Now(),
-		})
 	}
+
 	return resp, nil
 }
 

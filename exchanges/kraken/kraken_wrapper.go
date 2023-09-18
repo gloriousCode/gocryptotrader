@@ -1820,6 +1820,7 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			Pair:     pair,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
+				Time: time.Now(), // TODO FIX BASTARD
 			},
 			TimeChecked: time.Now(),
 		}
