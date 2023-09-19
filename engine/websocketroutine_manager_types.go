@@ -30,8 +30,9 @@ type WebsocketRoutineManager struct {
 	verbose         bool
 	exchangeManager iExchangeManager
 	orderManager    iOrderManager
-	syncer          iCurrencyPairSyncer
+	syncer          ICurrencyPairSyncer
 	currencyConfig  *currency.Config
+	currencyFormat  *currency.PairFormat
 	shutdown        chan struct{}
 	dataHandlers    []WebsocketDataHandler
 	wg              sync.WaitGroup

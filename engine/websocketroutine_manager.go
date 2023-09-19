@@ -18,16 +18,7 @@ import (
 )
 
 // SetupWebsocketRoutineManager creates a new websocket routine manager
-func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
-	if exchangeManager == nil {
-		return nil, errNilExchangeManager
-	}
-	if orderManager == nil {
-		return nil, errNilOrderManager
-	}
-	if syncer == nil {
-		return nil, errNilCurrencyPairSyncer
-	}
+func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer ICurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if cfg == nil {
 		return nil, errNilCurrencyConfig
 	}
@@ -40,6 +31,23 @@ func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		currencyFormat:  cfg.CurrencyPairFormat,
+	}
+	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
+}
+
+func SetupGloriousWebsocketRoutineManager(exchangeManager iExchangeManager, syncer ICurrencyPairSyncer, pairFormat *currency.PairFormat, verbose bool) (*WebsocketRoutineManager, error) {
+	if exchangeManager == nil {
+		return nil, errNilExchangeManager
+	}
+	if syncer == nil {
+		return nil, errNilCurrencyPairSyncer
+	}
+	man := &WebsocketRoutineManager{
+		verbose:         verbose,
+		exchangeManager: exchangeManager,
+		syncer:          syncer,
+		currencyFormat:  pairFormat,
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -50,12 +58,8 @@ func (m *WebsocketRoutineManager) Start() error {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
 
-	if m.currencyConfig == nil {
+	if m.currencyFormat == nil {
 		return errNilCurrencyConfig
-	}
-
-	if m.currencyConfig.CurrencyPairFormat == nil {
-		return errNilCurrencyPairFormat
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
@@ -223,7 +227,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.WebsocketUpdate(exchName,
 				d.Pair,
 				d.AssetType,
-				SyncItemTicker,
+				int(SyncItemTicker),
 				nil)
 			if err != nil {
 				return err
@@ -240,7 +244,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				err := m.syncer.WebsocketUpdate(exchName,
 					d[x].Pair,
 					d[x].AssetType,
-					SyncItemTicker,
+					int(SyncItemTicker),
 					nil)
 				if err != nil {
 					return err
@@ -283,7 +287,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.WebsocketUpdate(exchName,
 				base.Pair,
 				base.Asset,
-				SyncItemOrderbook,
+				int(SyncItemOrderbook),
 				nil)
 			if err != nil {
 				return err
@@ -376,7 +380,7 @@ func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return p
 	}
-	return p.Format(*m.currencyConfig.CurrencyPairFormat)
+	return p.Format(*m.currencyFormat)
 }
 
 // printOrderSummary this function will be deprecated when a order manager

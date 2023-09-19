@@ -73,12 +73,12 @@ type iBot interface {
 	SetupExchanges() error
 }
 
-// iCurrencyPairSyncer defines a limited scoped currency pair syncer
-type iCurrencyPairSyncer interface {
+// ICurrencyPairSyncer defines a limited scoped currency pair syncer
+type ICurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
-	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
+	WebsocketUpdate(string, currency.Pair, asset.Item, int, error) error
 }
 
 // iDatabaseConnectionManager defines a limited scoped databaseConnectionManager
