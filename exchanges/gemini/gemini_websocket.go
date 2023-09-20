@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -66,7 +67,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	// See gemini_types.go for more subscription/candle vars
 	var channels = []string{
 		marketDataLevel2,
-		candles1d,
+		wsTradeChannel,
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Spot)
@@ -349,29 +350,15 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 			return g.wsProcessUpdate(l2MarketData)
 		case "trade":
-			if !g.IsSaveTradeDataEnabled() {
-				return nil
-			}
-
 			var result wsTrade
 			err := json.Unmarshal(respRaw, &result)
 			if err != nil {
 				return err
 			}
-
-			tSide, err := order.StringToOrderSide(result.Side)
-			if err != nil {
-				g.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: g.Name,
-					Err:      err,
-				}
-			}
-
 			enabledPairs, err := g.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
 			}
-
 			format, err := g.GetPairFormat(asset.Spot, true)
 			if err != nil {
 				return err
@@ -382,6 +369,25 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
+			g.Websocket.DataHandler <- &ticker.Price{
+				Last:         result.Price,
+				Pair:         pair,
+				ExchangeName: g.Name,
+				AssetType:    asset.Spot,
+				LastUpdated:  time.UnixMilli(result.Timestamp),
+			}
+
+			if !g.IsSaveTradeDataEnabled() {
+				return nil
+			}
+
+			tSide, err := order.StringToOrderSide(result.Side)
+			if err != nil {
+				g.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: g.Name,
+					Err:      err,
+				}
+			}
 			tradeEvent := trade.Data{
 				Timestamp:    time.UnixMilli(result.Timestamp),
 				CurrencyPair: pair,

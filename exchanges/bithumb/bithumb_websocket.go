@@ -168,7 +168,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Bithumb) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"ticker", "transaction", "orderbookdepth"}
+	var channels = []string{"ticker"}
 	var subscriptions []stream.ChannelSubscription
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {

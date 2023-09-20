@@ -50,8 +50,6 @@ const (
 
 var defaultSubscriptions = []string{
 	spotTickerChannel,
-	spotCandlesticksChannel,
-	spotOrderbookTickerChannel,
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)

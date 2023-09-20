@@ -227,7 +227,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.WebsocketUpdate(exchName,
 				d.Pair,
 				d.AssetType,
-				int(SyncItemTicker),
+				SyncItemTicker,
 				nil)
 			if err != nil {
 				return err
@@ -244,7 +244,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				err := m.syncer.WebsocketUpdate(exchName,
 					d[x].Pair,
 					d[x].AssetType,
-					int(SyncItemTicker),
+					SyncItemTicker,
 					nil)
 				if err != nil {
 					return err
@@ -287,7 +287,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			err := m.syncer.WebsocketUpdate(exchName,
 				base.Pair,
 				base.Asset,
-				int(SyncItemOrderbook),
+				SyncItemOrderbook,
 				nil)
 			if err != nil {
 				return err

@@ -46,10 +46,7 @@ const (
 )
 
 var defaultSpotSubscribedChannels = []string{
-	// wsHeartbeat,
-	wsOrderbook,
 	wsTicker,
-	wsMarketSummary,
 }
 
 var defaultSpotSubscribedChannelsAuth = []string{

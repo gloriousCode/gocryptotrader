@@ -325,7 +325,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 }
 
 func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{wsOB, tick, tradeEndPoint}
+	var channels = []string{tick}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

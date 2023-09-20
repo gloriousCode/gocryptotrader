@@ -78,7 +78,7 @@ type ICurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Base, string, error)
-	WebsocketUpdate(string, currency.Pair, asset.Item, int, error) error
+	WebsocketUpdate(string, currency.Pair, asset.Item, SyncItemType, error) error
 }
 
 // iDatabaseConnectionManager defines a limited scoped databaseConnectionManager

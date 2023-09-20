@@ -32,8 +32,6 @@ var (
 var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
 	defaultSubscribedChannels = []string{
-		okxChannelTrades,
-		okxChannelOrderBooks,
 		okxChannelTickers,
 	}
 	// defaultAuthChannels list of channels which are subscribed when authenticated

@@ -21,15 +21,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-type syncItemType int
+type SyncItemType int
 
 // const holds the sync item types
 const (
-	SyncItemTicker syncItemType = iota
+	SyncItemTicker SyncItemType = iota
 	SyncItemOrderbook
 	SyncItemTrade
+	SyncItemFundingRate
+	SyncItemFuturesContract
 	SyncManagerName = "exchange_syncer"
 )
+
+var SyncItemList = []SyncItemType{SyncItemTicker, SyncItemOrderbook, SyncItemTrade, SyncItemFundingRate, SyncItemFuturesContract}
 
 var (
 	createdCounter         = 0
@@ -334,7 +338,7 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 
 // WebsocketUpdate notifies the SyncManager to change the last updated time for a exchange asset pair
 // And set IsUsingWebsocket to true. It should be used externally only from websocket updaters
-func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType int, err error) error {
+func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a asset.Item, syncType SyncItemType, err error) error {
 	if m == nil {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrNilSubsystem)
 	}
@@ -345,7 +349,7 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		return nil
 	}
 
-	switch syncItemType(syncType) {
+	switch syncType {
 	case SyncItemOrderbook:
 		if !m.config.SynchronizeOrderbook {
 			return nil
@@ -395,11 +399,11 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		}
 	}
 
-	return m.update(c, syncItemType(syncType), err)
+	return m.update(c, syncType, err)
 }
 
 // update notifies the SyncManager to change the last updated time for a exchange asset pair
-func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, err error) error {
+func (m *SyncManager) update(c *currencyPairSyncAgent, syncType SyncItemType, err error) error {
 	if syncType < SyncItemTicker || syncType > SyncItemTrade {
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
@@ -897,7 +901,7 @@ func greatestCommonDivisor(a, b time.Duration) time.Duration {
 	return a
 }
 
-func (s syncItemType) String() string {
+func (s SyncItemType) String() string {
 	switch s {
 	case SyncItemTicker:
 		return "Ticker"
@@ -905,7 +909,11 @@ func (s syncItemType) String() string {
 		return "Orderbook"
 	case SyncItemTrade:
 		return "Trade"
+	case SyncItemFundingRate:
+		return "Funding Rate"
+	case SyncItemFuturesContract:
+		return "Contract"
 	default:
-		return fmt.Sprintf("Invalid syncItemType: %d", s)
+		return fmt.Sprintf("Invalid SyncItemType: %d", s)
 	}
 }

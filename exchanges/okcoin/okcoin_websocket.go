@@ -57,8 +57,6 @@ const (
 
 var defaultSubscriptions = []string{
 	wsTickers,
-	wsOrderbooks,
-	wsStatus,
 }
 
 func isAuthenticatedChannel(channel string) bool {

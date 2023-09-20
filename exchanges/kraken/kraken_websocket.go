@@ -68,11 +68,7 @@ var (
 // Channels require a topic and a currency
 // Format [[ticker,but-t4u],[orderbook,nce-btt]]
 var defaultSubscribedChannels = []string{
-	krakenWsTicker,
-	krakenWsTrade,
-	krakenWsOrderbook,
-	krakenWsOHLC,
-	krakenWsSpread}
+	krakenWsTicker}
 var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 
 var cancelOrdersStatusMutex sync.Mutex

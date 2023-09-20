@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -199,15 +200,36 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case bitmexWSTrade:
-			if !b.IsSaveTradeDataEnabled() {
-				return nil
-			}
 			var tradeHolder TradeData
 			err = json.Unmarshal(respRaw, &tradeHolder)
 			if err != nil {
 				return err
 			}
 			var trades []trade.Data
+			for i := range tradeHolder.Data {
+				if tradeHolder.Data[i].Price == 0 {
+					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+					// These have a size of 0 and are used only to indicate a changing price.
+					continue
+				}
+				var p currency.Pair
+				var a asset.Item
+				p, a, err = b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
+				if err != nil {
+					return err
+				}
+				b.Websocket.DataHandler <- &ticker.Price{
+					Last:         tradeHolder.Data[i].Price,
+					Pair:         p,
+					ExchangeName: b.Name,
+					AssetType:    a,
+					LastUpdated:  tradeHolder.Data[i].Timestamp,
+				}
+			}
+			if !b.IsSaveTradeDataEnabled() {
+				return nil
+			}
+
 			for i := range tradeHolder.Data {
 				if tradeHolder.Data[i].Price == 0 {
 					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.

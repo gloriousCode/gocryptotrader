@@ -1564,7 +1564,7 @@ func (b *Bitfinex) chanForSub(cName string, assetType asset.Item, pair currency.
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var wsPairFormat = currency.PairFormat{Uppercase: true}
-	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
+	var channels = []string{wsTicker}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes(true)

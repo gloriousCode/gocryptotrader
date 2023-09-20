@@ -190,7 +190,7 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 // GenerateDefaultSubscriptions generates default subscription
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
+	var channels = []string{wsTicker}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

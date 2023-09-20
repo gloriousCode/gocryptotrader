@@ -94,8 +94,12 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		pairs, err := z.CurrencyPairs.GetPairs(asset.Spot, true)
+		if err != nil {
+			return err
+		}
 
-		p, err := currency.NewPairFromString(cPair[0])
+		p, err := pairs.DeriveFrom(cPair[0])
 		if err != nil {
 			return err
 		}
@@ -279,7 +283,7 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 	subscriptions = append(subscriptions, stream.ChannelSubscription{
 		Channel: "markets",
 	})
-	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
+	channels := []string{"%s_ticker"}
 	enabledCurrencies, err := z.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

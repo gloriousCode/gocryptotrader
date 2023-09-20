@@ -6,6 +6,7 @@ import (
 
 const (
 	marketDataLevel2 = "l2"
+	wsTradeChannel   = "trade"
 	candles1m        = "candles_1m"
 	candles5m        = "candles_5m"
 	candles15m       = "candles_15m"
