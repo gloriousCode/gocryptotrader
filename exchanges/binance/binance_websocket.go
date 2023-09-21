@@ -580,6 +580,10 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
+	limiteroo := 500
+	if len(channelsToSubscribe) > limiteroo {
+		channelsToSubscribe = channelsToSubscribe[:limiteroo]
+	}
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
 		if i%50 == 0 && i != 0 {

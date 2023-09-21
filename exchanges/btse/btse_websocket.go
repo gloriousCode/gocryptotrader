@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -118,9 +119,10 @@ func (b *BTSE) wsReadData() {
 }
 
 func (b *BTSE) wsHandleData(respRaw []byte) error {
+	var err error
 	type Result map[string]interface{}
 	var result Result
-	err := json.Unmarshal(respRaw, &result)
+	err = json.Unmarshal(respRaw, &result)
 	if err != nil {
 		if strings.Contains(string(respRaw), "connect success") {
 			return nil
@@ -229,9 +231,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			}
 		}
 	case strings.Contains(topic, "tradeHistory"):
-		if !b.IsSaveTradeDataEnabled() {
-			return nil
-		}
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {
@@ -239,11 +238,6 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		}
 		var trades []trade.Data
 		for x := range tradeHistory.Data {
-			side := order.Buy
-			if tradeHistory.Data[x].Gain == -1 {
-				side = order.Sell
-			}
-
 			var p currency.Pair
 			p, err = currency.NewPairFromString(strings.Replace(tradeHistory.Topic,
 				"tradeHistory:",
@@ -257,6 +251,21 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+
+			b.Websocket.DataHandler <- &ticker.Price{
+				Last:         tradeHistory.Data[x].Price,
+				Pair:         p,
+				ExchangeName: b.Name,
+				AssetType:    a,
+				LastUpdated:  time.UnixMilli(tradeHistory.Data[x].TransactionTime),
+			}
+			if !b.IsSaveTradeDataEnabled() {
+				continue
+			}
+			side := order.Buy
+			if tradeHistory.Data[x].Gain == -1 {
+				side = order.Sell
+			}
 			trades = append(trades, trade.Data{
 				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
 				CurrencyPair: p,
@@ -267,6 +276,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Side:         side,
 				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
 			})
+		}
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
 		}
 		return trade.AddTradesToBuffer(b.Name, trades...)
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
@@ -361,7 +373,7 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
+	var channels = []string{"tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -386,14 +398,31 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	var sub wsSub
-	sub.Operation = "subscribe"
-	for i := range channelsToSubscribe {
-		sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
-	}
-	err := b.Websocket.Conn.SendJSONMessage(sub)
-	if err != nil {
-		return err
+	messageLim := 25
+	subLim := 50
+	subs := 0
+	for x := 0; x < messageLim; x += messageLim {
+		if subs == subLim {
+			break
+		}
+		var sub wsSub
+		sub.Operation = "subscribe"
+		lim := messageLim
+		if len(channelsToSubscribe[x:]) < lim {
+			lim = len(channelsToSubscribe[x:])
+		}
+		for i := range channelsToSubscribe[x : x+lim] {
+			if subs == subLim {
+				break
+			}
+			sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
+			subs++
+		}
+
+		err := b.Websocket.Conn.SendJSONMessage(sub)
+		if err != nil {
+			return err
+		}
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil

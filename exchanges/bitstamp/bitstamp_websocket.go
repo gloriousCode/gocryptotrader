@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -133,9 +134,6 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "trade":
-		if !b.IsSaveTradeDataEnabled() {
-			return nil
-		}
 		wsTradeTemp := websocketTradeResponse{}
 		err := json.Unmarshal(respRaw, &wsTradeTemp)
 		if err != nil {
@@ -163,16 +161,29 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-
-		side := order.Buy
-		if wsTradeTemp.Data.Type == 1 {
-			side = order.Sell
-		}
 		var a asset.Item
 		a, err = b.GetPairAssetType(p)
 		if err != nil {
 			return err
 		}
+
+		b.Websocket.DataHandler <- &ticker.Price{
+			Last:         wsTradeTemp.Data.Price,
+			Pair:         p,
+			ExchangeName: b.Name,
+			AssetType:    a,
+			LastUpdated:  time.UnixMilli(wsTradeTemp.Data.Timestamp),
+		}
+
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
+
+		side := order.Buy
+		if wsTradeTemp.Data.Type == 1 {
+			side = order.Sell
+		}
+
 		return trade.AddTradesToBuffer(b.Name, trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,

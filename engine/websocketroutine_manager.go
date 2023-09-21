@@ -224,11 +224,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
-				SyncItemTicker,
-				nil)
+			err := m.syncer.WebsocketUpdateTicker(d)
 			if err != nil {
 				return err
 			}
@@ -241,11 +237,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
+				err := m.syncer.WebsocketUpdateTicker(&d[x])
 				if err != nil {
 					return err
 				}

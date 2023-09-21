@@ -917,3 +917,7 @@ func (s SyncItemType) String() string {
 		return fmt.Sprintf("Invalid SyncItemType: %d", s)
 	}
 }
+
+func (m *SyncManager) WebsocketUpdateTicker(_ *ticker.Price) error {
+	return nil
+}
