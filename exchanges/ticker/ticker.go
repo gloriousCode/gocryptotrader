@@ -27,6 +27,28 @@ func init() {
 	service.mux = dispatch.GetNewMux(nil)
 }
 
+func GetByExchangeAsset(exch string, item asset.Item) []Ticker {
+	var tickers []Ticker
+	exch = strings.ToLower(exch)
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	m1, ok := service.Tickers[exch]
+	if !ok {
+		return nil
+	}
+
+	for _, m2 := range m1 {
+		for _, m3 := range m2 {
+			t, ok := m3[item]
+			if !ok {
+				continue
+			}
+			tickers = append(tickers, *t)
+		}
+	}
+	return tickers
+}
+
 // SubscribeTicker subscribes to a ticker and returns a communication channel to
 // stream new ticker updates
 func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {

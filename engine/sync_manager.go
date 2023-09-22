@@ -559,6 +559,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 
 		if e.SupportsRESTTickerBatchUpdates() {
 			m.mux.Lock()
+
 			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()][c.AssetType]
 			if !ok {
 				if _, ok = m.tickerBatchLastRequested[exchangeName]; !ok {

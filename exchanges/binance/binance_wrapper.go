@@ -466,34 +466,30 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := b.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
-				}
-
-				if tick[y].Symbol != pairFmt.String() {
+		for y := range tick {
+			cp, err := pairs.DeriveFrom(tick[y].Symbol)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice,
-					High:         tick[y].HighPrice,
-					Low:          tick[y].LowPrice,
-					Bid:          tick[y].BidPrice,
-					Ask:          tick[y].AskPrice,
-					Volume:       tick[y].Volume,
-					QuoteVolume:  tick[y].QuoteVolume,
-					Open:         tick[y].OpenPrice,
-					Close:        tick[y].PrevClosePrice,
-					Pair:         pairFmt,
-					ExchangeName: b.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice,
+				High:         tick[y].HighPrice,
+				Low:          tick[y].LowPrice,
+				Bid:          tick[y].BidPrice,
+				Ask:          tick[y].AskPrice,
+				Volume:       tick[y].Volume,
+				QuoteVolume:  tick[y].QuoteVolume,
+				Open:         tick[y].OpenPrice,
+				Close:        tick[y].PrevClosePrice,
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -501,10 +497,17 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-
+		hi, err := b.GetEnabledPairs(a)
+		if err != nil {
+			return err
+		}
 		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+			cp, err := hi.DeriveFrom(tick[y].Symbol)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					// clearly not worthy of being listed
+					continue
+				}
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
