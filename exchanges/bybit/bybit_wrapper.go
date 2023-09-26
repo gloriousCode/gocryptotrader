@@ -93,6 +93,7 @@ func (by *Bybit) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				TradeFetching:         true,
 				KlineFetching:         true,

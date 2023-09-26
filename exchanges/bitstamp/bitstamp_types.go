@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -34,6 +35,22 @@ type Ticker struct {
 	Ask       float64 `json:"ask,string"`
 	Timestamp int64   `json:"timestamp,string"`
 	Open      float64 `json:"open,string"`
+}
+
+// TickerFromBatch holds ticker information
+type TickerFromBatch struct {
+	Ask       convert.StringToFloat64 `json:"ask"`
+	Bid       convert.StringToFloat64 `json:"bid"`
+	High      convert.StringToFloat64 `json:"high"`
+	Last      convert.StringToFloat64 `json:"last"`
+	Low       convert.StringToFloat64 `json:"low"`
+	Open      convert.StringToFloat64 `json:"open"`
+	Open24    convert.StringToFloat64 `json:"open_24"`
+	Pair      string                  `json:"pair"`
+	Side      string                  `json:"side"`
+	Timestamp int64                   `json:"timestamp,string"`
+	Volume    convert.StringToFloat64 `json:"volume"`
+	Vwap      convert.StringToFloat64 `json:"vwap"`
 }
 
 // OrderbookBase holds singular price information

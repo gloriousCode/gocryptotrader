@@ -449,21 +449,25 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 	}
 	switch a {
 	case asset.Spot:
-		last, err := h.GetLastTrade(ctx, p)
-		if err != nil {
-			return nil, err
-		}
 		tickerData, err := h.Get24HrMarketSummary(ctx, p)
 		if err != nil {
 			return nil, err
 		}
+		var lastPrice float64
+		last, err := h.GetLastSpotTrade(ctx, p)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
+		}
+
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         tickerData.Tick.High,
 			Low:          tickerData.Tick.Low,
 			Volume:       tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
-			Last:         last.Tick.Data[0].Price,
+			Last:         lastPrice,
 			Pair:         p,
 			ExchangeName: h.Name,
 			AssetType:    asset.Spot,
@@ -476,9 +480,12 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		if err != nil {
 			return nil, err
 		}
+		var lastPrice float64
 		last, err := h.GetLastTrade(ctx, p)
 		if err != nil {
-			return nil, err
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
 		}
 		if len(marketData.Tick.Bid) == 0 {
 			return nil, fmt.Errorf("invalid data for bid")
@@ -496,7 +503,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Pair:         p,
 			Bid:          marketData.Tick.Bid[0],
 			Ask:          marketData.Tick.Ask[0],
-			Last:         last.Tick.Data[0].Price,
+			Last:         lastPrice,
 			ExchangeName: h.Name,
 			AssetType:    a,
 		})
@@ -508,11 +515,16 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 		if err != nil {
 			return nil, err
 		}
+		var lastPrice float64
 		last, err := h.FLastTradeData(ctx, p)
 		if err != nil {
 			return nil, err
 		}
-
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
+		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
@@ -524,7 +536,7 @@ func (h *HUOBI) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item)
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: h.Name,
 			AssetType:    a,
-			Last:         last.Tick.Data[0].Price,
+			Last:         lastPrice,
 		})
 		if err != nil {
 			return nil, err

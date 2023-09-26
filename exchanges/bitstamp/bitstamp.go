@@ -141,6 +141,13 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 	return &response, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
+func (b *Bitstamp) AllCurrencyPairTickers(ctx context.Context) ([]TickerFromBatch, error) {
+	var response []TickerFromBatch
+	tickerEndpoint := bitstampAPITicker
+	path := "/v" + bitstampAPIVersion + "/" + tickerEndpoint + "/"
+	return response, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
+}
+
 // GetOrderbook Returns a JSON dictionary with "bids" and "asks". Each is a list
 // of open orders and each order is represented as a list holding the price and
 // the amount.

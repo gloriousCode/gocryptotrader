@@ -84,6 +84,7 @@ func (ok *Okx) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				OrderbookFetching:     true,
 				AutoPairUpdates:       true,

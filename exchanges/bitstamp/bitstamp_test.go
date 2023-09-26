@@ -175,6 +175,16 @@ func TestGetTicker(t *testing.T) {
 	}
 }
 
+func TestAllCurrencyPairTickers(t *testing.T) {
+	t.Parallel()
+	//b.HTTPRecording = true
+	b.Verbose = true
+	_, err := b.AllCurrencyPairTickers(context.Background())
+	if err != nil {
+		t.Error("AllCurrencyPairTickers() error", err)
+	}
+}
+
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetOrderbook(context.Background(),

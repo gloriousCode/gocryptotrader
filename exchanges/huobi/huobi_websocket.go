@@ -33,7 +33,7 @@ const (
 	wsMarketKline  = "market.%s.kline.1min"
 	wsMarketDepth  = "market.%s.depth.step0"
 	wsMarketTrade  = "market.%s.trade.detail"
-	wsMarketTicker = "market.%s.detail"
+	wsMarketTicker = "market.%s.ticker"
 
 	wsAccountsOrdersEndPoint = "/ws/v1"
 	wsAccountsList           = "accounts.list"
@@ -201,6 +201,26 @@ func stringToOrderType(oType string) (order.Type, error) {
 		errors.New(oType + " not recognised as order type")
 }
 
+type WsTicker struct {
+	Ch   string `json:"ch"`
+	Ts   int64  `json:"ts"`
+	Tick struct {
+		Open      float64 `json:"open"`
+		High      float64 `json:"high"`
+		Low       float64 `json:"low"`
+		Close     float64 `json:"close"`
+		Amount    float64 `json:"amount"`
+		Vol       float64 `json:"vol"`
+		Count     float64 `json:"count"`
+		Bid       float64 `json:"bid"`
+		BidSize   float64 `json:"bidSize"`
+		Ask       float64 `json:"ask"`
+		AskSize   float64 `json:"askSize"`
+		LastPrice float64 `json:"lastPrice"`
+		LastSize  float64 `json:"lastSize"`
+	} `json:"tick"`
+}
+
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	var init WsResponse
 	err := json.Unmarshal(respRaw, &init)
@@ -329,6 +349,38 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		h.Websocket.DataHandler <- response
+	case strings.Contains(init.Channel, "ticker"):
+		var response WsTicker
+		err := json.Unmarshal(respRaw, &response)
+		if err != nil {
+			return err
+		}
+		data := strings.Split(init.Channel, ".")
+		if len(data) < 2 {
+			return errors.New(h.Name +
+				" - currency could not be extracted from response")
+		}
+		var p currency.Pair
+		var a asset.Item
+		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
+		if err != nil {
+			return err
+		}
+
+		h.Websocket.DataHandler <- &ticker.Price{
+			Last:         response.Tick.LastPrice,
+			High:         response.Tick.High,
+			Low:          response.Tick.Low,
+			Bid:          response.Tick.Bid,
+			Ask:          response.Tick.Ask,
+			Volume:       response.Tick.Vol,
+			Open:         response.Tick.Open,
+			Close:        response.Tick.Close,
+			Pair:         p,
+			ExchangeName: h.Name,
+			AssetType:    a,
+			LastUpdated:  time.UnixMilli(response.Ts),
+		}
 	case strings.Contains(init.Channel, "depth"):
 		var depth WsDepth
 		err := json.Unmarshal(respRaw, &depth)
