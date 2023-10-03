@@ -102,6 +102,15 @@ func (h *HUOBI) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	err = h.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = h.DisableAssetWebsocketSupport(asset.Futures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
 	h.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
