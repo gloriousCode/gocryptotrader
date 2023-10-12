@@ -67,7 +67,6 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	// See gemini_types.go for more subscription/candle vars
 	var channels = []string{
 		marketDataLevel2,
-		wsTradeChannel,
 	}
 
 	pairs, err := g.GetEnabledPairs(asset.Spot)
@@ -349,7 +348,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			return g.wsProcessUpdate(l2MarketData)
-		case "trade":
+		case wsTradeChannel:
 			var result wsTrade
 			err := json.Unmarshal(respRaw, &result)
 			if err != nil {
@@ -534,6 +533,17 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 	if err != nil {
 		return err
 	}
+
+	for x := range result.Trades {
+		g.Websocket.DataHandler <- &ticker.Price{
+			Last:         result.Trades[x].Price,
+			Pair:         pair,
+			ExchangeName: g.Name,
+			AssetType:    asset.Spot,
+			LastUpdated:  time.UnixMilli(result.Trades[x].Timestamp),
+		}
+	}
+	return nil
 
 	bids := make([]orderbook.Item, 0, len(result.Changes))
 	asks := make([]orderbook.Item, 0, len(result.Changes))

@@ -56,6 +56,7 @@ func TestGetSymbols(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
+	g.Verbose = true
 	pairs, err := g.FetchTradablePairs(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)

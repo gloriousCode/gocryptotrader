@@ -282,8 +282,7 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	if err != nil {
 		return nil, err
 	}
-
-	pairs := make([]currency.Pair, len(symbols))
+	pairs := make([]currency.Pair, 0, len(symbols))
 	for x := range symbols {
 		var pair currency.Pair
 		switch len(symbols[x]) {
@@ -297,7 +296,21 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
+
+		//detail, err := g.GetSymbolDetails(ctx, symbols[x])
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if detail.Status != "open" {
+		//	continue
+		//}
+		if pair.Base.Equal(currency.EFIL) && pair.Quote.Equal(currency.FIL) {
+			continue
+		}
+		if pair.Base.Equal(currency.GUSD) && pair.Quote.Equal(currency.USD) {
+			continue
+		}
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }

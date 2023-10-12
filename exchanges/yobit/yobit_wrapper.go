@@ -199,42 +199,42 @@ func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs, a)
-	if err != nil {
-		return err
-	}
-
-	result, err := y.GetTicker(ctx, pairsCollated)
-	if err != nil {
-		return err
-	}
-
-	for i := range enabledPairs {
-		fPair, err := y.FormatExchangeCurrency(enabledPairs[i], a)
+	butteroo := 200
+	for i := 0; i < len(enabledPairs); i += butteroo {
+		butts := i + butteroo
+		if i+butts > len(enabledPairs[i:]) {
+			butts = len(enabledPairs[i:])
+		}
+		pairsCollated, err := y.FormatExchangeCurrencies(enabledPairs[i:butts], a)
 		if err != nil {
 			return err
 		}
-		curr := fPair.Lower().String()
-		if _, ok := result[curr]; !ok {
-			continue
-		}
-
-		resultCurr := result[curr]
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         enabledPairs[i],
-			Last:         resultCurr.Last,
-			Ask:          resultCurr.Sell,
-			Bid:          resultCurr.Buy,
-			Low:          resultCurr.Low,
-			QuoteVolume:  resultCurr.VolumeCurrent,
-			Volume:       resultCurr.Vol,
-			ExchangeName: y.Name,
-			AssetType:    a,
-		})
+		result, err := y.GetTicker(ctx, pairsCollated)
 		if err != nil {
 			return err
 		}
+		for k, v := range result {
+			cp, err := currency.NewPairFromString(k)
+			if err != nil {
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         cp,
+				Last:         v.Last,
+				Ask:          v.Sell,
+				Bid:          v.Buy,
+				Low:          v.Low,
+				QuoteVolume:  v.VolumeCurrent,
+				Volume:       v.Vol,
+				ExchangeName: y.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
+			}
+		}
 	}
+
 	return nil
 }
 

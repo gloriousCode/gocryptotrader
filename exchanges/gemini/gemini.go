@@ -62,6 +62,13 @@ func (g *Gemini) GetSymbols(ctx context.Context) ([]string, error) {
 	return symbols, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &symbols)
 }
 
+// GetSymbolDetails returns all available symbols for trading
+func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) (SymbolDetails, error) {
+	var resp SymbolDetails
+	path := fmt.Sprintf("/v%s/%s/details/%s", geminiAPIVersion, geminiSymbols, symbol)
+	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+}
+
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
