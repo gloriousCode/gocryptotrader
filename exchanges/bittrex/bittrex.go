@@ -36,6 +36,7 @@ const (
 	getMarkets           = "/markets"
 	getMarketSummaries   = "/markets/summaries"
 	getTicker            = "/markets/%s/ticker"
+	getTickers           = "/markets/tickers"
 	getMarketSummary     = "/markets/%s/summary"
 	getMarketTrades      = "/markets/%s/trades"
 	getOrderbook         = "/markets/%s/orderbook?depth=%s"
@@ -85,6 +86,13 @@ func (b *Bittrex) GetCurrencies(ctx context.Context) ([]CurrencyData, error) {
 func (b *Bittrex) GetTicker(ctx context.Context, marketName string) (TickerData, error) {
 	var resp TickerData
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getTicker, marketName), &resp, nil)
+}
+
+// GetTickers sends a public get request and returns current ticker information
+// on the supplied currency. Example currency input param "ltc-btc".
+func (b *Bittrex) GetTickers(ctx context.Context) ([]TickerData, error) {
+	var resp []TickerData
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, getTickers, &resp, nil)
 }
 
 // GetMarketSummaries is used to get the last 24 hour summary of all active
@@ -355,6 +363,24 @@ func (b *Bittrex) GetOpenDepositsForCurrency(ctx context.Context, currency strin
 	params.Set("currencySymbol", currency)
 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, getOpenDeposits, params, nil, &resp, nil)
+}
+
+// SendHTTPRequest sends an unauthenticated HTTP request
+func (b *Bittrex) SendHTTPRequestHEAD(ctx context.Context, ep exchange.URL, path string, result interface{}, resultHeader *http.Header) error {
+	endpoint, err := b.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	item := &request.Item{
+		Method:         http.MethodHead,
+		Path:           endpoint + path,
+		Result:         result,
+		Verbose:        b.Verbose,
+		HTTPDebugging:  b.HTTPDebugging,
+		HTTPRecording:  b.HTTPRecording,
+		HeaderResponse: resultHeader,
+	}
+	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) { return item, nil }, request.UnauthenticatedRequest)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

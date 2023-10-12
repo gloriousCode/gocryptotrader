@@ -103,6 +103,7 @@ func (b *Bittrex) SetDefaults() {
 				CryptoWithdrawal:    true,
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
+				TickerBatching:      true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,
@@ -297,8 +298,28 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bittrex) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (b *Bittrex) UpdateTickers(ctx context.Context, _ asset.Item) error {
+	tickers, err := b.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range tickers {
+		pair, err := currency.NewPairFromString(tickers[i].Symbol)
+		if err != nil {
+			return err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tickers[i].LastTradeRate,
+			Pair:         pair,
+			ExchangeName: b.Name,
+			AssetType:    asset.Spot,
+			LastUpdated:  time.Now(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

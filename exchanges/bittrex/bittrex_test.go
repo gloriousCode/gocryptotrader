@@ -725,3 +725,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	tt, err := b.GetTickers(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(tt)
+}
