@@ -1739,7 +1739,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		} else {
 			underlyingStr = underlyingBase[1]
 		}
-		usdIndex := strings.Index(underlyingStr, "usd")
+		usdIndex := strings.Index(strings.ToLower(underlyingStr), "usd")
 		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
 		if err != nil {
 			return nil, err

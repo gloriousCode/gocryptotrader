@@ -423,9 +423,13 @@ func TestGetFuturesMarkets(t *testing.T) {
 
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesTickers(context.Background())
+	k.Verbose = true
+	resp, err := k.GetFuturesTickers(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+	for i := range resp.Tickers {
+		fmt.Println(resp.Tickers[i].Symbol, resp.Tickers[i].Last)
 	}
 }
 
@@ -534,6 +538,15 @@ func TestGetAssetPairs(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BCHEUR")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = k.GetTicker(context.Background(), cp)
+	if err != nil {
+		t.Error("GetTicker() error", err)
+	}
+
+	cp, err = currency.NewPairFromString("PF_XBTUSD")
 	if err != nil {
 		t.Error(err)
 	}

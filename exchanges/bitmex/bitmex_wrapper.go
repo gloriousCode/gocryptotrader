@@ -318,10 +318,19 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 				root := isolate[0][:len(isolate[0])-3]
 				contract := isolate[0][len(isolate[0])-3:]
-
 				pair, err = currency.NewPairFromStrings(root, contract+settleTrail)
+
 				if err != nil {
 					return nil, err
+				}
+				var listTime, expireTime time.Time
+				listTime, err = time.Parse(time.RFC3339Nano, marketInfo[x].Listing)
+				if err != nil {
+					return nil, err
+				}
+				if time.Now().Before(listTime) {
+					// contract not yet listed, byt returned in an endpoint called "ACTIVE"
+					continue
 				}
 				pairs = append(pairs, pair)
 			}

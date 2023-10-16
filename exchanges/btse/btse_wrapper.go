@@ -348,7 +348,28 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if err := b.UpdateTickers(ctx, a); err != nil {
+	fPair, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+	sum, err := b.GetMarketSummary(ctx, fPair.String(), a == asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if len(sum) != 1 {
+		return nil, errors.New("unexpected number of market summaries")
+	}
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          sum[0].LowestAsk,
+		Bid:          sum[0].HighestBid,
+		Low:          sum[0].Low24Hr,
+		Last:         sum[0].Last,
+		Volume:       sum[0].Volume,
+		High:         sum[0].High24Hr,
+		ExchangeName: b.Name,
+		AssetType:    a})
+	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
