@@ -264,7 +264,7 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 	pairs := make([]currency.Pair, 0, len(marketInfo))
 	for x := range marketInfo {
-		if marketInfo[x].State != "Open" && a != asset.Index {
+		if strings.ToLower(marketInfo[x].State) != "open" && a != asset.Index {
 			continue
 		}
 
@@ -301,39 +301,20 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 				pairs = append(pairs, pair)
 			}
 		case asset.Futures:
-			if marketInfo[x].Typ == futuresID {
-				isolate := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
-				if len(isolate[0]) < 3 {
-					log.Warnf(log.ExchangeSys, "%s currency %s %s be cannot added to tradable pairs",
-						b.Name,
-						marketInfo[x].Symbol,
-						a)
-					break
-				}
-				var settleTrail string
-				if len(isolate) == 2 {
-					// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.
-					settleTrail = currency.UnderscoreDelimiter + isolate[1]
-				}
-
-				root := isolate[0][:len(isolate[0])-3]
-				contract := isolate[0][len(isolate[0])-3:]
-				pair, err = currency.NewPairFromStrings(root, contract+settleTrail)
-
-				if err != nil {
-					return nil, err
-				}
-				var listTime, expireTime time.Time
-				listTime, err = time.Parse(time.RFC3339Nano, marketInfo[x].Listing)
-				if err != nil {
-					return nil, err
-				}
-				if time.Now().Before(listTime) {
-					// contract not yet listed, byt returned in an endpoint called "ACTIVE"
-					continue
-				}
-				pairs = append(pairs, pair)
+			if marketInfo[x].Typ != futuresID {
+				continue
 			}
+			var cp currency.Pair
+			splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+			if len(splitter) < 2 {
+				log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+				continue
+			}
+			cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, strings.Join(splitter[1:], ""))
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		case asset.Index:
 			// TODO: This can be expanded into individual assets later.
 			if marketInfo[x].Typ == bitMEXBasketIndexID ||
@@ -1151,8 +1132,25 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if marketInfo[x].Typ != perpetualContractID {
 					continue
 				}
+				if strings.ToLower(marketInfo[x].State) != "open" {
+					continue
+				}
 				var cp, underlying currency.Pair
-				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+				var settleTrail string
+				if strings.Contains(marketInfo[x].Symbol, currency.UnderscoreDelimiter) {
+					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
+					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
+					if len(settlement) != 2 {
+						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
+							b.Name,
+							marketInfo[x].Symbol,
+							item)
+						break
+					}
+					settleTrail = currency.UnderscoreDelimiter + settlement[1]
+				}
+				cp, err = currency.NewPairFromStrings(marketInfo[x].Underlying,
+					marketInfo[x].QuoteCurrency+settleTrail)
 				if err != nil {
 					return nil, err
 				}
@@ -1188,13 +1186,19 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if marketInfo[x].Typ != futuresID {
 					continue
 				}
+				if strings.ToLower(marketInfo[x].State) != "open" {
+					continue
+				}
 				var cp, underlying currency.Pair
 				splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-				if len(splitter) != 2 {
+				if len(splitter) < 2 {
 					log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
 					continue
 				}
-				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, splitter[1])
+				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, strings.Join(splitter[1:], ""))
+				if err != nil {
+					return nil, err
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -1288,8 +1292,7 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	}
 	for i := 0; i < count; i += 500 {
 		// make sure we only get the latest rates
-		tt := time.Now().Add(-time.Hour * 16).Format("2006-01-02 15:04")
-		rates, err = b.GetFullFundingHistory(ctx, symbol, strconv.FormatInt(int64(count), 10), `{"startTime":"`+tt+`"}`, "", strconv.FormatInt(int64(i), 10), true, time.Time{}, time.Time{})
+		rates, err = b.GetFullFundingHistory(ctx, symbol, strconv.FormatInt(int64(count), 10), "", "", strconv.FormatInt(int64(i), 10), true, time.Now().Add(-time.Hour*16), time.Time{})
 		if err != nil {
 			return nil, err
 		}
