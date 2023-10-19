@@ -172,6 +172,7 @@ func (b *Binance) SetDefaults() {
 				FundingRateFrequency: kline.EightHour.Duration(),
 				FundingRateBatching: map[asset.Item]bool{
 					asset.USDTMarginedFutures: true,
+					asset.CoinMarginedFutures: true,
 				},
 			},
 		},
@@ -423,7 +424,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset,
 					uInfo.Symbols[u].QuoteAsset)
 			} else {
-				pair, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].Symbol[len(uInfo.Symbols[u].BaseAsset):])
 			}
 			if err != nil {
 				return nil, err
@@ -2104,6 +2105,9 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
+			if mp[i].NextFundingTime == 0 && mp[i].LastFundingRate == 0 {
+				continue
+			}
 			var cp currency.Pair
 			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
@@ -2120,7 +2124,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
-				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+				TimeOfNextRate: time.UnixMilli(mp[i].NextFundingTime),
 			})
 		}
 		return resp, nil
@@ -2132,6 +2136,9 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
+			if mp[i].NextFundingTime == 0 && mp[i].LastFundingRate == 0 {
+				continue
+			}
 			var cp currency.Pair
 			cp, err = availPairs.DeriveFrom(mp[i].Symbol)
 			if err != nil {
@@ -2148,7 +2155,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 					Rate: mp[i].LastFundingRate.Decimal(),
 				},
-				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
+				TimeOfNextRate: time.UnixMilli(mp[i].NextFundingTime),
 			})
 		}
 		return resp, nil
@@ -2318,11 +2325,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
 			var cp currency.Pair
-			splitter := strings.Split(ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			if len(splitter) <= 1 {
-				return nil, fmt.Errorf("%w expected to split %v with %v", errors.New("unexpected pair format"), ei.Symbols[i].Symbol, ei.Symbols[i].BaseAsset)
-			}
-			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, splitter[1])
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset):])
 			if err != nil {
 				return nil, err
 			}
