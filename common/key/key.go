@@ -33,8 +33,8 @@ type Pair struct {
 	Quote *currency.Item
 }
 
-// SubAccountCurrencyAssetKey is a unique map key signature for subaccount, currency code and asset
-type SubAccountCurrencyAssetKey struct {
+// SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset
+type SubAccountCurrencyAsset struct {
 	SubAccount string
 	Currency   *currency.Item
 	Asset      asset.Item

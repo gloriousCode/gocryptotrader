@@ -1654,10 +1654,9 @@ func TestProcessFuturesPositions(t *testing.T) {
 	}
 
 	position := &futures.PositionResponse{
-		Exchange: b.Name,
-		Asset:    asset.Spot,
-		Pair:     cp,
-		Orders:   nil,
+		Asset:  asset.Spot,
+		Pair:   cp,
+		Orders: nil,
 	}
 	err = o.processFuturesPositions(fakeExchange, position)
 	if !errors.Is(err, errNilOrder) {

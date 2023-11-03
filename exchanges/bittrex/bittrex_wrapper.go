@@ -106,7 +106,6 @@ func (b *Bittrex) SetDefaults() {
 				CryptoWithdrawal:    true,
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
-				TickerBatching:      true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:    true,

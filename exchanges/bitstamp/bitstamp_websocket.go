@@ -154,7 +154,7 @@ func (b *Bitstamp) handleWSOrderbook(wsResp *websocketResponse, msg []byte) erro
 
 func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 	wsTradeTemp := websocketTradeResponse{}
-	err := json.Unmarshal(respRaw, &wsTradeTemp)
+	err := json.Unmarshal(msg, &wsTradeTemp)
 	if err != nil {
 		return err
 	}
@@ -163,24 +163,15 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 		return errWSPairParsingError
 	}
 
-	wsTradeTemp := websocketTradeResponse{}
-	if err := json.Unmarshal(msg, &wsTradeTemp); err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(currencyPair, enabledPairs, pFmt)
-	if err != nil {
-		return err
-	}
 	var a asset.Item
-	a, err = b.GetPairAssetType(p)
+	a, err = b.GetPairAssetType(wsTradeTemp.pair)
 	if err != nil {
 		return err
 	}
 
 	b.Websocket.DataHandler <- &ticker.Price{
 		Last:         wsTradeTemp.Data.Price,
-		Pair:         p,
+		Pair:         wsTradeTemp.pair,
 		ExchangeName: b.Name,
 		AssetType:    a,
 		LastUpdated:  time.UnixMilli(wsTradeTemp.Data.Timestamp),
@@ -197,7 +188,7 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 
 	return trade.AddTradesToBuffer(b.Name, trade.Data{
 		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
-		CurrencyPair: p,
+		CurrencyPair: wsTradeTemp.pair,
 		AssetType:    a,
 		Exchange:     b.Name,
 		Price:        wsTradeTemp.Data.Price,

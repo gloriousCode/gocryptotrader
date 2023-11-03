@@ -304,10 +304,10 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if err != nil {
 			return nil, err
 		}
-		if pair.Base.Equal(currency.EFIL) && pair.Quote.Equal(currency.FIL) {
+		if cp.Base.Equal(currency.EFIL) && cp.Quote.Equal(currency.FIL) {
 			continue
 		}
-		if pair.Base.Equal(currency.GUSD) && pair.Quote.Equal(currency.USD) {
+		if cp.Base.Equal(currency.GUSD) && cp.Quote.Equal(currency.USD) {
 			continue
 		}
 		pairs = append(pairs, cp)

@@ -1613,7 +1613,6 @@ func (b *Bitfinex) resubOrderbook(c *stream.ChannelSubscription) {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var wsPairFormat = currency.PairFormat{Uppercase: true}
 	var channels = []string{wsTicker}
 
 	var subscriptions []stream.ChannelSubscription
