@@ -37,7 +37,7 @@ var (
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
 
-// WsConnect intiates a websocket connection
+// WsConnect initiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
@@ -684,7 +684,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }

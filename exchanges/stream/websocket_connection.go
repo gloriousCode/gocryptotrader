@@ -22,7 +22,7 @@ import (
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
 func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.set(signature)
+	m, err := w.Match.Set(signature)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 		max = 2e12
 		min = 1e12
 	}
-	// utlization of hard coded positive numbers and default crypto/rand
+	// utilization of hard coded positive numbers and default crypto/rand
 	// io.reader will panic on error instead of returning
 	randomNumber, err := rand.Int(rand.Reader, big.NewInt(max-min+1))
 	if err != nil {

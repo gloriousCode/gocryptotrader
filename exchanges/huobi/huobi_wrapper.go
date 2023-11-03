@@ -157,8 +157,13 @@ func (h *HUOBI) SetDefaults() {
 				Intervals: true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.CoinMarginedFutures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2173,6 +2178,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 				Underlying:           underlying,
 				Asset:                item,
 				StartDate:            s,
+				SettlementType:       futures.Inverse,
 				IsActive:             result[x].ContractStatus == 1,
 				Type:                 futures.Perpetual,
 				SettlementCurrencies: currency.Currencies{currency.USD},
@@ -2229,6 +2235,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 				Asset:                item,
 				StartDate:            s,
 				EndDate:              e,
+				SettlementType:       futures.Linear,
 				IsActive:             result.Data[x].ContractStatus == 1,
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USD},
@@ -2248,32 +2255,79 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 	if r.Asset != asset.CoinMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	if r.Pair.IsEmpty() {
-		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
-	}
 
-	rateResp, err := h.GetSwapFundingRates(ctx, r.Pair)
-	if err != nil {
-		return nil, err
-	}
-	rate := fundingrate.LatestRateResponse{
-		Exchange: h.Name,
-		Asset:    r.Asset,
-		Pair:     r.Pair,
-		LatestRate: fundingrate.Rate{
-			Time: time.UnixMilli(rateResp.FundingTime),
-			Rate: decimal.NewFromFloat(rateResp.FundingRate),
-		},
-		TimeOfNextRate: time.UnixMilli(rateResp.NextFundingTime),
-		TimeChecked:    time.Now(),
-	}
-	if r.IncludePredictedRate {
-		rate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: rate.TimeOfNextRate,
-			Rate: decimal.NewFromFloat(rateResp.EstimatedRate),
+	var rates []FundingRatesData
+	if r.Pair.IsEmpty() {
+		batchRates, err := h.GetSwapFundingRates(ctx)
+		if err != nil {
+			return nil, err
 		}
+		rates = batchRates.Data
+	} else {
+		rateResp, err := h.GetSwapFundingRate(ctx, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+		rates = append(rates, rateResp)
 	}
-	return []fundingrate.LatestRateResponse{rate}, nil
+	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
+	for i := range rates {
+		if rates[i].ContractCode == "" {
+			// formatting to match documentation
+			rates[i].ContractCode = rates[i].Symbol + "-USD"
+		}
+		cp, isEnabled, err := h.MatchSymbolCheckEnabled(rates[i].ContractCode, r.Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		var isPerp bool
+		isPerp, err = h.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		var ft, nft time.Time
+		nft = time.UnixMilli(rates[i].NextFundingTime)
+		ft = time.UnixMilli(rates[i].FundingTime)
+		var fri time.Duration
+		if len(h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+			// can infer funding rate interval from the only funding rate frequency defined
+			for k := range h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+				fri = k.Duration()
+			}
+		}
+		if rates[i].FundingTime == 0 {
+			ft = nft.Add(-fri)
+		}
+		if ft.After(time.Now()) {
+			ft = ft.Add(-fri)
+			nft = nft.Add(-fri)
+		}
+		rate := fundingrate.LatestRateResponse{
+			Exchange: h.Name,
+			Asset:    r.Asset,
+			Pair:     r.Pair,
+			LatestRate: fundingrate.Rate{
+				Time: ft,
+				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+			},
+			TimeOfNextRate: nft,
+			TimeChecked:    time.Now(),
+		}
+		if r.IncludePredictedRate {
+			rate.PredictedUpcomingRate = fundingrate.Rate{
+				Time: rate.TimeOfNextRate,
+				Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
+			}
+		}
+		resp = append(resp, rate)
+	}
+	return resp, nil
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future

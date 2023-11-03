@@ -1421,7 +1421,7 @@ func TestShiftBookmark(t *testing.T) {
 	// associate tips prev field with the correct prev node
 	tip.Prev = tipprev
 
-	if !shiftBookmark(tip, &bookmarkedNode, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if !shiftBookmark(tip, &bookmarkedNode, nil, &Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 
@@ -1453,7 +1453,7 @@ func TestShiftBookmark(t *testing.T) {
 
 	var nilBookmark *Node
 
-	if shiftBookmark(tip, &nilBookmark, nil, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if shiftBookmark(tip, &nilBookmark, nil, &Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("there should not be a bookmarked node")
 	}
 
@@ -1466,7 +1466,7 @@ func TestShiftBookmark(t *testing.T) {
 	bookmarkedNode.Next = originalBookmarkNext
 	tip.Next = nil
 
-	if !shiftBookmark(tip, &bookmarkedNode, &head, Item{Amount: 1336, ID: 1337, Price: 9999}) {
+	if !shiftBookmark(tip, &bookmarkedNode, &head, &Item{Amount: 1336, ID: 1337, Price: 9999}) {
 		t.Fatal("There should be liquidity so we don't need to set tip to bookmark")
 	}
 
@@ -2009,7 +2009,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
 			}
 			if !quote.IsEqual(tt.ExpectedShift) {
-				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+				t.Fatalf("%s quote received: \n'%+v' \nbut expected: \n'%+v'",
 					tt.Name, quote, tt.ExpectedShift)
 			}
 		})

@@ -679,7 +679,7 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 

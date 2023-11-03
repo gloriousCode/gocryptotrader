@@ -1680,7 +1680,6 @@ var (
 	YFI              = NewCode("YFI")
 	BAL              = NewCode("BAL")
 	UMA              = NewCode("UMA")
-	KDA              = NewCode("KDA")
 	SNX              = NewCode("SNX")
 	CRV              = NewCode("CRV")
 	OXT              = NewCode("OXT")
@@ -3009,7 +3008,19 @@ var (
 	USDFL            = NewCode("USDFL")
 	FLUSD            = NewCode("FLUSD")
 	DUSD             = NewCode("DUSD")
+	USDD             = NewCode("USDD")
+	KDA              = NewCode("KDA")
+	XCN              = NewCode("XCN")
+	TEL              = NewCode("TEL")
+	XDC              = NewCode("XDC")
+	MHC              = NewCode("MHC")
+	OXEN             = NewCode("OXEN")
 	STETH            = NewCode("STETH")
+	SWAP             = NewCode("SWAP")
+	PI               = NewCode("PI")
+	FI               = NewCode("FI")
+	USDM             = NewCode("USDM")
+	USDTM            = NewCode("USDTM")
 
 	stables = Currencies{
 		USDT,

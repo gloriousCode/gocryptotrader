@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1345,5 +1346,53 @@ func TestCheckAndGenCerts(t *testing.T) {
 	}
 	if err = CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNewSupportedExchangeByName(t *testing.T) {
+	t.Parallel()
+
+	for x := range exchange.Exchanges {
+		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exch == nil {
+			t.Fatalf("received nil exchange")
+		}
+	}
+
+	_, err := NewSupportedExchangeByName("")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+}
+
+func TestNewExchangeByNameWithDefaults(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewExchangeByNameWithDefaults(context.Background(), "meow")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+	for x := range exchange.Exchanges {
+		name := exchange.Exchanges[x]
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
+			}
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
+			}
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
+			if err != nil {
+				t.Error(err)
+			}
+			if !strings.EqualFold(exch.GetName(), name) {
+				t.Errorf("received: '%v' but expected: '%v'", exch.GetName(), name)
+			}
+		})
 	}
 }

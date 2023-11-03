@@ -31,6 +31,7 @@ type Ticker struct {
 	}
 }
 
+// SymbolDetails contains additional symbol details
 type SymbolDetails struct {
 	Symbol                string                  `json:"symbol"`
 	BaseCurrency          string                  `json:"base_currency"`
@@ -47,17 +48,17 @@ type SymbolDetails struct {
 
 // TickerV2 holds returned ticker data from the exchange
 type TickerV2 struct {
-	Ask     float64       `json:"ask,string"`
-	Bid     float64       `json:"bid,string"`
-	Changes []string      `json:"changes"`
-	Close   float64       `json:"close,string"`
-	High    float64       `json:"high,string"`
-	Low     float64       `json:"low,string"`
-	Open    float64       `json:"open,string"`
-	Message string        `json:"message,omitempty"`
-	Reason  string        `json:"reason,omitempty"`
-	Result  string        `json:"result,omitempty"`
-	Symbol  currency.Pair `json:"symbol"`
+	Ask     float64  `json:"ask,string"`
+	Bid     float64  `json:"bid,string"`
+	Changes []string `json:"changes"`
+	Close   float64  `json:"close,string"`
+	High    float64  `json:"high,string"`
+	Low     float64  `json:"low,string"`
+	Open    float64  `json:"open,string"`
+	Message string   `json:"message,omitempty"`
+	Reason  string   `json:"reason,omitempty"`
+	Result  string   `json:"result,omitempty"`
+	Symbol  string   `json:"symbol"`
 }
 
 // Orderbook contains orderbook information for both bid and ask side
@@ -258,7 +259,7 @@ type WithdrawalAddress struct {
 	Reason  string  `json:"reason"`
 }
 
-// ErrorCapture is a generlized error response from the server
+// ErrorCapture is a generalized error response from the server
 type ErrorCapture struct {
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`

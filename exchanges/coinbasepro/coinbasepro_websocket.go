@@ -477,6 +477,6 @@ unsubscriptions:
 	if err != nil {
 		return err
 	}
-	c.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }

@@ -16,10 +16,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -109,6 +111,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, 0, len(assets)+1)
+assets:
 	for j := range assets {
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
@@ -130,6 +133,12 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
 			t.Fatalf("Cannot setup %v asset %v FormatExchangeCurrency %v", name, assets[j], err)
+		}
+		for x := range unsupportedAssets {
+			if assets[j] == unsupportedAssets[x] {
+				// this asset cannot handle disrupt formatting
+				continue assets
+			}
 		}
 		p, err = disruptFormatting(t, p)
 		if err != nil {
@@ -265,14 +274,22 @@ var (
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
 	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
+	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
+	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
+	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
+	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
+	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
 	// types with asset in params
-	assetParam            = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam      = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam      = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam      = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam     = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
-	latestRateRequest     = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
+	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
+	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
+	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
+	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
+	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
+	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
+	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
+	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
+	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
+	latestRateRequest           = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -292,6 +309,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 				// Crypto Chain
 				input = reflect.ValueOf(cryptoChainPerExchange[exchName])
 			}
+		case "MatchSymbolWithAvailablePairs", "MatchSymbolCheckEnabled":
+			input = reflect.ValueOf(argGenerator.AssetParams.Pair.Base.Lower().String() + argGenerator.AssetParams.Pair.Quote.Lower().String())
 		default:
 			// OrderID
 			input = reflect.ValueOf("1337")
@@ -312,8 +331,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 	case argGenerator.MethodInputType.AssignableTo(feeBuilderParam):
 		input = reflect.ValueOf(&exchange.FeeBuilder{
 			FeeType:       exchange.OfflineTradeFee,
-			Amount:        1337,
-			PurchasePrice: 1337,
+			Amount:        150,
+			PurchasePrice: 150,
 			Pair:          argGenerator.AssetParams.Pair,
 		})
 	case argGenerator.MethodInputType.AssignableTo(currencyPairParam):
@@ -415,7 +434,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Side:              order.Buy,
 			Pair:              argGenerator.AssetParams.Pair,
 			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             1337,
+			Price:             150,
 			Amount:            1,
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
@@ -428,7 +447,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Side:              order.Buy,
 			Pair:              argGenerator.AssetParams.Pair,
 			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             1337,
+			Price:             150,
 			Amount:            1,
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
@@ -461,6 +480,45 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			FromOrderID: "1337",
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
+		})
+	case argGenerator.MethodInputType.AssignableTo(marginTypeParam):
+		input = reflect.ValueOf(margin.Isolated)
+	case argGenerator.MethodInputType.AssignableTo(collateralModeParam):
+		input = reflect.ValueOf(collateral.SingleMode)
+	case argGenerator.MethodInputType.AssignableTo(positionChangeRequestParam):
+		input = reflect.ValueOf(&margin.PositionChangeRequest{
+			Exchange:                argGenerator.Exchange.GetName(),
+			Pair:                    argGenerator.AssetParams.Pair,
+			Asset:                   argGenerator.AssetParams.Asset,
+			MarginType:              margin.Isolated,
+			OriginalAllocatedMargin: 150,
+			NewAllocatedMargin:      151,
+		})
+	case argGenerator.MethodInputType.AssignableTo(positionSummaryRequestParam):
+		input = reflect.ValueOf(&futures.PositionSummaryRequest{
+			Asset:     argGenerator.AssetParams.Asset,
+			Pair:      argGenerator.AssetParams.Pair,
+			Direction: order.Buy,
+		})
+	case argGenerator.MethodInputType.AssignableTo(positionsRequestParam):
+		input = reflect.ValueOf(&futures.PositionsRequest{
+			Asset:                     argGenerator.AssetParams.Asset,
+			Pairs:                     currency.Pairs{argGenerator.AssetParams.Pair},
+			StartDate:                 argGenerator.Start,
+			EndDate:                   argGenerator.End,
+			RespectOrderHistoryLimits: true,
+		})
+	case argGenerator.MethodInputType.AssignableTo(orderSideParam):
+		input = reflect.ValueOf(order.Long)
+	case argGenerator.MethodInputType.AssignableTo(int64Param):
+		input = reflect.ValueOf(150)
+	case argGenerator.MethodInputType.AssignableTo(float64Param):
+		input = reflect.ValueOf(150.0)
+	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
+		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
+			Asset:                argGenerator.AssetParams.Asset,
+			Pair:                 argGenerator.AssetParams.Pair,
+			IncludePredictedRate: true,
 		})
 	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
 		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
@@ -496,10 +554,7 @@ var excludedMethodNames = map[string]struct{}{
 	"FlushWebsocketChannels":         {}, // Unnecessary websocket test
 	"UnsubscribeToWebsocketChannels": {}, // Unnecessary websocket test
 	"SubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
-	"GetOrderExecutionLimits":        {}, // Not widely supported/implemented feature
 	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
-	"UpdateOrderExecutionLimits":     {}, // Not widely supported/implemented feature
-	"CheckOrderExecutionLimits":      {}, // Not widely supported/implemented feature
 	"CanTradePair":                   {}, // Not widely supported/implemented feature
 	"CanTrade":                       {}, // Not widely supported/implemented feature
 	"CanWithdraw":                    {}, // Not widely supported/implemented feature
@@ -518,6 +573,14 @@ var excludedMethodNames = map[string]struct{}{
 	"CalculateTotalCollateral":         {},
 	"ScaleCollateral":                  {},
 	"GetPositionSummary":               {},
+	"GetFuturesPositionSummary":        {},
+	"GetFuturesPositionOrders":         {},
+	"SetCollateralMode":                {},
+	"GetCollateralMode":                {},
+	"SetLeverage":                      {},
+	"GetLeverage":                      {},
+	"SetMarginType":                    {},
+	"ChangePositionMargin":             {},
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
@@ -526,12 +589,20 @@ var blockedCIExchanges = []string{
 	"bybit",   // bybit API is banned from executing within the US where github Actions is ran
 }
 
+// unsupportedAssets contains assets that cannot handle
+// normal processing for testing. This is to be used very sparingly
+var unsupportedAssets = []asset.Item{
+	asset.Index,
+}
+
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
+	"btse",     // 	TODO rm once timeout issues resolved
+	"poloniex", // 	outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
@@ -544,6 +615,7 @@ var cryptoChainPerExchange = map[string]string{
 // acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
 	common.ErrFunctionNotSupported,       // Shows API cannot perform function and developer has recognised this
+	common.ErrNotYetImplemented,          // Shows API can perform function but developer has not implemented it yet
 	asset.ErrNotSupported,                // Shows that valid and invalid asset types are handled
 	request.ErrAuthRequestFailed,         // We must set authenticated requests properly in order to understand and better handle auth failures
 	order.ErrUnsupportedOrderType,        // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
@@ -556,7 +628,12 @@ var acceptableErrors = []error{
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
+	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
 	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
+	order.ErrExchangeLimitNotLoaded,      // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
+	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
+	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
+	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest

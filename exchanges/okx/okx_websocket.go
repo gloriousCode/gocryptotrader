@@ -85,17 +85,18 @@ const (
 	okxChannelAlgoAdvance          = "algo-advance"
 	okxChannelLiquidationWarning   = "liquidation-warning"
 	okxChannelAccountGreeks        = "account-greeks"
-	okxChannelRFQs                 = "rfqs"
+	okxChannelRfqs                 = "rfqs"
 	okxChannelQuotes               = "quotes"
 	okxChannelStructureBlockTrades = "struc-block-trades"
 	okxChannelSpotGridOrder        = "grid-orders-spot"
 	okxChannelGridOrdersContract   = "grid-orders-contract"
 	okxChannelGridPositions        = "grid-positions"
 	okcChannelGridSubOrders        = "grid-sub-orders"
-	okxChannelInstruments          = "instruments"
-	okxChannelOpenInterest         = "open-interest"
-	okxChannelTrades               = "trades"
 
+	// Public channels
+	okxChannelInstruments     = "instruments"
+	okxChannelOpenInterest    = "open-interest"
+	okxChannelTrades          = "trades"
 	okxChannelEstimatedPrice  = "estimated-price"
 	okxChannelMarkPrice       = "mark-price"
 	okxChannelPriceLimit      = "price-limit"
@@ -231,7 +232,7 @@ func (ok *Okx) WsConnect() error {
 	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
-		Delay:       time.Second * 27,
+		Delay:       time.Second * 20,
 	})
 	if ok.IsWebsocketAuthenticationSupported() {
 		var authDialer websocket.Dialer
@@ -260,7 +261,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
-		Delay:       time.Second * 27,
+		Delay:       time.Second * 20,
 	})
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
@@ -356,15 +357,8 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
-	request := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
-
-	authRequests := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
+	request := WSSubscriptionInformationList{Operation: operation}
+	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels []stream.ChannelSubscription
@@ -383,10 +377,25 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		var algoID string
 		var uid string
 
-		if arg.Channel == okxChannelAccount ||
-			arg.Channel == okxChannelOrders {
+		switch arg.Channel {
+		case okxChannelAccount,
+			okxChannelPositions,
+			okxChannelBalanceAndPosition,
+			okxChannelOrders,
+			okxChannelAlgoOrders,
+			okxChannelAlgoAdvance,
+			okxChannelLiquidationWarning,
+			okxChannelAccountGreeks,
+			okxChannelRfqs,
+			okxChannelQuotes,
+			okxChannelStructureBlockTrades,
+			okxChannelSpotGridOrder,
+			okxChannelGridOrdersContract,
+			okxChannelGridPositions,
+			okcChannelGridSubOrders:
 			authSubscription = true
 		}
+
 		if arg.Channel == okxChannelGridPositions {
 			algoID, _ = subscriptions[i].Params["algoId"].(string)
 		}
@@ -467,7 +476,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
@@ -489,7 +498,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
@@ -518,7 +527,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+		ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
 		ok.Websocket.AddSuccessfulSubscriptions(channels...)
@@ -534,7 +543,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		if bytes.Equal(respRaw, pongMsg) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("%w unmarshalling %v", err, respRaw)
 	}
 	if (resp.Event != "" && (resp.Event == "login" || resp.Event == "error")) || resp.Operation != "" {
 		ok.WsResponseMultiplexer.Message <- &resp
@@ -596,8 +605,8 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	case okxChannelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelRFQs:
-		var response WsRFQ
+	case okxChannelRfqs:
+		var response WsRfq
 		return ok.wsProcessPushData(respRaw, &response)
 	case okxChannelQuotes:
 		var response WsQuote
@@ -632,8 +641,9 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelPriceLimit:
 		var response WsMarkPrice
 		return ok.wsProcessPushData(respRaw, &response)
+	case okxChannelOrderBooks5:
+		return ok.wsProcessOrderbook5(respRaw)
 	case okxChannelOrderBooks,
-		okxChannelOrderBooks5,
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
@@ -720,11 +730,74 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	return nil
 }
 
+// wsProcessOrderbook5 processes orderbook data
+func (ok *Okx) wsProcessOrderbook5(data []byte) error {
+	var resp WsOrderbook5
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Data) != 1 {
+		return fmt.Errorf("%s - no data returned", ok.Name)
+	}
+
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID("", resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	for x := range resp.Data[0].Asks {
+		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+
+		asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	for x := range resp.Data[0].Bids {
+		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
+		if err != nil {
+			return err
+		}
+
+		bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	for x := range assets {
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:           assets[x],
+			Asks:            asks,
+			Bids:            bids,
+			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli),
+			Pair:            pair,
+			Exchange:        ok.Name,
+			VerifyOrderbook: ok.CanVerifyOrderbook})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // wsProcessOrderBooks processes "snapshot" and "update" order book
 func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	var response WsOrderBook
-	var err error
-	err = json.Unmarshal(data, &response)
+	err := json.Unmarshal(data, &response)
 	if err != nil {
 		return err
 	}
@@ -991,18 +1064,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(response.Data[i].Side)
-		if err != nil {
-			return err
-		}
 		for j := range assets {
 			trades = append(trades, trade.Data{
 				Amount:       response.Data[i].Quantity,
 				AssetType:    assets[j],
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
-				Side:         side,
+				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price,
@@ -1042,20 +1110,62 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		ok.Websocket.DataHandler <- &order.Detail{
-			Price:           response.Data[x].Price,
-			Amount:          response.Data[x].Size,
-			ExecutedAmount:  response.Data[x].LastFilledSize.Float64(),
-			RemainingAmount: response.Data[x].AccumulatedFillSize.Float64() - response.Data[x].LastFilledSize.Float64(),
-			Exchange:        ok.Name,
-			OrderID:         response.Data[x].OrderID,
-			Type:            orderType,
-			Side:            response.Data[x].Side,
-			Status:          orderStatus,
-			AssetType:       a,
-			Date:            response.Data[x].CreationTime,
-			Pair:            pair,
+
+		avgPrice := response.Data[x].AveragePrice.Float64()
+		orderAmount := response.Data[x].Size.Float64()
+		execAmount := response.Data[x].AccumulatedFillSize.Float64()
+
+		var quoteAmount float64
+		if response.Data[x].SizeType == "quote_ccy" {
+			// Size is quote amount.
+			quoteAmount = orderAmount
+			if orderStatus == order.Filled {
+				// We prefer to take execAmount over calculating from quoteAmount / avgPrice
+				// because it avoids rounding issues
+				orderAmount = execAmount
+			} else {
+				if avgPrice > 0 {
+					orderAmount /= avgPrice
+				} else {
+					// Size not in Base, and we can't derive a sane value for it
+					orderAmount = 0
+				}
+			}
 		}
+
+		var remainingAmount float64
+		// Float64 rounding may lead to execAmount > orderAmount by a tiny fraction
+		// noting that the order can be fully executed before it's marked as status Filled
+		if orderStatus != order.Filled && orderAmount > execAmount {
+			remainingAmount = orderAmount - execAmount
+		}
+
+		d := &order.Detail{
+			Amount:               orderAmount,
+			AssetType:            a,
+			AverageExecutedPrice: avgPrice,
+			ClientOrderID:        response.Data[x].ClientOrderID,
+			Date:                 response.Data[x].CreationTime.Time(),
+			Exchange:             ok.Name,
+			ExecutedAmount:       execAmount,
+			Fee:                  0.0 - response.Data[x].Fee.Float64(),
+			FeeAsset:             response.Data[x].FeeCurrency,
+			OrderID:              response.Data[x].OrderID,
+			Pair:                 pair,
+			Price:                response.Data[x].Price.Float64(),
+			QuoteAmount:          quoteAmount,
+			RemainingAmount:      remainingAmount,
+			Side:                 response.Data[x].Side,
+			Status:               orderStatus,
+			Type:                 orderType,
+		}
+		if orderStatus == order.Filled {
+			d.CloseTime = response.Data[x].FillTime.Time()
+			if d.Amount == 0 {
+				d.Amount = d.ExecutedAmount
+			}
+		}
+		ok.Websocket.DataHandler <- d
 	}
 	return nil
 }
@@ -1222,10 +1332,6 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 			})
 		}
 	}
-	if len(subscriptions) >= 240 {
-		log.Warnf(log.WebsocketMgr, "OKx has 240 subscription limit, only subscribing within limit. Requested %v", len(subscriptions))
-		subscriptions = subscriptions[:239]
-	}
 	return subscriptions, nil
 }
 
@@ -1375,7 +1481,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, fmt.Errorf("either order id or client supplier id is required")
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
@@ -1434,7 +1540,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
+		if arg.OrderID == "" && arg.ClientOrderID == "" {
 			return nil, fmt.Errorf("either order id or client supplier id is required")
 		}
 	}
@@ -1508,7 +1614,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
+	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
@@ -1569,7 +1675,7 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
+		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
 		}
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
@@ -1858,9 +1964,9 @@ func (ok *Okx) AccountGreeksSubscription(operation string, pair currency.Pair) e
 	return ok.wsAuthChannelSubscription(operation, okxChannelAccountGreeks, asset.Empty, pair, "", "", wsSubscriptionParameters{Currency: true})
 }
 
-// RfqSubscription subscription to retrieve Rfq updates on RFQ orders.
+// RfqSubscription subscription to retrieve Rfq updates on Rfq orders.
 func (ok *Okx) RfqSubscription(operation, uid string) error {
-	return ok.wsAuthChannelSubscription(operation, okxChannelRFQs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(operation, okxChannelRfqs, asset.Empty, currency.EMPTYPAIR, uid, "", wsSubscriptionParameters{})
 }
 
 // QuotesSubscription subscription to retrieve Quote subscription

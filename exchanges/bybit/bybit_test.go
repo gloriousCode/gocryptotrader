@@ -1871,7 +1871,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.SetLeverage(context.Background(), pair, 10, 10)
+	_, err = b.SetLeverageLevel(context.Background(), pair, 10, 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2042,7 +2042,7 @@ func TestUpdateTicker(t *testing.T) {
 	var pairs currency.Pairs
 	if mockTests {
 		var pair2 currency.Pair
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2230,7 +2230,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2292,7 +2292,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}

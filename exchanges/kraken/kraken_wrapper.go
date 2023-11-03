@@ -160,8 +160,10 @@ func (k *Kraken) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.FourHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
@@ -1739,12 +1741,15 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		} else {
 			underlyingStr = underlyingBase[1]
 		}
-		usdIndex := strings.Index(strings.ToLower(underlyingStr), "usd")
+		usdIndex := strings.LastIndex(strings.ToLower(underlyingStr), "usd")
+		if usdIndex <= 0 {
+			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", k.Name, underlyingStr)
+			continue
+		}
 		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
 		if err != nil {
 			return nil, err
 		}
-
 		var s, e time.Time
 		if result.Instruments[i].OpeningDate != "" {
 			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
@@ -1770,16 +1775,20 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				ct = futures.SemiAnnually
 			}
 		}
-
+		contractSettlementType := futures.Linear
+		if cp.Base.Equal(currency.PI) || cp.Base.Equal(currency.FI) {
+			contractSettlementType = futures.Inverse
+		}
 		resp[i] = futures.Contract{
-			Exchange:   k.Name,
-			Name:       cp,
-			Underlying: underlying,
-			Asset:      item,
-			StartDate:  s,
-			EndDate:    e,
-			IsActive:   result.Instruments[i].Tradable,
-			Type:       ct,
+			Exchange:       k.Name,
+			Name:           cp,
+			Underlying:     underlying,
+			Asset:          item,
+			StartDate:      s,
+			EndDate:        e,
+			SettlementType: contractSettlementType,
+			IsActive:       result.Instruments[i].Tradable,
+			Type:           ct,
 		}
 	}
 	return resp, nil
@@ -1794,9 +1803,12 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		err := k.CurrencyPairs.IsAssetPairEnabled(r.Asset, r.Pair)
-		if err != nil {
+		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
 		}
 	}
 
@@ -1813,13 +1825,20 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
 			continue
 		}
+		var isPerp bool
+		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
 		rate := fundingrate.LatestRateResponse{
 			Exchange: k.Name,
 			Asset:    r.Asset,
 			Pair:     pair,
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
-				Time: time.Now(), // TODO FIX BASTARD
 			},
 			TimeChecked: time.Now(),
 		}
@@ -1835,5 +1854,5 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
-	return cp.Base.Equal(currency.NewCode("pf")) && a == asset.Futures, nil
+	return cp.Base.Equal(currency.PF) && a == asset.Futures, nil
 }

@@ -666,10 +666,10 @@ type FuturesContract struct {
 	OrderSizeMin          int64                   `json:"order_size_min"`
 	RefRebateRate         convert.StringToFloat64 `json:"ref_rebate_rate"`
 	FundingInterval       int64                   `json:"funding_interval"`
-	RiskLimitStep         convert.StringToFloat64 `json:"risk_limit_step"`
+	RiskLimitStep         string                  `json:"risk_limit_step"`
 	LeverageMin           convert.StringToFloat64 `json:"leverage_min"`
 	LeverageMax           convert.StringToFloat64 `json:"leverage_max"`
-	RiskLimitMax          convert.StringToFloat64 `json:"risk_limit_max"`
+	RiskLimitMax          string                  `json:"risk_limit_max"`
 	MakerFeeRate          convert.StringToFloat64 `json:"maker_fee_rate"`
 	TakerFeeRate          convert.StringToFloat64 `json:"taker_fee_rate"`
 	FundingRate           convert.StringToFloat64 `json:"funding_rate"`
@@ -1215,7 +1215,7 @@ type MarginAccountItem struct {
 	Quote        AccountBalanceInformation `json:"quote"`
 }
 
-// AccountBalanceInformation represents currency account balace information.
+// AccountBalanceInformation represents currency account balance information.
 type AccountBalanceInformation struct {
 	Available    convert.StringToFloat64 `json:"available"`
 	Borrowed     convert.StringToFloat64 `json:"borrowed"`

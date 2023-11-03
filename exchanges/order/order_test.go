@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -820,7 +822,7 @@ func TestStringToOrderSide(t *testing.T) {
 		{"any", AnySide, nil},
 		{"ANY", AnySide, nil},
 		{"aNy", AnySide, nil},
-		{"woahMan", UnknownSide, errUnrecognisedOrderSide},
+		{"woahMan", UnknownSide, ErrSideIsInvalid},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -1340,8 +1342,8 @@ func TestValidationOnOrderTypes(t *testing.T) {
 
 	getOrders.AssetType = asset.Spot
 	err = getOrders.Validate()
-	if !errors.Is(err, errUnrecognisedOrderSide) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errUnrecognisedOrderSide)
+	if !errors.Is(err, ErrSideIsInvalid) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSideIsInvalid)
 	}
 
 	getOrders.Side = AnySide
@@ -1509,9 +1511,14 @@ func TestMatchFilter(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range tests {
-		if tt.o.MatchFilter(tt.f) != tt.expectedResult {
-			t.Errorf("tests[%v] failed", num)
-		}
+		num := num
+		tt := tt
+		t.Run(fmt.Sprintf("%v", num), func(t *testing.T) {
+			t.Parallel()
+			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
+				t.Errorf("tests[%v] failed", num)
+			}
+		})
 	}
 }
 
@@ -2044,4 +2051,14 @@ func TestAdjustQuoteAmount(t *testing.T) {
 	if s.QuoteAmount != 5.22222222 {
 		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.22222222)
 	}
+}
+
+func TestSideUnmarshal(t *testing.T) {
+	t.Parallel()
+	var s Side
+	assert.Nil(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
+	assert.Equal(t, Sell, s, "Correctly set order Side")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
+	var jErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }

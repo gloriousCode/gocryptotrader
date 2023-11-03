@@ -728,10 +728,20 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	b.Verbose = true
-	tt, err := b.GetTickers(context.Background())
+	_, err := b.GetTickers(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
-	t.Log(tt)
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.UpdateTickers(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatal(err)
+	}
 }

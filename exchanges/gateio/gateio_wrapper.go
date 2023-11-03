@@ -115,8 +115,11 @@ func (g *Gateio) SetDefaults() {
 				Intervals: true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour:  true,
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
@@ -2021,6 +2024,14 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if err != nil {
 					return nil, err
 				}
+				settlePair := currency.NewCode(settlePairs[k])
+				contractSettlementType := futures.Linear
+				switch {
+				case name.Base.Equal(currency.BTC) && settlePair.Equal(currency.BTC):
+					contractSettlementType = futures.Inverse
+				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
+					contractSettlementType = futures.Quanto
+				}
 				c := futures.Contract{
 					Exchange:             g.Name,
 					Name:                 name,
@@ -2028,7 +2039,8 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Asset:                item,
 					IsActive:             !contracts[j].InDelisting,
 					Type:                 futures.Perpetual,
-					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
+					SettlementType:       contractSettlementType,
+					SettlementCurrencies: currency.Currencies{settlePair},
 					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
@@ -2090,6 +2102,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Asset:                item,
 					StartDate:            s,
 					EndDate:              e,
+					SettlementType:       futures.Linear,
 					IsActive:             !contracts[j].InDelisting,
 					Type:                 ct,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
@@ -2111,11 +2124,6 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	avail, err := g.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
 	var limits []order.MinMaxLevel
 	switch a {
 	case asset.Spot:
@@ -2131,7 +2139,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				continue
 			}
 			var pair currency.Pair
-			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			pair, err = g.MatchSymbolWithAvailablePairs(pairsData[x].ID, a, true)
 			if err != nil {
 				return err
 			}
@@ -2210,6 +2218,14 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				return nil, err
 			}
 			if !pairs.Contains(cp, false) {
+				continue
+			}
+			var isPerp bool
+			isPerp, err = g.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
 				continue
 			}
 			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j], r.IncludePredictedRate))

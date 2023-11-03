@@ -3,6 +3,7 @@ package futures
 import (
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -10,28 +11,62 @@ import (
 
 // Contract holds details on futures contracts
 type Contract struct {
-	Exchange   string
-	Name       currency.Pair
-	Underlying currency.Pair
-	Asset      asset.Item
-	StartDate  time.Time
-	EndDate    time.Time
-	IsActive   bool
-	Type       ContractType
+	Exchange       string
+	Name           currency.Pair
+	Underlying     currency.Pair
+	Asset          asset.Item
+	StartDate      time.Time
+	EndDate        time.Time
+	IsActive       bool
+	Status         string
+	Type           ContractType
+	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
 	SettlementCurrencies currency.Currencies
 	MarginCurrency       currency.Code
 	Multiplier           float64
 	MaxLeverage          float64
 	LatestRate           fundingrate.Rate
+	FundingRateFloor     decimal.Decimal
+	FundingRateCeiling   decimal.Decimal
+}
+
+// ContractSettlementType holds the various style of contracts offered by futures exchanges
+type ContractSettlementType uint8
+
+// ContractSettlementType definitions
+const (
+	UnsetSettlementType ContractSettlementType = iota
+	Linear
+	Inverse
+	Quanto
+	LinearOrInverse
+)
+
+// String returns the string representation of a contract settlement type
+func (d ContractSettlementType) String() string {
+	switch d {
+	case UnsetSettlementType:
+		return "unset"
+	case Linear:
+		return "linear"
+	case Inverse:
+		return "inverse"
+	case Quanto:
+		return "quanto"
+	case LinearOrInverse:
+		return "linearOrInverse"
+	default:
+		return "unknown"
+	}
 }
 
 // ContractType holds the various style of contracts offered by futures exchanges
 type ContractType uint8
 
-// Contract type definitions
+// ContractType definitions
 const (
-	Unset ContractType = iota
+	UnsetContractType ContractType = iota
 	Perpetual
 	LongDated
 	Weekly

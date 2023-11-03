@@ -14,7 +14,8 @@ type PairsManager struct {
 	UseGlobalFormat            bool        `json:"useGlobalFormat,omitempty"`
 	LastUpdated                int64       `json:"lastUpdated,omitempty"`
 	Pairs                      FullStore   `json:"pairs"`
-	m                          sync.RWMutex
+	matcher                    map[key]*Pair
+	mutex                      sync.RWMutex
 }
 
 // FullStore holds all supported asset types with the enabled and available
@@ -36,4 +37,10 @@ type PairFormat struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Separator string `json:"separator,omitempty"`
 	Index     string `json:"index,omitempty"`
+}
+
+// key is used to store the asset type and symbol in a map
+type key struct {
+	Symbol string
+	Asset  asset.Item
 }

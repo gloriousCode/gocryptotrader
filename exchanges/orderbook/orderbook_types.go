@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -20,18 +21,19 @@ const (
 
 // Vars for the orderbook package
 var (
-	errExchangeNameUnset   = errors.New("orderbook exchange name not set")
-	errPairNotSet          = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet     = errors.New("orderbook asset type not set")
-	errCannotFindOrderbook = errors.New("cannot find orderbook(s)")
-	errPriceNotSet         = errors.New("price cannot be zero")
-	errAmountInvalid       = errors.New("amount cannot be less or equal to zero")
-	errPriceOutOfOrder     = errors.New("pricing out of order")
-	errIDOutOfOrder        = errors.New("ID out of order")
-	errDuplication         = errors.New("price duplication")
-	errIDDuplication       = errors.New("id duplication")
-	errPeriodUnset         = errors.New("funding rate period is unset")
-	errNotEnoughLiquidity  = errors.New("not enough liquidity")
+	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
+	errPairNotSet           = errors.New("orderbook currency pair not set")
+	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
+	errCannotFindOrderbook  = errors.New("cannot find orderbook(s)")
+	errPriceNotSet          = errors.New("price cannot be zero")
+	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
+	errPriceOutOfOrder      = errors.New("pricing out of order")
+	errIDOutOfOrder         = errors.New("ID out of order")
+	errDuplication          = errors.New("price duplication")
+	errIDDuplication        = errors.New("id duplication")
+	errPeriodUnset          = errors.New("funding rate period is unset")
+	errNotEnoughLiquidity   = errors.New("not enough liquidity")
+	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
 var service = Service{
@@ -49,15 +51,23 @@ type Service struct {
 // Exchange defines a holder for the exchange specific depth items with a
 // specific ID associated with that exchange
 type Exchange struct {
-	m  map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth
+	m  map[key.PairAsset]*Depth
 	ID uuid.UUID
 }
 
 // Item stores the amount and price values
 type Item struct {
 	Amount float64
-	Price  float64
-	ID     int64
+	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
+	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
+	// potentially will round value which is not ideal.
+	StrAmount string
+	Price     float64
+	// StrPrice is a string representation of the price. e.g. 0.00000100 this
+	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
+	// potentially will round value which is not ideal.
+	StrPrice string
+	ID       int64
 
 	// Funding rate field
 	Period int64
@@ -99,6 +109,10 @@ type Base struct {
 	// should remove any items that are outside of this scope. Bittrex and
 	// Kraken utilise this field.
 	MaxDepth int
+	// ChecksumStringRequired defines if the checksum is built from the raw
+	// string representations of the price and amount. This helps alleviate any
+	// potential rounding issues.
+	ChecksumStringRequired bool
 }
 
 type byOBPrice []Item
@@ -108,17 +122,18 @@ func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 type options struct {
-	exchange         string
-	pair             currency.Pair
-	asset            asset.Item
-	lastUpdated      time.Time
-	lastUpdateID     int64
-	priceDuplication bool
-	isFundingRate    bool
-	VerifyOrderbook  bool
-	restSnapshot     bool
-	idAligned        bool
-	maxDepth         int
+	exchange               string
+	pair                   currency.Pair
+	asset                  asset.Item
+	lastUpdated            time.Time
+	lastUpdateID           int64
+	priceDuplication       bool
+	isFundingRate          bool
+	VerifyOrderbook        bool
+	restSnapshot           bool
+	idAligned              bool
+	checksumStringRequired bool
+	maxDepth               int
 }
 
 // Action defines a set of differing states required to implement an incoming

@@ -1099,6 +1099,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
 	cp := currency.NewPair(currency.ETH, currency.USD)
 	_, err := b.UpdateTicker(context.Background(), cp, asset.PerpetualContract)
 	if err != nil {
@@ -1264,9 +1265,18 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
 	})
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.BTC, currency.KLAY),
+	})
 	if !errors.Is(err, futures.ErrNotPerpetualFuture) {
 		t.Error(err)
 	}
+
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.PerpetualContract,
 	})

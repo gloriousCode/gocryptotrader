@@ -7,28 +7,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ExchangePairAssetKey is a unique map key signature for exchange, currency pair and asset
-type ExchangePairAssetKey struct {
+// ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
+type ExchangePairAsset struct {
 	Exchange string
 	Base     *currency.Item
 	Quote    *currency.Item
 	Asset    asset.Item
 }
 
-// PairAssetKey is a unique map key signature for currency pair and asset
-type PairAssetKey struct {
+// ExchangeAsset is a unique map key signature for exchange and asset
+type ExchangeAsset struct {
+	Exchange string
+	Asset    asset.Item
+}
+
+// PairAsset is a unique map key signature for currency pair and asset
+type PairAsset struct {
 	Base  *currency.Item
 	Quote *currency.Item
 	Asset asset.Item
 }
 
-// ExchangeAssetKey is a unique map key signature for exchange and asset
-type ExchangeAssetKey struct {
-	Exchange string
-	Asset    asset.Item
-}
-
-type PairKey struct {
+type Pair struct {
 	Base  *currency.Item
 	Quote *currency.Item
 }
@@ -41,18 +41,18 @@ type SubAccountCurrencyAssetKey struct {
 }
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
-func (k *ExchangePairAssetKey) MatchesExchangeAsset(exch string, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
 	return strings.EqualFold(k.Exchange, exch) && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
-func (k *ExchangePairAssetKey) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
 	return k.Base == pair.Base.Item &&
 		k.Quote == pair.Quote.Item &&
 		k.Asset == item
 }
 
 // MatchesExchange checks if the exchange matches
-func (k *ExchangePairAssetKey) MatchesExchange(exch string) bool {
+func (k *ExchangePairAsset) MatchesExchange(exch string) bool {
 	return strings.EqualFold(k.Exchange, exch)
 }

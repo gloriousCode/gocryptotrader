@@ -24,7 +24,7 @@ const (
 	geminiAPIVersion    = "1"
 
 	geminiSymbols            = "symbols"
-	geminiTicker             = "pubticker"
+	geminiSymbolDetails      = "symbols/details"
 	geminiAuction            = "auction"
 	geminiAuctionHistory     = "history"
 	geminiOrderbook          = "book"
@@ -62,11 +62,19 @@ func (g *Gemini) GetSymbols(ctx context.Context) ([]string, error) {
 	return symbols, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &symbols)
 }
 
-// GetSymbolDetails returns all available symbols for trading
-func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) (SymbolDetails, error) {
-	var resp SymbolDetails
-	path := fmt.Sprintf("/v%s/%s/details/%s", geminiAPIVersion, geminiSymbols, symbol)
-	return resp, g.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+// GetSymbolDetails returns extra symbol details
+// use symbol "all" to get everything
+func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolDetails, error) {
+	if symbol == "all" {
+		var details []SymbolDetails
+		return details, g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
+	}
+	var details SymbolDetails
+	err := g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
+	if err != nil {
+		return nil, err
+	}
+	return []SymbolDetails{details}, nil
 }
 
 // GetTicker returns information about recent trading activity for the symbol

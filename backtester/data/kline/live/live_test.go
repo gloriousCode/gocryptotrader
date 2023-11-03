@@ -14,7 +14,7 @@ import (
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-const testExchange = "binanceus"
+const testExchange = "okx"
 
 func TestLoadCandles(t *testing.T) {
 	t.Parallel()

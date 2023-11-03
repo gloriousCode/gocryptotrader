@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -87,6 +89,7 @@ func (b *Bittrex) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:      true,
+				TickerBatching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
@@ -298,25 +301,33 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bittrex) UpdateTickers(ctx context.Context, _ asset.Item) error {
+func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 	tickers, err := b.GetTickers(ctx)
 	if err != nil {
 		return err
 	}
-	for i := range tickers {
-		pair, err := currency.NewPairFromString(tickers[i].Symbol)
-		if err != nil {
-			return err
-		}
-		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tickers[i].LastTradeRate,
-			Pair:         pair,
-			ExchangeName: b.Name,
-			AssetType:    asset.Spot,
-			LastUpdated:  time.Now(),
-		})
-		if err != nil {
-			return err
+	summaries, err := b.GetMarketSummaries(ctx)
+	if err != nil {
+		return err
+	}
+	for x := range tickers {
+		for y := range summaries {
+			if !strings.EqualFold(summaries[y].Symbol, tickers[x].Symbol) {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(tickers[x].Symbol)
+			if err != nil {
+				return err
+			}
+			tickerPrice := b.constructTicker(tickers[x], &summaries[y], pair, a)
+			err = ticker.ProcessTicker(tickerPrice)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1079,6 +1090,11 @@ func (b *Bittrex) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
 	// TODO implement with API upgrade˜
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (b *Bittrex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

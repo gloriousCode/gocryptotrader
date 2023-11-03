@@ -130,8 +130,10 @@ func (b *BTSE) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.OneHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.OneHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
@@ -1186,13 +1188,8 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	}
 	resp := make([]futures.Contract, 0, len(marketSummary))
 	for i := range marketSummary {
-		splitter := strings.Split(marketSummary[i].Symbol, marketSummary[i].Base)
-		if len(splitter) != 2 {
-			log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketSummary[i].Symbol, marketSummary[i].Base)
-			continue
-		}
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, splitter[1])
+		cp, err = currency.NewPairFromStrings(marketSummary[i].Base, marketSummary[i].Symbol[len(marketSummary[i].Base):])
 		if err != nil {
 			return nil, err
 		}
@@ -1214,8 +1211,20 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		} else {
 			ct = futures.Perpetual
 		}
+		var contractSettlementType futures.ContractSettlementType
 		for j := range marketSummary[i].AvailableSettlement {
 			settlementCurrencies[j] = currency.NewCode(marketSummary[i].AvailableSettlement[j])
+			if contractSettlementType == futures.LinearOrInverse {
+				continue
+			}
+			containsUSD := strings.Contains(marketSummary[i].AvailableSettlement[j], "USD")
+			if !containsUSD {
+				contractSettlementType = futures.LinearOrInverse
+				continue
+			}
+			if containsUSD {
+				contractSettlementType = futures.Linear
+			}
 		}
 
 		c := futures.Contract{
@@ -1226,6 +1235,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementCurrencies: settlementCurrencies,
 			StartDate:            s,
 			EndDate:              e,
+			SettlementType:       contractSettlementType,
 			IsActive:             marketSummary[i].Active,
 			Type:                 ct,
 		}
@@ -1263,20 +1273,16 @@ func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 		return nil, err
 	}
 
-	pairs, err := b.GetEnabledPairs(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-
 	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
 	for i := range rates {
 		var cp currency.Pair
-		cp, err = pairs.DeriveFrom(rates[i].Symbol)
-		if err != nil {
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			}
+		var isEnabled bool
+		cp, isEnabled, err = b.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
+		}
+		if !isEnabled {
+			continue
 		}
 		var isPerp bool
 		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)

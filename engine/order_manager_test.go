@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -27,6 +28,8 @@ import (
 type omfExchange struct {
 	exchange.IBotExchange
 }
+
+var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 // CancelOrder overrides testExchange's cancel order function
 // to do the bare minimum required with no API calls or credentials required
@@ -157,28 +160,28 @@ func (f omfExchange) GetFuturesPositions(_ context.Context, req *futures.Positio
 }
 
 func TestSetupOrderManager(t *testing.T) {
-	_, err := SetupOrderManager(nil, nil, nil, false, false, 0)
+	_, err := SetupOrderManager(nil, nil, nil, nil)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
-	_, err = SetupOrderManager(NewExchangeManager(), nil, nil, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), nil, nil, nil)
 	if !errors.Is(err, errNilCommunicationsManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilCommunicationsManager)
 	}
-	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, nil, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, nil, &config.OrderManager{})
 	if !errors.Is(err, errNilWaitGroup) {
 		t.Errorf("error '%v', expected '%v'", err, errNilWaitGroup)
 	}
 	var wg sync.WaitGroup
-	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, true, 0)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: 0})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, true, 1337)
+	_, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -191,7 +194,7 @@ func TestOrderManagerStart(t *testing.T) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -212,7 +215,7 @@ func TestOrderManagerIsRunning(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -237,7 +240,7 @@ func TestOrderManagerStop(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, false, false, 0)
+	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -282,7 +285,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -477,17 +480,12 @@ func TestCancelOrder(t *testing.T) {
 		t.Error("Expected error due to no order found")
 	}
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	cancel := &order.Cancel{
 		Exchange:  testExchange,
 		OrderID:   "1337",
 		Side:      order.Sell,
 		AssetType: asset.Spot,
-		Pair:      pair,
+		Pair:      btcusdPair,
 	}
 	err = m.Cancel(context.Background(), cancel)
 	if !errors.Is(err, nil) {
@@ -581,14 +579,9 @@ func TestSubmit(t *testing.T) {
 		t.Error("Expected error from validation")
 	}
 
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	m.cfg.EnforceLimitConfig = true
 	m.cfg.AllowMarketOrders = false
-	o.Pair = pair
+	o.Pair = btcusdPair
 	o.AssetType = asset.Spot
 	o.Side = order.Buy
 	o.Amount = 1
@@ -643,6 +636,38 @@ func TestSubmit(t *testing.T) {
 	}
 	if o2.InternalOrderID.IsNil() {
 		t.Error("Failed to assign internal order id")
+	}
+}
+
+// TestSubmitOrderAlreadyInStore ensures that if an order is submitted, but the WS sees the conf before processSubmittedOrder
+// then we don't error that it was there already
+func TestSubmitOrderAlreadyInStore(t *testing.T) {
+	m := OrdersSetup(t)
+	submitReq := &order.Submit{
+		Type:      order.Market,
+		Pair:      btcusdPair,
+		AssetType: asset.Spot,
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1,
+		Exchange:  testExchange,
+	}
+	submitResp, err := submitReq.DeriveSubmitResponse("batman.obvs")
+	assert.Nil(t, err, "Deriving a SubmitResp should not error")
+
+	id, err := uuid.NewV4()
+	assert.Nil(t, err, "uuid should not error")
+	d, err := submitResp.DeriveDetail(id)
+	assert.Nil(t, err, "Derive Detail should not error")
+
+	d.ClientOrderID = "SecretSquirrelSauce"
+	err = m.orderStore.add(d)
+	assert.Nil(t, err, "Adding an order should not error")
+
+	resp, err := m.SubmitFakeOrder(submitReq, submitResp, false)
+
+	if assert.Nil(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
+		assert.Equal(t, d.ClientOrderID, resp.ClientOrderID, "resp should contain the ClientOrderID from the store")
 	}
 }
 
@@ -750,7 +775,7 @@ func TestProcessOrders(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, false, false, 0)
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -1446,7 +1471,7 @@ func TestOrderManagerAdd(t *testing.T) {
 func TestGetAllOpenFuturesPositions(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
-	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
+	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1474,7 +1499,7 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 func TestGetOpenFuturesPosition(t *testing.T) {
 	t.Parallel()
 	wg := &sync.WaitGroup{}
-	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, false, false, time.Hour)
+	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1522,7 +1547,12 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, false, true, time.Hour)
+	o, err = SetupOrderManager(em, &CommunicationManager{}, wg, &config.OrderManager{
+		Enabled:                       convert.BoolPtr(true),
+		FuturesTrackingSeekDuration:   time.Hour,
+		Verbose:                       true,
+		ActivelyTrackFuturesPositions: true,
+	})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1612,7 +1642,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	var wg sync.WaitGroup
-	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, false, true, time.Hour)
+	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
@@ -1623,7 +1653,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	position := &futures.PositionDetails{
+	position := &futures.PositionResponse{
 		Exchange: b.Name,
 		Asset:    asset.Spot,
 		Pair:     cp,
@@ -1657,5 +1687,45 @@ func TestProcessFuturesPositions(t *testing.T) {
 	err = o.processFuturesPositions(fakeExchange, position)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+
+	b.Features.Supports.FuturesCapabilities.FundingRates = true
+	err = o.processFuturesPositions(fakeExchange, position)
+	if !errors.Is(err, nil) {
+		t.Errorf("received '%v', expected '%v'", err, nil)
+	}
+}
+
+// TestGetByDetail tests orderstore.getByDetail
+func TestGetByDetail(t *testing.T) {
+	t.Parallel()
+	m := OrdersSetup(t)
+	assert.Nil(t, m.orderStore.getByDetail(nil), "Fetching a nil order should return nil")
+	od := &order.Detail{
+		Exchange:      testExchange,
+		AssetType:     asset.Spot,
+		OrderID:       "AdmiralHarold",
+		ClientOrderID: "DuskyLeafMonkey",
+	}
+	id := &order.Detail{
+		Exchange: od.Exchange,
+		OrderID:  od.OrderID,
+	}
+
+	assert.Nil(t, m.orderStore.getByDetail(od), "Fetching a non-stored order should return nil")
+	assert.Nil(t, m.orderStore.add(od), "Adding the details should not error")
+
+	byOrig := m.orderStore.getByDetail(od)
+	byID := m.orderStore.getByDetail(id)
+
+	if assert.NotNil(t, byOrig, od, "Retrieve by orig pointer should find a record") {
+		assert.NotSame(t, byOrig, od, "Retrieve by orig pointer should return a new pointer")
+		assert.Equal(t, od.ClientOrderID, byOrig.ClientOrderID, "Retrieve by orig pointer should contain the correct ClientOrderID")
+	}
+
+	if assert.NotNil(t, byID, od, "Retrieve by new pointer should find a record") {
+		assert.NotSame(t, byID, id, "Retrieve by new pointer should return a different new pointer than we passed in")
+		assert.NotSame(t, byID, od, "Retrieve by new pointer should return a different new pointer than the original object")
+		assert.Equal(t, od.ClientOrderID, byID.ClientOrderID, "Retrieve by id pointer should contain the correct ClientOrderID")
 	}
 }

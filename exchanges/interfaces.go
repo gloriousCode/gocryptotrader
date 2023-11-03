@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -32,6 +33,8 @@ type IBotExchange interface {
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+	GetEnabledFeatures() FeaturesEnabled
+	GetSupportedFeatures() FeaturesSupported
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -93,6 +96,19 @@ type IBotExchange interface {
 	OrderManagement
 	CurrencyStateManagement
 	FuturesManagement
+	MarginManagement
+
+	// MatchSymbolWithAvailablePairs returns a currency pair based on the supplied
+	// symbol and asset type. If the string is expected to have a delimiter this
+	// will attempt to screen it out.
+	MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error)
+	// MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
+	// and asset type against the available pairs list. If the string is expected to
+	// have a delimiter this will attempt to screen it out. It will also check if
+	// the pair is enabled.
+	MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error)
+	// IsPairEnabled checks if a pair is enabled for an enabled asset type
+	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
 }
 
 // OrderManagement defines functionality for order management
@@ -142,14 +158,27 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
+	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
-	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*futures.CollateralByCurrency, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
 	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
 	GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error)
 	GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
+
+	GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
+	GetFuturesPositionOrders(context.Context, *futures.PositionsRequest) ([]futures.PositionResponse, error)
+	SetCollateralMode(ctx context.Context, item asset.Item, mode collateral.Mode) error
+	GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error)
+	SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error
+	GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error)
+}
+
+// MarginManagement manages margin positions and rates
+type MarginManagement interface {
+	SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error
+	ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
