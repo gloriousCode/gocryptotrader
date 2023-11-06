@@ -223,3 +223,23 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	ids = append(ids, exchangeID)
 	return ids, nil
 }
+
+func (s *Service) getByExchangeAsset(exch string, item asset.Item) []*Price {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prices := make([]*Price, 0, len(service.Tickers))
+	for k, v := range service.Tickers {
+		if k.Exchange != exch {
+			continue
+		}
+		if k.Asset != item {
+			continue
+		}
+		prices = append(prices, &v.Price)
+	}
+	return prices
+}
+
+func GetByExchangeAsset(exch string, item asset.Item) []*Price {
+	return service.getByExchangeAsset(exch, item)
+}
