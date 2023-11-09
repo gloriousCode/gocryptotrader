@@ -1107,3 +1107,47 @@ func (w *Websocket) checkSubscriptions(subs []ChannelSubscription) error {
 
 	return nil
 }
+
+// Connect initiates a websocket connection by using a package defined connection
+// function
+func (w *Websocket) EnableAndConnectNoSubs() error {
+	if w.connector == nil {
+		return errors.New("websocket connect function not set, cannot continue")
+	}
+	w.m.Lock()
+	defer w.m.Unlock()
+	w.setEnabled(true)
+	if w.IsConnecting() {
+		return fmt.Errorf("%v Websocket already attempting to connect",
+			w.exchangeName)
+	}
+	if w.IsConnected() {
+		return fmt.Errorf("%v Websocket already connected",
+			w.exchangeName)
+	}
+
+	w.dataMonitor()
+	w.trafficMonitor()
+	w.setConnectingStatus(true)
+
+	err := w.connector()
+	if err != nil {
+		w.setConnectingStatus(false)
+		return fmt.Errorf("%v Error connecting %s",
+			w.exchangeName, err)
+	}
+	w.setConnectedStatus(true)
+	w.setConnectingStatus(false)
+	w.setInit(true)
+
+	if !w.IsConnectionMonitorRunning() {
+		err = w.connectionMonitor()
+		if err != nil {
+			log.Errorf(log.WebsocketMgr,
+				"%s cannot start websocket connection monitor %v",
+				w.GetName(),
+				err)
+		}
+	}
+	return nil
+}

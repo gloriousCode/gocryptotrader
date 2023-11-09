@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 )
 
 // PairsManager manages asset pairs
@@ -16,6 +17,15 @@ type PairsManager struct {
 	Pairs                      FullStore   `json:"pairs"`
 	matcher                    map[key]*Pair
 	mutex                      sync.RWMutex
+}
+
+func (p *PairsManager) DisableAllPairs() {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	for x := range p.Pairs {
+		p.Pairs[x].Enabled = nil
+		p.Pairs[x].AssetEnabled = convert.BoolPtr(false)
+	}
 }
 
 // FullStore holds all supported asset types with the enabled and available
