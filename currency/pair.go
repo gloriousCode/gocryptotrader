@@ -68,6 +68,14 @@ func NewPair(baseCurrency, quoteCurrency Code) Pair {
 	}
 }
 
+// NewPair returns a currency pair from currency codes
+func NewPairFromItems(baseCurrency, quoteCurrency *Item) Pair {
+	return Pair{
+		Base:  baseCurrency.Currency(),
+		Quote: quoteCurrency.Currency(),
+	}
+}
+
 // NewPairWithDelimiter returns a CurrencyPair with a delimiter
 func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 	return Pair{
