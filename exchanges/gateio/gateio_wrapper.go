@@ -14,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -123,6 +124,9 @@ func (g *Gateio) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported: true,
 				},
 			},
 		},
@@ -2342,4 +2346,45 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
 	return a == asset.Futures, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(k) == 0 {
+		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
+	}
+	for i := range k {
+		if k[i].Asset != asset.DeliveryFutures && k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		pFmt, err := g.FormatExchangeCurrency(k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		settleCurrencies := []string{"btc", "usdt", "usd"}
+		for j := range settleCurrencies {
+			oi, err := g.GetFutureStats(ctx, settleCurrencies[j], pFmt, time.Time{}, 0, 1)
+			if err != nil {
+				continue
+			}
+			if len(oi) == 0 {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: g.Name,
+					Base:     k[i].Base,
+					Quote:    k[i].Quote,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest: oi[0].OpenInterest,
+			})
+			break
+		}
+	}
+	return resp, nil
 }

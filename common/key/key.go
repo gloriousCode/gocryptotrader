@@ -40,6 +40,22 @@ type SubAccountCurrencyAsset struct {
 	Asset      asset.Item
 }
 
+// Pair combines the base and quote into a pair
+func (k *PairAsset) Pair() currency.Pair {
+	if k.Base == nil && k.Quote == nil {
+		return currency.EMPTYPAIR
+	}
+	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+}
+
+// Pair combines the base and quote into a pair
+func (k *ExchangePairAsset) Pair() currency.Pair {
+	if k.Base == nil && k.Quote == nil {
+		return currency.EMPTYPAIR
+	}
+	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+}
+
 // MatchesExchangeAsset checks if the key matches the exchange and asset
 func (k *ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
 	return strings.EqualFold(k.Exchange, exch) && k.Asset == item

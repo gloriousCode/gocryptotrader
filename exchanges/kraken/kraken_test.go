@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2235,7 +2236,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	cp := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
 	cp.Delimiter = "_"
 	err = k.CurrencyPairs.EnablePair(asset.Futures, cp)
-	if !errors.Is(err, nil) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Fatal(err)
 	}
 	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
@@ -2273,4 +2274,24 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	if !is {
 		t.Error("expected true")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := k.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = k.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.PF.Item,
+		Quote: currency.NewCode("XBTUSD").Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = k.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1107,9 +1108,11 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, kline.OneHour, 0); err != nil {
+	resp, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, 0, 0)
+	if err != nil {
 		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
+	t.Log(resp)
 }
 
 func TestGetIndexConstituent(t *testing.T) {
@@ -3537,4 +3540,24 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, history, "should return values")
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futuresTradablePair.Base.Item,
+		Quote: futuresTradablePair.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = g.GetOpenInterest(context.Background())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }

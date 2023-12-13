@@ -13,6 +13,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -133,9 +134,13 @@ func (ok *Okx) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:                 true,
-				Leverage:                  true,
-				CollateralMode:            true,
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:         true,
+					SupportsRestBatch: true,
+				},
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
@@ -2240,6 +2245,83 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			MarginCurrency:       settleCurr,
 			Multiplier:           result[i].ContractValue.Float64(),
 			MaxLeverage:          result[i].MaxLeverage.Float64(),
+		}
+	}
+	return resp, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	if len(k) == 0 {
+		var resp []futures.OpenInterest
+		// TODO: Options support
+		instTypes := map[string]asset.Item{
+			"SWAP":    asset.PerpetualSwap,
+			"FUTURES": asset.Futures,
+		}
+		for k, v := range instTypes {
+			oid, err := ok.GetOpenInterestData(ctx, k, "", "")
+			if err != nil {
+				return nil, err
+			}
+			for j := range oid {
+				p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: ok.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    v,
+					},
+					OpenInterest: oid[j].OpenInterest,
+				})
+			}
+		}
+		return resp, nil
+	}
+	resp := make([]futures.OpenInterest, 0, len(k))
+	instTypes := map[asset.Item]string{
+		asset.PerpetualSwap: "SWAP",
+		asset.Futures:       "FUTURES",
+	}
+	for i := range k {
+		pFmt, err := ok.FormatSymbol(k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		oid, err := ok.GetOpenInterestData(ctx, instTypes[k[i].Asset], "", pFmt)
+		if err != nil {
+			return nil, err
+		}
+		for j := range oid {
+			p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, k[i].Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !isEnabled {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: ok.Name,
+					Base:     p.Base.Item,
+					Quote:    p.Quote.Item,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest: oid[j].OpenInterest,
+			})
 		}
 	}
 	return resp, nil
