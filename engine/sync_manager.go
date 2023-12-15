@@ -35,7 +35,7 @@ const (
 	SyncManagerName = "exchange_syncer"
 )
 
-var SyncItemList = []SyncItemType{SyncItemTicker, SyncItemOrderbook, SyncItemTrade, SyncItemFundingRate, SyncItemFuturesContract}
+var SyncItemList = []SyncItemType{SyncItemTicker, SyncItemOrderbook, SyncItemTrade, SyncItemFundingRate, SyncItemFuturesContract, SyncItemOpenInterest}
 
 var (
 	createdCounter         = 0
@@ -946,6 +946,8 @@ func (s SyncItemType) String() string {
 		return "Funding Rate"
 	case SyncItemFuturesContract:
 		return "Contract"
+	case SyncItemOpenInterest:
+		return "Open Interest"
 	default:
 		return fmt.Sprintf("Invalid SyncItemType: %d", s)
 	}

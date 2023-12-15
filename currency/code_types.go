@@ -121,6 +121,7 @@ var (
 	PPT              = NewCode("PPT")
 	KMD              = NewCode("KMD")
 	TUSD             = NewCode("TUSD")
+	FDUSD            = NewCode("FDUSD")
 	CNX              = NewCode("CNX")
 	LINK             = NewCode("LINK")
 	WTC              = NewCode("WTC")

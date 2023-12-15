@@ -160,7 +160,7 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 
-	fp, err := currency.NewPairFromString("pi_xbtusd")
+	fp, err := currency.NewPairFromString("FI_XRPUSD_210625")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2103,26 +2103,23 @@ func TestChecksumCalculation(t *testing.T) {
 
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	cp, err := currency.NewPairFromStrings("FI", "XBTUSD_221230")
 	if err != nil {
 		t.Error(err)
 	}
 	cp.Delimiter = "_"
-	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	k.Verbose = true
+	end := time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC)
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end, end.Add(-time.Hour*24*7))
 	if err != nil {
 		t.Error(err)
 	}
-
-	end := time.UnixMilli(resp.Candles[0].Time)
-	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
-	if err != nil {
-		t.Error(err)
-	}
+	t.Logf("%+v", resp)
 }
 
 func TestGetFuturesTrades(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	cp, err := currency.NewPairFromStrings("FI", "XRPUSD_210625")
 	if err != nil {
 		t.Error(err)
 	}

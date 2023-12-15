@@ -456,9 +456,6 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Instruments))
 		for x := range symbols.Instruments {
-			if !symbols.Instruments[x].Tradable {
-				continue
-			}
 			pair, err := currency.NewPairFromString(symbols.Instruments[x].Symbol)
 			if err != nil {
 				return nil, err

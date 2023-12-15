@@ -2664,14 +2664,29 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = ku.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  futuresTradablePair.Base.Item,
-		Quote: futuresTradablePair.Quote.Item,
+	ku.Verbose = true
+	resp, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.SHIB.Item,
+		Quote: currency.USDTM.Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
-
+	t.Logf("%+v", resp)
 	_, err = ku.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+
+	/*
+		{"symbol":"SHIBUSDTM","rootSymbol":"USDT","type":"FFWCSX","firstOpenDate":1620662400000,
+		"expireDate":null,"settleDate":null,"baseCurrency":"SHIB","quoteCurrency":"USDT","settleCurrency":"USDT",
+		"maxOrderQty":1000000,"maxPrice":1000000.0,"lotSize":1,"tickSize":1.0E-9,"indexPriceTickSize":1.0E-9,
+		"multiplier":100000.0,"initialMargin":0.014,"maintainMargin":0.007,"maxRiskLimit":20000,"minRiskLimit":20000,
+		"riskStep":10000,"makerFeeRate":2.0E-4,"takerFeeRate":6.0E-4,"takerFixFee":0.0,"makerFixFee":0.0,"settlementFee":null,
+		"isDeleverage":true,"isQuanto":false,"isInverse":false,"markMethod":"FairPrice","fairMethod":"FundingRate",
+		"fundingBaseSymbol":".SHIBINT8H","fundingQuoteSymbol":".USDTINT8H","fundingRateSymbol":".SHIBUSDTMFPI8H",
+		"indexSymbol":".KSHIBUSDT","settlementSymbol":"","status":"Open","fundingFeeRate":4.99E-4,
+		"predictedFundingFeeRate":4.78E-4,"fundingRateGranularity":28800000,"openInterest":"17331552",
+		"turnoverOf24h":9510799.47158044,"volumeOf24h":9.549172E11,"markPrice":1.0055E-5,"indexPrice":1.0054E-5,
+		"lastTradePrice":1.0056E-5,"nextFundingRateTime":12271778,"maxLeverage":75,
+		"sourceExchanges":["binance","okex","kucoin","gateio","bybit","bitget"],"premiumsSymbol1M":".SHIBUSDTMPI","premiumsSymbol8H":".SHIBUSDTMPI8H","fundingBaseSymbol1M":".SHIBINT","fundingQuoteSymbol1M":".USDTINT","lowPrice":9.415E-6,"highPrice":1.0197E-5,"priceChgPct":0.0257,"priceChg":2.52E-7}
+	*/
 }
