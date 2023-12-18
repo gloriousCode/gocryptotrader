@@ -3448,3 +3448,16 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
+
+func TestSpotFutures(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.NewCode("BTCUSD"), currency.NewCode("231229"))
+	cp.Delimiter = "_"
+	b.Verbose = true
+	interval := b.FormatExchangeKlineInterval(kline.OneDay)
+	resp, err := b.GetFuturesKlineData(context.Background(), cp, interval, 0, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(resp)
+}

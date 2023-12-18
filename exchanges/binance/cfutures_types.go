@@ -62,13 +62,13 @@ type SymbolOrderBookTicker struct {
 
 // FuturesCandleStick holds kline data
 type FuturesCandleStick struct {
-	OpenTime                time.Time
+	OpenTime                int64
 	Open                    float64
 	High                    float64
 	Low                     float64
 	Close                   float64
 	Volume                  float64
-	CloseTime               time.Time
+	CloseTime               int64
 	BaseAssetVolume         float64
 	NumberOfTrades          int64
 	TakerBuyVolume          float64

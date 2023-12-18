@@ -1822,7 +1822,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
+				Time:   time.UnixMilli(candles[i].OpenTime),
 				Open:   candles[i].Open,
 				High:   candles[i].High,
 				Low:    candles[i].Low,
@@ -1843,7 +1843,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].OpenTime,
+				Time:   time.UnixMilli(candles[i].OpenTime),
 				Open:   candles[i].Open,
 				High:   candles[i].High,
 				Low:    candles[i].Low,
@@ -1903,7 +1903,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].OpenTime,
+					Time:   time.UnixMilli(candles[i].OpenTime),
 					Open:   candles[i].Open,
 					High:   candles[i].High,
 					Low:    candles[i].Low,
@@ -1924,7 +1924,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].OpenTime,
+					Time:   time.UnixMilli(candles[i].OpenTime),
 					Open:   candles[i].Open,
 					High:   candles[i].High,
 					Low:    candles[i].Low,

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -271,7 +270,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		if !ok {
 			return nil, errors.New("type assertion failed for opentime")
 		}
-		tempData.OpenTime, err = convert.TimeFromUnixTimestampFloat(floatData)
+		tempData.OpenTime = int64(floatData)
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +323,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		if !ok {
 			return nil, errors.New("type assertion failed for close time")
 		}
-		tempData.CloseTime, err = convert.TimeFromUnixTimestampFloat(floatData)
+		tempData.CloseTime = int64(floatData)
 		if err != nil {
 			return resp, err
 		}

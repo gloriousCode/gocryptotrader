@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -572,7 +574,7 @@ func TestGetOHLC(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = k.GetOHLC(context.Background(), cp, "1440")
+	_, err = k.GetOHLC(context.Background(), cp, "1440", 0)
 	if err != nil {
 		t.Error("GetOHLC() error", err)
 	}
@@ -2109,12 +2111,233 @@ func TestGetCharts(t *testing.T) {
 	}
 	cp.Delimiter = "_"
 	k.Verbose = true
-	end := time.Date(2022, 12, 15, 0, 0, 0, 0, time.UTC)
-	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end, end.Add(-time.Hour*24*7))
+	end := time.Date(2022, 12, 30, 0, 0, 0, 0, time.UTC)
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end, end.Add(-time.Hour*24*90))
 	if err != nil {
 		t.Error(err)
 	}
+	resp2, err := k.GetOHLC(context.Background(), currency.NewPair(currency.XBT, currency.USDT), "1440", end.Add(-time.Hour*24*90).Unix())
 	t.Logf("%+v", resp)
+	t.Logf("%+v", resp2)
+}
+
+func TestGetTheDataRanges(t *testing.T) {
+	t.Parallel()
+	type hello struct {
+		cp         currency.Pair
+		start, end time.Time
+	}
+	symbols := []hello{
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220325", "_"),
+			start: time.Time{},
+			end:   time.Date(2022, 3, 25, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220624", "_"),
+			start: time.Time{},
+			end:   time.Date(2022, 6, 24, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220930", "_"),
+			start: time.Time{},
+			end:   time.Date(2022, 9, 30, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_221230", "_"),
+			start: time.Time{},
+			end:   time.Date(2022, 12, 30, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	var helloDates []time.Time
+	var helloClose []float64
+	for x := range symbols {
+		tt := x
+		resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", symbols[tt].cp, symbols[tt].start, symbols[tt].end)
+		if err != nil {
+			t.Error(err)
+		}
+		if len(resp.Candles) > 0 {
+			t.Log(symbols[tt].cp.String(), resp.Candles[len(resp.Candles)-1].Close, time.UnixMilli(resp.Candles[len(resp.Candles)-1].Time))
+			helloDates = append(helloDates, time.UnixMilli(resp.Candles[len(resp.Candles)-1].Time))
+			helloClose = append(helloClose, resp.Candles[len(resp.Candles)-1].Close)
+		}
+	}
+	yo, err := k.GetOHLC(context.Background(), currency.NewPair(currency.XBT, currency.USDT), "1440", time.Date(2021, 12, 30, 0, 0, 0, 0, time.UTC).Unix())
+	if err != nil {
+		t.Error(err)
+	}
+	sort.Slice(yo, func(i, j int) bool {
+		return yo[i].Time < yo[j].Time
+	})
+	t.Log(time.Unix(int64(yo[0].Time), 0), yo[0].Close)
+	t.Log(time.Unix(int64(yo[len(yo)-1].Time), 0), yo[len(yo)-1].Close)
+	for i := range yo {
+		tt := time.Unix(int64(yo[i].Time), 0)
+		for j := range helloDates {
+			if tt.Equal(helloDates[j]) {
+				t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v", tt, yo[i].Close, helloClose[j], math.CalculatePercentageGainOrLoss(helloClose[j], yo[i].Close))
+			}
+		}
+	}
+}
+
+func TestGetTheSymbols(t *testing.T) {
+	t.Parallel()
+	type hello struct {
+		cp         currency.Pair
+		start, end time.Time
+	}
+	symbols := []hello{
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220321", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220322", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220323", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220324", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220325", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220326", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220327", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220328", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220329", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220330", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220331", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220621", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220622", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220623", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220624", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220625", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220626", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220627", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220628", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220629", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220630", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220631", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220928", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220929", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220930", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 28, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220931", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 31, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_221230", "_"),
+			start: time.Date(2022, 6, 28, 0, 0, 0, 0, time.UTC),
+			end:   time.Date(2022, 9, 31, 0, 0, 0, 0, time.UTC),
+		},
+	}
+	for x := range symbols {
+		tt := x
+		t.Run(symbols[tt].cp.String(), func(t *testing.T) {
+			resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", symbols[tt].cp, symbols[tt].start, symbols[tt].end)
+			if err != nil {
+				t.Error(err)
+			}
+			if resp.MoreCandles {
+				t.Log(symbols[tt].cp.String(), resp)
+			}
+		})
+
+	}
 }
 
 func TestGetFuturesTrades(t *testing.T) {

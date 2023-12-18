@@ -199,7 +199,7 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 }
 
 // GetOHLC returns an array of open high low close values of a currency pair
-func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval string) ([]OpenHighLowClose, error) {
+func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval string, since int64) ([]OpenHighLowClose, error) {
 	values := url.Values{}
 	symbolValue, err := k.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -211,6 +211,9 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 	}
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
+	if since > 0 {
+		values.Set("since", strconv.FormatInt(since, 10))
+	}
 	type Response struct {
 		Error []interface{}          `json:"error"`
 		Data  map[string]interface{} `json:"result"`
