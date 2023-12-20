@@ -341,7 +341,6 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         tickers[x].High24Hr,
 				OpenInterest: tickers[x].OpenInterest,
 				ExchangeName: b.Name,
-				OpenInterest: tickers[x].OpenInterest,
 				AssetType:    a})
 		}
 		if err != nil {
