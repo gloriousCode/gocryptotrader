@@ -2285,7 +2285,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 						Quote:    p.Quote.Item,
 						Asset:    v,
 					},
-					OpenInterest: oid[j].OpenInterest,
+					OpenInterest: oid[j].OpenInterest.Float64(),
 				})
 			}
 		}
@@ -2320,7 +2320,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 					Quote:    p.Quote.Item,
 					Asset:    k[i].Asset,
 				},
-				OpenInterest: oid[j].OpenInterest,
+				OpenInterest: oid[j].OpenInterest.Float64(),
 			})
 		}
 	}

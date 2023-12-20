@@ -54,28 +54,28 @@ type FuturesCandleStickWithStringParam struct {
 }
 
 type V3DerivateivesTicker struct {
-	Symbol                 string                  `json:"symbol"`
-	BidPrice               convert.StringToFloat64 `json:"bidPrice"`
-	AskPrice               convert.StringToFloat64 `json:"askPrice"`
-	LastPrice              convert.StringToFloat64 `json:"lastPrice"`
-	LastTickDirection      string                  `json:"lastTickDirection"`
-	PrevPrice24H           convert.StringToFloat64 `json:"prevPrice24h"`
-	Price24HPcnt           convert.StringToFloat64 `json:"price24hPcnt"`
-	HighPrice24H           convert.StringToFloat64 `json:"highPrice24h"`
-	LowPrice24H            convert.StringToFloat64 `json:"lowPrice24h"`
-	PrevPrice1H            convert.StringToFloat64 `json:"prevPrice1h"`
-	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
-	IndexPrice             convert.StringToFloat64 `json:"indexPrice"`
-	OpenInterest           convert.StringToFloat64 `json:"openInterest"`
-	Turnover24H            convert.StringToFloat64 `json:"turnover24h"`
-	Volume24H              convert.StringToFloat64 `json:"volume24h"`
-	FundingRate            convert.StringToFloat64 `json:"fundingRate"`
-	NextFundingTime        string                  `json:"nextFundingTime"`
-	PredictedDeliveryPrice convert.StringToFloat64 `json:"predictedDeliveryPrice"`
-	BasisRate              convert.StringToFloat64 `json:"basisRate"`
-	DeliveryFeeRate        convert.StringToFloat64 `json:"deliveryFeeRate"`
-	DeliveryTime           string                  `json:"deliveryTime"`
-	OpenInterestValue      convert.StringToFloat64 `json:"openInterestValue"`
+	Symbol                 string       `json:"symbol"`
+	BidPrice               types.Number `json:"bidPrice"`
+	AskPrice               types.Number `json:"askPrice"`
+	LastPrice              types.Number `json:"lastPrice"`
+	LastTickDirection      string       `json:"lastTickDirection"`
+	PrevPrice24H           types.Number `json:"prevPrice24h"`
+	Price24HPcnt           types.Number `json:"price24hPcnt"`
+	HighPrice24H           types.Number `json:"highPrice24h"`
+	LowPrice24H            types.Number `json:"lowPrice24h"`
+	PrevPrice1H            types.Number `json:"prevPrice1h"`
+	MarkPrice              types.Number `json:"markPrice"`
+	IndexPrice             types.Number `json:"indexPrice"`
+	OpenInterest           types.Number `json:"openInterest"`
+	Turnover24H            types.Number `json:"turnover24h"`
+	Volume24H              types.Number `json:"volume24h"`
+	FundingRate            types.Number `json:"fundingRate"`
+	NextFundingTime        string       `json:"nextFundingTime"`
+	PredictedDeliveryPrice types.Number `json:"predictedDeliveryPrice"`
+	BasisRate              types.Number `json:"basisRate"`
+	DeliveryFeeRate        types.Number `json:"deliveryFeeRate"`
+	DeliveryTime           string       `json:"deliveryTime"`
+	OpenInterestValue      types.Number `json:"openInterestValue"`
 }
 
 // SymbolPriceTicker stores ticker price stats
