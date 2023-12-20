@@ -14,10 +14,10 @@ import (
 )
 
 var (
-	// ErrBidEqualsAsk error for locked markets
-	ErrBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
 	// ErrNoTickerFound is when a ticker is not found
 	ErrNoTickerFound = errors.New("no ticker found")
+	// ErrBidEqualsAsk error for locked markets
+	ErrBidEqualsAsk = errors.New("bid equals ask this is a crossed or locked market")
 
 	errInvalidTicker       = errors.New("invalid ticker")
 	errTickerNotFound      = errors.New("ticker not found")

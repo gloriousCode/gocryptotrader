@@ -3762,13 +3762,33 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = ok.GetOpenInterest(context.Background(), key.PairAsset{
+	usdSwapCode := currency.NewCode("USD-SWAP")
+	resp, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
-		Quote: currency.NewCode("USD-SWAP").Item,
+		Quote: usdSwapCode.Item,
 		Asset: asset.PerpetualSwap,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = ok.GetOpenInterest(context.Background())
+	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ok, asset.PerpetualSwap, cp1)
+	resp, err = ok.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  currency.BTC.Item,
+			Quote: usdSwapCode.Item,
+			Asset: asset.PerpetualSwap,
+		},
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.PerpetualSwap,
+		},
+	)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = ok.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
