@@ -42,6 +42,13 @@ const (
 	USDCMarginedFutures
 	Options
 
+	LinearPerpetual
+	LinearLongDated
+	InversePerpetual
+	InverseLongDated
+	QuantoPerpetual
+	QuantoLongDated
+
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures
 	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options
 

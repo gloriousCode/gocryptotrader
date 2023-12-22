@@ -1257,3 +1257,39 @@ func (a *assetTranslatorStore) Seeded() bool {
 	a.l.RUnlock()
 	return isSeeded
 }
+
+func (k *Kraken) CalculateContractDates(start, end time.Time) ([]string, error) {
+	var resp []string
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+	roundStart := time.Date(start.Year(), start.Month(), 31, 0, 0, 0, 0, time.UTC)
+	roundEnd := roundDateToEndOfMonth(end)
+	for roundStart.Before(roundEnd) {
+		for {
+			if roundStart.Weekday() == time.Friday {
+				resp = append(resp, roundStart.Format("060102"))
+				break
+			}
+			roundStart = roundStart.AddDate(0, 0, -1)
+		}
+		roundStart = roundStart.AddDate(0, 1, 0)
+		roundStart = roundDateToEndOfMonth(roundStart)
+	}
+	return resp, nil
+}
+
+func roundDateToEndOfMonth(t time.Time) time.Time {
+	originalMonth := t.Month()
+	originalYear := t.Year()
+	t = time.Date(originalYear, originalMonth, 31, 0, 0, 0, 0, time.UTC)
+	for {
+		if t.Month() == originalMonth && t.Year() == originalYear {
+			break
+		}
+		// reduce the day so that it is at the end of the month provided
+		t = time.Date(t.Year(), t.Month(), t.Day()-1, 0, 0, 0, 0, time.UTC)
+	}
+	return t
+}

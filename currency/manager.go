@@ -14,7 +14,8 @@ import (
 var (
 	// ErrAssetAlreadyEnabled defines an error for the pairs management system
 	// that declares the asset is already enabled.
-	ErrAssetAlreadyEnabled = errors.New("asset already enabled")
+	ErrAssetAlreadyEnabled  = errors.New("asset already enabled")
+	ErrAssetAlreadyDisabled = errors.New("asset already disabled")
 	// ErrPairAlreadyEnabled returns when enabling a pair that is already enabled
 	ErrPairAlreadyEnabled = errors.New("pair already enabled")
 	// ErrPairNotEnabled returns when looking for a pair that is not enabled
@@ -402,7 +403,7 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	}
 
 	if !*pairStore.AssetEnabled && !enabled {
-		return errors.New("asset already disabled")
+		return fmt.Errorf("%w %v", ErrAssetAlreadyDisabled, a)
 	} else if *pairStore.AssetEnabled && enabled {
 		return ErrAssetAlreadyEnabled
 	}
