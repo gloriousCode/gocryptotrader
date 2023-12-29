@@ -196,6 +196,7 @@ type RateLimit struct {
 	GetTakerFlow                      *rate.Limiter
 	// Status Endpoints
 	GetEventStatus *rate.Limiter
+	yeahWHATEVER   *rate.Limiter
 }
 
 const (
@@ -533,6 +534,7 @@ const (
 	getEventStatusEPL
 	getCandlestickHistoryEPL
 	getIndexCandlesticksEPL
+	yeahWHATEVEREPL
 )
 
 // Limit executes rate limiting for Okx exchange given the context and EndpointLimit
@@ -856,6 +858,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetTakerFlow.Wait(ctx)
 	case getEventStatusEPL:
 		return r.GetEventStatus.Wait(ctx)
+	case yeahWHATEVEREPL:
+		return r.yeahWHATEVER.Wait(ctx)
 	default:
 		return errors.New("endpoint rate limit functionality not found")
 	}
@@ -928,6 +932,7 @@ func SetRateLimit() *RateLimit {
 		GetLendingHistory:        request.NewRateLimit(oneSecondInterval, getLendingHistoryRate),
 		GetPublicBorrowInfo:      request.NewRateLimit(oneSecondInterval, getPublicBorrowInfoRate),
 		GetPublicBorrowHistory:   request.NewRateLimit(oneSecondInterval, getPublicBorrowHistoryRate),
+		yeahWHATEVER:             request.NewRateLimit(oneSecondInterval, 999999),
 		// Convert
 		GetConvertCurrencies:   request.NewRateLimit(oneSecondInterval, getConvertCurrenciesRate),
 		GetConvertCurrencyPair: request.NewRateLimit(oneSecondInterval, getConvertCurrencyPairRate),

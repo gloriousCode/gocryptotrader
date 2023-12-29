@@ -141,7 +141,10 @@ func (ok *Okx) SetDefaults() {
 					Supported:         true,
 					SupportsRestBatch: true,
 				},
-				FundingRates:              true,
+				FundingRates: true,
+				FundingRateBatching: map[asset.Item]bool{
+					asset.PerpetualSwap: true,
+				},
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
 					kline.EightHour: true,
@@ -185,8 +188,9 @@ func (ok *Okx) SetDefaults() {
 
 	ok.API.Endpoints = ok.NewEndpoints()
 	err = ok.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      okxAPIURL,
-		exchange.WebsocketSpot: okxAPIWebsocketPublicURL,
+		exchange.RestSpot:                 okxAPIURL,
+		exchange.WebsocketSpot:            okxAPIWebsocketPublicURL,
+		exchange.RestFuturesSupplementary: okxAPIFuturesSupplementaryURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -1578,6 +1582,40 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
+func (ok *Okx) CreateRateMate(data FundingRateData, inverse bool) (*fundingrate.LatestRateResponse, error) {
+	if data.State != "live" {
+		return nil, nil
+	}
+	var cp currency.Pair
+	var err error
+	if strings.Contains(data.BuyInstId, "SWAP") {
+		cp, err = ok.GetPairFromInstrumentID(data.BuyInstId)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cp, err = ok.GetPairFromInstrumentID(data.SellInstId)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &fundingrate.LatestRateResponse{
+		Exchange: ok.Name,
+		Asset:    asset.PerpetualSwap,
+		Pair:     cp,
+		LatestRate: fundingrate.Rate{
+			Time: data.FundingTime.Time(),
+			Rate: data.FundingRate.Decimal(),
+		},
+		PredictedUpcomingRate: fundingrate.Rate{
+			Time: data.FundingTime.Time().Add(time.Hour * 8),
+			Rate: data.NextFundingRate.Decimal(),
+		},
+		TimeOfNextRate: data.FundingTime.Time().Add(time.Hour * 8),
+		TimeChecked:    time.Now(),
+	}, nil
+}
+
 // GetLatestFundingRates returns the latest funding rates data
 func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
@@ -1586,6 +1624,58 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 	if r.Asset != asset.PerpetualSwap {
 		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
 	}
+
+	// This is an override for my own application
+	if r.Pair.IsEmpty() {
+		var resp []fundingrate.LatestRateResponse
+		rates, err := ok.GetPrivateFundingRates(ctx, "USDT", "linear", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := ok.CreateRateMate(rates[i], false)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		rates, err = ok.GetPrivateFundingRates(ctx, "USDC", "linear", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := ok.CreateRateMate(rates[i], false)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		rates, err = ok.GetPrivateFundingRates(ctx, "USD", "inverse", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := ok.CreateRateMate(rates[i], true)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		return resp, nil
+	}
+
 	format, err := ok.GetPairFormat(r.Asset, true)
 	if err != nil {
 		return nil, err

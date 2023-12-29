@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Okx is the overarching type across this package
@@ -46,8 +47,9 @@ const (
 	okxAPIPath      = "api" + okxAPIVersion
 	okxWebsocketURL = "wss://ws.okx.com:8443/ws" + okxAPIVersion
 
-	okxAPIWebsocketPublicURL  = okxWebsocketURL + "public"
-	okxAPIWebsocketPrivateURL = okxWebsocketURL + "private"
+	okxAPIWebsocketPublicURL      = okxWebsocketURL + "public"
+	okxAPIWebsocketPrivateURL     = okxWebsocketURL + "private"
+	okxAPIFuturesSupplementaryURL = "https://www.okx.com/priapi/v5/rubik/web/public/"
 
 	// tradeEndpoints
 	tradeOrder                = "trade/order"
@@ -116,6 +118,7 @@ const (
 	publicOpenInterestValues          = "public/open-interest"
 	publicFundingRate                 = "public/funding-rate"
 	publicFundingRateHistory          = "public/funding-rate-history"
+	publicFundingRateArbitrage        = "funding-rate-arbitrage"
 	publicLimitPath                   = "public/price-limit"
 	publicOptionalData                = "public/opt-summary"
 	publicEstimatedPrice              = "public/estimated-price"
@@ -3430,6 +3433,46 @@ func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*
 		return &resp[0], nil
 	}
 	return nil, errNoValidResponseFromServer
+}
+
+type FundingRateData struct {
+	Acc3DFundingRate types.Number         `json:"acc3dFundingRate"`
+	Apy              types.Number         `json:"apy"`
+	ArbitrageId      string               `json:"arbitrageId"`
+	BuyInstId        string               `json:"buyInstId"`
+	BuyInstType      string               `json:"buyInstType"`
+	Ccy              string               `json:"ccy"`
+	FundingRate      types.Number         `json:"fundingRate"`
+	FundingTime      convert.ExchangeTime `json:"fundingTime"`
+	NextFundingRate  types.Number         `json:"nextFundingRate"`
+	NotionalUsd      types.Number         `json:"notionalUsd"`
+	SellInstId       string               `json:"sellInstId"`
+	SellInstType     string               `json:"sellInstType"`
+	Spread           string               `json:"spread"`
+	State            string               `json:"state"`
+	Ts               convert.ExchangeTime `json:"ts"`
+	Yield3DPer10K    types.Number         `json:"yield3dPer10K"`
+}
+
+// GetPrivateFundingRates is a private endpoint for retrieving funding rates.
+func (ok *Okx) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbitrageType string, snapshotTime time.Time) ([]FundingRateData, error) {
+	params := url.Values{}
+	if ccyType == "" {
+		return nil, errMissingInstrumentID
+	}
+	if ctType != "inverse" && ctType != "linear" {
+		return nil, errInstrumentTypeRequired
+	}
+	params.Set("ccyType", ccyType)
+	params.Set("ctType", ctType)
+	if arbitrageType == "" {
+		arbitrageType = "futures_spot"
+	}
+	params.Set("arbitrageType", arbitrageType)
+	params.Set("t", fmt.Sprint(snapshotTime.UnixMilli()))
+
+	var resp []FundingRateData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, false)
 }
 
 // GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months.

@@ -3792,3 +3792,19 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
+
+func TestGetPrivateFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPrivateFundingRates(context.Background(), "USDT", "linear", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetPrivateFundingRates(context.Background(), "USD", "inverse", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetPrivateFundingRates(context.Background(), "USDC", "linear", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
