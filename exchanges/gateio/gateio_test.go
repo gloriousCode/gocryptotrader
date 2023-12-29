@@ -3510,11 +3510,19 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
+	g.Verbose = true
 	resp, err := g.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  deliveryFuturesTradablePair.Base.Item,
+		Quote: deliveryFuturesTradablePair.Quote.Item,
+		Asset: asset.DeliveryFutures,
 	})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)

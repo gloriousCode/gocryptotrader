@@ -21,6 +21,13 @@ type ExchangeAsset struct {
 	Asset    asset.Item
 }
 
+type PairAssetSettlement struct {
+	Base       *currency.Item
+	Quote      *currency.Item
+	Asset      asset.Item
+	Settlement currency.Code
+}
+
 // PairAsset is a unique map key signature for currency pair and asset
 type PairAsset struct {
 	Base  *currency.Item
@@ -42,6 +49,14 @@ type SubAccountCurrencyAsset struct {
 
 // Pair combines the base and quote into a pair
 func (k PairAsset) Pair() currency.Pair {
+	if k.Base == nil && k.Quote == nil {
+		return currency.EMPTYPAIR
+	}
+	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+}
+
+// Pair combines the base and quote into a pair
+func (k PairAssetSettlement) Pair() currency.Pair {
 	if k.Base == nil && k.Quote == nil {
 		return currency.EMPTYPAIR
 	}
