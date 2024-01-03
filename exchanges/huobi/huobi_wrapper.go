@@ -2426,7 +2426,7 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 		rate := fundingrate.LatestRateResponse{
 			Exchange: h.Name,
 			Asset:    r.Asset,
-			Pair:     r.Pair,
+			Pair:     cp,
 			LatestRate: fundingrate.Rate{
 				Time: ft,
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
@@ -2562,6 +2562,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 				OpenInterest: data.Data[j].Amount,
 			}
 		}
+
 	case asset.CoinMarginedFutures:
 		data, err := h.SwapOpenInterestInformation(ctx, k[0].Pair())
 		if err != nil {
