@@ -2865,3 +2865,32 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
+
+func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchCoinMarginSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchLinearSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchLinearSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchFuturesContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchFuturesContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	for _, a := range h.GetAssetTypes(false) {
+		err := h.UpdateTickers(context.Background(), a)
+		assert.NoErrorf(t, err, "asset %s", a)
+	}
+}
