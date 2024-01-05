@@ -2501,7 +2501,10 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			for i := range data.Data {
 				var p currency.Pair
 				p, _, err = h.MatchSymbolCheckEnabled(data.Data[i].ContractCode, k[0].Asset, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
 				}
 				return []futures.OpenInterest{
@@ -2524,7 +2527,10 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			for i := range data.Data {
 				var p currency.Pair
 				p, _, err = h.MatchSymbolCheckEnabled(data.Data[i].ContractCode, k[0].Asset, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
 				}
 				return []futures.OpenInterest{
