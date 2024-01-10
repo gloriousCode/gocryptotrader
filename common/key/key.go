@@ -2,6 +2,7 @@ package key
 
 import (
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,12 +17,22 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
-type ExchangePairAssetContract struct {
+type ExchangePairAssetContractExpiry struct {
 	Exchange string
 	Base     *currency.Item
 	Quote    *currency.Item
 	Asset    asset.Item
 	Contract futures.ContractType
+	Expiry   time.Time
+}
+
+func (k *ExchangePairAssetContractExpiry) ToEPA() ExchangePairAsset {
+	return ExchangePairAsset{
+		Exchange: k.Exchange,
+		Base:     k.Base,
+		Quote:    k.Quote,
+		Asset:    k.Asset,
+	}
 }
 
 // ExchangeAsset is a unique map key signature for exchange and asset
