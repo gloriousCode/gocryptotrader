@@ -3,8 +3,8 @@ package currency
 import (
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // PairsManager manages asset pairs

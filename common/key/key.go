@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
 // ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
@@ -13,6 +14,14 @@ type ExchangePairAsset struct {
 	Base     *currency.Item
 	Quote    *currency.Item
 	Asset    asset.Item
+}
+
+type ExchangePairAssetContract struct {
+	Exchange string
+	Base     *currency.Item
+	Quote    *currency.Item
+	Asset    asset.Item
+	Contract futures.ContractType
 }
 
 // ExchangeAsset is a unique map key signature for exchange and asset
