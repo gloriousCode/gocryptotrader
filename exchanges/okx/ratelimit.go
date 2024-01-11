@@ -9,17 +9,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// Ratelimit intervals.
 const (
-	// oneSecondInterval
-	oneSecondInterval = time.Second
-	// twoSecondInterval
-	twoSecondsInterval = 2 * time.Second
-	// threeSecondInterval
+	oneSecondInterval    = time.Second
+	twoSecondsInterval   = 2 * time.Second
 	threeSecondsInterval = 3 * time.Second
-	// fiveSecondsInterval
-	fiveSecondsInterval = 5 * time.Second
-	// tenSecondsInterval
-	tenSecondsInterval = 10 * time.Second
+	fiveSecondsInterval  = 5 * time.Second
+	tenSecondsInterval   = 10 * time.Second
 )
 
 // RateLimit implements the request.Limiter interface
@@ -225,6 +221,7 @@ const (
 	oneClickRepayCurrencyList       = 1
 	tradeOneClickRepay              = 1
 	getOneClickRepayHistory         = 1
+
 	// Block Trading endpoints
 	getCounterpartiesRate    = 5
 	createRfqRate            = 5
@@ -243,6 +240,7 @@ const (
 	getTradesRate            = 5
 	getTradesHistoryRate     = 10
 	getPublicTradesRate      = 5
+
 	// Funding
 	getCurrenciesRate            = 6
 	getBalanceRate               = 6
@@ -258,6 +256,7 @@ const (
 	cancelWithdrawalRate         = 6
 	getWithdrawalHistoryRate     = 6
 	smallAssetsConvertRate       = 1
+
 	// Savings
 	getSavingBalanceRate          = 6
 	savingsPurchaseRedemptionRate = 6
@@ -265,12 +264,14 @@ const (
 	getLendingHistoryRate         = 6
 	getPublicBorrowInfoRate       = 6
 	getPublicBorrowHistoryRate    = 6
+
 	// Convert
 	getConvertCurrenciesRate   = 6
 	getConvertCurrencyPairRate = 6
 	estimateQuoteRate          = 10
 	convertTradeRate           = 10
 	getConvertHistoryRate      = 6
+
 	// Account
 	getAccountBalanceRate                 = 10
 	getPositionsRate                      = 10
@@ -298,6 +299,7 @@ const (
 	positionBuilderRate                   = 2
 	getGreeksRate                         = 10
 	getPMLimitation                       = 10
+
 	// Sub Account Endpoints
 	viewSubaccountListRate                             = 2
 	resetSubAccountAPIKey                              = 1
@@ -319,6 +321,7 @@ const (
 	computeMarginBalance                               = 20
 	adjustMarginBalance                                = 20
 	getGridAIParameter                                 = 20
+
 	// Earn
 	getOffer                   = 3
 	purchase                   = 2
@@ -326,6 +329,7 @@ const (
 	cancelPurchaseOrRedemption = 2
 	getEarnActiveOrders        = 3
 	getFundingOrderHistory     = 3
+
 	// Market Data
 	getTickersRate               = 20
 	getIndexTickersRate          = 20
@@ -341,6 +345,7 @@ const (
 	getIndexComponentsRate       = 20
 	getBlockTickersRate          = 20
 	getBlockTradesRate           = 20
+
 	// Public Data Endpoints
 	getInstrumentsRate                         = 20
 	getDeliveryExerciseHistoryRate             = 40
@@ -360,6 +365,7 @@ const (
 	getUnderlyingRate                          = 20
 	getInsuranceFundRate                       = 10
 	unitConvertRate                            = 10
+
 	// Trading Data Endpoints
 	getSupportCoinRate                    = 5
 	getTakerVolumeRate                    = 5
@@ -370,6 +376,7 @@ const (
 	getPutCallRatioRate                   = 5
 	getOpenInterestAndVolumeRate          = 5
 	getTakerFlowRate                      = 5
+
 	// Status Endpoints
 	getEventStatusRate = 1
 )
@@ -893,6 +900,7 @@ func SetRateLimit() *RateLimit {
 		GetOneClickRepayHistory:     request.NewRateLimit(twoSecondsInterval, getOneClickRepayHistory),
 		OneClickRepayCurrencyList:   request.NewRateLimit(twoSecondsInterval, oneClickRepayCurrencyList),
 		TradeOneClickRepay:          request.NewRateLimit(twoSecondsInterval, tradeOneClickRepay),
+
 		// Block Trading endpoints
 		GetCounterparties:    request.NewRateLimit(twoSecondsInterval, getCounterpartiesRate),
 		CreateRfq:            request.NewRateLimit(twoSecondsInterval, createRfqRate),
@@ -939,6 +947,7 @@ func SetRateLimit() *RateLimit {
 		EstimateQuote:          request.NewRateLimit(oneSecondInterval, estimateQuoteRate),
 		ConvertTrade:           request.NewRateLimit(oneSecondInterval, convertTradeRate),
 		GetConvertHistory:      request.NewRateLimit(oneSecondInterval, getConvertHistoryRate),
+
 		// Account
 		GetAccountBalance:                 request.NewRateLimit(twoSecondsInterval, getAccountBalanceRate),
 		GetPositions:                      request.NewRateLimit(twoSecondsInterval, getPositionsRate),
@@ -966,8 +975,8 @@ func SetRateLimit() *RateLimit {
 		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, positionBuilderRate),
 		GetGreeks:                         request.NewRateLimit(twoSecondsInterval, getGreeksRate),
 		GetPMLimitation:                   request.NewRateLimit(twoSecondsInterval, getPMLimitation),
-		// Sub Account Endpoints
 
+		// Sub Account Endpoints
 		ViewSubaccountList:                             request.NewRateLimit(twoSecondsInterval, viewSubaccountListRate),
 		ResetSubAccountAPIKey:                          request.NewRateLimit(oneSecondInterval, resetSubAccountAPIKey),
 		GetSubaccountTradingBalance:                    request.NewRateLimit(twoSecondsInterval, getSubaccountTradingBalanceRate),
@@ -976,8 +985,8 @@ func SetRateLimit() *RateLimit {
 		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, masterAccountsManageTransfersBetweenSubaccountRate),
 		SetPermissionOfTransferOut:                     request.NewRateLimit(oneSecondInterval, setPermissionOfTransferOutRate),
 		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, getCustodyTradingSubaccountListRate),
-		// Grid Trading Endpoints
 
+		// Grid Trading Endpoints
 		GridTrading:               request.NewRateLimit(twoSecondsInterval, gridTradingRate),
 		AmendGridAlgoOrder:        request.NewRateLimit(twoSecondsInterval, amendGridAlgoOrderRate),
 		StopGridAlgoOrder:         request.NewRateLimit(twoSecondsInterval, stopGridAlgoOrderRate),
@@ -990,6 +999,7 @@ func SetRateLimit() *RateLimit {
 		ComputeMarginBalance:      request.NewRateLimit(twoSecondsInterval, computeMarginBalance),
 		AdjustMarginBalance:       request.NewRateLimit(twoSecondsInterval, adjustMarginBalance),
 		GetGridAIParameter:        request.NewRateLimit(twoSecondsInterval, getGridAIParameter),
+
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, getOffer),
 		Purchase:                   request.NewRateLimit(oneSecondInterval, purchase),
@@ -997,6 +1007,7 @@ func SetRateLimit() *RateLimit {
 		CancelPurchaseOrRedemption: request.NewRateLimit(oneSecondInterval, cancelPurchaseOrRedemption),
 		GetEarnActiveOrders:        request.NewRateLimit(oneSecondInterval, getEarnActiveOrders),
 		GetFundingOrderHistory:     request.NewRateLimit(oneSecondInterval, getFundingOrderHistory),
+
 		// Market Data
 		GetTickers:               request.NewRateLimit(twoSecondsInterval, getTickersRate),
 		GetIndexTickers:          request.NewRateLimit(twoSecondsInterval, getIndexTickersRate),
@@ -1014,7 +1025,6 @@ func SetRateLimit() *RateLimit {
 		GetBlockTrades:           request.NewRateLimit(twoSecondsInterval, getBlockTradesRate),
 
 		// Public Data Endpoints
-
 		GetInstruments:                         request.NewRateLimit(twoSecondsInterval, getInstrumentsRate),
 		GetDeliveryExerciseHistory:             request.NewRateLimit(twoSecondsInterval, getDeliveryExerciseHistoryRate),
 		GetOpenInterest:                        request.NewRateLimit(twoSecondsInterval, getOpenInterestRate),
@@ -1035,7 +1045,6 @@ func SetRateLimit() *RateLimit {
 		UnitConvert:                            request.NewRateLimit(twoSecondsInterval, unitConvertRate),
 
 		// Trading Data Endpoints
-
 		GetSupportCoin:                    request.NewRateLimit(twoSecondsInterval, getSupportCoinRate),
 		GetTakerVolume:                    request.NewRateLimit(twoSecondsInterval, getTakerVolumeRate),
 		GetMarginLendingRatio:             request.NewRateLimit(twoSecondsInterval, getMarginLendingRatioRate),
@@ -1047,7 +1056,6 @@ func SetRateLimit() *RateLimit {
 		GetTakerFlow:                      request.NewRateLimit(twoSecondsInterval, getTakerFlowRate),
 
 		// Status Endpoints
-
 		GetEventStatus: request.NewRateLimit(fiveSecondsInterval, getEventStatusRate),
 	}
 }
