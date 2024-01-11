@@ -242,8 +242,6 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{
 		chanPublicTicker,
-		chanOrderbook,
-		chanPublicTrade,
 	}
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
