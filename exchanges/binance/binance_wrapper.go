@@ -187,6 +187,9 @@ func (b *Binance) SetDefaults() {
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported: true,
 				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
