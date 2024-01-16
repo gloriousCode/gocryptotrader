@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -31,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -172,16 +174,55 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestNewPairFromSymbol(t *testing.T) {
+	t.Parallel()
+	symbol := "XXBTZUSD"
+	cp, err := k.newPairFromSymbol(symbol, asset.Spot)
+	assert.NoError(t, err)
+	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
+
+	symbol = "XBTUSD"
+	cp, err = k.newPairFromSymbol(symbol, asset.Spot)
+	assert.NoError(t, err)
+	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
+
+	symbol = "WIFBONK"
+	_, err = k.newPairFromSymbol(symbol, asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrPairNotFound)
+
+	symbol = "PF_XBTUSD"
+	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
+	assert.NoError(t, err)
+	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
+
+	symbol = "PFXBTUSD"
+	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
+	assert.NoError(t, err)
+	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
+}
+
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := k.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	ap, err := k.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
+	require.NoError(t, err)
+	err = k.UpdateTickers(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	for i := range ap {
+		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
+		assert.NoError(t, err)
 	}
 
+	ap, err = k.GetAvailablePairs(asset.Futures)
+	require.NoError(t, err)
+	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
+	require.NoError(t, err)
 	err = k.UpdateTickers(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
+	assert.NoError(t, err)
+	for i := range ap {
+		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
+		assert.NoError(t, err)
 	}
 }
 
@@ -460,7 +501,7 @@ func TestGetAssets(t *testing.T) {
 func TestSeedAssetTranslator(t *testing.T) {
 	t.Parallel()
 	// Test currency pair
-	if r := assetTranslator.LookupAltname("XXBTZUSD"); r != "XBTUSD" {
+	if r := assetTranslator.LookupAltName("XXBTZUSD"); r != "XBTUSD" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("XBTUSD"); r != "XXBTZUSD" {
@@ -468,7 +509,7 @@ func TestSeedAssetTranslator(t *testing.T) {
 	}
 
 	// Test fiat currency
-	if r := assetTranslator.LookupAltname("ZUSD"); r != "USD" {
+	if r := assetTranslator.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("USD"); r != "ZUSD" {
@@ -476,7 +517,7 @@ func TestSeedAssetTranslator(t *testing.T) {
 	}
 
 	// Test cryptocurrency
-	if r := assetTranslator.LookupAltname("XXBT"); r != "XBT" {
+	if r := assetTranslator.LookupAltName("XXBT"); r != "XBT" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("XBT"); r != "XXBT" {
@@ -487,15 +528,15 @@ func TestSeedAssetTranslator(t *testing.T) {
 func TestSeedAssets(t *testing.T) {
 	t.Parallel()
 	var a assetTranslatorStore
-	if r := a.LookupAltname("ZUSD"); r != "" {
+	if r := a.LookupAltName("ZUSD"); r != "" {
 		t.Error("unexpected result")
 	}
 	a.Seed("ZUSD", "USD")
-	if r := a.LookupAltname("ZUSD"); r != "USD" {
+	if r := a.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 	a.Seed("ZUSD", "BLA")
-	if r := a.LookupAltname("ZUSD"); r != "USD" {
+	if r := a.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 }
@@ -1965,7 +2006,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 	err = k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
-	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
 	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
