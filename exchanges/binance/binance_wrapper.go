@@ -187,9 +187,6 @@ func (b *Binance) SetDefaults() {
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported: true,
 				},
-				OpenInterest: exchange.OpenInterestSupport{
-					Supported: true,
-				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -3127,38 +3124,44 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
+	var wg sync.WaitGroup
 	result := make([]futures.OpenInterest, len(k))
+	wg.Add(len(k))
 	for i := range k {
-		switch k[i].Asset {
-		case asset.USDTMarginedFutures:
-			oi, err := b.UOpenInterest(ctx, k[i].Pair())
-			if err != nil {
-				return nil, err
+		go func(hello int) {
+			defer wg.Done()
+			switch k[hello].Asset {
+			case asset.USDTMarginedFutures:
+				oi, err := b.UOpenInterest(ctx, k[hello].Pair())
+				if err != nil {
+					return
+				}
+				result[hello] = futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: b.Name,
+						Base:     k[hello].Base,
+						Quote:    k[hello].Quote,
+						Asset:    k[hello].Asset,
+					},
+					OpenInterest: oi.OpenInterest,
+				}
+			case asset.CoinMarginedFutures:
+				oi, err := b.OpenInterest(ctx, k[hello].Pair())
+				if err != nil {
+					return
+				}
+				result[hello] = futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: b.Name,
+						Base:     k[hello].Base,
+						Quote:    k[hello].Quote,
+						Asset:    k[hello].Asset,
+					},
+					OpenInterest: oi.OpenInterest,
+				}
 			}
-			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
-				OpenInterest: oi.OpenInterest,
-			}
-		case asset.CoinMarginedFutures:
-			oi, err := b.OpenInterest(ctx, k[i].Pair())
-			if err != nil {
-				return nil, err
-			}
-			result[i] = futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k[i].Base,
-					Quote:    k[i].Quote,
-					Asset:    k[i].Asset,
-				},
-				OpenInterest: oi.OpenInterest,
-			}
-		}
+		}(i)
 	}
+	wg.Wait()
 	return result, nil
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -162,24 +163,31 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-
-	if r, ok := multiStreamData["result"]; ok {
-		if r == nil {
-			return nil
-		}
+	resultString, err := jsonparser.GetUnsafeString(respRaw, "result")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return err
 	}
-
-	if method, ok := multiStreamData["method"].(string); ok {
-		// TODO handle subscription handling
-		if strings.EqualFold(method, "subscribe") {
-			return nil
-		}
-		if strings.EqualFold(method, "unsubscribe") {
-			return nil
-		}
+	if err == nil && resultString == "null" {
+		return nil
 	}
-	if newdata, ok := multiStreamData["data"].(map[string]interface{}); ok {
-		if e, ok := newdata["e"].(string); ok {
+	subString, err := jsonparser.GetUnsafeString(respRaw, "method")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return err
+	}
+	subString = strings.ToLower(subString)
+	if subString == "subscribe" ||
+		subString == "unsubscribe" {
+		// subscription handling is being done in another PR
+		return nil
+	}
+	value, _, _, err := jsonparser.Get(respRaw, "data")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return err
+	}
+	if err == nil {
+		var e string
+		e, err = jsonparser.GetUnsafeString(value, "e")
+		if err == nil {
 			switch e {
 			case "outboundAccountInfo":
 				var data wsAccountInfo
@@ -296,25 +304,19 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			}
 		}
 	}
-	if wsStream, ok := multiStreamData["stream"].(string); ok {
-		streamType := strings.Split(wsStream, "@")
+	var streamStr string
+	streamStr, err = jsonparser.GetUnsafeString(respRaw, "stream")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return err
+	}
+	if err == nil {
+		streamType := strings.Split(streamStr, "@")
 		if len(streamType) > 1 {
-			if data, ok := multiStreamData["data"]; ok {
-				rawData, err := json.Marshal(data)
-				if err != nil {
-					return err
-				}
-
-				pairs, err := b.GetEnabledPairs(asset.Spot)
-				if err != nil {
-					return err
-				}
-
-				format, err := b.GetPairFormat(asset.Spot, true)
-				if err != nil {
-					return err
-				}
-
+			value, _, _, err = jsonparser.Get(respRaw, "data")
+			if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+				return err
+			}
+			if err == nil {
 				switch streamType[1] {
 				case "trade":
 					saveTradeData := b.IsSaveTradeDataEnabled()
@@ -325,54 +327,43 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 
 					var t TradeStream
-					err := json.Unmarshal(rawData, &t)
+					err := json.Unmarshal(value, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 							b.Name,
 							err)
 					}
-
-					price, err := strconv.ParseFloat(t.Price, 64)
-					if err != nil {
-						return fmt.Errorf("%v - price conversion error: %s",
-							b.Name,
-							err)
-					}
-
-					amount, err := strconv.ParseFloat(t.Quantity, 64)
-					if err != nil {
-						return fmt.Errorf("%v - amount conversion error: %s",
-							b.Name,
-							err)
-					}
-
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
+					pair, isEnabled, err := b.MatchSymbolCheckEnabled(t.Symbol, asset.Spot, true)
 					if err != nil {
 						return err
 					}
-
+					if !isEnabled {
+						return nil
+					}
 					return b.Websocket.Trade.Update(saveTradeData,
 						trade.Data{
 							CurrencyPair: pair,
 							Timestamp:    t.TimeStamp,
-							Price:        price,
-							Amount:       amount,
+							Price:        t.Price.Float64(),
+							Amount:       t.Quantity.Float64(),
 							Exchange:     b.Name,
 							AssetType:    asset.Spot,
 							TID:          strconv.FormatInt(t.TradeID, 10),
 						})
 				case "ticker":
 					var t TickerStream
-					err := json.Unmarshal(rawData, &t)
+					err := json.Unmarshal(value, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 							b.Name,
 							err.Error())
 					}
-
-					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
+					pair, isEnabled, err := b.MatchSymbolCheckEnabled(t.Symbol, asset.Spot, true)
 					if err != nil {
 						return err
+					}
+					if !isEnabled {
+						return nil
 					}
 
 					b.Websocket.DataHandler <- &ticker.Price{
@@ -394,16 +385,18 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var kline KlineStream
-					err := json.Unmarshal(rawData, &kline)
+					err := json.Unmarshal(value, &kline)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 							b.Name,
 							err)
 					}
-
-					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
+					pair, isEnabled, err := b.MatchSymbolCheckEnabled(kline.Symbol, asset.Spot, true)
 					if err != nil {
 						return err
+					}
+					if !isEnabled {
+						return nil
 					}
 
 					b.Websocket.DataHandler <- stream.KlineData{
@@ -423,7 +416,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					return nil
 				case "depth":
 					var depth WebsocketDepthStream
-					err := json.Unmarshal(rawData, &depth)
+					err := json.Unmarshal(value, &depth)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to depthStream structure %s",
 							b.Name,
@@ -633,44 +626,18 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		price, ok := ws.UpdateBids[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid price")
+		updateBid[i] = orderbook.Item{
+			Price:  ws.UpdateBids[i][0].Float64(),
+			Amount: ws.UpdateBids[i][1].Float64(),
 		}
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount, ok := ws.UpdateBids[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for bid amount")
-		}
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a}
 	}
 
 	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		price, ok := ws.UpdateAsks[i][0].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask price")
+		updateAsk[i] = orderbook.Item{
+			Price:  ws.UpdateAsks[i][0].Float64(),
+			Amount: ws.UpdateAsks[i][1].Float64(),
 		}
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
-		}
-		amount, ok := ws.UpdateAsks[i][1].(string)
-		if !ok {
-			return errors.New("type assertion failed for ask amount")
-		}
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a}
 	}
 
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
