@@ -22,7 +22,7 @@ type ExchangePairAssetContractExpiry struct {
 	Quote    *currency.Item
 	Asset    asset.Item
 	Contract string
-	Expiry   time.Time
+	Expiry   time.Time `json:"Expiry,omitempty"`
 }
 
 func (k *ExchangePairAssetContractExpiry) ToEPA() ExchangePairAsset {
