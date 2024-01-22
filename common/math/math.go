@@ -45,6 +45,9 @@ func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
 // CalculatePercentageDifference returns the percentage of difference between
 // multiple time periods
 func CalculatePercentageDifference(amount, secondAmount float64) float64 {
+	if amount+secondAmount == 0 {
+		return 0
+	}
 	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
 }
 
