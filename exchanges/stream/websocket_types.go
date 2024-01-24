@@ -1,10 +1,13 @@
 package stream
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -21,6 +24,74 @@ const (
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
+
+var (
+	ErrWebsocketNotFound = errors.New("websocket not found")
+	ErrKeyInUse          = errors.New("key already in use")
+)
+
+type WebsocketByKey struct {
+	mutex      sync.RWMutex
+	websockets map[any]*Websocket
+}
+
+func (w *WebsocketByKey) Shutdown() error {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	for _, ws := range w.websockets {
+		err := ws.Shutdown()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WebsocketByKey) GetByKey(key any) (*Websocket, error) {
+	if key == nil {
+		return nil, fmt.Errorf("%w %v", common.ErrNilPointer, "key")
+	}
+	w.mutex.RLock()
+	defer w.mutex.RUnlock()
+	if ws, ok := w.websockets[key]; ok {
+		return ws, nil
+	}
+	return nil, fmt.Errorf("%w %v", ErrWebsocketNotFound, key)
+}
+
+func (w *WebsocketByKey) Add(key any, ws *Websocket) error {
+	if key == nil {
+		return fmt.Errorf("%w %v", common.ErrNilPointer, "key")
+	}
+	if ws == nil {
+		return fmt.Errorf("%w %v", common.ErrNilPointer, "ws")
+	}
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	if _, ok := w.websockets[key]; ok {
+		return fmt.Errorf("%w %v", ErrKeyInUse, key)
+	}
+	w.websockets[key] = ws
+	return nil
+}
+
+func (w *WebsocketByKey) Remove(key any) error {
+	if key == nil {
+		return fmt.Errorf("%w %v", common.ErrNilPointer, "key")
+	}
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	resp, ok := w.websockets[key]
+	if !ok {
+		return fmt.Errorf("%w %v", ErrWebsocketNotFound, key)
+	}
+	err := resp.Shutdown()
+	if err != nil {
+		return err
+	}
+	delete(w.websockets, key)
+	return nil
+}
 
 type subscriptionMap map[any]*ChannelSubscription
 

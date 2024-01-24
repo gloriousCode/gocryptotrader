@@ -120,24 +120,24 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
-	if err := b.CheckLimit(obd.Limit); err != nil {
+func (b *Binance) GetOrderBook(ctx context.Context, cp currency.Pair, limit int64) (*OrderBook, error) {
+	if err := b.CheckLimit(int(limit)); err != nil {
 		return nil, err
 	}
 
 	params := url.Values{}
-	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
+	symbol, err := b.FormatSymbol(cp, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
+	params.Set("limit", fmt.Sprintf("%d", limit))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		orderBookDepth+"?"+params.Encode(),
-		orderbookLimit(obd.Limit), &resp); err != nil {
+		orderbookLimit(int(limit)), &resp); err != nil {
 		return nil, err
 	}
 

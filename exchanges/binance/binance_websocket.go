@@ -27,6 +27,22 @@ const (
 	pingDelay                  = time.Minute * 9
 )
 
+var (
+	SpotBinanceWebsocket = BinanceWebsocket{
+		streamURL: binanceDefaultWebsocketURL,
+		orderbookPartialFunc: 
+	}
+	UFuturesBinanceWebsocket = BinanceWebsocket{}
+	CFuturesBinanceWebsocket = BinanceWebsocket{}
+)
+
+type BinanceWebsocket struct {
+	streamURL           string
+	orderbookPartialFunc func (ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error)
+	authTokenURL        string
+	ws                  *stream.Websocket
+}
+
 var listenKey string
 
 var (

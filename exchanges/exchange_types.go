@@ -167,6 +167,7 @@ type FeaturesSupported struct {
 	REST                       bool
 	RESTCapabilities           protocol.Features
 	Websocket                  bool
+	WebsocketAssets            map[asset.Item]bool
 	WebsocketCapabilities      protocol.Features
 	WithdrawPermissions        uint32
 	Kline                      kline.ExchangeCapabilitiesSupported
@@ -243,6 +244,7 @@ type Base struct {
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
+	WebsocketsByKey               stream.WebsocketByKey
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
