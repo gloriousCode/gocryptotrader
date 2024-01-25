@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -24,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -61,7 +61,6 @@ func TestMain(m *testing.M) {
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 100
 	err = h.Setup(hConfig)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
@@ -2858,6 +2857,101 @@ func TestGetSwapFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchCoinMarginSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchLinearSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchLinearSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchFuturesContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchFuturesContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	for _, a := range h.GetAssetTypes(false) {
+		err := h.UpdateTickers(context.Background(), a)
+		assert.NoErrorf(t, err, "asset %s", a)
+
+		avail, err := h.GetAvailablePairs(a)
+		require.NoError(t, err)
+		for x := range avail {
+			_, err = ticker.GetTicker(h.Name, avail[x], a)
+			assert.NoError(t, err)
+		}
+	}
+}
+
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	tt := time.Now()
+	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
+	cp, err := h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CW")
+	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
+	if assert.NoError(t, err) {
+		assert.NotZero(t, tick.Close)
+	}
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
+	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NW")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	if assert.NoError(t, err) {
+		assert.NotZero(t, tick.Close)
+	}
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	if assert.NoError(t, err) {
+		assert.NotZero(t, tick.Close)
+	}
+
+	// calculate a specific date
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
+	tt = time.Date(2021, 6, 3, 0, 0, 0, 0, time.UTC)
+	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.Equal(t, cp.Quote.String(), "210625")
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CW"))
+	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.Equal(t, cp.Quote.String(), "210604")
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CWif hat"))
+	_, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.ErrorIs(t, err, errInvalidContractType)
+
+	tt = time.Now()
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	if err != nil {
+		// Huobi doesn't always have a next-quarter contract, return if no data found
+		return
+	}
+	assert.NotZero(t, tick.Close)
 }
 
 func TestGetOpenInterest(t *testing.T) {
