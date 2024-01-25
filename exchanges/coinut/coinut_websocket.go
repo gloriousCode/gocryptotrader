@@ -599,7 +599,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
+	var channels = []string{"inst_tick"}
 	var subscriptions []subscription.Subscription
 	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {

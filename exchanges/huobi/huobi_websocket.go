@@ -568,9 +568,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{wsMarketKline,
-		wsMarketDepth,
-		wsMarketTrade,
+	var channels = []string{
 		wsMarketTicker}
 	var subscriptions []subscription.Subscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {

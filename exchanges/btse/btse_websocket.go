@@ -374,7 +374,7 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
+	var channels = []string{"tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

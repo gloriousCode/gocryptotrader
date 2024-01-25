@@ -467,10 +467,7 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (h *HitBTC) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{"subscribeTicker",
-		"subscribeOrderbook",
-		"subscribeTrades",
-		"subscribeCandles"}
+	var channels = []string{"subscribeTicker"}
 
 	var subscriptions []subscription.Subscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
