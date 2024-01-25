@@ -31,17 +31,17 @@ const (
 var (
 	SpotBinanceWebsocket = BinanceWebsocket{
 		streamURL: binanceDefaultWebsocketURL,
-		orderbookPartialFunc:
+		//orderbookPartialFunc:
 	}
 	UFuturesBinanceWebsocket = BinanceWebsocket{}
 	CFuturesBinanceWebsocket = BinanceWebsocket{}
 )
 
 type BinanceWebsocket struct {
-	streamURL           string
-	orderbookPartialFunc func (ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error)
-	authTokenURL        string
-	ws                  *stream.Websocket
+	streamURL            string
+	orderbookPartialFunc func(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error)
+	authTokenURL         string
+	ws                   *stream.Websocket
 }
 
 var listenKey string
@@ -484,10 +484,8 @@ func stringToOrderStatus(status string) (order.Status, error) {
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 	ob, err := b.GetOrderBook(ctx,
-		OrderBookDataRequestParams{
-			Symbol: p,
-			Limit:  1000,
-		})
+		p,
+		1000)
 	if err != nil {
 		return err
 	}
