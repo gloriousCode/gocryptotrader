@@ -94,7 +94,6 @@ func (w *WebsocketByKey) Remove(key any) error {
 	return nil
 }
 
-type subscriptionMap map[any]*ChannelSubscription
 type subscriptionMap map[any]*subscription.Subscription
 
 // Websocket defines a return type for websocket connections via the interface

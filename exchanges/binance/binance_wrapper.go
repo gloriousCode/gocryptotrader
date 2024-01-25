@@ -701,10 +701,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 	switch assetType {
 	case asset.Spot, asset.Margin:
-		orderbookNew, err = b.GetOrderBook(ctx,
-			OrderBookDataRequestParams{
-				Symbol: p,
-				Limit:  1000})
+		orderbookNew, err = b.GetOrderBook(ctx, p, 1000)
 	case asset.USDTMarginedFutures:
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:

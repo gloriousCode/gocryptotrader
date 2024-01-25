@@ -916,7 +916,8 @@ type update struct {
 // job defines a synchronisation job that tells a go routine to fetch an
 // orderbook via the REST protocol
 type job struct {
-	Pair currency.Pair
+	Pair  currency.Pair
+	Asset asset.Item
 }
 
 // UserMarginInterestHistoryResponse user margin interest history response
