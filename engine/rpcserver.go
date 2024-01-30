@@ -34,6 +34,7 @@ import (
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	gctcredentials "github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -116,7 +117,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, fmt.Errorf("username/password mismatch")
 	}
-	ctx, err = account.ParseCredentialsMetadata(ctx, md)
+	ctx, err = gctcredentials.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
 		return ctx, err
 	}
@@ -210,7 +211,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
 }
 
-// GetInfo returns info about the current GoCryptoTrader session
+// GetInfo returns info about the curr nt GoCryptoTrader session
 func (s *RPCServer) GetInfo(_ context.Context, _ *gctrpc.GetInfoRequest) (*gctrpc.GetInfoResponse, error) {
 	rpcEndpoints, err := s.getRPCEndpoints()
 	if err != nil {

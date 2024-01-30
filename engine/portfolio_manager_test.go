@@ -7,12 +7,12 @@ import (
 )
 
 func TestSetupPortfolioManager(t *testing.T) {
-	_, err := setupPortfolioManager(nil, 0, nil)
+	_, err := SetupPortfolioManager(nil, 0, nil)
 	if !errors.Is(err, errNilExchangeManager) {
 		t.Errorf("error '%v', expected '%v'", err, errNilExchangeManager)
 	}
 
-	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
+	m, err := SetupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -22,12 +22,12 @@ func TestSetupPortfolioManager(t *testing.T) {
 }
 
 func TestIsPortfolioManagerRunning(t *testing.T) {
-	var m *portfolioManager
+	var m *PortfolioManager
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 
-	m, err := setupPortfolioManager(NewExchangeManager(), 0, nil)
+	m, err := SetupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -45,14 +45,14 @@ func TestIsPortfolioManagerRunning(t *testing.T) {
 }
 
 func TestPortfolioManagerStart(t *testing.T) {
-	var m *portfolioManager
+	var m *PortfolioManager
 	var wg sync.WaitGroup
 	err := m.Start(nil)
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
+	m, err = SetupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -74,14 +74,14 @@ func TestPortfolioManagerStart(t *testing.T) {
 }
 
 func TestPortfolioManagerStop(t *testing.T) {
-	var m *portfolioManager
+	var m *PortfolioManager
 	var wg sync.WaitGroup
 	err := m.Stop()
 	if !errors.Is(err, ErrNilSubsystem) {
 		t.Errorf("error '%v', expected '%v'", err, ErrNilSubsystem)
 	}
 
-	m, err = setupPortfolioManager(NewExchangeManager(), 0, nil)
+	m, err = SetupPortfolioManager(NewExchangeManager(), 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -111,7 +111,7 @@ func TestProcessPortfolio(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	m, err := setupPortfolioManager(em, 0, nil)
+	m, err := SetupPortfolioManager(em, 0, nil)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

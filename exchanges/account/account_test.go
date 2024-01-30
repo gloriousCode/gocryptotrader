@@ -9,10 +9,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var happyCredentials = &Credentials{Key: "AAAAA"}
+var happyCredentials = &credentials.Credentials{Key: "AAAAA"}
 
 func TestCollectBalances(t *testing.T) {
 	t.Parallel()
@@ -169,7 +170,7 @@ func TestGetHoldings(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
 	}
 
-	_, err = GetHoldings("Test", &Credentials{Key: "BBBBB"}, asset.Spot)
+	_, err = GetHoldings("Test", &credentials.Credentials{Key: "BBBBB"}, asset.Spot)
 	if !errors.Is(err, errNoCredentialBalances) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoCredentialBalances)
 	}
@@ -282,7 +283,7 @@ func TestGetBalance(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = GetBalance("bruh", "1336", &Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
+	_, err = GetBalance("bruh", "1336", &credentials.Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
 	if !errors.Is(err, errNoCredentialBalances) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errNoCredentialBalances)
 	}
@@ -469,7 +470,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("account should be loaded")
 	}
 
-	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
+	b, ok := acc.SubAccounts[credentials.Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
 		SubAccount: "1337",
 		Currency:   currency.BTC.Item,
 		Asset:      asset.Spot,
@@ -484,5 +485,58 @@ func TestUpdate(t *testing.T) {
 
 	if b.hold != 20 {
 		t.Errorf("expecting 20 but received %f", b.hold)
+	}
+}
+
+func TestProtectedString(t *testing.T) {
+	t.Parallel()
+	p := Protected{}
+	if s := p.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
+		t.Fatal("unexpected value")
+	}
+
+	p.creds.Key = "12345678910111234"
+	p.creds.SubAccount = "sub"
+	p.creds.ClientID = "client"
+
+	if s := p.creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestProtectedCredentialsEqual(t *testing.T) {
+	t.Parallel()
+	var this Protected
+	var that *credentials.Credentials
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds = credentials.Credentials{}
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that = &credentials.Credentials{Key: "1337"}
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.Key = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.ClientID = "1337"
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that.ClientID = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.SubAccount = "someSub"
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that.SubAccount = "someSub"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
 	}
 }

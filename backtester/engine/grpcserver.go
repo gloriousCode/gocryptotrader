@@ -23,7 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	gctengine "github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	credentials2 "github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
@@ -553,7 +553,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		for i := range request.Config.DataSettings.LiveData.Credentials {
 			creds[i] = config.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
-				Keys: account.Credentials{
+				Keys: credentials2.Credentials{
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,

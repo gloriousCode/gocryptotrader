@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -565,7 +566,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 		return err
 	}
 	for x := range exchanges {
-		var creds *account.Credentials
+		var creds *credentials.Credentials
 		creds, err = exchanges[x].GetCredentials(context.TODO())
 		if err != nil {
 			return err

@@ -125,8 +125,11 @@ func (b *Binance) SetDefaults() {
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST:                true,
-			Websocket:           true,
+			REST:      true,
+			Websocket: true,
+			DefaultWebsocketAssets: map[asset.Item]bool{
+				asset.Spot: true,
+			},
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:                 true,

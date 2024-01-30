@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -25,7 +26,6 @@ var (
 	errAssetHoldingsNotFound        = errors.New("asset holdings not found")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
-	errNoBalanceFound               = errors.New("no balance found")
 	errBalanceIsNil                 = errors.New("balance is nil")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsAreNil            = errors.New("credentials are nil")
@@ -67,14 +67,14 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 }
 
 // Process processes new account holdings updates
-func Process(h *Holdings, c *Credentials) error {
+func Process(h *Holdings, c *credentials.Credentials) error {
 	return service.Update(h, c)
 }
 
 // GetHoldings returns full holdings for an exchange.
 // NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
-func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
+func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
 		return Holdings{}, errExchangeNameUnset
 	}
@@ -150,7 +150,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 }
 
 // GetBalance returns the internal balance for that asset item.
-func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
+func GetBalance(exch, subAccount string, creds *credentials.Credentials, ai asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
 		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
 	}
@@ -195,7 +195,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 }
 
 // Update updates holdings with new account info
-func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
+func (s *Service) Update(incoming *Holdings, creds *credentials.Credentials) error {
 	if incoming == nil {
 		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
 	}
@@ -219,7 +219,7 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 		accounts = &Accounts{
 			ID:          id,
-			SubAccounts: make(map[Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance),
+			SubAccounts: make(map[credentials.Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}

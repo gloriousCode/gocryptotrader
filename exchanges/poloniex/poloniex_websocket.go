@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -571,7 +572,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 
 // Subscribe sends a websocket message to receive data from the channel
 func (p *Poloniex) Subscribe(sub []subscription.Subscription) error {
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())
@@ -618,7 +619,7 @@ channels:
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())

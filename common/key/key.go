@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -23,6 +24,12 @@ type ExchangePairAssetContractExpiry struct {
 	Asset    asset.Item
 	Contract string
 	Expiry   time.Time `json:"Expiry,omitempty"`
+}
+
+type ExchangeAssetCredentials struct {
+	Exchange    string
+	Asset       asset.Item
+	Credentials credentials.Credentials
 }
 
 func (k *ExchangePairAssetContractExpiry) ToEPA() ExchangePairAsset {

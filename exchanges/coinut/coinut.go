@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -280,7 +280,7 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 
 		headers := make(map[string]string)
 		if authenticated {
-			var creds *account.Credentials
+			var creds *credentials.Credentials
 			creds, err = c.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

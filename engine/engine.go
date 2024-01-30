@@ -43,7 +43,7 @@ type Engine struct {
 	ExchangeManager         *ExchangeManager
 	ntpManager              *ntpManager
 	OrderManager            *OrderManager
-	portfolioManager        *portfolioManager
+	portfolioManager        *PortfolioManager
 	gctScriptManager        *gctscript.GctScriptManager
 	WebsocketRoutineManager *WebsocketRoutineManager
 	WithdrawManager         *WithdrawManager
@@ -409,7 +409,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			if p, err := setupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
+			if p, err := SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
 				bot.portfolioManager = p

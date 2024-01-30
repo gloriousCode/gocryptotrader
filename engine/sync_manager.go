@@ -32,6 +32,7 @@ const (
 	SyncItemFundingRate
 	SyncItemFuturesContract
 	SyncItemOpenInterest
+	SyncItemAccountInfo
 	SyncManagerName = "exchange_syncer"
 )
 

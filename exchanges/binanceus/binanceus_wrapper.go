@@ -78,6 +78,9 @@ func (bi *Binanceus) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
+			DefaultWebsocketAssets: map[asset.Item]bool{
+				asset.Spot: true,
+			},
 			RESTCapabilities: protocol.Features{
 				TickerBatching:        true,
 				TickerFetching:        true,

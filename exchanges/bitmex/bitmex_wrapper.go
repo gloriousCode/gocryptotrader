@@ -103,6 +103,12 @@ func (b *Bitmex) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
+			DefaultWebsocketAssets: map[asset.Item]bool{
+				asset.Spot:              true,
+				asset.PerpetualContract: true,
+				asset.Index:             true,
+				asset.Futures:           true,
+			},
 			RESTCapabilities: protocol.Features{
 				TickerBatching:      true,
 				TickerFetching:      true,

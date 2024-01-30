@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -400,7 +400,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	var err error
 	if c.IsWebsocketAuthenticationSupported() {
 		creds, err = c.GetCredentials(context.TODO())

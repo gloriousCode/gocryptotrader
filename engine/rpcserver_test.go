@@ -28,6 +28,7 @@ import (
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -2446,7 +2447,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 
 	ctx := account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake"})
+		&credentials.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2457,7 +2458,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 
 	ctx = account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+		&credentials.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

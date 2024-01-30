@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -311,7 +312,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []subs
 	if len(channelsToSubscribe) == 0 {
 		return [2][]WsInput{}, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(context.TODO())

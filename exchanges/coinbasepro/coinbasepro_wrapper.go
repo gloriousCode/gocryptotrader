@@ -74,6 +74,9 @@ func (c *CoinbasePro) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
+			DefaultWebsocketAssets: map[asset.Item]bool{
+				asset.Spot: true,
+			},
 			RESTCapabilities: protocol.Features{
 				TickerFetching:    true,
 				KlineFetching:     true,

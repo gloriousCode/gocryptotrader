@@ -100,6 +100,11 @@ func (b *Bitfinex) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
+			DefaultWebsocketAssets: map[asset.Item]bool{
+				asset.Spot:          true,
+				asset.MarginFunding: true,
+				asset.Margin:        true,
+			},
 			RESTCapabilities: protocol.Features{
 				TickerBatching:                    true,
 				TickerFetching:                    true,
