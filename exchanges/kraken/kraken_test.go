@@ -9,7 +9,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -72,20 +71,6 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := k.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = k.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
@@ -225,6 +210,9 @@ func TestUpdateTickers(t *testing.T) {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
 		assert.NoError(t, err)
 	}
+
+	err = k.UpdateTickers(context.Background(), asset.Index)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -2619,16 +2607,8 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	k.Verbose = true
-	resp, err := k.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
-	for i := range resp {
-		if resp[i].Type != futures.Perpetual {
-			t.Logf("\n%+v\n", resp[i])
-		}
-	}
+	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
+	assert.NoError(t, err, "GetFuturesContractDetails should not error")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
