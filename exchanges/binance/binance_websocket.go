@@ -327,6 +327,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		isEnabled bool
 		symbol    string
 	)
+	item := websocketAssetType
 	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
 	if err != nil {
 		// there should be a symbol returned for all data types below
@@ -361,7 +362,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				Price:        t.Price.Float64(),
 				Amount:       t.Quantity.Float64(),
 				Exchange:     b.Name,
-				AssetType:    asset.Spot,
+				AssetType:    item,
 				TID:          strconv.FormatInt(t.TradeID, 10),
 			})
 	case "ticker":
@@ -384,7 +385,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
 			LastUpdated:  t.EventTime,
-			AssetType:    asset.Spot,
+			AssetType:    item,
 			Pair:         pair,
 		}
 		return nil
@@ -400,7 +401,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		b.Websocket.DataHandler <- stream.KlineData{
 			Timestamp:  kline.EventTime,
 			Pair:       pair,
-			AssetType:  asset.Spot,
+			AssetType:  item,
 			Exchange:   b.Name,
 			StartTime:  kline.Kline.StartTime,
 			CloseTime:  kline.Kline.CloseTime,
@@ -421,7 +422,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				err)
 		}
 		var init bool
-		init, err = b.UpdateLocalBuffer(&depth)
+		init, err = b.UpdateLocalBuffer(&depth, item)
 		if err != nil {
 			if init {
 				return nil
