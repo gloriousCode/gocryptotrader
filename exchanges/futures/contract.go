@@ -81,6 +81,19 @@ const (
 	Unknown
 )
 
+func (c ContractType) IsLongDated() bool {
+	return c == LongDated ||
+		c == Quarterly ||
+		c == SemiAnnually ||
+		c == HalfYearly ||
+		c == NineMonthly ||
+		c == Yearly ||
+		c == Weekly ||
+		c == Fortnightly ||
+		c == ThreeWeekly ||
+		c == Monthly
+}
+
 // String returns the string representation of the contract type
 func (c ContractType) String() string {
 	switch c {

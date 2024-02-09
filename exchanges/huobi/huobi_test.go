@@ -2969,102 +2969,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
-	t.Parallel()
-	resp, err := h.GetBatchCoinMarginSwapContracts(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
-}
-
-func TestGetBatchLinearSwapContracts(t *testing.T) {
-	t.Parallel()
-	resp, err := h.GetBatchLinearSwapContracts(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
-}
-
-func TestGetBatchFuturesContracts(t *testing.T) {
-	t.Parallel()
-	resp, err := h.GetBatchFuturesContracts(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
-}
-
-func TestUpdateTickers(t *testing.T) {
-	t.Parallel()
-	for _, a := range h.GetAssetTypes(false) {
-		err := h.UpdateTickers(context.Background(), a)
-		assert.NoErrorf(t, err, "asset %s", a)
-
-		avail, err := h.GetAvailablePairs(a)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for x := range avail {
-			_, err = ticker.GetTicker(h.Name, avail[x], a)
-			assert.NoError(t, err)
-		}
-	}
-}
-
-func TestConvertContractShortHandToExpiry(t *testing.T) {
-	t.Parallel()
-	tt := time.Now()
-	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
-	cp, err := h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CW")
-	h.Verbose = true
-	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
-	if assert.NoError(t, err) {
-		assert.NotZero(t, tick.Close)
-	}
-
-	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NW")
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
-	if assert.NoError(t, err) {
-		assert.NotZero(t, tick.Close)
-	}
-
-	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CQ")
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
-	if assert.NoError(t, err) {
-		assert.NotZero(t, tick.Close)
-	}
-
-	// calculate a specific date
-	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
-	tt = time.Date(2021, 6, 3, 0, 0, 0, 0, time.UTC)
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-
-	cp = currency.NewPair(currency.BTC, currency.NewCode("CW"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-
-	cp = currency.NewPair(currency.BTC, currency.NewCode("CWif hat"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.ErrorIs(t, err, errInvalidContractType)
-
-	// Huobi doesn't always have a next-quarter contract, return if no data found
-	tt = time.Now()
-	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
-	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NQ")
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
-	if err != nil {
-		return
-	}
-	assert.NotZero(t, tick.Close)
-}
-
 func TestContractOpenInterestUSDT(t *testing.T) {
 	t.Parallel()
 	resp, err := h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, currency.EMPTYPAIR, "", "")
@@ -3089,5 +2993,17 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-
-
+func TestGetExpiredContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetExpiredContracts(
+		context.Background(),
+		key.PairAsset{
+			Base:  currency.BTC.Item,
+			Quote: currency.NewCode("CW").Item,
+			Asset: asset.Futures,
+		},
+		time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp)
+}

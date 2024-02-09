@@ -2531,3 +2531,42 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 	}
 	return resp, nil
 }
+
+// GetExpiredContracts returns previous expired contracts for a given pair
+func (h *HUOBI) GetExpiredContracts(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, futureType futures.ContractType) ([]currency.Pair, error) {
+	if k.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+	}
+	earliestDate := time.Now().Add(-kline.OneMonth.Duration())
+	if earliestExpiry.Before(earliestDate) {
+		return nil, fmt.Errorf("earliest expiry date cannot be before %v", earliestDate)
+	}
+	latestExpiry := earliestExpiry
+	var contractNames []currency.Pair
+	prevCon := k.Pair()
+	for latestExpiry.Before(time.Now()) {
+		cont, err := h.convertContractShortHandToExpiry(k.Pair(), latestExpiry)
+		if err != nil {
+			return nil, err
+		}
+		latestExpiry = latestExpiry.AddDate(0, 0, 7)
+		if cont.Equal(prevCon) {
+			continue
+		}
+		contractNames = append(contractNames, cont)
+		prevCon = cont
+	}
+	resp := make([]currency.Pair, 0, len(contractNames))
+	for i := range contractNames {
+		_, err := h.FGetKlineData(ctx, contractNames[i], "60min", 1, time.Time{}, time.Time{})
+		if err != nil {
+			// given that the contract is expired, there is no proper way to verify
+			// when it was initially listed. If there is an error retrieving the contract
+			// we can assume that it was not valid at the time that it was generated
+			// and should not be returned
+			continue
+		}
+		resp = append(resp, contractNames[i])
+	}
+	return resp, nil
+}

@@ -1835,3 +1835,21 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	}
 	return resp, nil
 }
+
+// GetExpiredContracts returns previous expired contracts for a given pair
+func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, earliestExpiry time.Time, futureType futures.ContractType) ([]currency.Pair, error) {
+	if kpa.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, kpa.Asset)
+	}
+	if !futureType.IsLongDated() {
+		return nil, futures.ErrContractTypeNotSupported
+	}
+	if !strings.HasPrefix(kpa.Base.String(), "FI_") &&
+		!strings.HasPrefix(kpa.Base.String(), "FF") {
+		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, kpa.Pair())
+	}
+	// generate the contract expiry based on the data here:
+	// https://support.kraken.com/hc/en-us/articles/360022632172-Inverse-Crypto-Collateral-Fixed-Maturity-Contract-Specifications
+
+	return nil, nil
+}

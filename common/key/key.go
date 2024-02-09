@@ -26,6 +26,12 @@ type ExchangePairAssetContractExpiry struct {
 	Expiry   time.Time `json:"Expiry,omitempty"`
 }
 
+type ExchangeAssetCredentials struct {
+	Exchange    string
+	Asset       asset.Item
+	Credentials credentials.Credentials
+}
+
 type ExchangePairAssetCredentials struct {
 	Exchange    string
 	Asset       asset.Item
