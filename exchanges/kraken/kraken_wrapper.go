@@ -1836,13 +1836,31 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	return resp, nil
 }
 
+/*
+func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+	loc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	tt = tt.In(loc)
+	switch pair.Quote.Item.Symbol {
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	}
+	pair.Quote = currency.NewCode("USD_"+ tt.Format("060102"))
+	return pair, nil
+}
+
+
+*/
 // GetExpiredContracts returns previous expired contracts for a given pair
-func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, earliestExpiry time.Time, futureType futures.ContractType) ([]currency.Pair, error) {
+func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
 	if kpa.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, kpa.Asset)
-	}
-	if !futureType.IsLongDated() {
-		return nil, futures.ErrContractTypeNotSupported
 	}
 	if !strings.HasPrefix(kpa.Base.String(), "FI_") &&
 		!strings.HasPrefix(kpa.Base.String(), "FF") {
@@ -1850,6 +1868,5 @@ func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, ear
 	}
 	// generate the contract expiry based on the data here:
 	// https://support.kraken.com/hc/en-us/articles/360022632172-Inverse-Crypto-Collateral-Fixed-Maturity-Contract-Specifications
-
 	return nil, nil
 }

@@ -121,11 +121,6 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 			Borrowed:               assetHoldings.borrowed,
 		})
 		assetHoldings.m.Unlock()
-
-		if len(currencyBalances) == 0 {
-			continue
-		}
-
 		cpy := *creds
 		if cpy.SubAccount == "" {
 			cpy.SubAccount = mapKey.SubAccount
@@ -137,7 +132,6 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 			AssetType:   mapKey.Asset,
 			Currencies:  currencyBalances,
 		})
-		break
 	}
 
 	if len(accountsHoldings) == 0 {

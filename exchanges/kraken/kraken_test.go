@@ -41,8 +41,8 @@ var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "8By0oUeUrxOdNU8mGYzCGmKONy+zG7MXsUpdPBk72pl+g8ZQ0qekikWP"
+	apiSecret               = "2CXda8kF9w8O9hwSjpHwRHX4psEPPJrpm6ZVrfjHWH2PNarp7NcYQ6nUUxfxJLrJ84/dtLmT9lJT6W6kbEKZoQ=="
 	canManipulateRealOrders = false
 )
 
@@ -240,10 +240,11 @@ func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
-	_, err := k.UpdateAccountInfo(context.Background(), asset.Spot)
+	resp, err := k.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
+	t.Logf("%+v", resp)
 }
 
 func TestWrapperGetOrderInfo(t *testing.T) {

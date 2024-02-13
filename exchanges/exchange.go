@@ -1948,7 +1948,7 @@ func (b *Base) IsVerbose() bool {
 // its duty is to call an API endpoint to return the contracts, or calculate what previous contract expiries were
 // this will then allow for API call lookup of historical data as exchange APIs rarely provide expired contracts
 // in their pair lists
-func (b *Base) GetExpiredContracts(_ context.Context, k key.PairAsset, _ time.Time, _ futures.ContractType) ([]currency.Pair, error) {
+func (b *Base) GetExpiredContracts(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
 	if !k.Asset.IsFutures() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}

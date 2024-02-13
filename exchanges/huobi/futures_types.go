@@ -857,3 +857,6 @@ type FTriggerOrderHistoryData struct {
 	} `json:"data"`
 	Timestamp int64 `json:"ts"`
 }
+
+type ExpiredContractData struct {
+}

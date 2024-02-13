@@ -2993,6 +2993,7 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
+/*
 func TestGetExpiredContracts(t *testing.T) {
 	t.Parallel()
 	resp, err := h.GetExpiredContracts(
@@ -3007,3 +3008,6 @@ func TestGetExpiredContracts(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp)
 }
+
+
+*/

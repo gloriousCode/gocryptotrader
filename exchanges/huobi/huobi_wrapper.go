@@ -2532,14 +2532,15 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 	return resp, nil
 }
 
+var cannotGetExpired = errors.New("cannot get expired contracts")
+
 // GetExpiredContracts returns previous expired contracts for a given pair
-func (h *HUOBI) GetExpiredContracts(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, futureType futures.ContractType) ([]currency.Pair, error) {
+func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
 	if k.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}
-	earliestDate := time.Now().Add(-kline.OneMonth.Duration())
-	if earliestExpiry.Before(earliestDate) {
-		return nil, fmt.Errorf("earliest expiry date cannot be before %v", earliestDate)
+	if common.StringDataCompareInsensitive(validContractShortTypes, k.Quote.String()) {
+		return nil, fmt.Errorf("%w for %v, accepted quotes: %v", cannotGetExpired, k.Quote, validContractShortTypes)
 	}
 	latestExpiry := earliestExpiry
 	var contractNames []currency.Pair
