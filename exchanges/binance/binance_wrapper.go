@@ -653,6 +653,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:
+		creds, err := b.GetCredentials(ctx)
+		if err != nil {
+			return info, err
+		}
+		if creds.SubAccount != "" {
+			// TODO: implement sub-account endpoints
+			return info, common.ErrNotYetImplemented
+		}
 		raw, err := b.GetAccount(ctx)
 		if err != nil {
 			return info, err
@@ -1901,17 +1909,13 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = b.FetchSpotExchangeLimits(ctx)
+		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
 		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
 		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		if err = b.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
-			limits, err = b.FetchSpotExchangeLimits(ctx)
-		} else {
-			return nil
-		}
+		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
