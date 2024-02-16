@@ -106,7 +106,7 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 	}
 
 	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
-	accountsHoldings := make([]SubAccount, 0, len(subAccountHoldings))
+	accountsHoldings := make([]SubAccount, 0, 1)
 	cpy := *creds
 	for mapKey, assetHoldings := range subAccountHoldings {
 		if mapKey.Asset != assetType {
@@ -122,20 +122,11 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 			Borrowed:               assetHoldings.borrowed,
 		})
 		assetHoldings.m.Unlock()
-
-		cpy := *creds
-		if cpy.SubAccount == "" {
+		if cpy.SubAccount == "" && mapKey.SubAccount != "" {
 			// TODO: fix this backwards population
 			// the subAccount here may not be associated with the balance across all subAccountHoldings
 			cpy.SubAccount = mapKey.SubAccount
 		}
-
-		accountsHoldings = append(accountsHoldings, SubAccount{
-			Credentials: Protected{creds: cpy},
-			ID:          mapKey.SubAccount,
-			AssetType:   mapKey.Asset,
-			Currencies:  currencyBalances,
-		})
 	}
 	if len(currencyBalances) == 0 {
 		return Holdings{}, fmt.Errorf("%s %s %w",
