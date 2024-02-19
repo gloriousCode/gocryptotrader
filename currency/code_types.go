@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,6 +42,14 @@ type Code struct {
 	// job to update all maps and instances through the code base.
 	// _         []struct{}
 	UpperCase bool
+}
+
+func (i *Item) UnmarshalJSON(b []byte) error {
+	hello := string(b)
+	hello = strings.Replace(hello, "\"", "", -1)
+	c := NewCode(hello)
+	i = c.Item
+	return nil
 }
 
 // Item defines a sub type containing the main attributes of a designated
