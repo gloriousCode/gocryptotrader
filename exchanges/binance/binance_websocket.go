@@ -463,8 +463,9 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair, item asse
 	switch item {
 	case asset.Spot:
 		ob, err := b.GetOrderBook(ctx,
-			p,
-			1000)
+			OrderBookDataRequestParams{p,
+				1000,
+			})
 		if err != nil {
 			return err
 		}
