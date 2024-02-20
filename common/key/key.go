@@ -45,7 +45,7 @@ type ExchangePairAssetCredentials struct {
 	Credentials *credentials.Credentials
 }
 
-func (k *ExchangePairAssetCredentials) Key() ExchangePairAsset {
+func (k *ExchangePairAssetCredentials) KeyNoCreds() ExchangePairAsset {
 	return ExchangePairAsset{
 		Exchange: k.Exchange,
 		Base:     k.Base,

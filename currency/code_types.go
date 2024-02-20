@@ -45,10 +45,17 @@ type Code struct {
 }
 
 func (i *Item) UnmarshalJSON(b []byte) error {
-	hello := string(b)
-	hello = strings.Replace(hello, "\"", "", -1)
-	c := NewCode(hello)
-	i = c.Item
+	rawJSON := string(b)
+	rawJSON = strings.Replace(rawJSON, "\"", "", -1)
+	c := NewCode(rawJSON)
+	*i = Item{
+		ID:         c.Item.ID,
+		FullName:   c.Item.FullName,
+		Symbol:     c.Item.Symbol,
+		Lower:      c.Item.Lower,
+		Role:       c.Item.Role,
+		AssocChain: c.Item.AssocChain,
+	}
 	return nil
 }
 
