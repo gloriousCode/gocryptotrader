@@ -130,24 +130,24 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(ctx context.Context, cp currency.Pair, limit int64) (*OrderBook, error) {
-	if err := b.CheckLimit(int(limit)); err != nil {
+func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
+	if err := b.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
 
 	params := url.Values{}
-	symbol, err := b.FormatSymbol(cp, asset.Spot)
+	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("limit", strconv.Itoa(obd.Limit))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		orderBookDepth+"?"+params.Encode(),
-		orderbookLimit(int(limit)), &resp); err != nil {
+		orderbookLimit(obd.Limit), &resp); err != nil {
 		return nil, err
 	}
 
@@ -202,7 +202,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
+	params.Set("limit", strconv.Itoa(rtr.Limit))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -221,10 +221,10 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	params := url.Values{}
 
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("limit", strconv.Itoa(limit))
 	// else return most recent trades
 	if fromID > 0 {
-		params.Set("fromId", fmt.Sprintf("%d", fromID))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 
 	path := historicalTrades + "?" + params.Encode()

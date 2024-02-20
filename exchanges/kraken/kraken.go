@@ -572,11 +572,11 @@ func (k *Kraken) GetTradeBalance(ctx context.Context, args ...TradeBalanceOption
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Aclass) > 0 {
+		if args[0].Aclass != "" {
 			params.Set("aclass", args[0].Aclass)
 		}
 
-		if len(args[0].Asset) > 0 {
+		if args[0].Asset != "" {
 			params.Set("asset", args[0].Asset)
 		}
 	}
@@ -629,11 +629,11 @@ func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOption
 		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
-	if len(args.Start) > 0 {
+	if args.Start != "" {
 		params.Set("start", args.Start)
 	}
 
-	if len(args.End) > 0 {
+	if args.End != "" {
 		params.Set("end", args.End)
 	}
 
@@ -641,7 +641,7 @@ func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOption
 		params.Set("ofs", strconv.FormatInt(args.Ofs, 10))
 	}
 
-	if len(args.CloseTime) > 0 {
+	if args.CloseTime != "" {
 		params.Set("closetime", args.CloseTime)
 	}
 
@@ -692,7 +692,7 @@ func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryO
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Type) > 0 {
+		if args[0].Type != "" {
 			params.Set("type", args[0].Type)
 		}
 
@@ -700,11 +700,11 @@ func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryO
 			params.Set("trades", "true")
 		}
 
-		if len(args[0].Start) > 0 {
+		if args[0].Start != "" {
 			params.Set("start", args[0].Start)
 		}
 
-		if len(args[0].End) > 0 {
+		if args[0].End != "" {
 			params.Set("end", args[0].End)
 		}
 
