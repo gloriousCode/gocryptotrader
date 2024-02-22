@@ -143,7 +143,7 @@ type Candle struct {
 	Low              float64
 	Close            float64
 	Volume           float64
-	ValidationIssues string
+	ValidationIssues string `json:"validationIssues,omitempty"`
 }
 
 // ExchangeCapabilitiesSupported all kline related exchange supported options

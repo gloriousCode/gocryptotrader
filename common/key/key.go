@@ -17,13 +17,15 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
-type ExchangePairAssetContractExpiry struct {
-	Exchange string
-	Base     *currency.Item
-	Quote    *currency.Item
-	Asset    asset.Item
-	Contract string
-	Expiry   time.Time `json:"Expiry,omitempty"`
+type ExchangePairAssetUnderlyingContractExpiry struct {
+	Exchange        string
+	Base            *currency.Item
+	Quote           *currency.Item
+	Asset           asset.Item
+	Contract        string
+	Expiry          time.Time `json:"Expiry,omitempty"`
+	UnderlyingBase  *currency.Item
+	UnderlyingQuote *currency.Item
 }
 
 type ExchangeCredentials struct {
@@ -61,7 +63,7 @@ func (k *ExchangePairAssetCredentials) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
-func (k *ExchangePairAssetContractExpiry) ToEPA() ExchangePairAsset {
+func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangePairAsset {
 	return ExchangePairAsset{
 		Exchange: k.Exchange,
 		Base:     k.Base,
