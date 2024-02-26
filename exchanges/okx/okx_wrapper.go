@@ -288,6 +288,12 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	}
 	pairs := make([]currency.Pair, len(insts))
 	for x := range insts {
+		if !insts[x].ExpTime.Time.IsZero() && insts[x].ExpTime.Time.Before(time.Now()) {
+			continue
+		}
+		if insts[x].State != "live" {
+			continue
+		}
 		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
 		if err != nil {
 			return nil, err
