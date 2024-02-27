@@ -698,6 +698,9 @@ func (b *Base) EnsureOnePairEnabled() error {
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
 func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+	if len(incoming) == 0 {
+		return nil
+	}
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
