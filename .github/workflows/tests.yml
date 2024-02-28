@@ -3,6 +3,35 @@ name: CI
 env:
   GO_VERSION: 1.22.x
 jobs:
+  wrapper-standards:
+    name: GoCryptoTrader exchange wrapper standards
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goarch: amd64
+            psql: true
+            skip_wrapper_tests: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Cancel previous workflow runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Test
+        run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
+          unset PGSERVICEFILE
+          go test -race ./cmd/exchange_wrapper_standards/...
+        shell: bash
+        env:
+          GOARCH: ${{ matrix.goarch }}
   backend-psql:
     name: GoCryptoTrader back-end
     strategy:
@@ -12,7 +41,7 @@ jobs:
           - os: ubuntu-latest
             goarch: amd64
             psql: true
-            skip_wrapper_tests: false
+            skip_wrapper_tests: true
           - os: ubuntu-latest
             goarch: 386
             psql: true
