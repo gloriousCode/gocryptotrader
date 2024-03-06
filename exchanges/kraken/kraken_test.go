@@ -41,8 +41,8 @@ var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
 const (
-	apiKey                  = "8By0oUeUrxOdNU8mGYzCGmKONy+zG7MXsUpdPBk72pl+g8ZQ0qekikWP"
-	apiSecret               = "2CXda8kF9w8O9hwSjpHwRHX4psEPPJrpm6ZVrfjHWH2PNarp7NcYQ6nUUxfxJLrJ84/dtLmT9lJT6W6kbEKZoQ=="
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
