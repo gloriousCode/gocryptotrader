@@ -203,14 +203,14 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 // SetupNewConnection sets up an auth or unauth streaming connection
 func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
-		return fmt.Errorf("%v %w: %w",w.exchangeName ,  errConnSetup, errWebsocketIsNil)
+		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errWebsocketIsNil)
 	}
 	if c == (ConnectionSetup{}) {
-		return fmt.Errorf("%v %w: %w",w.exchangeName , errConnSetup, errExchangeConfigEmpty)
+		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errExchangeConfigEmpty)
 	}
 
 	if w.exchangeName == "" {
-		return fmt.Errorf("%v %w: %w",w.exchangeName , errConnSetup, errExchangeConfigNameEmpty)
+		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errExchangeConfigNameEmpty)
 	}
 
 	if w.TrafficAlert == nil {
@@ -218,7 +218,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	}
 
 	if w.ReadMessageErrors == nil {
-		return fmt.Errorf("%v %w: %w",w.exchangeName ,  errConnSetup, errReadMessageErrorsNil)
+		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errReadMessageErrorsNil)
 	}
 
 	connectionURL := w.GetWebsocketURL()
@@ -1010,42 +1010,42 @@ func (w *Websocket) checkSubscriptions(subs []subscription.Subscription) error {
 // function
 func (w *Websocket) EnableAndConnectNoSubs() error {
 	if w.connector == nil {
-		return errors.New("websocket connect function not set, cannot continue")
+		return errNoConnectFunc
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
-	w.setEnabled(true)
+
+	if !w.IsEnabled() {
+		return ErrWebsocketNotEnabled
+	}
 	if w.IsConnecting() {
-		return fmt.Errorf("%v Websocket already attempting to connect",
-			w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyReconnecting)
 	}
 	if w.IsConnected() {
-		return fmt.Errorf("%v Websocket already connected",
-			w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
+
+	w.subscriptionMutex.Lock()
+	w.subscriptions = subscriptionMap{}
+	w.subscriptionMutex.Unlock()
 
 	w.dataMonitor()
 	w.trafficMonitor()
-	w.setConnectingStatus(true)
+	w.setState(connecting)
 
 	err := w.connector()
 	if err != nil {
-		w.setConnectingStatus(false)
-		return fmt.Errorf("%v Error connecting %s",
-			w.exchangeName, err)
+		w.setState(disconnected)
+		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
-	w.setConnectedStatus(true)
-	w.setConnectingStatus(false)
-	w.setInit(true)
+	w.setState(connected)
 
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%s cannot start websocket connection monitor %v",
-				w.GetName(),
-				err)
+			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
 	}
+
 	return nil
 }
