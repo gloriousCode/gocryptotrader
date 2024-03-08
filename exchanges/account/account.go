@@ -106,7 +106,6 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 	}
 
 	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
-	accountsHoldings := make([]SubAccount, 0, 1)
 	cpy := *creds
 	for mapKey, assetHoldings := range subAccountHoldings {
 		if mapKey.Asset != assetType {
@@ -134,13 +133,12 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 			assetType,
 			errAssetHoldingsNotFound)
 	}
-	accountsHoldings = append(accountsHoldings, SubAccount{
+	return Holdings{Exchange: exch, Accounts: []SubAccount{{
 		Credentials: Protected{creds: cpy},
 		ID:          cpy.SubAccount,
 		AssetType:   assetType,
 		Currencies:  currencyBalances,
-	})
-	return Holdings{Exchange: exch, Accounts: accountsHoldings}, nil
+	}}}, nil
 }
 
 // GetBalance returns the internal balance for that asset item.

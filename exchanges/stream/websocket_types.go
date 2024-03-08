@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,8 +19,6 @@ import (
 
 // Websocket functionality list and state consts
 const (
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled                = "exchange_websocket_not_enabled"
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
@@ -96,18 +95,23 @@ func (w *WebsocketByKey) Remove(key any) error {
 
 type subscriptionMap map[any]*subscription.Subscription
 
+const (
+	uninitialised uint32 = iota
+	disconnected
+	connecting
+	connected
+)
+
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
-	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
+	canUseAuthenticatedEndpoints atomic.Bool
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
 	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
+	connectionMonitorRunning     atomic.Bool
+	trafficMonitorRunning        atomic.Bool
+	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -117,7 +121,6 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
