@@ -387,7 +387,7 @@ func (ll *linkedList) getHeadVolumeNoLock() (float64, error) {
 // currency as a limiter and returns orderbook movement details. Swap boolean
 // allows the swap of sold and purchased to reduce code so it doesn't need to be
 // specific to bid or ask.
-func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
+func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool, contractDecimals float64) (*Movement, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
 	}
@@ -409,6 +409,8 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 			m.Purchased += quote
 			m.Sold += quote / trancheValue * tip.Value.Amount
 			// This tranche is not consumed so the book shifts to this price.
+			m.ContractsPurchased = m.Purchased * contractDecimals
+			m.ContractsSold = m.Sold * contractDecimals
 			m.EndPrice = tip.Value.Price
 			quote = 0
 			break
@@ -416,6 +418,9 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 		// Full tranche consumed
 		m.Purchased += tip.Value.Price * tip.Value.Amount
 		m.Sold += tip.Value.Amount
+		m.ContractsPurchased = m.Purchased * contractDecimals
+		m.ContractsSold = m.Sold * contractDecimals
+
 		quote = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
@@ -434,7 +439,7 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 // as a limiter and returns orderbook movement details. Swap boolean allows the
 // swap of sold and purchased to reduce code so it doesn't need to be specific
 // to bid or ask.
-func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
+func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool, contractDecimals float64) (*Movement, error) {
 	if base <= 0 {
 		return nil, errBaseAmountInvalid
 	}
@@ -454,6 +459,8 @@ func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Mov
 		if leftover < 0 {
 			m.Purchased += tip.Value.Price * base
 			m.Sold += base
+			m.ContractsPurchased = m.Purchased * contractDecimals
+			m.ContractsSold = m.Sold * contractDecimals
 			// This tranche is not consumed so the book shifts to this price.
 			m.EndPrice = tip.Value.Price
 			base = 0
@@ -462,6 +469,8 @@ func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Mov
 		// Full tranche consumed
 		m.Purchased += tip.Value.Price * tip.Value.Amount
 		m.Sold += tip.Value.Amount
+		m.ContractsPurchased = m.Purchased * contractDecimals
+		m.ContractsSold = m.Sold * contractDecimals
 		base = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
@@ -506,7 +515,7 @@ func (ll *bids) insertUpdates(updts Items, stack *stack) error {
 // hitBidsByNominalSlippage hits the bids by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice, contractDecimals float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -552,6 +561,8 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 			nominal.Purchased += trancheAmountExpectation * tip.Value.Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
 			nominal.EndPrice = tip.Value.Price
+			nominal.ContractsPurchased = nominal.Purchased * contractDecimals
+			nominal.ContractsSold = nominal.Sold * contractDecimals
 			return nominal, nil
 		}
 
@@ -560,6 +571,8 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 		nominal.NominalPercentage = percent
 		nominal.Sold += tip.Value.Amount
 		nominal.Purchased += totalTrancheValue
+		nominal.ContractsPurchased = nominal.Purchased * contractDecimals
+		nominal.ContractsSold = nominal.Sold * contractDecimals
 		cumulativeAmounts = currentTotalAmounts
 		if slippage == percent {
 			nominal.FullBookSideConsumed = tip.Next == nil
@@ -642,7 +655,7 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice, contractDecimals float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -682,6 +695,8 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 			nominal.Purchased += trancheAmountExpectation
 			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
 			nominal.EndPrice = tip.Value.Price
+			nominal.ContractsPurchased = nominal.Purchased * contractDecimals
+			nominal.ContractsSold = nominal.Sold * contractDecimals
 			return nominal, nil
 		}
 
@@ -689,6 +704,9 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 		nominal.Sold = currentValue
 		nominal.Purchased += tip.Value.Amount
 		nominal.NominalPercentage = percent
+		nominal.ContractsPurchased = nominal.Purchased * contractDecimals
+		nominal.ContractsSold = nominal.Sold * contractDecimals
+
 		if slippage == percent {
 			return nominal, nil
 		}
@@ -925,6 +943,7 @@ func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swa
 	// Swap saves on code duplication for difference in ask or bid amounts.
 	if swap {
 		m.Sold, m.Purchased = m.Purchased, m.Sold
+		m.ContractsPurchased, m.ContractsSold = m.ContractsSold, m.ContractsPurchased
 	}
 
 	return m, nil

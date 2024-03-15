@@ -57,7 +57,8 @@ type Exchange struct {
 
 // Item stores the amount and price values
 type Item struct {
-	Amount float64
+	Amount         float64
+	ContractAmount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
 	// potentially will round value which is not ideal.
@@ -175,15 +176,18 @@ type Movement struct {
 	// from the reference price.
 	ImpactPercentage float64
 	// SlippageCost is the cost of the slippage. This is priced in quotation.
-	SlippageCost float64
+	SlippageCost         float64
+	SlippageContractCost float64
 	// StartPrice defines the reference price or the head of the orderbook side.
 	StartPrice float64
 	// EndPrice defines where the price has ended on the orderbook side.
 	EndPrice float64
 	// Sold defines the amount of currency sold.
-	Sold float64
+	Sold          float64
+	ContractsSold float64
 	// Purchases defines the amount of currency purchased.
-	Purchased float64
+	Purchased          float64
+	ContractsPurchased float64
 	// AverageOrderCost defines the average order cost of position as it slips
 	// through the orderbook tranches.
 	AverageOrderCost float64
