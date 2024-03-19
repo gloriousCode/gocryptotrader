@@ -58,7 +58,6 @@ type Exchange struct {
 // Item stores the amount and price values
 type Item struct {
 	Amount         float64
-	ContractAmount float64
 	// StrAmount is a string representation of the amount. e.g. 0.00000100 this
 	// parsed as a float will constrict comparison to 1e-6 not 1e-8 or
 	// potentially will round value which is not ideal.
@@ -89,7 +88,7 @@ type Base struct {
 	Exchange string
 	Pair     currency.Pair
 	Asset    asset.Item
-
+	ContractDecimals float64
 	LastUpdated  time.Time
 	LastUpdateID int64
 	// PriceDuplication defines whether an orderbook can contain duplicate
@@ -135,6 +134,7 @@ type options struct {
 	idAligned              bool
 	checksumStringRequired bool
 	maxDepth               int
+	contractDecimals       float64
 }
 
 // Action defines a set of differing states required to implement an incoming

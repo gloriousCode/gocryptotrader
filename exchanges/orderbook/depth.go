@@ -310,6 +310,7 @@ func (d *Depth) AssignOptions(b *Base) {
 		idAligned:              b.IDAlignment,
 		maxDepth:               b.MaxDepth,
 		checksumStringRequired: b.ChecksumStringRequired,
+		contractDecimals:       b.ContractDecimals,
 	}
 	d.m.Unlock()
 }
@@ -409,7 +410,7 @@ func (d *Depth) HitTheBidsByNominalSlippage(maxSlippage, refPrice float64) (*Mov
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.bids.hitBidsByNominalSlippage(maxSlippage, refPrice, d.contractDecimals)
+	return d.bids.hitBidsByNominalSlippage(maxSlippage, refPrice)
 }
 
 // HitTheBidsByNominalSlippageFromMid hits the bids by the required nominal
@@ -425,7 +426,7 @@ func (d *Depth) HitTheBidsByNominalSlippageFromMid(maxSlippage float64) (*Moveme
 	if err != nil {
 		return nil, err
 	}
-	return d.bids.hitBidsByNominalSlippage(maxSlippage, mid, d.contractDecimals)
+	return d.bids.hitBidsByNominalSlippage(maxSlippage, mid)
 }
 
 // HitTheBidsByNominalSlippageFromBest hits the bids by the required nominal
@@ -441,7 +442,7 @@ func (d *Depth) HitTheBidsByNominalSlippageFromBest(maxSlippage float64) (*Movem
 	if err != nil {
 		return nil, err
 	}
-	return d.bids.hitBidsByNominalSlippage(maxSlippage, head, d.contractDecimals)
+	return d.bids.hitBidsByNominalSlippage(maxSlippage, head)
 }
 
 // LiftTheAsksByNominalSlippage lifts the asks by the required nominal slippage
@@ -453,7 +454,7 @@ func (d *Depth) LiftTheAsksByNominalSlippage(maxSlippage, refPrice float64) (*Mo
 	if d.validationError != nil {
 		return nil, d.validationError
 	}
-	return d.asks.liftAsksByNominalSlippage(maxSlippage, refPrice, d.contractDecimals)
+	return d.asks.liftAsksByNominalSlippage(maxSlippage, refPrice)
 }
 
 // LiftTheAsksByNominalSlippageFromMid lifts the asks by the required nominal
@@ -469,7 +470,7 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromMid(maxSlippage float64) (*Movem
 	if err != nil {
 		return nil, err
 	}
-	return d.asks.liftAsksByNominalSlippage(maxSlippage, mid, d.contractDecimals)
+	return d.asks.liftAsksByNominalSlippage(maxSlippage, mid)
 }
 
 // LiftTheAsksByNominalSlippageFromBest lifts the asks by the required nominal
@@ -485,7 +486,7 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromBest(maxSlippage float64) (*Move
 	if err != nil {
 		return nil, err
 	}
-	return d.asks.liftAsksByNominalSlippage(maxSlippage, head, d.contractDecimals)
+	return d.asks.liftAsksByNominalSlippage(maxSlippage, head)
 }
 
 // HitTheBidsByImpactSlippage hits the bids by the required impact slippage
@@ -586,9 +587,9 @@ func (d *Depth) HitTheBids(amount, refPrice float64, purchase bool) (*Movement, 
 		return nil, d.validationError
 	}
 	if purchase {
-		return d.bids.getMovementByQuotation(amount, refPrice, false, d.contractDecimals)
+		return d.bids.getMovementByQuotation(amount, refPrice, false)
 	}
-	return d.bids.getMovementByBase(amount, refPrice, false, d.contractDecimals)
+	return d.bids.getMovementByBase(amount, refPrice, false)
 }
 
 // HitTheBidsFromMid derives full orderbook slippage information from mid price
@@ -605,9 +606,9 @@ func (d *Depth) HitTheBidsFromMid(amount float64, purchase bool) (*Movement, err
 		return nil, err
 	}
 	if purchase {
-		return d.bids.getMovementByQuotation(amount, mid, false, d.contractDecimals)
+		return d.bids.getMovementByQuotation(amount, mid, false)
 	}
-	return d.bids.getMovementByBase(amount, mid, false, d.contractDecimals)
+	return d.bids.getMovementByBase(amount, mid, false)
 }
 
 // HitTheBidsFromBest derives full orderbook slippage information from best bid
@@ -624,9 +625,9 @@ func (d *Depth) HitTheBidsFromBest(amount float64, purchase bool) (*Movement, er
 		return nil, err
 	}
 	if purchase {
-		return d.bids.getMovementByQuotation(amount, head, false, d.contractDecimals)
+		return d.bids.getMovementByQuotation(amount, head, false)
 	}
-	return d.bids.getMovementByBase(amount, head, false, d.contractDecimals)
+	return d.bids.getMovementByBase(amount, head, false)
 }
 
 // LiftTheAsks derives full orderbook slippage information from reference price
@@ -639,9 +640,9 @@ func (d *Depth) LiftTheAsks(amount, refPrice float64, purchase bool) (*Movement,
 		return nil, d.validationError
 	}
 	if purchase {
-		return d.asks.getMovementByBase(amount, refPrice, true, d.contractDecimals)
+		return d.asks.getMovementByBase(amount, refPrice, true)
 	}
-	return d.asks.getMovementByQuotation(amount, refPrice, true, d.contractDecimals)
+	return d.asks.getMovementByQuotation(amount, refPrice, true)
 }
 
 // LiftTheAsksFromMid derives full orderbook slippage information from mid price
@@ -658,9 +659,9 @@ func (d *Depth) LiftTheAsksFromMid(amount float64, purchase bool) (*Movement, er
 		return nil, err
 	}
 	if purchase {
-		return d.asks.getMovementByBase(amount, mid, true, d.contractDecimals)
+		return d.asks.getMovementByBase(amount, mid, true)
 	}
-	return d.asks.getMovementByQuotation(amount, mid, true, d.contractDecimals)
+	return d.asks.getMovementByQuotation(amount, mid, true)
 }
 
 // LiftTheAsksFromBest derives full orderbook slippage information from best ask
@@ -677,9 +678,9 @@ func (d *Depth) LiftTheAsksFromBest(amount float64, purchase bool) (*Movement, e
 		return nil, err
 	}
 	if purchase {
-		return d.asks.getMovementByBase(amount, head, true, d.contractDecimals)
+		return d.asks.getMovementByBase(amount, head, true)
 	}
-	return d.asks.getMovementByQuotation(amount, head, true, d.contractDecimals)
+	return d.asks.getMovementByQuotation(amount, head, true)
 }
 
 // GetMidPrice returns the mid price between the ask and bid spread
