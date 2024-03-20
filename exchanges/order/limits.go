@@ -375,3 +375,26 @@ func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
 	// subtract modulus to get the floor
 	return dAmount.Sub(mod).InexactFloat64()
 }
+
+// ConformToAmount (POC) conforms amount to its amount interval
+func (m *MinMaxLevel) ConformToPrice(price float64) float64 {
+	if m == nil {
+		return price
+	}
+
+	if m.PriceStepIncrementSize == 0 {
+		return price
+	}
+
+	if price < m.PriceStepIncrementSize {
+		return 0
+	}
+
+	// Convert floats to decimal types
+	dAmount := decimal.NewFromFloat(price)
+	dStep := decimal.NewFromFloat(m.PriceStepIncrementSize)
+	// derive modulus
+	mod := dAmount.Mod(dStep)
+	// subtract modulus to get the floor
+	return dAmount.Sub(mod).InexactFloat64()
+}
