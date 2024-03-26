@@ -218,9 +218,6 @@ func (b *Binance) SetDefaults() {
 		},
 		Subscriptions: []*subscription.Subscription{
 			{Enabled: true, Channel: subscription.TickerChannel},
-			{Enabled: false, Channel: subscription.AllTradesChannel},
-			{Enabled: false, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: false, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 		},
 	}
 
