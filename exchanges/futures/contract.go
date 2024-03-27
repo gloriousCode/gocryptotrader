@@ -22,13 +22,14 @@ type Contract struct {
 	Type           ContractType
 	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
-	SettlementCurrencies currency.Currencies
-	MarginCurrency       currency.Code
-	Multiplier           float64
-	MaxLeverage          float64
-	LatestRate           fundingrate.Rate
-	FundingRateFloor     decimal.Decimal
-	FundingRateCeiling   decimal.Decimal
+	SettlementCurrencies      currency.Currencies
+	MarginCurrency            currency.Code
+	ContractMultiplier        float64
+	ContractValueInSettlement float64
+	MaxLeverage               float64
+	LatestRate                fundingrate.Rate
+	FundingRateFloor          decimal.Decimal
+	FundingRateCeiling        decimal.Decimal
 }
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges

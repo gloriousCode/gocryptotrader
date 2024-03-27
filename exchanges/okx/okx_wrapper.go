@@ -334,10 +334,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		if err != nil {
 			return err
 		}
-		cv := insts[x].ContractValue.Float64()
-		if cv > 1 {
-			cv /= 100
-		}
+		cv := 1 / insts[x].ContractValue.Float64()
+
 		limits[x] = order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   a,
@@ -1936,7 +1934,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
-		multiplier = contracts[i].Multiplier
+		multiplier = contracts[i].ContractMultiplier
 		contractSettlementType = contracts[i].SettlementType
 		break
 	}
@@ -2079,7 +2077,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				if !contracts[j].Name.Equal(fPair) {
 					continue
 				}
-				multiplier = contracts[j].Multiplier
+				multiplier = contracts[j].ContractMultiplier
 				contractSettlementType = contracts[j].SettlementType
 				break
 			}
@@ -2300,7 +2298,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementType:       contractSettlementType,
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
-			Multiplier:           result[i].ContractValue.Float64(),
+			ContractMultiplier:   result[i].ContractMultiplier.Float64(),
 			MaxLeverage:          result[i].MaxLeverage.Float64(),
 		}
 	}

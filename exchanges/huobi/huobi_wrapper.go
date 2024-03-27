@@ -2218,7 +2218,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 				IsActive:             result[x].ContractStatus == 1,
 				Type:                 futures.Perpetual,
 				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result[x].ContractSize,
+				ContractMultiplier:   result[x].ContractSize,
 			})
 		}
 		return resp, nil
@@ -2275,7 +2275,7 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 				IsActive:             result.Data[x].ContractStatus == 1,
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result.Data[x].ContractSize,
+				ContractMultiplier:   result.Data[x].ContractSize,
 			})
 		}
 		return resp, nil

@@ -2969,7 +2969,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:               ct,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
-				Multiplier:         ei.Symbols[i].Filters[0].TickSize,
+				ContractMultiplier: ei.Symbols[i].Filters[0].TickSize,
 			})
 		}
 		return resp, nil
@@ -3021,7 +3021,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:               ct,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
-				Multiplier:         ei.Symbols[i].Filters[0].TickSize,
+				ContractMultiplier: ei.Symbols[i].Filters[0].TickSize,
 			})
 		}
 		return resp, nil

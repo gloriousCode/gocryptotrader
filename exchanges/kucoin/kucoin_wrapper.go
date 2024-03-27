@@ -1577,7 +1577,7 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			EndDate:              contracts[i].ExpireDate.Time(),
 			IsActive:             !strings.EqualFold(contracts[i].Status, "closed"),
 			Status:               contracts[i].Status,
-			Multiplier:           contracts[i].Multiplier,
+			ContractMultiplier:   contracts[i].Multiplier,
 			MaxLeverage:          contracts[i].MaxLeverage,
 			SettlementType:       contractSettlementType,
 			LatestRate: fundingrate.Rate{
@@ -1795,7 +1795,7 @@ func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
-		multiplier = contracts[i].Multiplier
+		multiplier = contracts[i].ContractMultiplier
 		contractSize = multiplier * pos.CurrentQty
 		settlementType = contracts[i].SettlementType
 	}
@@ -1872,7 +1872,7 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 			if !contracts[i].Name.Equal(fPair) {
 				continue
 			}
-			multiplier = contracts[i].Multiplier
+			multiplier = contracts[i].ContractMultiplier
 		}
 
 		positionOrders, err := ku.GetFuturesOrders(ctx, "", fPair.String(), "", "", r.StartDate, r.EndDate)

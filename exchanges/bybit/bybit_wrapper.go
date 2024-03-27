@@ -1803,7 +1803,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDC},
 				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				ContractMultiplier:   instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -1876,7 +1876,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.USDT},
 				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				ContractMultiplier:   instruments[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil

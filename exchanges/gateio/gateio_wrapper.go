@@ -2081,7 +2081,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Type:                 futures.Perpetual,
 					SettlementType:       contractSettlementType,
 					SettlementCurrencies: currency.Currencies{settlePair},
-					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
+					ContractMultiplier:   contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
 				if contracts[j].FundingRate > 0 {
@@ -2147,7 +2147,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Type:                 ct,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
 					MarginCurrency:       currency.Code{},
-					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
+					ContractMultiplier:   contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
 			}
