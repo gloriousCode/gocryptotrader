@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2699,4 +2700,24 @@ func TestCalculateContractDates(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(dates)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
+	for _, a := range k.GetAssetTypes(false) {
+		pairs, err := k.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+		url, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a != asset.Spot {
+			assert.ErrorIs(t, err, asset.ErrNotSupported)
+			continue
+		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, url)
+		// no payload check: Kraken uses cloudflare, we expect a 403, a user will be redirected
+	}
 }

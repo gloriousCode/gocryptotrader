@@ -1847,3 +1847,20 @@ func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, ear
 	// https://support.kraken.com/hc/en-us/articles/360022632172-Inverse-Crypto-Collateral-Fixed-Maturity-Contract-Specifications
 	return nil, nil
 }
+
+var tradeBaseURL = "https://pro.kraken.com/app/trade/"
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := k.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = "-"
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + cp.Lower().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

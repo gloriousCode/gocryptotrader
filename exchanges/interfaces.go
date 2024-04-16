@@ -83,6 +83,7 @@ type IBotExchange interface {
 	PrintEnabledPairs()
 	IsVerbose() bool
 	GetCredentials(ctx context.Context) (*credentials.Credentials, error)
+	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.

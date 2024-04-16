@@ -1989,3 +1989,8 @@ func (b *Base) GetExpiredContracts(ctx context.Context, k key.PairAsset, earlies
 	}
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
