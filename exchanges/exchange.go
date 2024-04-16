@@ -1947,6 +1947,38 @@ func (b *Base) IsVerbose() bool {
 	return b.Verbose
 }
 
+// GetDefaultConfig returns a default exchange config
+func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange, error) {
+	if exch == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if exch.GetName() == "" {
+		exch.SetDefaults()
+	}
+
+	b := exch.GetBase()
+
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = exch.UpdateTradablePairs(ctx, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
 // GetExpiredContracts returns previous expired contracts for a given pair
 // its duty is to call an API endpoint to return the contracts, or calculate what previous contract expiries were
 // this will then allow for API call lookup of historical data as exchange APIs rarely provide expired contracts
