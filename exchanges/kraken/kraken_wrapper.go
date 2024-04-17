@@ -1848,7 +1848,6 @@ func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, ear
 	return nil, nil
 }
 
-var tradeBaseURL = "https://pro.kraken.com/app/trade/"
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
