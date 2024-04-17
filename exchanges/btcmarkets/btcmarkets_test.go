@@ -1131,10 +1131,9 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
-		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		assert.NotEmpty(t, url)
-		// no payload check: BTC Markets uses cloudflare, we expect a 403, a user will be redirected
+		assert.NotEmpty(t, resp)
 	}
 }
