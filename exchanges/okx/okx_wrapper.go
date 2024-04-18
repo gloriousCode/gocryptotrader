@@ -312,14 +312,11 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		if err != nil {
 			return err
 		}
-		cv := 1 / insts[x].ContractValue.Float64()
-
 		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   a,
-			PriceStepIncrementSize:  insts[x].TickSize.Float64(),
-			MinimumBaseAmount:       insts[x].MinimumOrderSize.Float64(),
-			AmountStepIncrementSize: cv,
+			Pair:                   pair,
+			Asset:                  a,
+			PriceStepIncrementSize: insts[x].TickSize.Float64(),
+			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 		}
 	}
 
@@ -2263,6 +2260,13 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		if result[i].SettlementCurrency == result[i].BaseCurrency {
 			contractSettlementType = futures.Inverse
 		}
+		var cv float64
+		if result[i].ContractValue.Float64() > 1 {
+			// why? who knows
+			cv = 1 / result[i].ContractValue.Float64()
+		} else {
+			cv = result[i].ContractValue.Float64()
+		}
 		resp[i] = futures.Contract{
 			Exchange:             ok.Name,
 			Name:                 cp,
@@ -2276,7 +2280,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementType:       contractSettlementType,
 			SettlementCurrencies: currency.Currencies{settleCurr},
 			MarginCurrency:       settleCurr,
-			ContractMultiplier:   result[i].ContractMultiplier.Float64(),
+			ContractMultiplier:   cv,
 			MaxLeverage:          result[i].MaxLeverage.Float64(),
 		}
 	}

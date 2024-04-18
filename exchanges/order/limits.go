@@ -376,7 +376,7 @@ func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
 	return dAmount.Sub(mod).InexactFloat64()
 }
 
-// ConformToMarketAmount (POC) conforms amount to its amount interval
+// ConformToMarketAmountWithFallback (POC) conforms amount to its amount interval
 func (m *MinMaxLevel) ConformToMarketAmountWithFallback(amount float64) float64 {
 	if m == nil {
 		return amount

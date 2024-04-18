@@ -283,6 +283,8 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract.
 type Instrument struct {
+	MaxLmtAmt                       string       `json:"maxLmtAmt"`
+	MaxMktAmt                       string       `json:"maxMktAmt"`
 	InstrumentType                  string       `json:"instType"`
 	InstrumentID                    string       `json:"instId"`
 	InstrumentFamily                string       `json:"instFamily"`

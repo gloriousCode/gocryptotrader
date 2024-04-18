@@ -249,10 +249,24 @@ LOOP:
 
 func TestGetInstrument(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
-		InstrumentType: "OPTION",
-		Underlying:     "SOL-USD",
+	ok.Verbose = true
+	resp, err := ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: okxInstTypeSwap,
+		InstrumentID:   "BTC-USDT-SWAP",
 	})
+	t.Logf("%+v", resp)
+	resp, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: okxInstTypeFutures,
+		InstrumentID:   "BTC-USD-240426",
+	})
+	t.Logf("%+v", resp)
+
+	resp, err = ok.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
+		InstrumentType: okxInstTypeFutures,
+		InstrumentID:   "ETH-USDC-240419",
+	})
+	t.Logf("%+v", resp)
+
 	if err != nil {
 		t.Error("Okx GetInstruments() error", err)
 	}
