@@ -467,7 +467,7 @@ func parseLive(reader *bufio.Reader, cfg *config.Config) {
 		}
 		for {
 			var creds config.Credentials
-			fmt.Printf("What is the exchange name? y/n\n")
+			fmt.Printf("What is the exchange name?\n")
 			creds.Exchange = quickParse(reader)
 			fmt.Println("What is the API key?")
 			creds.Keys.Key = quickParse(reader)

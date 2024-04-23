@@ -3693,14 +3693,20 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	resp, err := ok.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	for i := range resp {
+		if resp[i].Name.Quote.Upper().String() == "26APR24" {
+			t.Logf("%+v", resp[i])
+		}
+	}
+	resp, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+	t.Logf("%+v", resp[0])
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {

@@ -2261,27 +2261,30 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			contractSettlementType = futures.Inverse
 		}
 		var cv float64
+		var denomination futures.ContractDenomination
 		if result[i].ContractValue.Float64() > 1 {
-			// why? who knows
-			cv = 1 / result[i].ContractValue.Float64()
+			cv = result[i].ContractValue.Float64()
+			denomination = futures.QuoteDenomination
 		} else {
 			cv = result[i].ContractValue.Float64()
+			denomination = futures.BaseDenomination
 		}
 		resp[i] = futures.Contract{
-			Exchange:             ok.Name,
-			Name:                 cp,
-			Underlying:           underlying,
-			Asset:                item,
-			StartDate:            result[i].ListTime.Time,
-			EndDate:              result[i].ExpTime.Time,
-			IsActive:             result[i].State == "live",
-			Status:               result[i].State,
-			Type:                 ct,
-			SettlementType:       contractSettlementType,
-			SettlementCurrencies: currency.Currencies{settleCurr},
-			MarginCurrency:       settleCurr,
-			ContractMultiplier:   cv,
-			MaxLeverage:          result[i].MaxLeverage.Float64(),
+			Exchange:                  ok.Name,
+			Name:                      cp,
+			Underlying:                underlying,
+			Asset:                     item,
+			StartDate:                 result[i].ListTime.Time,
+			EndDate:                   result[i].ExpTime.Time,
+			IsActive:                  result[i].State == "live",
+			Status:                    result[i].State,
+			Type:                      ct,
+			SettlementType:            contractSettlementType,
+			SettlementCurrencies:      currency.Currencies{settleCurr},
+			MarginCurrency:            settleCurr,
+			ContractMultiplier:        cv,
+			MaxLeverage:               result[i].MaxLeverage.Float64(),
+			ContractValueDenomination: denomination,
 		}
 	}
 	return resp, nil

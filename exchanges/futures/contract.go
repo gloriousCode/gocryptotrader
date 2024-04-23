@@ -30,6 +30,26 @@ type Contract struct {
 	LatestRate                fundingrate.Rate
 	FundingRateFloor          decimal.Decimal
 	FundingRateCeiling        decimal.Decimal
+	ContractValueDenomination ContractDenomination
+}
+
+type ContractDenomination int64
+
+const (
+	UnsetDenomination ContractDenomination = iota
+	BaseDenomination
+	QuoteDenomination
+)
+
+func (c *ContractDenomination) String() string {
+	switch *c {
+	case BaseDenomination:
+		return "base"
+	case QuoteDenomination:
+		return "quote"
+	default:
+		return "unknown"
+	}
 }
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges
