@@ -2260,14 +2260,12 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		if result[i].SettlementCurrency == result[i].BaseCurrency {
 			contractSettlementType = futures.Inverse
 		}
-		var cv float64
+		cvc := currency.NewCode(result[i].ContractValueCurrency)
 		var denomination futures.ContractDenomination
-		if result[i].ContractValue.Float64() > 1 {
-			cv = result[i].ContractValue.Float64()
-			denomination = futures.QuoteDenomination
-		} else {
-			cv = result[i].ContractValue.Float64()
+		if cvc.Equal(underlying.Base) {
 			denomination = futures.BaseDenomination
+		} else if cvc.Equal(underlying.Quote) {
+			denomination = futures.QuoteDenomination
 		}
 		resp[i] = futures.Contract{
 			Exchange:                  ok.Name,
@@ -2282,7 +2280,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			SettlementType:            contractSettlementType,
 			SettlementCurrencies:      currency.Currencies{settleCurr},
 			MarginCurrency:            settleCurr,
-			ContractMultiplier:        cv,
+			ContractMultiplier:        result[i].ContractValue.Float64(),
 			MaxLeverage:               result[i].MaxLeverage.Float64(),
 			ContractValueDenomination: denomination,
 		}
