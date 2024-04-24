@@ -618,6 +618,7 @@ type UFuturesSymbolInfo struct {
 	TimeInForce     []string `json:"timeInForce"`
 	LiquidationFee  float64  `json:"liquidationFee,string"`
 	MarketTakeBound float64  `json:"marketTakeBound,string"`
+	ContractSize    float64  `json:"contractSize,string"`
 }
 
 // CExchangeInfo stores exchange info for cfutures
@@ -652,7 +653,7 @@ type CExchangeInfo struct {
 		DeliveryDate          binanceTime `json:"deliveryDate"`
 		OnboardDate           binanceTime `json:"onboardDate"`
 		ContractStatus        string      `json:"contractStatus"`
-		ContractSize          int64       `json:"contractSize"`
+		ContractSize          float64     `json:"contractSize"`
 		QuoteAsset            string      `json:"quoteAsset"`
 		BaseAsset             string      `json:"baseAsset"`
 		MarginAsset           string      `json:"marginAsset"`

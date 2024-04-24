@@ -2933,20 +2933,21 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:           b.Name,
-				Name:               cp,
-				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:              item,
-				SettlementType:     futures.Linear,
-				StartDate:          ei.Symbols[i].OnboardDate.Time(),
-				EndDate:            ed,
-				IsActive:           ei.Symbols[i].Status == "TRADING",
-				Status:             ei.Symbols[i].Status,
-				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
-				Type:               ct,
-				FundingRateFloor:   fundingRateFloor,
-				FundingRateCeiling: fundingRateCeil,
-				ContractMultiplier: ei.Symbols[i].Filters[0].TickSize,
+				Exchange:                  b.Name,
+				Name:                      cp,
+				Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:                     item,
+				SettlementType:            futures.Linear,
+				StartDate:                 ei.Symbols[i].OnboardDate.Time(),
+				EndDate:                   ed,
+				IsActive:                  ei.Symbols[i].Status == "TRADING",
+				Status:                    ei.Symbols[i].Status,
+				MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:                      ct,
+				FundingRateFloor:          fundingRateFloor,
+				FundingRateCeiling:        fundingRateCeil,
+				ContractMultiplier:        ei.Symbols[i].Filters[0].MinPrice,
+				ContractValueDenomination: futures.BaseDenomination,
 			})
 		}
 		return resp, nil
@@ -2986,19 +2987,20 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:           b.Name,
-				Name:               cp,
-				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:              item,
-				StartDate:          ei.Symbols[i].OnboardDate.Time(),
-				EndDate:            ed,
-				IsActive:           ei.Symbols[i].ContractStatus == "TRADING",
-				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
-				SettlementType:     futures.Inverse,
-				Type:               ct,
-				FundingRateFloor:   fundingRateFloor,
-				FundingRateCeiling: fundingRateCeil,
-				ContractMultiplier: ei.Symbols[i].Filters[0].TickSize,
+				Exchange:                  b.Name,
+				Name:                      cp,
+				Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:                     item,
+				StartDate:                 ei.Symbols[i].OnboardDate.Time(),
+				EndDate:                   ed,
+				IsActive:                  ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
+				SettlementType:            futures.Inverse,
+				Type:                      ct,
+				FundingRateFloor:          fundingRateFloor,
+				FundingRateCeiling:        fundingRateCeil,
+				ContractMultiplier:        ei.Symbols[i].ContractSize,
+				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
 		return resp, nil
