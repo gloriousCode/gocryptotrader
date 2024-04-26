@@ -2946,7 +2946,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:                      ct,
 				FundingRateFloor:          fundingRateFloor,
 				FundingRateCeiling:        fundingRateCeil,
-				ContractMultiplier:        ei.Symbols[i].Filters[0].MinPrice,
+				ContractMultiplier:        1,
 				ContractValueDenomination: futures.BaseDenomination,
 			})
 		}
@@ -2986,6 +2986,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
+
 			resp = append(resp, futures.Contract{
 				Exchange:                  b.Name,
 				Name:                      cp,
