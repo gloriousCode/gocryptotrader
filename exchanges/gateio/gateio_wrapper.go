@@ -1001,9 +1001,6 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	s.Pair = s.Pair.Upper()
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if s.Type != order.Limit {
-			return nil, errOnlyLimitOrderType
-		}
 		switch {
 		case s.Side.IsLong():
 			s.Side = order.Buy
@@ -1011,6 +1008,10 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			s.Side = order.Sell
 		default:
 			return nil, errInvalidOrderSide
+		}
+		timeInForce, err := getTimeInForce(s)
+		if err != nil {
+			return nil, err
 		}
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
 			Side:         s.Side.Lower(),
@@ -1020,6 +1021,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Price:        types.Number(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
+			TimeInForce:  timeInForce,
 		})
 		if err != nil {
 			return nil, err
