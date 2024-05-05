@@ -2739,7 +2739,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		resp, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
-		if a != asset.Spot {
+		if a != asset.Spot && a != asset.Futures {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)
 			continue
 		}

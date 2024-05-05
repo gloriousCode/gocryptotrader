@@ -1979,6 +1979,11 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	return exchCfg, nil
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
 // GetExpiredContracts returns previous expired contracts for a given pair
 // its duty is to call an API endpoint to return the contracts, or calculate what previous contract expiries were
 // this will then allow for API call lookup of historical data as exchange APIs rarely provide expired contracts
@@ -1990,7 +1995,3 @@ func (b *Base) GetExpiredContracts(ctx context.Context, k key.PairAsset, earlies
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
-	return "", common.ErrFunctionNotSupported
-}
