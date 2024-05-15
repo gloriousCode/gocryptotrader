@@ -828,8 +828,8 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		Pair:                   channelData.Pair,
 		Asset:                  asset.Spot,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
-		Bids:                   make(orderbook.Items, len(bidData)),
-		Asks:                   make(orderbook.Items, len(askData)),
+		Bids:                   make(orderbook.Tranches, len(bidData)),
+		Asks:                   make(orderbook.Tranches, len(askData)),
 		MaxDepth:               channelData.MaxDepth,
 		ChecksumStringRequired: true,
 	}
@@ -869,7 +869,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if err != nil {
 			return err
 		}
-		base.Asks[i] = orderbook.Item{
+		base.Asks[i] = orderbook.Tranche{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -914,7 +914,7 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 			return err
 		}
 
-		base.Bids[i] = orderbook.Item{
+		base.Bids[i] = orderbook.Tranche{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -936,8 +936,8 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	update := orderbook.Update{
 		Asset: asset.Spot,
 		Pair:  channelData.Pair,
-		Bids:  make([]orderbook.Item, len(bidData)),
-		Asks:  make([]orderbook.Item, len(askData)),
+		Bids:  make([]orderbook.Tranche, len(bidData)),
+		Asks:  make([]orderbook.Tranche, len(askData)),
 	}
 
 	// Calculating checksum requires incoming decimal place checks for both
@@ -982,7 +982,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		update.Asks[i] = orderbook.Item{
+		update.Asks[i] = orderbook.Tranche{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,
@@ -1032,7 +1032,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 			return err
 		}
 
-		update.Bids[i] = orderbook.Item{
+		update.Bids[i] = orderbook.Tranche{
 			Amount:    amount,
 			StrAmount: amountStr,
 			Price:     price,

@@ -535,6 +535,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return err
 	}
 
+	// TODO investigate this
 	for x := range result.Trades {
 		g.Websocket.DataHandler <- &ticker.Price{
 			Last:         result.Trades[x].Price,
@@ -544,7 +545,10 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			LastUpdated:  time.UnixMilli(result.Trades[x].Timestamp),
 		}
 	}
-	return nil
+
+	bids := make([]orderbook.Tranche, 0, len(result.Changes))
+	asks := make([]orderbook.Tranche, 0, len(result.Changes))
+
 
 	bids := make([]orderbook.Item, 0, len(result.Changes))
 	asks := make([]orderbook.Item, 0, len(result.Changes))
@@ -558,7 +562,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if err != nil {
 			return err
 		}
-		obItem := orderbook.Item{
+		obItem := orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}

@@ -289,8 +289,8 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		Pair:        data.CurrencyPair,
 		Asset:       asset.Spot,
 		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
-		Bids:        []orderbook.Item{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Item{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Bids:        []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+		Asks:        []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
 	})
 }
 
@@ -325,7 +325,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 		UpdateTime: data.UpdateTimeMs.Time(),
 		Pair:       data.CurrencyPair,
 	}
-	updates.Asks = make([]orderbook.Item, len(data.Asks))
+	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		updates.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
@@ -336,7 +336,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 			return err
 		}
 	}
-	updates.Bids = make([]orderbook.Item, len(data.Bids))
+	updates.Bids = make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
 		updates.Bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
 		if err != nil {
@@ -391,7 +391,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 		LastUpdateID:    data.LastUpdateID,
 		VerifyOrderbook: g.CanVerifyOrderbook,
 	}
-	bases.Asks = make([]orderbook.Item, len(data.Asks))
+	bases.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		bases.Asks[x].Price, err = strconv.ParseFloat(data.Asks[x][0], 64)
 		if err != nil {
@@ -402,7 +402,7 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte) error {
 			return err
 		}
 	}
-	bases.Bids = make([]orderbook.Item, len(data.Bids))
+	bases.Bids = make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
 		bases.Bids[x].Price, err = strconv.ParseFloat(data.Bids[x][0], 64)
 		if err != nil {

@@ -270,6 +270,9 @@ func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	if !by.SupportsAsset(a) {
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
 	var pair currency.Pair
 	var category string
 	format, err := by.GetPairFormat(a, false)
@@ -291,13 +294,19 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		allPairs = response.List
 	case asset.Options:
 		category = getCategoryName(a)
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-			if err != nil {
-				return nil, err
+		for x := range supportedOptionsTypes {
+			var bookmark = ""
+			for {
+				response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], bookmark, int64(by.Features.Enabled.Kline.GlobalResultLimit))
+				if err != nil {
+					return nil, err
+				}
+				allPairs = append(allPairs, response.List...)
+				if response.NextPageCursor == "" || (bookmark != "" && bookmark == response.NextPageCursor) || len(response.List) == 0 {
+					break
+				}
+				bookmark = response.NextPageCursor
 			}
-			allPairs = append(allPairs, response.List...)
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
@@ -436,9 +445,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.Options:
-		baseCoins := []string{"BTC", "ETH"}
-		for x := range baseCoins {
-			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoins[x], time.Time{})
+		for x := range supportedOptionsTypes {
+			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", supportedOptionsTypes[x], time.Time{})
 			if err != nil {
 				return err
 			}
@@ -541,17 +549,17 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Item, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Item, len(orderbookNew.Asks)),
+		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
+		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
 	}
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Amount,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Amount,
 			Price:  orderbookNew.Asks[x].Price,
 		}
