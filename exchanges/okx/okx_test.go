@@ -3816,3 +3816,21 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	resp, err := ok.GetHistoricalContractKlineData(
+		context.Background(),
+		key.PairAsset{
+			Base:  currency.BTC.Item,
+			Quote: currency.USD.Item,
+			Asset: asset.Futures,
+		},
+		time.Now().Add(-time.Hour*24*30),
+		kline.OneHour,
+		futures.Weekly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%+v", resp)
+}

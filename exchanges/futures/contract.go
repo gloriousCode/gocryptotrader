@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // Contract holds details on futures contracts
@@ -31,6 +32,15 @@ type Contract struct {
 	FundingRateFloor          decimal.Decimal
 	FundingRateCeiling        decimal.Decimal
 	ContractValueDenomination ContractDenomination
+}
+
+type HistoricalContractKline struct {
+	Data []ContractKline
+}
+
+type ContractKline struct {
+	Contract Contract
+	Kline    []kline.Item
 }
 
 type ContractDenomination int64

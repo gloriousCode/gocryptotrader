@@ -2424,3 +2424,69 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 }
+
+func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, underlying key.PairAsset, startDate time.Time, interval kline.Interval, contractType futures.ContractType) (*futures.HistoricalContractKline, error) {
+	instType := ok.GetInstrumentTypeFromAssetItem(underlying.Asset)
+	results, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		InstrumentType: instType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i := range results {
+		underlyingPair, err := currency.NewPairFromString(results[i].Underlying)
+		if err != nil {
+			return nil, err
+		}
+
+		if !underlyingPair.Equal(underlying.Pair()) {
+			continue
+		}
+		cp, err = currency.NewPairFromString(result[i].InstrumentID)
+		if err != nil {
+			return nil, err
+		}
+		settleCurr := currency.NewCode(result[i].SettlementCurrency)
+		var ct futures.ContractType
+		if item == asset.PerpetualSwap {
+			ct = futures.Perpetual
+		} else {
+			switch result[i].Alias {
+			case "this_week", "next_week":
+				ct = futures.Weekly
+			case "quarter", "next_quarter":
+				ct = futures.Quarterly
+			}
+		}
+		contractSettlementType := futures.Linear
+		if result[i].SettlementCurrency == result[i].BaseCurrency {
+			contractSettlementType = futures.Inverse
+		}
+		cvc := currency.NewCode(result[i].ContractValueCurrency)
+		var denomination futures.ContractDenomination
+		if cvc.Equal(underlying.Base) {
+			denomination = futures.BaseDenomination
+		} else if cvc.Equal(underlying.Quote) {
+			denomination = futures.QuoteDenomination
+		}
+		contract := futures.Contract{
+			Exchange:                  ok.Name,
+			Name:                      cp,
+			Underlying:                underlying,
+			Asset:                     item,
+			StartDate:                 result[i].ListTime.Time,
+			EndDate:                   result[i].ExpTime.Time,
+			IsActive:                  result[i].State == "live",
+			Status:                    result[i].State,
+			Type:                      ct,
+			SettlementType:            contractSettlementType,
+			SettlementCurrencies:      currency.Currencies{settleCurr},
+			MarginCurrency:            settleCurr,
+			ContractMultiplier:        result[i].ContractValue.Float64(),
+			MaxLeverage:               result[i].MaxLeverage.Float64(),
+			ContractValueDenomination: denomination,
+		}
+		log.Debugf(log.ExchangeSys, "Found instrument: %v", results[i].InstrumentID)
+	}
+	return nil, nil
+}
