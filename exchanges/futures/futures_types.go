@@ -42,6 +42,7 @@ var (
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
 	ErrOrderHistoryTooLarge     = errors.New("order history start date too long ago")
 	ErrContractTypeNotSupported = errors.New("contract type not supported")
+	ErrContractMismatch         = errors.New("contract mismatch")
 
 	errExchangeNameEmpty              = errors.New("exchange name empty")
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")

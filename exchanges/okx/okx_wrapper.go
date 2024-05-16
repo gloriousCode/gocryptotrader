@@ -2235,57 +2235,65 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 	}
 	resp := make([]futures.Contract, len(result))
 	for i := range result {
-		var cp, underlying currency.Pair
-		underlying, err = currency.NewPairFromString(result[i].Underlying)
+		var contract *futures.Contract
+		contract, err = ok.instrumentResultToContract(&result[i], item)
 		if err != nil {
 			return nil, err
 		}
-		cp, err = currency.NewPairFromString(result[i].InstrumentID)
-		if err != nil {
-			return nil, err
-		}
-		settleCurr := currency.NewCode(result[i].SettlementCurrency)
-		var ct futures.ContractType
-		if item == asset.PerpetualSwap {
-			ct = futures.Perpetual
-		} else {
-			switch result[i].Alias {
-			case "this_week", "next_week":
-				ct = futures.Weekly
-			case "quarter", "next_quarter":
-				ct = futures.Quarterly
-			}
-		}
-		contractSettlementType := futures.Linear
-		if result[i].SettlementCurrency == result[i].BaseCurrency {
-			contractSettlementType = futures.Inverse
-		}
-		cvc := currency.NewCode(result[i].ContractValueCurrency)
-		var denomination futures.ContractDenomination
-		if cvc.Equal(underlying.Base) {
-			denomination = futures.BaseDenomination
-		} else if cvc.Equal(underlying.Quote) {
-			denomination = futures.QuoteDenomination
-		}
-		resp[i] = futures.Contract{
-			Exchange:                  ok.Name,
-			Name:                      cp,
-			Underlying:                underlying,
-			Asset:                     item,
-			StartDate:                 result[i].ListTime.Time,
-			EndDate:                   result[i].ExpTime.Time,
-			IsActive:                  result[i].State == "live",
-			Status:                    result[i].State,
-			Type:                      ct,
-			SettlementType:            contractSettlementType,
-			SettlementCurrencies:      currency.Currencies{settleCurr},
-			MarginCurrency:            settleCurr,
-			ContractMultiplier:        result[i].ContractValue.Float64(),
-			MaxLeverage:               result[i].MaxLeverage.Float64(),
-			ContractValueDenomination: denomination,
-		}
+		resp[i] = *contract
 	}
 	return resp, nil
+}
+
+func (ok *Okx) instrumentResultToContract(instrumentResult *Instrument, item asset.Item) (*futures.Contract, error) {
+	underlying, err := currency.NewPairFromString(instrumentResult.Underlying)
+	if err != nil {
+		return nil, err
+	}
+	cp, err := currency.NewPairFromString(instrumentResult.InstrumentID)
+	if err != nil {
+		return nil, err
+	}
+	settleCurr := currency.NewCode(instrumentResult.SettlementCurrency)
+	var ct futures.ContractType
+	if item == asset.PerpetualSwap {
+		ct = futures.Perpetual
+	} else {
+		switch instrumentResult.Alias {
+		case "this_week", "next_week":
+			ct = futures.Weekly
+		case "quarter", "next_quarter":
+			ct = futures.Quarterly
+		}
+	}
+	contractSettlementType := futures.Linear
+	if instrumentResult.SettlementCurrency == instrumentResult.BaseCurrency {
+		contractSettlementType = futures.Inverse
+	}
+	cvc := currency.NewCode(instrumentResult.ContractValueCurrency)
+	var denomination futures.ContractDenomination
+	if cvc.Equal(underlying.Base) {
+		denomination = futures.BaseDenomination
+	} else if cvc.Equal(underlying.Quote) {
+		denomination = futures.QuoteDenomination
+	}
+	return &futures.Contract{
+		Exchange:                  ok.Name,
+		Name:                      cp,
+		Underlying:                underlying,
+		Asset:                     item,
+		StartDate:                 instrumentResult.ListTime.Time,
+		EndDate:                   instrumentResult.ExpTime.Time,
+		IsActive:                  instrumentResult.State == "live",
+		Status:                    instrumentResult.State,
+		Type:                      ct,
+		SettlementType:            contractSettlementType,
+		SettlementCurrencies:      currency.Currencies{settleCurr},
+		MarginCurrency:            settleCurr,
+		ContractMultiplier:        instrumentResult.ContractValue.Float64(),
+		MaxLeverage:               instrumentResult.MaxLeverage.Float64(),
+		ContractValueDenomination: denomination,
+	}, nil
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
@@ -2425,68 +2433,115 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 	}
 }
 
-func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, underlying key.PairAsset, startDate time.Time, interval kline.Interval, contractType futures.ContractType) (*futures.HistoricalContractKline, error) {
-	instType := ok.GetInstrumentTypeFromAssetItem(underlying.Asset)
+func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairAsset, startDate time.Time, interval kline.Interval, contractType futures.ContractType) (*futures.HistoricalContractKline, error) {
+	instType := ok.GetInstrumentTypeFromAssetItem(kpa.Asset)
 	results, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 		InstrumentType: instType,
+		Underlying:     fmt.Sprintf("%s-%s", kpa.Pair().Base, kpa.Pair().Quote),
 	})
 	if err != nil {
 		return nil, err
 	}
+	cpstr := fmt.Sprintf("%v-%v", kpa.Pair().Base.String(), kpa.Pair().Quote.String())
 	for i := range results {
+		if results[i].Underlying != cpstr {
+			continue
+		}
 		underlyingPair, err := currency.NewPairFromString(results[i].Underlying)
 		if err != nil {
 			return nil, err
 		}
-
-		if !underlyingPair.Equal(underlying.Pair()) {
+		underlyingPair.Delimiter = ""
+		var ct futures.ContractType
+		var currencyLookup string
+		switch results[i].Alias {
+		case "this_week":
+			ct = futures.Weekly
+			currencyLookup = underlyingPair.Lower().String() + "-weekly"
+		case "next_week":
+			ct = futures.Fortnightly
+			currencyLookup = underlyingPair.Lower().String() + "-biweekly"
+		case "this_month":
+			ct = futures.Monthly
+			currencyLookup = underlyingPair.Lower().String() + "-monthly"
+		case "next_month":
+			ct = futures.BiMonthly
+			currencyLookup = underlyingPair.Lower().String() + "-bimonthly"
+		case "quarter":
+			ct = futures.Quarterly
+			currencyLookup = underlyingPair.Lower().String() + "-quarterly"
+		case "next_quarter":
+			ct = futures.BiQuarterly
+			currencyLookup = underlyingPair.Lower().String() + "-biquarterly"
+		default:
+			return nil, fmt.Errorf("%w %v", futures.ErrContractTypeNotSupported, results[i].Alias)
+		}
+		if contractType != ct {
 			continue
 		}
-		cp, err = currency.NewPairFromString(result[i].InstrumentID)
+		fuckYou, err := currency.NewPairFromString(currencyLookup)
 		if err != nil {
 			return nil, err
 		}
-		settleCurr := currency.NewCode(result[i].SettlementCurrency)
-		var ct futures.ContractType
-		if item == asset.PerpetualSwap {
-			ct = futures.Perpetual
-		} else {
-			switch result[i].Alias {
-			case "this_week", "next_week":
-				ct = futures.Weekly
-			case "quarter", "next_quarter":
-				ct = futures.Quarterly
+
+		limit, err := ok.Features.Enabled.Kline.GetIntervalResultLimit(interval)
+		if err != nil {
+			return nil, err
+		}
+
+		r, err := kline.CreateKlineRequest(ok.Name, fuckYou, fuckYou, kpa.Asset, interval, interval, startDate, time.Now(), limit)
+		if err != nil {
+			return nil, err
+		}
+		r.IsExtended = true
+
+		dates, err := r.GetRanges(uint32(limit))
+		if err != nil {
+			return nil, err
+		}
+
+		req := &kline.ExtendedRequest{Request: r, RangeHolder: dates}
+
+		timeSeries := make([]kline.Candle, 0, req.Size())
+		for y := range req.RangeHolder.Ranges {
+			var candles []CandleStick
+			candles, err = ok.GetCandlesticksHistory(ctx,
+				results[i].InstrumentID,
+				req.ExchangeInterval,
+				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+				req.RangeHolder.Ranges[y].End.Time,
+				300)
+			if err != nil {
+				return nil, err
+			}
+			for x := range candles {
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   candles[x].OpenTime,
+					Open:   candles[x].OpenPrice,
+					High:   candles[x].HighestPrice,
+					Low:    candles[x].LowestPrice,
+					Close:  candles[x].ClosePrice,
+					Volume: candles[x].Volume,
+				})
 			}
 		}
-		contractSettlementType := futures.Linear
-		if result[i].SettlementCurrency == result[i].BaseCurrency {
-			contractSettlementType = futures.Inverse
+		klines, err := req.ProcessResponse(timeSeries)
+		if err != nil {
+			return nil, err
 		}
-		cvc := currency.NewCode(result[i].ContractValueCurrency)
-		var denomination futures.ContractDenomination
-		if cvc.Equal(underlying.Base) {
-			denomination = futures.BaseDenomination
-		} else if cvc.Equal(underlying.Quote) {
-			denomination = futures.QuoteDenomination
+		c, err := ok.instrumentResultToContract(&results[i], kpa.Asset)
+		if err != nil {
+			return nil, err
 		}
-		contract := futures.Contract{
-			Exchange:                  ok.Name,
-			Name:                      cp,
-			Underlying:                underlying,
-			Asset:                     item,
-			StartDate:                 result[i].ListTime.Time,
-			EndDate:                   result[i].ExpTime.Time,
-			IsActive:                  result[i].State == "live",
-			Status:                    result[i].State,
-			Type:                      ct,
-			SettlementType:            contractSettlementType,
-			SettlementCurrencies:      currency.Currencies{settleCurr},
-			MarginCurrency:            settleCurr,
-			ContractMultiplier:        result[i].ContractValue.Float64(),
-			MaxLeverage:               result[i].MaxLeverage.Float64(),
-			ContractValueDenomination: denomination,
-		}
-		log.Debugf(log.ExchangeSys, "Found instrument: %v", results[i].InstrumentID)
+		return &futures.HistoricalContractKline{
+			Data: []futures.ContractKline{
+				{
+					Contract: c,
+					Kline:    klines,
+				},
+			},
+		}, nil
 	}
-	return nil, nil
+
+	return nil, fmt.Errorf("%w %v %v", futures.ErrContractMismatch, kpa, contractType)
 }

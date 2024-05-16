@@ -3823,14 +3823,13 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 		context.Background(),
 		key.PairAsset{
 			Base:  currency.BTC.Item,
-			Quote: currency.USD.Item,
+			Quote: currency.USDT.Item,
 			Asset: asset.Futures,
 		},
-		time.Now().Add(-time.Hour*24*30),
-		kline.OneHour,
+		time.Now().Add(-time.Hour*24*90),
+		kline.OneDay,
 		futures.Weekly)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("%+v", resp)
 }

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -35,15 +36,27 @@ type Contract struct {
 }
 
 type HistoricalContractKline struct {
-	Data []ContractKline
+	RequestKey key.PairAsset
+	Data       []ContractKline
 }
 
 type ContractKline struct {
-	Contract Contract
-	Kline    []kline.Item
+	Contract *Contract
+	Kline    *kline.Item
 }
 
 type ContractDenomination int64
+
+type GetKlineContractRequest struct {
+	ContractPair currency.Pair
+	// used for okx
+	UnderlyingPair currency.Pair
+	Asset          asset.Item
+	StartDate      time.Time
+	EndDate        time.Time
+	Interval       kline.Interval
+	Contract       ContractType
+}
 
 const (
 	UnsetDenomination ContractDenomination = iota
@@ -104,7 +117,9 @@ const (
 	Fortnightly
 	ThreeWeekly
 	Monthly
+	BiMonthly
 	Quarterly
+	BiQuarterly
 	SemiAnnually
 	HalfYearly
 	NineMonthly
