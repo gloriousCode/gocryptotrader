@@ -2903,7 +2903,6 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if err != nil {
 			return nil, err
 		}
-
 		ei, err := b.UExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -2926,11 +2925,29 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			}
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
 				ct = futures.Perpetual
-			} else {
+			case "CURRENT_MONTH":
+				ct = futures.Monthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "NEXT_MONTH":
+				ct = futures.BiMonthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "CURRENT_QUARTER":
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
+				if ed.After(time.Now().Add(kline.ThreeMonth.Duration())) {
+					ct = futures.BiQuarterly
+				}
+			case "NEXT_QUARTER":
+				ct = futures.BiQuarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			default:
+				ed = ei.Symbols[i].DeliveryDate.Time()
+				if ed.IsZero() {
+					ct = futures.Perpetual
+				}
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:                  b.Name,
@@ -2980,11 +2997,29 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote.Equal(currency.PERP) {
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
 				ct = futures.Perpetual
-			} else {
+			case "CURRENT_MONTH":
+				ct = futures.Monthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "NEXT_MONTH":
+				ct = futures.BiMonthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "CURRENT_QUARTER":
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
+				if ed.After(time.Now().Add(kline.ThreeMonth.Duration())) {
+					ct = futures.BiQuarterly
+				}
+			case "NEXT_QUARTER":
+				ct = futures.BiQuarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			default:
+				ed = ei.Symbols[i].DeliveryDate.Time()
+				if ed.IsZero() {
+					ct = futures.Perpetual
+				}
 			}
 
 			resp = append(resp, futures.Contract{
@@ -3124,4 +3159,28 @@ func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curr
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	fcd, err := b.GetFuturesContractDetails(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	for i := range fcd {
+		sd := fcd[i].StartDate
+		ed := time.Now()
+		switch fcd[i].Type {
+		case futures.Perpetual:
+
+		default:
+			switch
+		}
+	}
+	return nil, nil
 }

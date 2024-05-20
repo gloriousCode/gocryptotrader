@@ -1,6 +1,7 @@
 package futures
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -42,6 +43,7 @@ type HistoricalContractKline struct {
 
 type ContractKline struct {
 	Contract *Contract
+	Aliases  []string
 	Kline    *kline.Item
 }
 
@@ -57,6 +59,8 @@ type GetKlineContractRequest struct {
 	Interval       kline.Interval
 	Contract       ContractType
 }
+
+var ErrUnderlyingPairRequired = errors.New("underlying pair required")
 
 const (
 	UnsetDenomination ContractDenomination = iota
@@ -155,8 +159,12 @@ func (c ContractType) String() string {
 		return "three-weekly"
 	case Monthly:
 		return "monthly"
+	case BiMonthly:
+		return "bi-monthly"
 	case Quarterly:
 		return "quarterly"
+	case BiQuarterly:
+		return "bi-quarterly"
 	case SemiAnnually:
 		return "semi-annually"
 	case HalfYearly:
@@ -168,6 +176,6 @@ func (c ContractType) String() string {
 	case Unknown:
 		return "unknown"
 	default:
-		return "unset"
+		return "unset/undefined contract type"
 	}
 }

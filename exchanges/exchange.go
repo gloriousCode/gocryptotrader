@@ -1984,14 +1984,6 @@ func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (
 	return "", common.ErrFunctionNotSupported
 }
 
-// GetExpiredContracts returns previous expired contracts for a given pair
-// its duty is to call an API endpoint to return the contracts, or calculate what previous contract expiries were
-// this will then allow for API call lookup of historical data as exchange APIs rarely provide expired contracts
-// in their pair lists
-func (b *Base) GetExpiredContracts(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
-	if !k.Asset.IsFutures() {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
-	}
+func (b *Base) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	return nil, common.ErrNotYetImplemented
 }
-

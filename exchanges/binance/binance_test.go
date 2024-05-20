@@ -198,10 +198,12 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUExchangeInfo(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.UExchangeInfo(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 2)
 }
 
 func TestUFuturesOrderbook(t *testing.T) {
@@ -2135,7 +2137,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	}}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := b.SeedLocalCacheWithBook(p, &book); err != nil {
+	if err := b.SeedLocalCacheWithBook(p, &book, asset.Spot); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2426,7 +2428,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()
-	err := b.SeedLocalCache(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	err := b.SeedLocalCache(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2509,12 +2511,12 @@ func TestProcessUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = b.obm.fetchBookViaREST(p)
+	err = b.obm.fetchBookViaREST(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = b.obm.cleanup(p)
+	err = b.obm.cleanup(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3442,13 +3444,26 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	resp, err := b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	assert.NotEmpty(t, resp)
+	for i := range resp {
+
+		if resp[i].Type != futures.Perpetual {
+			fmt.Println(resp[i])
+		}
+	}
+	resp, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+	for i := range resp {
+
+		if resp[i].Type != futures.Perpetual {
+			fmt.Println(resp[i])
+		}
 	}
 }
 

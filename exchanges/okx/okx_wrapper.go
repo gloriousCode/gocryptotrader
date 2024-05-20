@@ -2433,16 +2433,22 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 	}
 }
 
-func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairAsset, startDate time.Time, interval kline.Interval, contractType futures.ContractType) (*futures.HistoricalContractKline, error) {
-	instType := ok.GetInstrumentTypeFromAssetItem(kpa.Asset)
+func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if req.UnderlyingPair.IsEmpty() {
+		return nil, futures.ErrUnderlyingPairRequired
+	}
+	instType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
 	results, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
 		InstrumentType: instType,
-		Underlying:     fmt.Sprintf("%s-%s", kpa.Pair().Base, kpa.Pair().Quote),
+		Underlying:     fmt.Sprintf("%s-%s", req.UnderlyingPair.Base, req.UnderlyingPair.Quote),
 	})
 	if err != nil {
 		return nil, err
 	}
-	cpstr := fmt.Sprintf("%v-%v", kpa.Pair().Base.String(), kpa.Pair().Quote.String())
+	cpstr := fmt.Sprintf("%v-%v", req.UnderlyingPair.Base.String(), req.UnderlyingPair.Quote.String())
 	for i := range results {
 		if results[i].Underlying != cpstr {
 			continue
@@ -2453,30 +2459,37 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairA
 		}
 		underlyingPair.Delimiter = ""
 		var ct futures.ContractType
+		var backDateInterval time.Duration
 		var currencyLookup string
 		switch results[i].Alias {
 		case "this_week":
 			ct = futures.Weekly
 			currencyLookup = underlyingPair.Lower().String() + "-weekly"
+			backDateInterval = -time.Hour * 24 * 7
 		case "next_week":
 			ct = futures.Fortnightly
 			currencyLookup = underlyingPair.Lower().String() + "-biweekly"
+			backDateInterval = -time.Hour * 24 * 14
 		case "this_month":
 			ct = futures.Monthly
 			currencyLookup = underlyingPair.Lower().String() + "-monthly"
+			backDateInterval = -time.Hour * 24 * 30
 		case "next_month":
 			ct = futures.BiMonthly
 			currencyLookup = underlyingPair.Lower().String() + "-bimonthly"
+			backDateInterval = -time.Hour * 24 * 60
 		case "quarter":
 			ct = futures.Quarterly
 			currencyLookup = underlyingPair.Lower().String() + "-quarterly"
+			backDateInterval = -time.Hour * 24 * 90
 		case "next_quarter":
 			ct = futures.BiQuarterly
 			currencyLookup = underlyingPair.Lower().String() + "-biquarterly"
+			backDateInterval = -time.Hour * 24 * 180
 		default:
 			return nil, fmt.Errorf("%w %v", futures.ErrContractTypeNotSupported, results[i].Alias)
 		}
-		if contractType != ct {
+		if req.Contract != ct {
 			continue
 		}
 		fuckYou, err := currency.NewPairFromString(currencyLookup)
@@ -2484,12 +2497,12 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairA
 			return nil, err
 		}
 
-		limit, err := ok.Features.Enabled.Kline.GetIntervalResultLimit(interval)
+		limit, err := ok.Features.Enabled.Kline.GetIntervalResultLimit(req.Interval)
 		if err != nil {
 			return nil, err
 		}
 
-		r, err := kline.CreateKlineRequest(ok.Name, fuckYou, fuckYou, kpa.Asset, interval, interval, startDate, time.Now(), limit)
+		r, err := kline.CreateKlineRequest(ok.Name, fuckYou, fuckYou, req.Asset, req.Interval, req.Interval, req.StartDate, time.Now(), limit)
 		if err != nil {
 			return nil, err
 		}
@@ -2529,10 +2542,11 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairA
 		if err != nil {
 			return nil, err
 		}
-		c, err := ok.instrumentResultToContract(&results[i], kpa.Asset)
+		c, err := ok.instrumentResultToContract(&results[i], req.Asset)
 		if err != nil {
 			return nil, err
 		}
+
 		return &futures.HistoricalContractKline{
 			Data: []futures.ContractKline{
 				{
@@ -2543,5 +2557,5 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, kpa key.PairA
 		}, nil
 	}
 
-	return nil, fmt.Errorf("%w %v %v", futures.ErrContractMismatch, kpa, contractType)
+	return nil, fmt.Errorf("%w %v %v", futures.ErrContractMismatch, req.UnderlyingPair, req.Contract)
 }
