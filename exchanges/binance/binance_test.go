@@ -3562,9 +3562,5 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 		Contract:       futures.Quarterly,
 	})
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	for i := range resp.Data {
-		t.Log(*resp.Data[i].Contract)
-		t.Log(len(resp.Data[i].Kline.Candles))
-	}
+	require.NotEmpty(t, resp.Data)
 }

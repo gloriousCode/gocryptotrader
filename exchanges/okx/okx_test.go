@@ -3819,18 +3819,18 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGetHistoricalContractKlineData(t *testing.T) {
 	t.Parallel()
+	ok.Verbose = true
 	resp, err := ok.GetHistoricalContractKlineData(
 		context.Background(),
-		key.PairAsset{
-			Base:  currency.BTC.Item,
-			Quote: currency.USDT.Item,
-			Asset: asset.Futures,
+		&futures.GetKlineContractRequest{
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 90),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.Weekly,
 		},
-		time.Now().Add(-time.Hour*24*90),
-		kline.OneDay,
-		futures.Weekly)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(resp)
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
 }
