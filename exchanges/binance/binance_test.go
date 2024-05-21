@@ -3467,6 +3467,26 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	}
 }
 
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	ct, _, _, err := b.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+
+	ct, _, _, err = b.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+}
+
+func TestGetExpiredContractsFromDate(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	resp, err := b.GetLongDatedContractsFromDate(context.Background(), asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+}
+
 func TestGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFundingRateInfo(context.Background())
@@ -3528,5 +3548,23 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	resp, err := b.GetHistoricalContractKlineData(context.Background(), &futures.GetKlineContractRequest{
+		UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+		Asset:          asset.USDTMarginedFutures,
+		StartDate:      time.Now().Add(-time.Hour * 24 * 365),
+		EndDate:        time.Now(),
+		Interval:       kline.OneDay,
+		Contract:       futures.Quarterly,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	for i := range resp.Data {
+		t.Log(*resp.Data[i].Contract)
+		t.Log(len(resp.Data[i].Kline.Candles))
 	}
 }

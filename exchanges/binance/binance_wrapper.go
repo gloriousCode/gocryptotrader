@@ -2923,8 +2923,8 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			if err != nil {
 				return nil, err
 			}
-			var ct futures.ContractType
 			var ed time.Time
+			var ct futures.ContractType
 			switch ei.Symbols[i].ContractType {
 			case "PERPETUAL":
 				ct = futures.Perpetual
@@ -2937,17 +2937,9 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			case "CURRENT_QUARTER":
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-				if ed.After(time.Now().Add(kline.ThreeMonth.Duration())) {
-					ct = futures.BiQuarterly
-				}
 			case "NEXT_QUARTER":
 				ct = futures.BiQuarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			default:
-				ed = ei.Symbols[i].DeliveryDate.Time()
-				if ed.IsZero() {
-					ct = futures.Perpetual
-				}
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:                  b.Name,
@@ -3009,17 +3001,9 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			case "CURRENT_QUARTER":
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-				if ed.After(time.Now().Add(kline.ThreeMonth.Duration())) {
-					ct = futures.BiQuarterly
-				}
 			case "NEXT_QUARTER":
 				ct = futures.BiQuarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			default:
-				ed = ei.Symbols[i].DeliveryDate.Time()
-				if ed.IsZero() {
-					ct = futures.Perpetual
-				}
 			}
 
 			resp = append(resp, futures.Contract{
@@ -3161,6 +3145,178 @@ func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curr
 	}
 }
 
+func (b *Binance) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	var resp []futures.Contract
+	switch item {
+	case asset.USDTMarginedFutures:
+		ei, err := b.UExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range ei.Symbols {
+			if ei.Symbols[i].BaseAsset != underlyingPair.Base.Upper().String() && ei.Symbols[i].QuoteAsset != underlyingPair.Quote.Upper().String() {
+				continue
+			}
+			var respCt futures.ContractType
+			var backwardsInterval time.Duration
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
+				continue
+			case "CURRENT_MONTH":
+				respCt = futures.Monthly
+				backwardsInterval = kline.OneMonth.Duration()
+			case "NEXT_MONTH":
+				respCt = futures.BiMonthly
+				backwardsInterval = kline.OneMonth.Duration() * 2
+			case "CURRENT_QUARTER":
+				respCt = futures.Quarterly
+				backwardsInterval = kline.OneMonth.Duration() * 3
+			case "NEXT_QUARTER":
+				respCt = futures.BiQuarterly
+				backwardsInterval = kline.OneMonth.Duration() * 6
+			}
+			if respCt != ct {
+				continue
+			}
+			for {
+				if t.After(time.Now()) {
+					break
+				}
+				oldContract, csd, ced, err := b.convertContractShortHandToExpiry(underlyingPair, ct, t)
+				if err != nil {
+					return nil, err
+				}
+				resp = append(resp, futures.Contract{
+					Exchange:                  b.Name,
+					Name:                      oldContract,
+					Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+					Asset:                     item,
+					StartDate:                 csd,
+					EndDate:                   ced,
+					IsActive:                  ei.Symbols[i].Status == "TRADING",
+					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
+					SettlementType:            futures.Linear,
+					Type:                      ct,
+					ContractMultiplier:        ei.Symbols[i].ContractSize,
+					ContractValueDenomination: futures.BaseDenomination,
+				})
+				t = t.Add(backwardsInterval)
+			}
+			break
+		}
+	case asset.CoinMarginedFutures:
+		ei, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range ei.Symbols {
+			if ei.Symbols[i].BaseAsset != underlyingPair.Base.Upper().String() && ei.Symbols[i].QuoteAsset != underlyingPair.Quote.Upper().String() {
+				continue
+			}
+			var respCt futures.ContractType
+			var backwardsInterval time.Duration
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
+				continue
+			case "CURRENT_MONTH":
+				respCt = futures.Monthly
+				backwardsInterval = kline.OneMonth.Duration()
+			case "NEXT_MONTH":
+				respCt = futures.BiMonthly
+				backwardsInterval = kline.OneMonth.Duration() * 2
+			case "CURRENT_QUARTER":
+				respCt = futures.Quarterly
+				backwardsInterval = kline.OneMonth.Duration() * 3
+			case "NEXT_QUARTER":
+				respCt = futures.BiQuarterly
+				backwardsInterval = kline.OneMonth.Duration() * 6
+			}
+			if respCt != ct {
+				continue
+			}
+			for {
+				if t.After(time.Now()) {
+					break
+				}
+				oldContract, csd, ced, err := b.convertContractShortHandToExpiry(underlyingPair, ct, t)
+				if err != nil {
+					return nil, err
+				}
+				resp = append(resp, futures.Contract{
+					Exchange:                  b.Name,
+					Name:                      oldContract,
+					Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+					Asset:                     item,
+					StartDate:                 csd,
+					EndDate:                   ced,
+					IsActive:                  ei.Symbols[i].ContractStatus == "TRADING",
+					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
+					SettlementType:            futures.Inverse,
+					Type:                      ct,
+					ContractMultiplier:        ei.Symbols[i].ContractSize,
+					ContractValueDenomination: futures.QuoteDenomination,
+				})
+				t = t.Add(backwardsInterval)
+			}
+			break
+		}
+	}
+	return resp, nil
+}
+
+func (b *Binance) convertContractShortHandToExpiry(underlyingPair currency.Pair, contractType futures.ContractType, tt time.Time) (cp currency.Pair, start, end time.Time, err error) {
+	loc, err := time.LoadLocation("UTC")
+	if err != nil {
+		return currency.EMPTYPAIR, time.Time{}, time.Time{}, err
+	}
+	tt = tt.In(loc)
+	var duration time.Duration
+	switch contractType {
+	case futures.BiMonthly:
+		tt = tt.AddDate(0, 1, 0)
+		duration = kline.OneMonth.Duration() * 2
+		fallthrough
+	case futures.Monthly:
+		if duration == 0 {
+			duration = kline.OneMonth.Duration()
+		}
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case futures.BiQuarterly:
+		duration = kline.OneMonth.Duration() * 6
+		tt = tt.AddDate(0, 3, 0)
+		fallthrough
+	case futures.Quarterly:
+		if duration == 0 {
+			duration = kline.OneMonth.Duration() * 3
+		}
+		// Find the next quarter end
+		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+			tt = tt.AddDate(0, 1, 0)
+		}
+		// Find the last day of the quarter
+		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		// Find the last Friday of the quarter
+		for tt.Weekday() != time.Friday {
+			tt = tt.AddDate(0, 0, -1)
+		}
+	default:
+		return currency.EMPTYPAIR, time.Time{}, time.Time{}, fmt.Errorf("%w %v", futures.ErrContractMismatch, contractType)
+	}
+	fContractDateFormat := "060102"
+	return currency.NewPairWithDelimiter(underlyingPair.Base.Upper().String()+underlyingPair.Quote.Upper().String(), tt.Format(fContractDateFormat), currency.DashDelimiter),
+		tt.Add(-duration),
+		tt,
+		nil
+}
+
 func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
@@ -3168,19 +3324,49 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	fcd, err := b.GetFuturesContractDetails(ctx, req.Asset)
+	contracts, err := b.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
 	if err != nil {
 		return nil, err
 	}
-	for i := range fcd {
-		sd := fcd[i].StartDate
-		ed := time.Now()
-		switch fcd[i].Type {
-		case futures.Perpetual:
-
-		default:
-			switch
+	var resp futures.HistoricalContractKline
+	resp.Data = make([]futures.ContractKline, len(contracts))
+	for i := range contracts {
+		var klineFunc func(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error)
+		switch req.Asset {
+		case asset.USDTMarginedFutures:
+			klineFunc = b.UKlineData
+		case asset.CoinMarginedFutures:
+			klineFunc = b.GetFuturesKlineData
+		}
+		klineReq, err := b.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		var klinesForContract []kline.Candle
+		for j := range klineReq.RangeHolder.Ranges {
+			candles, err := klineFunc(ctx, contracts[i].Name, b.FormatExchangeKlineInterval(req.Interval), 0, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for k := range candles {
+				klinesForContract = append(klinesForContract, kline.Candle{
+					Time:   time.UnixMilli(candles[k].OpenTime),
+					Open:   candles[k].Open,
+					High:   candles[k].High,
+					Low:    candles[k].Low,
+					Close:  candles[k].Close,
+					Volume: candles[k].Volume,
+				})
+			}
+		}
+		klineItem, err := klineReq.ProcessResponse(klinesForContract)
+		if err != nil {
+			return nil, err
+		}
+		resp.Data[i] = futures.ContractKline{
+			Contract: &contracts[i],
+			Kline:    klineItem,
 		}
 	}
-	return nil, nil
+	return &resp, nil
 }
