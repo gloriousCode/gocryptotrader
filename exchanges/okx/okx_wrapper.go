@@ -2490,8 +2490,8 @@ func (ok *Okx) convertContractShortHandToExpiry(underlyingPair currency.Pair, co
 	default:
 		return currency.EMPTYPAIR, time.Time{}, time.Time{}, fmt.Errorf("%w %v", futures.ErrContractMismatch, contractType)
 	}
-	fContractDateFormat := "020106"
-	return currency.NewPairWithDelimiter(underlyingPair.Base.Upper().String()+currency.DashDelimiter+underlyingPair.Quote.Upper().String(), tt.Format(fContractDateFormat), currency.DashDelimiter),
+	fContractDateFormat := "060102"
+	return currency.NewPairWithDelimiter(underlyingPair.Base.Upper().String(), underlyingPair.Quote.Upper().String()+currency.DashDelimiter+tt.Format(fContractDateFormat), currency.DashDelimiter),
 		tt.Add(-duration),
 		tt,
 		nil
@@ -2539,10 +2539,10 @@ func (ok *Okx) GetLongDatedContractsFromDate(ctx context.Context, item asset.Ite
 		if respCt != ct {
 			continue
 		}
+		if ei[i].State != "live" {
+			continue
+		}
 		for {
-			if t.After(time.Now()) {
-				break
-			}
 			oldContract, csd, ced, err := ok.convertContractShortHandToExpiry(underlyingPair, ct, t)
 			if err != nil {
 				return nil, err
@@ -2550,7 +2550,7 @@ func (ok *Okx) GetLongDatedContractsFromDate(ctx context.Context, item asset.Ite
 			resp = append(resp, futures.Contract{
 				Exchange:                  ok.Name,
 				Name:                      oldContract,
-				Underlying:                currency.NewPair(currency.NewCode(ei[i].BaseCurrency), currency.NewCode(ei[i].QuoteCurrency)),
+				Underlying:                underlyingPair,
 				Asset:                     item,
 				StartDate:                 csd,
 				EndDate:                   ced,
@@ -2561,6 +2561,9 @@ func (ok *Okx) GetLongDatedContractsFromDate(ctx context.Context, item asset.Ite
 				ContractMultiplier:        ei[i].ContractMultiplier.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
 			})
+			if t.After(time.Now()) {
+				break
+			}
 			t = t.Add(backwardsInterval)
 		}
 		break
@@ -2591,7 +2594,7 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 		var klinesForContract []kline.Candle
 
 		for j := range klineReq.RangeHolder.Ranges {
-			candles, err := ok.GetCandlesticksHistory(ctx, latestContract.Name.String(), req.Interval, klineReq.RangeHolder.Ranges[j].End.Time, klineReq.RangeHolder.Ranges[j].Start.Time, 300)
+			candles, err := ok.GetCandlesticksHistory(ctx, latestContract.Name.String(), req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time, 300)
 			if err != nil {
 				return nil, err
 			}
@@ -2610,6 +2613,7 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 		if err != nil {
 			return nil, err
 		}
+		klineItem.SortCandlesByTimestamp(false)
 		resp.Data[i] = futures.ContractKline{
 			Contract: &contracts[i],
 			Kline:    klineItem,
