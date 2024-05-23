@@ -205,6 +205,7 @@ func (r *Request) Size() int {
 // exceed exchange limits and require multiple requests.
 type ExtendedRequest struct {
 	*Request
+	LogProblems bool
 	RangeHolder *IntervalRangeHolder
 }
 
@@ -229,10 +230,25 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	summary := r.RangeHolder.DataSummary(false)
-	if len(summary) > 0 {
+	if len(summary) > 0 && r.LogProblems {
 		log.Warnf(log.ExchangeSys, "%v - %v", r.Exchange, summary)
 	}
+	r.ClearEmpty()
 	return holder, nil
+}
+
+func (r *ExtendedRequest) ClearEmpty() {
+	if r == nil || r.RangeHolder == nil {
+		return
+	}
+	newCandles := make([]Candle, 0, len(r.ProcessedCandles))
+	for i := range r.ProcessedCandles {
+		if r.ProcessedCandles[i].Close == 0 && r.ProcessedCandles[i].High == 0 && r.ProcessedCandles[i].Low == 0 && r.ProcessedCandles[i].Open == 0 && r.ProcessedCandles[i].Volume == 0 {
+			continue
+		}
+		newCandles = append(newCandles, r.ProcessedCandles[i])
+	}
+	r.ProcessedCandles = newCandles
 }
 
 // Size returns the max length of return for pre-allocation.
