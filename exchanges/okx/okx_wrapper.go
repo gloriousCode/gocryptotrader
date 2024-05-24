@@ -1520,6 +1520,15 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
+// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
+func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
+	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	if len(codes) >= 2 {
+		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
+	}
+	return currency.NewPairFromString(instrumentID)
+}
+
 func (ok *Okx) CreateRateMate(data FundingRateData, inverse bool) (*fundingrate.LatestRateResponse, error) {
 	if data.State != "live" {
 		return nil, nil
