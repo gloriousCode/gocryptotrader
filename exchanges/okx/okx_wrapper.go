@@ -2583,7 +2583,7 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 		return nil, err
 	}
 	var resp futures.HistoricalContractKline
-	resp.Data = make([]futures.ContractKline, len(contracts))
+	resp.Data = make([]futures.ContractKline, 0, len(contracts))
 	latestContract := contracts[len(contracts)-1]
 	for i := range contracts {
 
@@ -2609,15 +2609,20 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 				})
 			}
 		}
-		klineItem, err := klineReq.ProcessResponse(klinesForContract)
-		if err != nil {
-			return nil, err
+		if len(klinesForContract) > 0 {
+			klineItem, err := klineReq.ProcessResponse(klinesForContract)
+			if err != nil {
+				return nil, err
+			}
+			klineItem.SortCandlesByTimestamp(false)
+			resp.Data = append(resp.Data, futures.ContractKline{
+				Contract: &contracts[i],
+				Kline:    klineItem,
+			})
 		}
-		klineItem.SortCandlesByTimestamp(false)
-		resp.Data[i] = futures.ContractKline{
-			Contract: &contracts[i],
-			Kline:    klineItem,
-		}
+	}
+	if len(resp.Data) == 0 {
+		return nil, kline.ErrInsufficientCandleData
 	}
 	return &resp, nil
 }
