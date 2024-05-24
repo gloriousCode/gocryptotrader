@@ -389,7 +389,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	}
 
 	for y := range ticks {
-		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+		pair, err := currency.NewPairFromString(ticks[y].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1203,8 +1203,7 @@ allOrders:
 				break allOrders
 			}
 			orderSide := orderList[i].Side
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
@@ -1297,8 +1296,7 @@ allOrders:
 				// reached end of orders to crawl
 				break allOrders
 			}
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
