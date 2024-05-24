@@ -14,6 +14,7 @@ import (
 
 // Public errors
 var (
+	ErrAssetAlreadyDisabled             = errors.New("asset already disabled")
 	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
 	ErrAssetIsNil                       = errors.New("asset is nil")
 	ErrAssetNotFound                    = errors.New("asset type not found in pair store")
