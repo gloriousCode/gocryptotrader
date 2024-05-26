@@ -37,14 +37,75 @@ type Contract struct {
 }
 
 type HistoricalContractKline struct {
-	RequestKey key.PairAsset
-	Data       []ContractKline
+	RequestKey         key.PairAsset
+	Data               []ContractKline
+	SpotData           *kline.Item
+	Analytics          []ContractKlineAnalytics
+	AnalyticsPerformed bool
+}
+
+type ContractKlineAnalytics struct {
+	Start                          time.Time
+	End                            time.Time
+	StartSpotPrice                 float64
+	StartContractPrice             float64
+	StartPercentageDifference      float64
+	EndSpotPrice                   float64
+	EndContractPrice               float64
+	EndPercentageDifference        float64
+	EndedInContangoOnSameExchange  bool
+	AchievedContangoOnSameExchange bool
+	AchievedContangoTime           time.Time
 }
 
 type ContractKline struct {
 	Contract *Contract
 	Aliases  []string
 	Kline    *kline.Item
+}
+
+func (c *HistoricalContractKline) Analyse() {
+	if c.SpotData == nil || len(c.SpotData.Candles) == 0 || len(c.Data) == 0 {
+		return
+	}
+
+	for i := range c.Data {
+		analytics := ContractKlineAnalytics{}
+		var spotStartCandle, spotEndCandle kline.Candle
+		for j := range c.SpotData.Candles {
+			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Contract.StartDate) {
+				spotStartCandle = c.SpotData.Candles[j]
+			}
+			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Contract.EndDate) {
+				spotEndCandle = c.SpotData.Candles[j]
+			}
+			if !spotStartCandle.Time.IsZero() && !spotEndCandle.Time.IsZero() {
+				break
+			}
+		}
+
+		for j := range c.Data[i].Kline.Candles {
+			if c.Data[i].Kline.Candles[j].Close <= spotEndCandle.Close {
+				analytics.AchievedContangoOnSameExchange = true
+				analytics.AchievedContangoTime = c.Data[i].Kline.Candles[j].Time
+				break
+			}
+		}
+
+		analytics.Start = c.Data[i].Contract.StartDate
+		analytics.End = c.Data[i].Contract.EndDate
+		analytics.StartSpotPrice = spotStartCandle.Open
+		analytics.StartContractPrice = c.Data[i].Kline.Candles[0].Open
+		analytics.StartPercentageDifference = ((spotStartCandle.Open - c.Data[i].Kline.Candles[0].Open) / spotStartCandle.Open) * 100
+		analytics.EndSpotPrice = spotEndCandle.Close
+		analytics.EndContractPrice = c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close
+		analytics.EndPercentageDifference = ((spotEndCandle.Close - c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close) / spotEndCandle.Close) * 100
+		analytics.EndedInContangoOnSameExchange = spotEndCandle.Close >= c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close
+		c.Analytics = append(c.Analytics, analytics)
+	}
+	if len(c.Analytics) > 0 {
+		c.AnalyticsPerformed = true
+	}
 }
 
 type ContractDenomination int64

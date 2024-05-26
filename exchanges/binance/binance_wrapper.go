@@ -3324,12 +3324,16 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
+	if req.EndDate.IsZero() || req.EndDate == time.Unix(0, 0) {
+		req.EndDate = time.Now()
+	}
 	contracts, err := b.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
 	if err != nil {
 		return nil, err
 	}
 	var resp futures.HistoricalContractKline
 	resp.Data = make([]futures.ContractKline, len(contracts))
+	var klineReq *kline.ExtendedRequest
 	for i := range contracts {
 		var klineFunc func(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error)
 		switch req.Asset {
@@ -3338,7 +3342,7 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		case asset.CoinMarginedFutures:
 			klineFunc = b.GetFuturesKlineData
 		}
-		klineReq, err := b.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		klineReq, err = b.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -3367,6 +3371,35 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 			Contract: &contracts[i],
 			Kline:    klineItem,
 		}
+	}
+	spotUnderlyingReq, err := b.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+	for i := range spotUnderlyingReq.RangeHolder.Ranges {
+		candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
+			Symbol:    req.UnderlyingPair,
+			Interval:  b.FormatExchangeKlineInterval(req.Interval),
+			Limit:     int(spotUnderlyingReq.RequestLimit),
+			StartTime: spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time,
+			EndTime:   spotUnderlyingReq.RangeHolder.Ranges[i].End.Time,
+		})
+		if err != nil {
+			return nil, err
+		}
+		spotCandles = append(spotCandles, kline.Candle{
+			Time:   candles[i].OpenTime,
+			Open:   candles[i].Open,
+			High:   candles[i].High,
+			Low:    candles[i].Low,
+			Close:  candles[i].Close,
+			Volume: candles[i].Volume,
+		})
+	}
+	resp.SpotData, err = spotUnderlyingReq.ProcessResponse(spotCandles)
+	if err != nil {
+		return nil, err
 	}
 	return &resp, nil
 }
