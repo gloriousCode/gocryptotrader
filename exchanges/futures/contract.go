@@ -83,6 +83,9 @@ func (c *HistoricalContractKline) Analyse() {
 				break
 			}
 		}
+		if c.Data[i].Kline.Candles[0].Close == 0 {
+			c.Data[i].Kline.Candles[0] = c.Data[i].Kline.Candles[1]
+		}
 
 		for j := range c.Data[i].Kline.Candles {
 			if c.Data[i].Kline.Candles[j].Close <= spotEndCandle.Close {
@@ -92,11 +95,20 @@ func (c *HistoricalContractKline) Analyse() {
 			}
 		}
 
+		if spotStartCandle.Time.IsZero() || spotEndCandle.Time.IsZero() {
+			continue
+		}
+
+		if spotStartCandle.Close == 0 || spotEndCandle.Close == 0 {
+			continue
+		}
 		analytics.Start = c.Data[i].Contract.StartDate
 		analytics.End = c.Data[i].Contract.EndDate
-		analytics.StartSpotPrice = spotStartCandle.Open
-		analytics.StartContractPrice = c.Data[i].Kline.Candles[0].Open
-		analytics.StartPercentageDifference = ((spotStartCandle.Open - c.Data[i].Kline.Candles[0].Open) / spotStartCandle.Open) * 100
+		analytics.StartSpotPrice = spotStartCandle.Close
+		// its wierd how the first one has a blank entry
+
+		analytics.StartContractPrice = c.Data[i].Kline.Candles[0].Close
+		analytics.StartPercentageDifference = ((spotStartCandle.Close - c.Data[i].Kline.Candles[0].Close) / spotStartCandle.Close) * 100
 		analytics.EndSpotPrice = spotEndCandle.Close
 		analytics.EndContractPrice = c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close
 		analytics.EndPercentageDifference = ((spotEndCandle.Close - c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close) / spotEndCandle.Close) * 100

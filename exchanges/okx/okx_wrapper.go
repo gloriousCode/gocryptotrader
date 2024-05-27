@@ -2595,6 +2595,9 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 	resp.Data = make([]futures.ContractKline, 0, len(contracts))
 	latestContract := contracts[len(contracts)-1]
 	for i := range contracts {
+		if contracts[i].StartDate.After(time.Now()) {
+			continue
+		}
 		klineReq, err := ok.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
@@ -2636,20 +2639,29 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 	if err != nil {
 		return nil, err
 	}
+	if req.UnderlyingPair.Quote.Equal(currency.USD) {
+		req.UnderlyingPair.Quote = currency.USDT
+	}
 	spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+	up, err := ok.FormatSymbol(req.UnderlyingPair, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	for i := range spotUnderlyingReq.RangeHolder.Ranges {
-		candles, err := ok.GetCandlesticksHistory(ctx, req.UnderlyingPair.String(), req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time, 300)
+		candles, err := ok.GetCandlesticksHistory(ctx, up, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time, 300)
 		if err != nil {
 			return nil, err
 		}
-		spotCandles = append(spotCandles, kline.Candle{
-			Time:   candles[i].OpenTime,
-			Open:   candles[i].OpenPrice,
-			High:   candles[i].HighestPrice,
-			Low:    candles[i].LowestPrice,
-			Close:  candles[i].ClosePrice,
-			Volume: candles[i].Volume,
-		})
+		for j := range candles {
+			spotCandles = append(spotCandles, kline.Candle{
+				Time:   candles[j].OpenTime,
+				Open:   candles[j].OpenPrice,
+				High:   candles[j].HighestPrice,
+				Low:    candles[j].LowestPrice,
+				Close:  candles[j].ClosePrice,
+				Volume: candles[j].Volume,
+			})
+		}
 	}
 	resp.SpotData, err = spotUnderlyingReq.ProcessResponse(spotCandles)
 	if err != nil {
