@@ -70,21 +70,25 @@ func (c *HistoricalContractKline) Analyse() {
 	}
 
 	for i := range c.Data {
+		c.Data[i].Kline.ClearEmpty()
 		analytics := ContractKlineAnalytics{}
 		var spotStartCandle, spotEndCandle kline.Candle
+		// do somethiung to get all the candles for the spot contract
+		// then determine the starting gap, when it hits contango
+		// and if it doesnt, the distance between contract and spot
 		for j := range c.SpotData.Candles {
-			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Contract.StartDate) {
+			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Kline.Candles[0].Time) {
 				spotStartCandle = c.SpotData.Candles[j]
 			}
-			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Contract.EndDate) {
+			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Time) {
 				spotEndCandle = c.SpotData.Candles[j]
 			}
 			if !spotStartCandle.Time.IsZero() && !spotEndCandle.Time.IsZero() {
 				break
 			}
 		}
-		if c.Data[i].Kline.Candles[0].Close == 0 {
-			c.Data[i].Kline.Candles[0] = c.Data[i].Kline.Candles[1]
+		if spotStartCandle.Time.IsZero() || spotEndCandle.Time.IsZero() {
+			continue
 		}
 
 		for j := range c.Data[i].Kline.Candles {
@@ -93,10 +97,6 @@ func (c *HistoricalContractKline) Analyse() {
 				analytics.AchievedContangoTime = c.Data[i].Kline.Candles[j].Time
 				break
 			}
-		}
-
-		if spotStartCandle.Time.IsZero() || spotEndCandle.Time.IsZero() {
-			continue
 		}
 
 		if spotStartCandle.Close == 0 || spotEndCandle.Close == 0 {
@@ -214,7 +214,9 @@ func (c ContractType) IsLongDated() bool {
 		c == Weekly ||
 		c == Fortnightly ||
 		c == ThreeWeekly ||
-		c == Monthly
+		c == Monthly ||
+		c == BiMonthly ||
+		c == BiQuarterly
 }
 
 // String returns the string representation of the contract type

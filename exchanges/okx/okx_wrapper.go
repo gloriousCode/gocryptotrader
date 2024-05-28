@@ -2610,6 +2610,9 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 				return nil, err
 			}
 			for k := range candles {
+				if candles[k].ClosePrice == 0 {
+					continue
+				}
 				klinesForContract = append(klinesForContract, kline.Candle{
 					Time:   candles[k].OpenTime,
 					Open:   candles[k].OpenPrice,
