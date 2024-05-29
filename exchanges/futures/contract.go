@@ -217,6 +217,7 @@ const (
 	NineMonthly
 	Yearly
 	Unknown
+	Daily
 )
 
 func (c ContractType) IsLongDated() bool {
@@ -237,6 +238,8 @@ func (c ContractType) IsLongDated() bool {
 // String returns the string representation of the contract type
 func (c ContractType) String() string {
 	switch c {
+	case Daily:
+		return "day"
 	case Perpetual:
 		return "perpetual"
 	case LongDated:
