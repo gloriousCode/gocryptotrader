@@ -1259,7 +1259,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				SettlementType:       contractSettlementType,
 				IsActive:             marketSummary[i].IsActive,
 				MaxLeverage:          marketSummary[i].MaxLeverage,
-				Multiplier:           marketSummary[i].ContractSize,
+				ContractMultiplier:   marketSummary[i].ContractSize,
 			})
 		}
 	}
@@ -1404,7 +1404,7 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
-		multiplier = contracts[i].Multiplier
+		multiplier = contracts[i].ContractMultiplier
 		settlementType = contracts[i].SettlementType
 		break
 	}
@@ -1491,24 +1491,19 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 // differs by exchange
 func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
 	if !assetType.IsFutures() {
-		return false, futures.ErrNotPerpetualFuture
-	} else if strings.EqualFold(pair.Quote.String(), "PERPETUAL") || strings.HasSuffix(pair.String(), "PERP") {
+		return false, nil
+	}
+	if assetType == asset.FutureCombo {
+		// deribit considers future combo, even if ending in "PERP" to not be a perpetual
+		return false, nil
+	}
+	pqs := strings.Split(pair.Quote.Upper().String(), currency.DashDelimiter)
+	switch pqs[len(pqs)-1] {
+	case "PERP", "SWAP", "PERPETUAL":
 		return true, nil
 	}
-	pair, err := d.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return false, err
-	}
-	var instrumentInfo *InstrumentData
-	if d.Websocket.IsConnected() {
-		instrumentInfo, err = d.WSRetrieveInstrumentData(pair.String())
-	} else {
-		instrumentInfo, err = d.GetInstrument(context.Background(), pair.String())
-	}
-	if err != nil {
-		return false, err
-	}
-	return strings.EqualFold(instrumentInfo.SettlementPeriod, "perpetual"), nil
+
+	return false, nil
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a future
