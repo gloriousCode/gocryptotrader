@@ -6,6 +6,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -39,84 +40,98 @@ type Contract struct {
 type HistoricalContractKline struct {
 	RequestKey         key.PairAsset
 	Data               []ContractKline
-	SpotData           *kline.Item
 	Analytics          []ContractKlineAnalytics
 	AnalyticsPerformed bool
+	AnyContangos       bool
+	ContangoPercent    float64
+}
+
+type HistoricalContractKlineFrontEnd struct {
+	Analytics          []ContractKlineAnalytics
+	AnalyticsPerformed bool
+	AnyContangos       bool
+	ContangoPercent    float64
 }
 
 type ContractKlineAnalytics struct {
+	Contract                       currency.Pair
+	SpotCurrency                   currency.Pair
 	Start                          time.Time
 	End                            time.Time
-	StartSpotPrice                 float64
-	StartContractPrice             float64
+	SpotOpenPrice                  float64
+	ContractOpenPrice              float64
 	StartPercentageDifference      float64
-	EndSpotPrice                   float64
-	EndContractPrice               float64
+	SpotClosePrice                 float64
+	ContractClosePrice             float64
 	EndPercentageDifference        float64
-	EndedInContangoOnSameExchange  bool
 	AchievedContangoOnSameExchange bool
-	AchievedContangoTime           time.Time
+	ContagoTimes                   []ContangoTime
+}
+
+type ContangoTime struct {
+	Time          time.Time
+	SpotPrice     float64
+	ContractPrice float64
 }
 
 type ContractKline struct {
-	Contract *Contract
-	Aliases  []string
-	Kline    *kline.Item
+	Contract      *Contract
+	Aliases       []string
+	ContractKline *kline.Item
+	SpotKline     *kline.Item
 }
 
 func (c *HistoricalContractKline) Analyse() {
-	if c.SpotData == nil || len(c.SpotData.Candles) == 0 || len(c.Data) == 0 {
+	if len(c.Data) == 0 {
 		return
 	}
-
 	for i := range c.Data {
-		c.Data[i].Kline.ClearEmpty()
-		analytics := ContractKlineAnalytics{}
-		var spotStartCandle, spotEndCandle kline.Candle
-		// do somethiung to get all the candles for the spot contract
-		// then determine the starting gap, when it hits contango
-		// and if it doesnt, the distance between contract and spot
-		for j := range c.SpotData.Candles {
-			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Kline.Candles[0].Time) {
-				spotStartCandle = c.SpotData.Candles[j]
-			}
-			if c.SpotData.Candles[j].Time.Equal(c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Time) {
-				spotEndCandle = c.SpotData.Candles[j]
-			}
-			if !spotStartCandle.Time.IsZero() && !spotEndCandle.Time.IsZero() {
-				break
-			}
+		c.Data[i].ContractKline.ClearEmpty()
+		c.Data[i].SpotKline.ClearEmpty()
+		analytics := ContractKlineAnalytics{
+			SpotCurrency: c.Data[i].SpotKline.Pair,
+			Contract:     c.Data[i].ContractKline.Pair,
 		}
-		if spotStartCandle.Time.IsZero() || spotEndCandle.Time.IsZero() {
-			continue
-		}
-
-		for j := range c.Data[i].Kline.Candles {
-			if c.Data[i].Kline.Candles[j].Close <= spotEndCandle.Close {
+		for j := range c.Data[i].ContractKline.Candles {
+			if c.Data[i].ContractKline.Candles[j].Close == 0 {
+				continue
+			}
+			if c.Data[i].SpotKline.Candles[j].Close == 0 {
+				continue
+			}
+			if c.Data[i].ContractKline.Candles[j].Close < c.Data[i].SpotKline.Candles[j].Close {
 				analytics.AchievedContangoOnSameExchange = true
-				analytics.AchievedContangoTime = c.Data[i].Kline.Candles[j].Time
-				break
+				c.AnyContangos = true
+				analytics.ContagoTimes = append(analytics.ContagoTimes, ContangoTime{
+					Time:          c.Data[i].ContractKline.Candles[j].Time,
+					SpotPrice:     c.Data[i].SpotKline.Candles[j].Close,
+					ContractPrice: c.Data[i].ContractKline.Candles[j].Close,
+				})
 			}
 		}
 
-		if spotStartCandle.Close == 0 || spotEndCandle.Close == 0 {
-			continue
-		}
 		analytics.Start = c.Data[i].Contract.StartDate
 		analytics.End = c.Data[i].Contract.EndDate
-		analytics.StartSpotPrice = spotStartCandle.Close
-		// its wierd how the first one has a blank entry
+		analytics.SpotOpenPrice = c.Data[i].SpotKline.Candles[0].Open
+		analytics.ContractOpenPrice = c.Data[i].ContractKline.Candles[0].Open
 
-		analytics.StartContractPrice = c.Data[i].Kline.Candles[0].Close
-		analytics.StartPercentageDifference = ((spotStartCandle.Close - c.Data[i].Kline.Candles[0].Close) / spotStartCandle.Close) * 100
-		analytics.EndSpotPrice = spotEndCandle.Close
-		analytics.EndContractPrice = c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close
-		analytics.EndPercentageDifference = ((spotEndCandle.Close - c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close) / spotEndCandle.Close) * 100
-		analytics.EndedInContangoOnSameExchange = spotEndCandle.Close >= c.Data[i].Kline.Candles[len(c.Data[i].Kline.Candles)-1].Close
+		analytics.SpotClosePrice = c.Data[i].SpotKline.Candles[len(c.Data[i].SpotKline.Candles)-1].Close
+		analytics.ContractClosePrice = c.Data[i].ContractKline.Candles[len(c.Data[i].ContractKline.Candles)-1].Close
+
+		analytics.StartPercentageDifference = ((analytics.ContractOpenPrice - analytics.SpotOpenPrice) / analytics.ContractOpenPrice) * 100
+		analytics.EndPercentageDifference = ((analytics.ContractClosePrice - analytics.SpotClosePrice) / analytics.ContractClosePrice) * 100
+
 		c.Analytics = append(c.Analytics, analytics)
 	}
 	if len(c.Analytics) > 0 {
 		c.AnalyticsPerformed = true
+		var contangos float64
+		for i := range c.Analytics {
+			if c.Analytics[i].AchievedContangoOnSameExchange {
+				contangos++
+			}
+		}
+		c.ContangoPercent = math.CalculatePercentageDifference(float64(len(c.Analytics)), contangos)
 	}
 }
 

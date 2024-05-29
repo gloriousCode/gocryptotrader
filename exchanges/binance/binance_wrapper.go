@@ -3333,7 +3333,6 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 	}
 	var resp futures.HistoricalContractKline
 	resp.Data = make([]futures.ContractKline, len(contracts))
-	var klineReq *kline.ExtendedRequest
 	for i := range contracts {
 		var klineFunc func(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error)
 		switch req.Asset {
@@ -3342,13 +3341,13 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		case asset.CoinMarginedFutures:
 			klineFunc = b.GetFuturesKlineData
 		}
-		klineReq, err = b.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		contractKlines, err := b.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
 		var klinesForContract []kline.Candle
-		for j := range klineReq.RangeHolder.Ranges {
-			candles, err := klineFunc(ctx, contracts[i].Name, b.FormatExchangeKlineInterval(req.Interval), 0, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+		for j := range contractKlines.RangeHolder.Ranges {
+			candles, err := klineFunc(ctx, contracts[i].Name, b.FormatExchangeKlineInterval(req.Interval), 0, contractKlines.RangeHolder.Ranges[j].Start.Time, contractKlines.RangeHolder.Ranges[j].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -3363,13 +3362,45 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 				})
 			}
 		}
-		klineItem, err := klineReq.ProcessResponse(klinesForContract)
+		contractKlineItem, err := contractKlines.ProcessResponse(klinesForContract)
 		if err != nil {
 			return nil, err
 		}
+
+		spotUnderlyingReq, err := b.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		for j := range spotUnderlyingReq.RangeHolder.Ranges {
+			candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
+				Symbol:    req.UnderlyingPair,
+				Interval:  b.FormatExchangeKlineInterval(req.Interval),
+				Limit:     int(spotUnderlyingReq.RequestLimit),
+				StartTime: spotUnderlyingReq.RangeHolder.Ranges[j].Start.Time,
+				EndTime:   spotUnderlyingReq.RangeHolder.Ranges[j].End.Time,
+			})
+			if err != nil {
+				return nil, err
+			}
+			spotCandles = append(spotCandles, kline.Candle{
+				Time:   candles[j].OpenTime,
+				Open:   candles[j].Open,
+				High:   candles[j].High,
+				Low:    candles[j].Low,
+				Close:  candles[j].Close,
+				Volume: candles[j].Volume,
+			})
+		}
+		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+		if err != nil {
+			return nil, err
+		}
+
 		resp.Data[i] = futures.ContractKline{
-			Contract: &contracts[i],
-			Kline:    klineItem,
+			Contract:      &contracts[i],
+			ContractKline: contractKlineItem,
+			SpotKline:     spotKlineItem,
 		}
 	}
 	spotUnderlyingReq, err := b.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, req.StartDate, req.EndDate)
@@ -3396,10 +3427,6 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 			Close:  candles[i].Close,
 			Volume: candles[i].Volume,
 		})
-	}
-	resp.SpotData, err = spotUnderlyingReq.ProcessResponse(spotCandles)
-	if err != nil {
-		return nil, err
 	}
 	return &resp, nil
 }
