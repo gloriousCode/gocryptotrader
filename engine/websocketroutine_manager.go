@@ -141,19 +141,19 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 			continue
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err = m.websocketDataReceiver(ws)
-			if err != nil {
-				log.Errorf(log.WebsocketMgr, "%v", err)
-			}
-
-			err = ws.Connect()
-			if err != nil {
-				log.Errorf(log.WebsocketMgr, "%v", err)
-			}
-		}()
+		//wg.Add(1)
+		//go func() {
+		//	defer wg.Done()
+		//	err = m.websocketDataReceiver(ws)
+		//	if err != nil {
+		//		log.Errorf(log.WebsocketMgr, "%v", err)
+		//	}
+		//
+		//	err = ws.Connect()
+		//	if err != nil {
+		//		log.Errorf(log.WebsocketMgr, "%v", err)
+		//	}
+		//}()
 	}
 	wg.Wait()
 }

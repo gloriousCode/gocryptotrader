@@ -1490,20 +1490,15 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 // differs by exchange
 func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
-	if !assetType.IsFutures() {
-		return false, nil
+	if pair.IsEmpty() {
+		return false, currency.ErrCurrencyPairEmpty
 	}
-	if assetType == asset.FutureCombo {
+	if assetType != asset.Futures {
 		// deribit considers future combo, even if ending in "PERP" to not be a perpetual
 		return false, nil
 	}
 	pqs := strings.Split(pair.Quote.Upper().String(), currency.DashDelimiter)
-	switch pqs[len(pqs)-1] {
-	case "PERP", "SWAP", "PERPETUAL":
-		return true, nil
-	}
-
-	return false, nil
+	return pqs[len(pqs)-1] == "PERPETUAL", nil
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a future
