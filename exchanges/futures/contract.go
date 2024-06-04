@@ -6,7 +6,6 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -131,7 +130,7 @@ func (c *HistoricalContractKline) Analyse() {
 				contangos++
 			}
 		}
-		c.ContangoPercent = math.CalculatePercentageDifference(float64(len(c.Analytics)), contangos)
+		c.ContangoPercent = (contangos / float64(len(c.Analytics))) * 100
 	}
 }
 
