@@ -3398,9 +3398,9 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		}
 
 		resp.Data[i] = futures.ContractKline{
-			Contract:      &contracts[i],
-			ContractKline: contractKlineItem,
-			SpotKline:     spotKlineItem,
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
 		}
 	}
 	spotUnderlyingReq, err := b.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, req.StartDate, req.EndDate)

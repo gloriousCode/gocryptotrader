@@ -2666,9 +2666,9 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 		}
 		contractKlineItem.SortCandlesByTimestamp(false)
 		resp.Data = append(resp.Data, futures.ContractKline{
-			Contract:      &contracts[i],
-			ContractKline: contractKlineItem,
-			SpotKline:     spotKlineItem,
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
 		})
 	}
 	if len(resp.Data) == 0 {

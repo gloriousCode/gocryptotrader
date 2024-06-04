@@ -37,47 +37,51 @@ type Contract struct {
 }
 
 type HistoricalContractKline struct {
-	RequestKey         key.PairAsset
-	Data               []ContractKline
-	Analytics          []ContractKlineAnalytics
-	AnalyticsPerformed bool
-	AnyContangos       bool
-	ContangoPercent    float64
+	RequestKey             key.PairAsset
+	Data                   []ContractKline
+	Analytics              []ContractKlineAnalytics
+	AnalyticsPerformed     bool
+	AnyContangos           bool
+	ContangoPercent        float64
+	PositiveOutcomePercent float64
 }
 
 type HistoricalContractKlineFrontEnd struct {
-	Analytics          []ContractKlineAnalytics
-	AnalyticsPerformed bool
-	AnyContangos       bool
-	ContangoPercent    float64
+	Analytics              []ContractKlineAnalytics
+	AnalyticsPerformed     bool
+	AnyContangos           bool
+	ContangoPercent        float64
+	PositiveOutcomePercent float64
 }
 
 type ContractKlineAnalytics struct {
-	Contract                       currency.Pair
-	SpotCurrency                   currency.Pair
-	Start                          time.Time
-	End                            time.Time
-	SpotOpenPrice                  float64
-	ContractOpenPrice              float64
-	StartPercentageDifference      float64
-	SpotClosePrice                 float64
-	ContractClosePrice             float64
-	EndPercentageDifference        float64
-	AchievedContangoOnSameExchange bool
-	ContagoTimes                   []ContangoTime
+	PremiumCurrency           currency.Pair
+	BaseCurrency              currency.Pair
+	Start                     time.Time
+	End                       time.Time
+	BaseOpenPrice             float64
+	PremiumOpenPrice          float64
+	StartPercentageDifference float64
+	BaseClosePrice            float64
+	PremiumClosePrice         float64
+	EndPercentageDifference   float64
+	EndResult                 float64
+	AchievedContango          bool
+	ContagoTimes              []ContangoTime
 }
 
 type ContangoTime struct {
-	Time          time.Time
-	SpotPrice     float64
-	ContractPrice float64
+	Time         time.Time
+	BasePrice    float64
+	PremiumPrice float64
 }
 
 type ContractKline struct {
-	Contract      *Contract
-	Aliases       []string
-	ContractKline *kline.Item
-	SpotKline     *kline.Item
+	PremiumContract *Contract
+	BaseContract    *Contract
+	Aliases         []string
+	PremiumKline    *kline.Item
+	BaseKline       *kline.Item
 }
 
 func (c *HistoricalContractKline) Analyse() {
@@ -85,52 +89,58 @@ func (c *HistoricalContractKline) Analyse() {
 		return
 	}
 	for i := range c.Data {
-		c.Data[i].ContractKline.ClearEmpty()
-		c.Data[i].SpotKline.ClearEmpty()
+		c.Data[i].PremiumKline.ClearEmpty()
+		c.Data[i].BaseKline.ClearEmpty()
 		analytics := ContractKlineAnalytics{
-			SpotCurrency: c.Data[i].SpotKline.Pair,
-			Contract:     c.Data[i].ContractKline.Pair,
+			BaseCurrency:    c.Data[i].BaseKline.Pair,
+			PremiumCurrency: c.Data[i].PremiumKline.Pair,
 		}
-		for j := range c.Data[i].ContractKline.Candles {
-			if c.Data[i].ContractKline.Candles[j].Close == 0 {
+		for j := range c.Data[i].PremiumKline.Candles {
+			if c.Data[i].PremiumKline.Candles[j].Close == 0 {
 				continue
 			}
-			if c.Data[i].SpotKline.Candles[j].Close == 0 {
+			if c.Data[i].BaseKline.Candles[j].Close == 0 {
 				continue
 			}
-			if c.Data[i].ContractKline.Candles[j].Close < c.Data[i].SpotKline.Candles[j].Close {
-				analytics.AchievedContangoOnSameExchange = true
+			if c.Data[i].PremiumKline.Candles[j].Close < c.Data[i].BaseKline.Candles[j].Close {
+				analytics.AchievedContango = true
 				c.AnyContangos = true
 				analytics.ContagoTimes = append(analytics.ContagoTimes, ContangoTime{
-					Time:          c.Data[i].ContractKline.Candles[j].Time,
-					SpotPrice:     c.Data[i].SpotKline.Candles[j].Close,
-					ContractPrice: c.Data[i].ContractKline.Candles[j].Close,
+					Time:         c.Data[i].PremiumKline.Candles[j].Time,
+					BasePrice:    c.Data[i].BaseKline.Candles[j].Close,
+					PremiumPrice: c.Data[i].PremiumKline.Candles[j].Close,
 				})
 			}
 		}
 
-		analytics.Start = c.Data[i].Contract.StartDate
-		analytics.End = c.Data[i].Contract.EndDate
-		analytics.SpotOpenPrice = c.Data[i].SpotKline.Candles[0].Open
-		analytics.ContractOpenPrice = c.Data[i].ContractKline.Candles[0].Open
+		analytics.Start = c.Data[i].PremiumContract.StartDate
+		analytics.End = c.Data[i].PremiumContract.EndDate
+		analytics.BaseOpenPrice = c.Data[i].BaseKline.Candles[0].Open
+		analytics.PremiumOpenPrice = c.Data[i].PremiumKline.Candles[0].Open
 
-		analytics.SpotClosePrice = c.Data[i].SpotKline.Candles[len(c.Data[i].SpotKline.Candles)-1].Close
-		analytics.ContractClosePrice = c.Data[i].ContractKline.Candles[len(c.Data[i].ContractKline.Candles)-1].Close
+		analytics.BaseClosePrice = c.Data[i].BaseKline.Candles[len(c.Data[i].BaseKline.Candles)-1].Close
+		analytics.PremiumClosePrice = c.Data[i].PremiumKline.Candles[len(c.Data[i].PremiumKline.Candles)-1].Close
 
-		analytics.StartPercentageDifference = ((analytics.ContractOpenPrice - analytics.SpotOpenPrice) / analytics.ContractOpenPrice) * 100
-		analytics.EndPercentageDifference = ((analytics.ContractClosePrice - analytics.SpotClosePrice) / analytics.ContractClosePrice) * 100
+		analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
+		analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
+
+		analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 
 		c.Analytics = append(c.Analytics, analytics)
 	}
 	if len(c.Analytics) > 0 {
 		c.AnalyticsPerformed = true
-		var contangos float64
+		var contangos, positiveEndResultPercent float64
 		for i := range c.Analytics {
-			if c.Analytics[i].AchievedContangoOnSameExchange {
+			if c.Analytics[i].AchievedContango {
 				contangos++
+				positiveEndResultPercent++
+			} else if c.Analytics[i].EndResult > 0 {
+				positiveEndResultPercent++
 			}
 		}
 		c.ContangoPercent = (contangos / float64(len(c.Analytics))) * 100
+		c.PositiveOutcomePercent = (positiveEndResultPercent / float64(len(c.Analytics))) * 100
 	}
 }
 
