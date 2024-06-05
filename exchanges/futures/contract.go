@@ -37,21 +37,15 @@ type Contract struct {
 }
 
 type HistoricalContractKline struct {
-	RequestKey             key.PairAsset
-	Data                   []ContractKline
-	Analytics              []ContractKlineAnalytics
-	AnalyticsPerformed     bool
-	AnyContangos           bool
-	ContangoPercent        float64
-	PositiveOutcomePercent float64
-}
-
-type HistoricalContractKlineFrontEnd struct {
-	Analytics              []ContractKlineAnalytics
-	AnalyticsPerformed     bool
-	AnyContangos           bool
-	ContangoPercent        float64
-	PositiveOutcomePercent float64
+	RequestKey              key.PairAsset   `json:"-"`
+	Data                    []ContractKline `json:"-"`
+	Analytics               []ContractKlineAnalytics
+	AnalyticsPerformed      bool
+	AnyContangos            bool
+	AnyPositiveContangoes   bool
+	ContangoPercent         float64
+	PositiveContangoPercent float64
+	PositiveOutcomePercent  float64
 }
 
 type ContractKlineAnalytics struct {
@@ -72,6 +66,7 @@ type ContractKlineAnalytics struct {
 
 type ContangoTime struct {
 	Time         time.Time
+	Gain         float64
 	BasePrice    float64
 	PremiumPrice float64
 }
@@ -109,6 +104,7 @@ func (c *HistoricalContractKline) Analyse() {
 					Time:         c.Data[i].PremiumKline.Candles[j].Time,
 					BasePrice:    c.Data[i].BaseKline.Candles[j].Close,
 					PremiumPrice: c.Data[i].PremiumKline.Candles[j].Close,
+					Gain:         c.Data[i].PremiumKline.Candles[0].Close - c.Data[i].PremiumKline.Candles[j].Close/c.Data[i].PremiumKline.Candles[0].Close*100,
 				})
 			}
 		}
@@ -125,21 +121,25 @@ func (c *HistoricalContractKline) Analyse() {
 		analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
 
 		analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
-
 		c.Analytics = append(c.Analytics, analytics)
 	}
 	if len(c.Analytics) > 0 {
 		c.AnalyticsPerformed = true
-		var contangos, positiveEndResultPercent float64
+		var contangos, positiveContangos, positiveEndResultPercent float64
 		for i := range c.Analytics {
-			if c.Analytics[i].AchievedContango {
-				contangos++
+			switch {
+			case c.Analytics[i].AchievedContango && c.Analytics[i].EndResult > 0:
+				positiveContangos++
 				positiveEndResultPercent++
-			} else if c.Analytics[i].EndResult > 0 {
+				contangos++
+			case c.Analytics[i].AchievedContango:
+				contangos++
+			case c.Analytics[i].EndResult > 0:
 				positiveEndResultPercent++
 			}
 		}
 		c.ContangoPercent = (contangos / float64(len(c.Analytics))) * 100
+		c.PositiveContangoPercent = (positiveContangos / float64(len(c.Analytics))) * 100
 		c.PositiveOutcomePercent = (positiveEndResultPercent / float64(len(c.Analytics))) * 100
 	}
 }
