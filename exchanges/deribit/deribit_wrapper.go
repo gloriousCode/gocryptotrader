@@ -1254,18 +1254,19 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             d.Name,
-				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].BaseCurrency), currency.NewCode(marketSummary[i].QuoteCurrency)),
-				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
-				StartDate:            marketSummary[i].CreationTimestamp.Time(),
-				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				IsActive:             marketSummary[i].IsActive,
-				MaxLeverage:          marketSummary[i].MaxLeverage,
-				ContractMultiplier:   marketSummary[i].ContractSize,
+				Exchange:                  d.Name,
+				Name:                      cp,
+				Underlying:                currency.NewPair(currency.NewCode(marketSummary[i].BaseCurrency), currency.NewCode(marketSummary[i].QuoteCurrency)),
+				Asset:                     item,
+				StartDate:                 marketSummary[i].CreationTimestamp.Time(),
+				EndDate:                   marketSummary[i].ExpirationTimestamp.Time(),
+				IsActive:                  marketSummary[i].IsActive,
+				Type:                      ct,
+				SettlementType:            contractSettlementType,
+				SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
+				ContractMultiplier:        marketSummary[i].ContractSize,
+				MaxLeverage:               marketSummary[i].MaxLeverage,
+				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
 	}
@@ -1624,4 +1625,176 @@ func (d *Deribit) formatPairString(assetType asset.Item, pair currency.Pair) str
 		return d.optionPairToString(pair)
 	}
 	return pair.String()
+}
+
+func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
+	if item != asset.Futures {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	var resp []futures.Contract
+	var marketSummary []InstrumentData
+	var err error
+	if d.Websocket.IsConnected() {
+		marketSummary, err = d.WSRetrieveInstrumentsData(currency.NewCode("any"), "future", true)
+	} else {
+		marketSummary, err = d.GetInstruments(ctx, currency.NewCode("any"), "future", true)
+	}
+	if err != nil {
+		return nil, err
+	}
+	for i := range marketSummary {
+		if marketSummary[i].Kind != "future" {
+			continue
+		}
+		underlying, err := currency.NewPairFromStrings(marketSummary[i].BaseCurrency, marketSummary[i].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		if !underlying.Equal(underlyingPair) {
+			continue
+		}
+
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(marketSummary[i].InstrumentName)
+		if err != nil {
+			return nil, err
+		}
+		var ct futures.ContractType
+		switch marketSummary[i].SettlementPeriod {
+		case "day":
+			ct = futures.Daily
+		case "week":
+			ct = futures.Weekly
+		case "month":
+			ct = futures.Monthly
+		case "perpetual":
+			ct = futures.Perpetual
+		}
+		var contractSettlementType futures.ContractSettlementType
+		denomination := futures.QuoteDenomination
+		if marketSummary[i].SettlementCurrency == marketSummary[i].BaseCurrency {
+			denomination = futures.BaseDenomination
+		}
+		if marketSummary[i].InstrumentType == "reversed" {
+			contractSettlementType = futures.Inverse
+			denomination = futures.BaseDenomination
+		} else {
+			contractSettlementType = futures.Linear
+			denomination = futures.QuoteDenomination
+		}
+		resp = append(resp, futures.Contract{
+			Exchange:                  d.Name,
+			Name:                      cp,
+			Underlying:                underlying,
+			Asset:                     item,
+			StartDate:                 marketSummary[i].CreationTimestamp.Time(),
+			EndDate:                   marketSummary[i].ExpirationTimestamp.Time(),
+			IsActive:                  marketSummary[i].IsActive,
+			Type:                      ct,
+			SettlementType:            contractSettlementType,
+			SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
+			ContractMultiplier:        marketSummary[i].ContractSize,
+			MaxLeverage:               marketSummary[i].MaxLeverage,
+			ContractValueDenomination: denomination,
+		})
+	}
+	return resp, nil
+}
+
+// GetHistoricalContractKlineData gets each contract's data in a range
+// then grabs spot data for comparisons
+func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := d.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
+	if err != nil {
+		return nil, err
+	}
+	var resp futures.HistoricalContractKline
+	resp.Data = make([]futures.ContractKline, 0, len(contracts))
+	for i := range contracts {
+		if contracts[i].StartDate.After(time.Now()) {
+			continue
+		}
+		klineReq, err := d.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		var klinesForContract []kline.Candle
+		for j := range klineReq.RangeHolder.Ranges {
+			candles, err := d.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for k := range candles.Candles {
+				if candles.Candles[k].Close == 0 {
+					continue
+				}
+				klinesForContract = append(klinesForContract, kline.Candle{
+					Time:   candles.Candles[k].Time,
+					Open:   candles.Candles[k].Open,
+					High:   candles.Candles[k].High,
+					Low:    candles.Candles[k].Low,
+					Close:  candles.Candles[k].Close,
+					Volume: candles.Candles[k].Volume,
+				})
+			}
+		}
+		if len(klinesForContract) == 0 {
+			continue
+		}
+
+		spotUnderlyingReq, err := d.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		if req.UnderlyingPair.Quote.Equal(currency.USD) {
+			req.UnderlyingPair.Quote = currency.USDT
+		}
+		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		up, err := d.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for i := range spotUnderlyingReq.RangeHolder.Ranges {
+			candles, err := d.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for j := range candles.Candles {
+				spotCandles = append(spotCandles, kline.Candle{
+					Time:   candles.Candles[j].Time,
+					Open:   candles.Candles[j].Open,
+					High:   candles.Candles[j].High,
+					Low:    candles.Candles[j].Low,
+					Close:  candles.Candles[j].Close,
+					Volume: candles.Candles[j].Volume,
+				})
+			}
+		}
+		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+		if err != nil {
+			return nil, err
+		}
+
+		contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
+		if err != nil {
+			return nil, err
+		}
+		contractKlineItem.SortCandlesByTimestamp(false)
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
+		})
+	}
+	if len(resp.Data) == 0 {
+		return nil, kline.ErrInsufficientCandleData
+	}
+
+	return &resp, nil
 }

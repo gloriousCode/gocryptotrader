@@ -3841,12 +3841,16 @@ func TestWsForkToken(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
+	d.Verbose = true
 	_, err := d.GetFuturesContractDetails(context.Background(), asset.Binary)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
 	result, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+	for i := range result {
+		fmt.Println(result[i].StartDate, result[i].EndDate, result[i].IsActive, result[i].Name, result[i].Underlying, result[i].Type.String())
+	}
 
 	_, err = d.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
@@ -4058,4 +4062,22 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err = d.GetCurrencyTradeURL(context.Background(), asset.Options, cp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	resp, err := d.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 90),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.Weekly,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
 }
