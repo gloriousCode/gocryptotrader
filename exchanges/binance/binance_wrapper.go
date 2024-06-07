@@ -193,14 +193,14 @@ func (b *Binance) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
+		Subscriptions: subscription.List{
 			{Enabled: true, Channel: subscription.TickerChannel},
 		},
 	}
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimits()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -247,7 +247,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,

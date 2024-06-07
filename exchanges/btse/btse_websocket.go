@@ -373,23 +373,23 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{"tradeHistory:%s"}
+func (b *BTSE) GenerateDefaultSubscriptions() (subscription.List, error) {
+	var channels = []string{ "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, subscription.Subscription{
+		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: "notificationApi",
 		})
 	}
 	for i := range channels {
 		for j := range pairs {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: fmt.Sprintf(channels[i], pairs[j]),
-				Pair:    pairs[j],
+				Pairs:   currency.Pairs{pairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -398,7 +398,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 	messageLim := 25
 	subLim := 50
 	subs := 0
@@ -425,12 +425,11 @@ func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error 
 			return err
 		}
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {
@@ -438,9 +437,8 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) er
 			channelsToUnsubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(unSub)
-	if err != nil {
-		return err
+	if err == nil {
+		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return err
 }
