@@ -281,3 +281,34 @@ func (c ContractType) String() string {
 		return "unset/undefined contract type"
 	}
 }
+
+func (c ContractType) Duration() time.Duration {
+	switch c {
+	case Daily:
+		return time.Hour * 24
+	case Weekly:
+		return time.Hour * 24 * 7
+	case Fortnightly:
+		return time.Hour * 24 * 14
+	case ThreeWeekly:
+		return time.Hour * 24 * 21
+	case Monthly:
+		return time.Hour * 24 * 30
+	case BiMonthly:
+		return time.Hour * 24 * 60
+	case Quarterly:
+		return time.Hour * 24 * 90
+	case BiQuarterly:
+		return time.Hour * 24 * 180
+	case SemiAnnually:
+		return time.Hour * 24 * 180
+	case HalfYearly:
+		return time.Hour * 24 * 180
+	case NineMonthly:
+		return time.Hour * 24 * 270
+	case Yearly:
+		return time.Hour * 24 * 365
+	default:
+		return 0
+	}
+}

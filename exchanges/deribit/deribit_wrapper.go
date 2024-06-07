@@ -1144,6 +1144,16 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	return nil, fmt.Errorf("%w candlestick data for asset type %v", asset.ErrNotSupported, a)
 }
 
+func (d *Deribit) GetContractFromCurrencyAndDate(code currency.Code, date time.Time) (string, time.Time, error) {
+	for {
+		if date.Weekday() == time.Friday {
+			break
+		}
+		date = date.Add(time.Hour * 24)
+	}
+	return strings.ToUpper(code.String() + "-" + date.Format("02Jan06")), date, nil
+}
+
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := d.GetKlineExtendedRequest(pair, a, interval, start, end)
@@ -1632,21 +1642,25 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 		return nil, futures.ErrNotFuturesAsset
 	}
 	var resp []futures.Contract
-	var marketSummary []InstrumentData
-	var err error
-	if d.Websocket.IsConnected() {
-		marketSummary, err = d.WSRetrieveInstrumentsData(currency.NewCode("any"), "future", true)
-	} else {
-		marketSummary, err = d.GetInstruments(ctx, currency.NewCode("any"), "future", true)
-	}
-	if err != nil {
-		return nil, err
-	}
-	for i := range marketSummary {
-		if marketSummary[i].Kind != "future" {
+	var marketSummary *InstrumentData
+	tt := t
+	for tt.Before(time.Now()) {
+		contract, _, err := d.GetContractFromCurrencyAndDate(underlyingPair.Base, tt)
+		if err != nil {
+			return nil, err
+		}
+		if d.Websocket.IsConnected() {
+			marketSummary, err = d.WSRetrieveInstrumentData(contract)
+		} else {
+			marketSummary, err = d.GetInstrument(ctx, contract)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if marketSummary.Kind != "future" {
 			continue
 		}
-		underlying, err := currency.NewPairFromStrings(marketSummary[i].BaseCurrency, marketSummary[i].QuoteCurrency)
+		underlying, err := currency.NewPairFromStrings(marketSummary.BaseCurrency, marketSummary.QuoteCurrency)
 		if err != nil {
 			return nil, err
 		}
@@ -1655,12 +1669,12 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 		}
 
 		var cp currency.Pair
-		cp, err = currency.NewPairFromString(marketSummary[i].InstrumentName)
+		cp, err = currency.NewPairFromString(marketSummary.InstrumentName)
 		if err != nil {
 			return nil, err
 		}
 		var ct futures.ContractType
-		switch marketSummary[i].SettlementPeriod {
+		switch marketSummary.SettlementPeriod {
 		case "day":
 			ct = futures.Daily
 		case "week":
@@ -1672,10 +1686,10 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 		}
 		var contractSettlementType futures.ContractSettlementType
 		denomination := futures.QuoteDenomination
-		if marketSummary[i].SettlementCurrency == marketSummary[i].BaseCurrency {
+		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency {
 			denomination = futures.BaseDenomination
 		}
-		if marketSummary[i].InstrumentType == "reversed" {
+		if marketSummary.InstrumentType == "reversed" {
 			contractSettlementType = futures.Inverse
 			denomination = futures.BaseDenomination
 		} else {
@@ -1687,16 +1701,18 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 			Name:                      cp,
 			Underlying:                underlying,
 			Asset:                     item,
-			StartDate:                 marketSummary[i].CreationTimestamp.Time(),
-			EndDate:                   marketSummary[i].ExpirationTimestamp.Time(),
-			IsActive:                  marketSummary[i].IsActive,
+			StartDate:                 marketSummary.CreationTimestamp.Time(),
+			EndDate:                   marketSummary.ExpirationTimestamp.Time(),
+			IsActive:                  marketSummary.IsActive,
 			Type:                      ct,
 			SettlementType:            contractSettlementType,
-			SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
-			ContractMultiplier:        marketSummary[i].ContractSize,
-			MaxLeverage:               marketSummary[i].MaxLeverage,
+			SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary.SettlementCurrency)},
+			ContractMultiplier:        marketSummary.ContractSize,
+			MaxLeverage:               marketSummary.MaxLeverage,
 			ContractValueDenomination: denomination,
 		})
+
+		tt = tt.Add(ct.Duration())
 	}
 	return resp, nil
 }
@@ -1728,6 +1744,9 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		for j := range klineReq.RangeHolder.Ranges {
 			candles, err := d.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
 			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
 				return nil, err
 			}
 			for k := range candles.Candles {
@@ -1763,6 +1782,9 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		for i := range spotUnderlyingReq.RangeHolder.Ranges {
 			candles, err := d.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
 			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
 				return nil, err
 			}
 			for j := range candles.Candles {
@@ -1778,12 +1800,16 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		}
 		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
 		if err != nil {
-			return nil, err
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
 		}
 
 		contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
 		if err != nil {
-			return nil, err
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
 		}
 		contractKlineItem.SortCandlesByTimestamp(false)
 		resp.Data = append(resp.Data, futures.ContractKline{

@@ -820,6 +820,28 @@ func TestWSRetrieveTradeVolumes(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func ConvertToDeribitDate(code currency.Code, date time.Time) (string, time.Time) {
+	// BTC-7JUN24
+	for {
+		if date.Weekday() == time.Friday {
+			break
+		}
+		date = date.Add(time.Hour * 24)
+	}
+	return code.String() + "-" + date.Format("02Jan06"), date
+}
+
+func TestGetTradingViewChartOfOldContract(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	cd := time.Date(2024, time.April, 21, 0, 0, 0, 0, time.UTC)
+	contract, date := ConvertToDeribitDate(currency.BTC, cd)
+	_, err := d.GetTradingViewChart(context.Background(), strings.ToUpper(contract), "60", date.Add(-time.Hour*24*7), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTradingViewChartData(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetTradingViewChart(context.Background(), "", "60", time.Now().Add(-time.Hour), time.Now())
@@ -4072,7 +4094,7 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 		&futures.GetKlineContractRequest{
 			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
 			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 90),
+			StartDate:      time.Now().Add(-time.Hour * 24 * 24),
 			EndDate:        time.Now(),
 			Interval:       kline.OneDay,
 			Contract:       futures.Weekly,
@@ -4080,4 +4102,7 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Data)
+	for i := range resp.Data {
+		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
+	}
 }
