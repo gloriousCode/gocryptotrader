@@ -963,8 +963,7 @@ func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 	return nil
 }
 
-// Connect initiates a websocket connection by using a package defined connection
-// function
+// EnableAndConnectNoSubs connects with no subs
 func (w *Websocket) EnableAndConnectNoSubs() error {
 	if w.connector == nil {
 		return errNoConnectFunc
@@ -982,20 +981,21 @@ func (w *Websocket) EnableAndConnectNoSubs() error {
 		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
 
-	w.subscriptionMutex.Lock()
-	w.subscriptions = subscriptionMap{}
-	w.subscriptionMutex.Unlock()
+	if w.subscriptions == nil {
+		return fmt.Errorf("%w: subscriptions", common.ErrNilPointer)
+	}
+	w.subscriptions.Clear()
 
 	w.dataMonitor()
 	w.trafficMonitor()
-	w.setState(connecting)
+	w.setState(connectingState)
 
 	err := w.connector()
 	if err != nil {
-		w.setState(disconnected)
+		w.setState(disconnectedState)
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
-	w.setState(connected)
+	w.setState(connectedState)
 
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
@@ -1003,6 +1003,5 @@ func (w *Websocket) EnableAndConnectNoSubs() error {
 			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
 	}
-
 	return nil
 }

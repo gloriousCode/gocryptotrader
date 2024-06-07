@@ -246,7 +246,6 @@ type Base struct {
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
-	WebsocketsByKey               stream.WebsocketByKey
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
