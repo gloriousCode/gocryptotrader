@@ -4104,5 +4104,7 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	require.NotEmpty(t, resp.Data)
 	for i := range resp.Data {
 		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
+		butts, err := d.GetInstrument(context.Background(), resp.Data[i].PremiumContract.Name.String())
+		t.Log(butts, err)
 	}
 }

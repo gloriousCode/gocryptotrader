@@ -78,6 +78,23 @@ func (k *Kraken) GetInstruments(ctx context.Context) (FuturesInstrumentData, err
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
 }
 
+type Butts struct {
+	Result                                   string      `json:"result"`
+	ServerTime                               time.Time   `json:"serverTime"`
+	Tradeable                                string      `json:"tradeable"`
+	ExperiencingDislocation                  bool        `json:"experiencingDislocation"`
+	PriceDislocationDirection                interface{} `json:"priceDislocationDirection"`
+	ExperiencingExtremeVolatility            bool        `json:"experiencingExtremeVolatility"`
+	ExtremeVolatilityInitialMarginMultiplier int         `json:"extremeVolatilityInitialMarginMultiplier"`
+}
+
+// GetInstrumentStatus gets status of futures market and it's data
+func (k *Kraken) GetInstrumentStatus(ctx context.Context, instrument string) (Butts, error) {
+	var resp Butts
+	butts := futuresInstruments + "/" + instrument + "/status"
+	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, butts, &resp)
+}
+
 // GetFuturesTickers gets a list of futures tickers and their data
 func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
 	var resp FuturesTickersData

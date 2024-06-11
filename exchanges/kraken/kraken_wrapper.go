@@ -1811,41 +1811,163 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	return resp, nil
 }
 
-/*
-func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time) (currency.Pair, time.Time, error) {
 	loc, err := time.LoadLocation("Europe/London")
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}
 	tt = tt.In(loc)
-	switch pair.Quote.Item.Symbol {
-		for {
-			if tt.Weekday() == time.Friday {
-				break
-			}
-			tt = tt.AddDate(0, 0, 1)
+	for {
+		if tt.Weekday() == time.Friday {
+			break
 		}
+		tt = tt.AddDate(0, 0, 1)
 	}
-	pair.Quote = currency.NewCode("USD_"+ tt.Format("060102"))
-	return pair, nil
+	pair.Quote = currency.NewCode("USD_" + tt.Format("060102"))
+	return pair, tt, nil
 }
 
+type ContractAndExpiry struct {
+	Contract currency.Pair
+	Expiry   time.Time
+}
 
-*/
-// GetExpiredContracts returns previous expired contracts for a given pair
-func (k *Kraken) GetExpiredContracts(ctx context.Context, kpa key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
-	if kpa.Asset != asset.Futures {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, kpa.Asset)
+// GetLongDatedContractsFromDate returns previous expired contracts for a given pair
+func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, interval kline.Interval) ([]ContractAndExpiry, error) {
+	if item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	if !strings.HasPrefix(kpa.Base.String(), "FI_") &&
-		!strings.HasPrefix(kpa.Base.String(), "FF") {
-		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, kpa.Pair())
+	if !strings.HasPrefix(cp.Base.String(), "FI_") &&
+		!strings.HasPrefix(cp.Base.String(), "FF") {
+		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, cp)
 	}
-	// generate the contract expiry based on the data here:
-	// https://support.kraken.com/hc/en-us/articles/360022632172-Inverse-Crypto-Collateral-Fixed-Maturity-Contract-Specifications
+	var resp []ContractAndExpiry
+	tn := time.Now()
+	tt := earliestExpiry
+	for {
+		if tt.After(tn) {
+			break
+		}
+		pair := currency.NewPair(cp.Base, currency.USD)
+		pair, expiration, err := k.calculateContractExpiryPair(pair, tt)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, ContractAndExpiry{
+			Contract: pair,
+			Expiry:   expiration,
+		})
+		tt = tt.Add(interval.Duration())
+	}
+	return resp, nil
+}
+
+func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := k.GetLongDatedContractsFromDate(ctx, req.Asset, req.ContractPair, req.StartDate, req.Interval)
+	if err != nil {
+		return nil, err
+	}
+	var resp futures.HistoricalContractKline
+	for i := range contracts {
+		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[i].Contract, contracts[i].Expiry.Add(-req.Contract.Duration()), contracts[i].Expiry)
+		if err != nil {
+			return nil, err
+		}
+		var butteroo kline.Item
+		for j := range fc.Candles {
+			butteroo.Candles = append(butteroo.Candles, kline.Candle{
+				Time:   time.UnixMilli(fc.Candles[j].Time),
+				Open:   fc.Candles[j].Open,
+				High:   fc.Candles[j].High,
+				Low:    fc.Candles[j].Low,
+				Close:  fc.Candles[j].Close,
+				Volume: fc.Candles[j].Volume,
+			})
+		}
+
+		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), 0)
+		if err != nil {
+			return nil, err
+		}
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &futures.Contract{
+				Exchange:   k.Name,
+				Name:       contracts[i].Contract,
+				Underlying: req.UnderlyingPair,
+				Asset:      req.Asset,
+				StartDate:  contracts[i].Expiry.Add(-req.Contract.Duration()),
+				EndDate:    contracts[i].Expiry,
+				Type:       req.Contract,
+			},
+			PremiumKline: &butteroo,
+		})
+	}
+
+	//	spotUnderlyingReq, err := d.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if req.UnderlyingPair.Quote.Equal(currency.USD) {
+	//		req.UnderlyingPair.Quote = currency.USDT
+	//	}
+	//	spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+	//	up, err := d.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	for i := range spotUnderlyingReq.RangeHolder.Ranges {
+	//		candles, err := d.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+	//		if err != nil {
+	//			if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+	//				continue
+	//			}
+	//			return nil, err
+	//		}
+	//		for j := range candles.Candles {
+	//			spotCandles = append(spotCandles, kline.Candle{
+	//				Time:   candles.Candles[j].Time,
+	//				Open:   candles.Candles[j].Open,
+	//				High:   candles.Candles[j].High,
+	//				Low:    candles.Candles[j].Low,
+	//				Close:  candles.Candles[j].Close,
+	//				Volume: candles.Candles[j].Volume,
+	//			})
+	//		}
+	//	}
+	//	spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+	//	if err != nil {
+	//		if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+	//			return nil, err
+	//		}
+	//	}
+	//
+	//	contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
+	//	if err != nil {
+	//		if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+	//			return nil, err
+	//		}
+	//	}
+	//	contractKlineItem.SortCandlesByTimestamp(false)
+	//	resp.Data = append(resp.Data, futures.ContractKline{
+	//		PremiumContract: &contracts[i],
+	//		PremiumKline:    contractKlineItem,
+	//		BaseKline:       spotKlineItem,
+	//	})
+	//}
+	//if len(resp.Data) == 0 {
+	//	return nil, kline.ErrInsufficientCandleData
+	//}
+	//
+	//return &resp, nil
+
 	return nil, nil
 }
-
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {

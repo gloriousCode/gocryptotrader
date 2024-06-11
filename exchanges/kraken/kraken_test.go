@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -417,7 +416,17 @@ func TestGetFuturesOrderbook(t *testing.T) {
 
 func TestGetFuturesMarkets(t *testing.T) {
 	t.Parallel()
+	k.Verbose = true
 	_, err := k.GetInstruments(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetInstrumentStatus(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	_, err := k.GetInstrumentStatus(context.Background(), "FI_ETHUSD_220930")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2507,6 +2516,7 @@ func TestGetTheSymbols(t *testing.T) {
 
 func TestGetFuturesTrades(t *testing.T) {
 	t.Parallel()
+	k.Verbose = true
 	cp, err := currency.NewPairFromStrings("FI", "XRPUSD_210625")
 	if err != nil {
 		t.Error(err)
@@ -2521,6 +2531,7 @@ func TestGetFuturesTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second)
 }
 
 var websocketXDGUSDOrderbookUpdates = []string{
@@ -2737,5 +2748,26 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	k.Verbose = true
+	resp, err := k.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 24),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.Weekly,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+	for i := range resp.Data {
+		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
+
 	}
 }
