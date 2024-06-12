@@ -94,6 +94,7 @@ func (c *HistoricalContractKline) Analyse() {
 			if c.Data[i].PremiumKline.Candles[j].Close == 0 {
 				continue
 			}
+			// look into this and ensure candles are got
 			if c.Data[i].BaseKline.Candles[j].Close == 0 {
 				continue
 			}
@@ -149,12 +150,13 @@ type ContractDenomination int64
 type GetKlineContractRequest struct {
 	ContractPair currency.Pair
 	// used for okx
-	UnderlyingPair currency.Pair
-	Asset          asset.Item
-	StartDate      time.Time
-	EndDate        time.Time
-	Interval       kline.Interval
-	Contract       ContractType
+	UnderlyingPair       currency.Pair
+	Asset                asset.Item
+	StartDate            time.Time
+	EndDate              time.Time
+	Interval             kline.Interval
+	Contract             ContractType
+	ContractDenomination ContractDenomination
 }
 
 var ErrUnderlyingPairRequired = errors.New("underlying pair required")

@@ -1541,6 +1541,21 @@ func (k *Kraken) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].Volume,
 			})
 		}
+	case asset.Futures:
+		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(interval), "spot", pair, end, start)
+		if err != nil {
+			return nil, err
+		}
+		for j := range fc.Candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   time.UnixMilli(fc.Candles[j].Time),
+				Open:   fc.Candles[j].Open,
+				High:   fc.Candles[j].High,
+				Low:    fc.Candles[j].Low,
+				Close:  fc.Candles[j].Close,
+				Volume: fc.Candles[j].Volume,
+			})
+		}
 	default:
 		// TODO add new Futures API support
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
@@ -1676,29 +1691,31 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				return nil, err
 			}
 			switch {
-			// three day is used for generosity for contract date ranges
-			case e.Sub(s) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
+			case e.Sub(time.Now()) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
 				ct = futures.Monthly
-			case e.Sub(s) <= kline.ThreeMonth.Duration()+kline.ThreeDay.Duration():
+			case e.Sub(time.Now()) <= kline.ThreeMonth.Duration()+kline.ThreeDay.Duration():
 				ct = futures.Quarterly
 			default:
 				ct = futures.SemiAnnually
 			}
 		}
+		cvd := futures.QuoteDenomination
 		contractSettlementType := futures.Linear
 		if cp.Base.Equal(currency.PI) || cp.Base.Equal(currency.FI) {
 			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
-			Exchange:       k.Name,
-			Name:           cp,
-			Underlying:     underlying,
-			Asset:          item,
-			StartDate:      s,
-			EndDate:        e,
-			SettlementType: contractSettlementType,
-			IsActive:       result.Instruments[i].Tradable,
-			Type:           ct,
+			Exchange:                  k.Name,
+			Name:                      cp,
+			Underlying:                underlying,
+			Asset:                     item,
+			StartDate:                 s,
+			EndDate:                   e,
+			SettlementType:            contractSettlementType,
+			IsActive:                  result.Instruments[i].Tradable,
+			Type:                      ct,
+			ContractValueDenomination: cvd,
+			ContractMultiplier:        result.Instruments[i].ContractSize,
 		}
 	}
 	return resp, nil
@@ -1811,19 +1828,44 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	return resp, nil
 }
 
-func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time) (currency.Pair, time.Time, error) {
+func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
 	loc, err := time.LoadLocation("Europe/London")
 	if err != nil {
-		return currency.EMPTYPAIR, err
+		return currency.EMPTYPAIR, time.Time{}, err
 	}
 	tt = tt.In(loc)
-	for {
-		if tt.Weekday() == time.Friday {
-			break
+	switch ct {
+	case futures.Monthly:
+		year, month, _ := tt.Date()
+		nextMonth := time.Date(year, month+1, 0, 0, 0, 0, 0, tt.Location())
+		for i := 0; i >= -7; i-- {
+			if nextMonth.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextMonth.AddDate(0, 0, i)
+				break
+			}
 		}
-		tt = tt.AddDate(0, 0, 1)
+	case futures.Quarterly:
+		year, quarter := tt.Year(), (tt.Month()-1)/3+1
+		nextQuarter := time.Date(year, time.Month((quarter-1)*3+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 3, 0)
+		for i := 0; i >= -7; i-- {
+			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextQuarter.AddDate(0, 0, i)
+				break
+			}
+		}
+	case futures.SemiAnnually:
+		year, quarter := tt.Year(), (tt.Month()-1)/6+1
+		nextQuarter := time.Date(year, time.Month((quarter-1)*6+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 6, 0)
+		for i := 0; i >= -7; i-- {
+			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextQuarter.AddDate(0, 0, i)
+				break
+			}
+		}
+	default:
+		panic("unhandled default case")
 	}
-	pair.Quote = currency.NewCode("USD_" + tt.Format("060102"))
+	pair.Quote = currency.NewCode(pair.Quote.String() + currency.UnderscoreDelimiter + tt.Format("060102"))
 	return pair, tt, nil
 }
 
@@ -1833,13 +1875,23 @@ type ContractAndExpiry struct {
 }
 
 // GetLongDatedContractsFromDate returns previous expired contracts for a given pair
-func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, interval kline.Interval) ([]ContractAndExpiry, error) {
+func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractDenomination) ([]ContractAndExpiry, error) {
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	if !strings.HasPrefix(cp.Base.String(), "FI_") &&
-		!strings.HasPrefix(cp.Base.String(), "FF") {
-		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, cp)
+	if !ct.IsLongDated() {
+		return nil, fmt.Errorf("%w %v", futures.ErrContractTypeNotSupported, ct)
+	}
+	if !cp.Base.Equal(currency.PF) && !cp.Base.Equal(currency.FF) {
+		var err error
+		if cd == futures.QuoteDenomination {
+			cp, err = currency.NewPairFromStrings(currency.FF.String(), cp.Base.String()+cp.Quote.String())
+		} else {
+			cp, err = currency.NewPairFromStrings(currency.FI.String(), cp.Base.String()+cp.Quote.String())
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	var resp []ContractAndExpiry
 	tn := time.Now()
@@ -1848,8 +1900,7 @@ func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Ite
 		if tt.After(tn) {
 			break
 		}
-		pair := currency.NewPair(cp.Base, currency.USD)
-		pair, expiration, err := k.calculateContractExpiryPair(pair, tt)
+		pair, expiration, err := k.calculateContractExpiryPair(cp, tt, ct)
 		if err != nil {
 			return nil, err
 		}
@@ -1857,7 +1908,8 @@ func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Ite
 			Contract: pair,
 			Expiry:   expiration,
 		})
-		tt = tt.Add(interval.Duration())
+		tt = expiration
+		tt = tt.Add(contractDuration)
 	}
 	return resp, nil
 }
@@ -1869,19 +1921,28 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := k.GetLongDatedContractsFromDate(ctx, req.Asset, req.ContractPair, req.StartDate, req.Interval)
+	contracts, err := k.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.ContractDenomination)
 	if err != nil {
 		return nil, err
 	}
 	var resp futures.HistoricalContractKline
 	for i := range contracts {
-		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[i].Contract, contracts[i].Expiry.Add(-req.Contract.Duration()), contracts[i].Expiry)
+		contractKline := kline.Item{
+			Exchange:       k.Name,
+			Pair:           contracts[i].Contract,
+			UnderlyingPair: req.UnderlyingPair,
+			Asset:          req.Asset,
+			Interval:       req.Interval,
+		}
+		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[i].Contract, contracts[i].Expiry, contracts[i].Expiry.Add(-req.Contract.Duration()))
 		if err != nil {
 			return nil, err
 		}
-		var butteroo kline.Item
+		if len(fc.Candles) == 0 {
+			continue
+		}
 		for j := range fc.Candles {
-			butteroo.Candles = append(butteroo.Candles, kline.Candle{
+			contractKline.Candles = append(contractKline.Candles, kline.Candle{
 				Time:   time.UnixMilli(fc.Candles[j].Time),
 				Open:   fc.Candles[j].Open,
 				High:   fc.Candles[j].High,
@@ -1890,10 +1951,29 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 				Volume: fc.Candles[j].Volume,
 			})
 		}
-
-		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), 0)
+		spotKline := kline.Item{
+			Exchange: k.Name,
+			Pair:     req.UnderlyingPair,
+			Asset:    req.Asset,
+			Interval: req.Interval,
+		}
+		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), req.StartDate.UnixMilli())
 		if err != nil {
 			return nil, err
+		}
+		for j := range sc {
+			tt := time.UnixMilli(int64(sc[j].Time))
+			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
+				continue
+			}
+			spotKline.Candles = append(spotKline.Candles, kline.Candle{
+				Time:   time.UnixMilli(int64(sc[j].Time)),
+				Open:   sc[j].Open,
+				High:   sc[j].High,
+				Low:    sc[j].Low,
+				Close:  sc[j].Close,
+				Volume: sc[j].Volume,
+			})
 		}
 		resp.Data = append(resp.Data, futures.ContractKline{
 			PremiumContract: &futures.Contract{
@@ -1905,68 +1985,11 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 				EndDate:    contracts[i].Expiry,
 				Type:       req.Contract,
 			},
-			PremiumKline: &butteroo,
+			PremiumKline: &contractKline,
+			BaseKline:    &spotKline,
 		})
 	}
-
-	//	spotUnderlyingReq, err := d.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	if req.UnderlyingPair.Quote.Equal(currency.USD) {
-	//		req.UnderlyingPair.Quote = currency.USDT
-	//	}
-	//	spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
-	//	up, err := d.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	for i := range spotUnderlyingReq.RangeHolder.Ranges {
-	//		candles, err := d.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
-	//		if err != nil {
-	//			if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
-	//				continue
-	//			}
-	//			return nil, err
-	//		}
-	//		for j := range candles.Candles {
-	//			spotCandles = append(spotCandles, kline.Candle{
-	//				Time:   candles.Candles[j].Time,
-	//				Open:   candles.Candles[j].Open,
-	//				High:   candles.Candles[j].High,
-	//				Low:    candles.Candles[j].Low,
-	//				Close:  candles.Candles[j].Close,
-	//				Volume: candles.Candles[j].Volume,
-	//			})
-	//		}
-	//	}
-	//	spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
-	//	if err != nil {
-	//		if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
-	//			return nil, err
-	//		}
-	//	}
-	//
-	//	contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
-	//	if err != nil {
-	//		if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
-	//			return nil, err
-	//		}
-	//	}
-	//	contractKlineItem.SortCandlesByTimestamp(false)
-	//	resp.Data = append(resp.Data, futures.ContractKline{
-	//		PremiumContract: &contracts[i],
-	//		PremiumKline:    contractKlineItem,
-	//		BaseKline:       spotKlineItem,
-	//	})
-	//}
-	//if len(resp.Data) == 0 {
-	//	return nil, kline.ErrInsufficientCandleData
-	//}
-	//
-	//return &resp, nil
-
-	return nil, nil
+	return &resp, nil
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

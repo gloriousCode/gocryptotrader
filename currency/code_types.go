@@ -3036,6 +3036,7 @@ var (
 	SWAP             = NewCode("SWAP")
 	PI               = NewCode("PI")
 	FI               = NewCode("FI")
+	FF               = NewCode("FF")
 	USDM             = NewCode("USDM")
 	USDTM            = NewCode("USDTM")
 	LEVER            = NewCode("LEVER")

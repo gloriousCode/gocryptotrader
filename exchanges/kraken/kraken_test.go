@@ -2756,12 +2756,13 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	resp, err := k.GetHistoricalContractKlineData(
 		context.Background(),
 		&futures.GetKlineContractRequest{
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
-			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 24),
-			EndDate:        time.Now(),
-			Interval:       kline.OneDay,
-			Contract:       futures.Weekly,
+			UnderlyingPair:       currency.NewPair(currency.LTC, currency.USD),
+			Asset:                asset.Futures,
+			StartDate:            time.Now().Add(-time.Hour * 24 * 120),
+			EndDate:              time.Now(),
+			Interval:             kline.OneDay,
+			Contract:             futures.Monthly,
+			ContractDenomination: futures.BaseDenomination,
 		},
 	)
 	require.NoError(t, err)
