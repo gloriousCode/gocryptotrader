@@ -3870,9 +3870,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	result, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	for i := range result {
-		fmt.Println(result[i].StartDate, result[i].EndDate, result[i].IsActive, result[i].Name, result[i].Underlying, result[i].Type.String())
-	}
 
 	_, err = d.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)

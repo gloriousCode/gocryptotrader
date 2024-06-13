@@ -295,7 +295,6 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 }
 
 func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
-	var response WsResponse
 	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
