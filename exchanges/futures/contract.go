@@ -2,6 +2,7 @@ package futures
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -90,23 +91,39 @@ func (c *HistoricalContractKline) Analyse() {
 			BaseCurrency:    c.Data[i].BaseKline.Pair,
 			PremiumCurrency: c.Data[i].PremiumKline.Pair,
 		}
+		if len(c.Data[i].PremiumKline.Candles) != len(c.Data[i].BaseKline.Candles) {
+			fmt.Println("candles not equal")
+		}
+		var endPremium, endBase float64
+	candlero:
 		for j := range c.Data[i].PremiumKline.Candles {
-			if c.Data[i].PremiumKline.Candles[j].Close == 0 {
-				continue
-			}
-			// look into this and ensure candles are got
-			if c.Data[i].BaseKline.Candles[j].Close == 0 {
-				continue
-			}
-			if c.Data[i].PremiumKline.Candles[j].Close < c.Data[i].BaseKline.Candles[j].Close {
-				analytics.AchievedContango = true
-				c.AnyContangos = true
-				analytics.ContagoTimes = append(analytics.ContagoTimes, ContangoTime{
-					Time:         c.Data[i].PremiumKline.Candles[j].Time,
-					BasePrice:    c.Data[i].BaseKline.Candles[j].Close,
-					PremiumPrice: c.Data[i].PremiumKline.Candles[j].Close,
-					Gain:         c.Data[i].PremiumKline.Candles[0].Close - c.Data[i].PremiumKline.Candles[j].Close/c.Data[i].PremiumKline.Candles[0].Close*100,
-				})
+			for k := range c.Data[i].BaseKline.Candles {
+				if !c.Data[i].PremiumKline.Candles[j].Time.Equal(c.Data[i].BaseKline.Candles[k].Time) {
+					continue
+				}
+				endPremium = c.Data[i].PremiumKline.Candles[j].Close
+				endBase = c.Data[i].BaseKline.Candles[k].Close
+				if c.Data[i].PremiumKline.Candles[j].Close == 0 {
+					continue candlero
+				}
+				// look into this and ensure candles are got
+				if c.Data[i].BaseKline.Candles[k].Close == 0 {
+					continue
+				}
+				if c.Data[i].PremiumKline.Candles[j].Close < c.Data[i].BaseKline.Candles[k].Close {
+					analytics.AchievedContango = true
+					c.AnyContangos = true
+					ct := ContangoTime{
+						Time:         c.Data[i].PremiumKline.Candles[j].Time,
+						BasePrice:    c.Data[i].BaseKline.Candles[k].Close,
+						PremiumPrice: c.Data[i].PremiumKline.Candles[j].Close,
+					}
+					if c.Data[i].PremiumKline.Candles[0].Close > 0 {
+						ct.Gain = ((c.Data[i].PremiumKline.Candles[0].Close - c.Data[i].PremiumKline.Candles[j].Close) / c.Data[i].PremiumKline.Candles[0].Close) * 100
+					}
+					analytics.ContagoTimes = append(analytics.ContagoTimes, ct)
+				}
+				break
 			}
 		}
 
@@ -115,11 +132,15 @@ func (c *HistoricalContractKline) Analyse() {
 		analytics.BaseOpenPrice = c.Data[i].BaseKline.Candles[0].Open
 		analytics.PremiumOpenPrice = c.Data[i].PremiumKline.Candles[0].Open
 
-		analytics.BaseClosePrice = c.Data[i].BaseKline.Candles[len(c.Data[i].BaseKline.Candles)-1].Close
-		analytics.PremiumClosePrice = c.Data[i].PremiumKline.Candles[len(c.Data[i].PremiumKline.Candles)-1].Close
+		analytics.BaseClosePrice = endBase
+		analytics.PremiumClosePrice = endPremium
 
-		analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
-		analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
+		if analytics.PremiumOpenPrice > 0 {
+			analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
+		}
+		if analytics.PremiumClosePrice > 0 {
+			analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
+		}
 
 		analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 		c.Analytics = append(c.Analytics, analytics)

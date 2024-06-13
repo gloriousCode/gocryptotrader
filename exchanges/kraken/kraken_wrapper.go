@@ -1957,12 +1957,12 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 			Asset:    req.Asset,
 			Interval: req.Interval,
 		}
-		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), req.StartDate.UnixMilli())
+		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), contracts[i].Expiry.Add(-req.Contract.Duration()).Unix())
 		if err != nil {
 			return nil, err
 		}
 		for j := range sc {
-			tt := time.UnixMilli(int64(sc[j].Time))
+			tt := time.Unix(int64(sc[j].Time), 0)
 			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
 				continue
 			}
