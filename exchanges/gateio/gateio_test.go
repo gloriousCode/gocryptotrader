@@ -3598,3 +3598,22 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 	}
 }
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	g.Verbose = true
+	resp, err := g.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair:       currency.NewPair(currency.LTC, currency.USDT),
+			Asset:                asset.Futures,
+			StartDate:            time.Now().Add(-time.Hour * 24 * 200),
+			EndDate:              time.Now(),
+			Interval:             kline.OneDay,
+			Contract:             futures.Quarterly,
+			ContractDenomination: futures.QuoteDenomination,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+}
