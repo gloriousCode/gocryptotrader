@@ -4089,9 +4089,9 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	resp, err := d.GetHistoricalContractKlineData(
 		context.Background(),
 		&futures.GetKlineContractRequest{
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			UnderlyingPair: currency.NewPair(currency.ETH, currency.USD),
 			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 24),
+			StartDate:      time.Now().Add(-time.Hour * 24 * 200),
 			EndDate:        time.Now(),
 			Interval:       kline.OneDay,
 			Contract:       futures.Weekly,

@@ -1650,9 +1650,12 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 			marketSummary, err = d.GetInstrument(ctx, contract)
 		}
 		if err != nil {
-			return nil, err
+			// likely no data for this date, keep going
+			tt = tt.Add(ct.Duration())
+			continue
 		}
 		if marketSummary.Kind != "future" {
+			tt = tt.Add(ct.Duration())
 			continue
 		}
 		underlying, err := currency.NewPairFromStrings(marketSummary.BaseCurrency, marketSummary.QuoteCurrency)
@@ -1660,6 +1663,7 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 			return nil, err
 		}
 		if !underlying.Equal(underlyingPair) {
+			tt = tt.Add(ct.Duration())
 			continue
 		}
 
