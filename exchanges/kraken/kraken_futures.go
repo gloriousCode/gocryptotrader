@@ -35,17 +35,17 @@ func (k *Kraken) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair) 
 }
 
 // GetFuturesCharts returns candle data for kraken futures
-func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, to, from time.Time) (*FuturesCandles, error) {
+func (k *Kraken) GetFuturesCharts(ctx context.Context, resolution, tickType string, symbol currency.Pair, end, start time.Time) (*FuturesCandles, error) {
 	symbolValue, err := k.FormatSymbol(symbol, asset.Futures)
 	if err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if !end.IsZero() && end.Before(time.Now()) {
+		params.Set("to", strconv.FormatInt(end.Unix(), 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	if !start.IsZero() && start.Before(time.Now()) {
+		params.Set("from", strconv.FormatInt(start.Unix(), 10))
 	}
 	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution
 	if len(params) > 0 {

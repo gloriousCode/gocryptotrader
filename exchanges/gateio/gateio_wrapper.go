@@ -2161,7 +2161,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			var pair currency.Pair
 			pair, err = g.MatchSymbolWithAvailablePairs(pairsData[x].ID, a, true)
 			if err != nil {
-				return err
+				continue
 			}
 
 			// Minimum base amounts are not always provided this will default to

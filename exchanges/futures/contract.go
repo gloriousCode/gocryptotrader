@@ -54,20 +54,21 @@ func (c *HistoricalContractKline) Analyse() {
 
 		analytics.Start = c.Data[i].PremiumContract.StartDate
 		analytics.End = c.Data[i].PremiumContract.EndDate
-		analytics.BaseOpenPrice = c.Data[i].BaseKline.Candles[0].Open
-		analytics.PremiumOpenPrice = c.Data[i].PremiumKline.Candles[0].Open
+		if len(c.Data[i].PremiumKline.Candles) > 0 && len(c.Data[i].BaseKline.Candles) > 0 {
+			analytics.BaseOpenPrice = c.Data[i].BaseKline.Candles[0].Open
+			analytics.PremiumOpenPrice = c.Data[i].PremiumKline.Candles[0].Open
 
-		analytics.BaseClosePrice = endBase
-		analytics.PremiumClosePrice = endPremium
+			analytics.BaseClosePrice = endBase
+			analytics.PremiumClosePrice = endPremium
 
-		if analytics.PremiumOpenPrice > 0 {
-			analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
+			if analytics.PremiumOpenPrice > 0 {
+				analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
+			}
+			if analytics.PremiumClosePrice > 0 {
+				analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
+			}
+			analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 		}
-		if analytics.PremiumClosePrice > 0 {
-			analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
-		}
-
-		analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 		c.Analytics = append(c.Analytics, analytics)
 	}
 	if len(c.Analytics) > 0 {

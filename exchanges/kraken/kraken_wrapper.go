@@ -1895,9 +1895,13 @@ func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Ite
 	}
 	var resp []ContractAndExpiry
 	tn := time.Now()
+	tnc := 0
 	tt := earliestExpiry
 	for {
 		if tt.After(tn) {
+			tnc++
+		}
+		if tnc > 1 {
 			break
 		}
 		pair, expiration, err := k.calculateContractExpiryPair(cp, tt, ct)
@@ -1926,6 +1930,11 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 		return nil, err
 	}
 	var resp futures.HistoricalContractKline
+
+	fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[len(contracts)-1].Contract, contracts[len(contracts)-1].Expiry, contracts[0].Expiry.Add(-req.Contract.Duration()))
+	if err != nil {
+		return nil, err
+	}
 	for i := range contracts {
 		contractKline := kline.Item{
 			Exchange:       k.Name,
@@ -1934,14 +1943,11 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 			Asset:          req.Asset,
 			Interval:       req.Interval,
 		}
-		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[i].Contract, contracts[i].Expiry, contracts[i].Expiry.Add(-req.Contract.Duration()))
-		if err != nil {
-			return nil, err
-		}
-		if len(fc.Candles) == 0 {
-			continue
-		}
 		for j := range fc.Candles {
+			tt := time.UnixMilli(fc.Candles[j].Time)
+			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
+				continue
+			}
 			contractKline.Candles = append(contractKline.Candles, kline.Candle{
 				Time:   time.UnixMilli(fc.Candles[j].Time),
 				Open:   fc.Candles[j].Open,

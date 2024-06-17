@@ -2756,19 +2756,18 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	resp, err := k.GetHistoricalContractKlineData(
 		context.Background(),
 		&futures.GetKlineContractRequest{
-			UnderlyingPair:       currency.NewPair(currency.LTC, currency.USD),
+			UnderlyingPair:       currency.NewPair(currency.SOL, currency.USD),
 			Asset:                asset.Futures,
-			StartDate:            time.Now().Add(-time.Hour * 24 * 120),
+			StartDate:            time.Now().Add(-time.Hour * 24 * 200),
 			EndDate:              time.Now(),
 			Interval:             kline.OneDay,
-			Contract:             futures.Monthly,
-			ContractDenomination: futures.BaseDenomination,
+			Contract:             futures.SemiAnnually,
+			ContractDenomination: futures.QuoteDenomination,
 		},
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Data)
 	for i := range resp.Data {
-		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
-
+		t.Logf("Data: %+v %v", resp.Data[i].PremiumContract.Name, len(resp.Data[i].PremiumKline.Candles))
 	}
 }

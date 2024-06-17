@@ -49,4 +49,5 @@ type Features struct {
 	// HasAssetTypeAccountSegregation is when the assets are divided into asset
 	// types instead of just being denoted as spot holdings.
 	HasAssetTypeAccountSegregation bool `json:"hasAssetTypeAccountSegregation,omitempty"`
+	GetKlineFromCurrentContract    bool `json:"getKlineFromCurrentContract,omitempty"`
 }
