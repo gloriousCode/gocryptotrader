@@ -2045,24 +2045,30 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 				settlePair := currency.NewCode(settlePairs[k])
+				cd := futures.QuoteDenomination
 				contractSettlementType := futures.Linear
 				switch {
 				case name.Base.Equal(currency.BTC) && settlePair.Equal(currency.BTC):
 					contractSettlementType = futures.Inverse
+					cd = futures.BaseDenomination
 				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
 					contractSettlementType = futures.Quanto
+				case name.Base.Equal(settlePair):
+					contractSettlementType = futures.Inverse
+					cd = futures.BaseDenomination
 				}
 				c := futures.Contract{
-					Exchange:             g.Name,
-					Name:                 name,
-					Underlying:           name,
-					Asset:                item,
-					IsActive:             !contracts[j].InDelisting,
-					Type:                 futures.Perpetual,
-					SettlementType:       contractSettlementType,
-					SettlementCurrencies: currency.Currencies{settlePair},
-					ContractMultiplier:   contracts[j].QuantoMultiplier.Float64(),
-					MaxLeverage:          contracts[j].LeverageMax.Float64(),
+					Exchange:                  g.Name,
+					Name:                      name,
+					Underlying:                name,
+					Asset:                     item,
+					IsActive:                  !contracts[j].InDelisting,
+					Type:                      futures.Perpetual,
+					SettlementType:            contractSettlementType,
+					SettlementCurrencies:      currency.Currencies{settlePair},
+					ContractMultiplier:        contracts[j].QuantoMultiplier.Float64(),
+					MaxLeverage:               contracts[j].LeverageMax.Float64(),
+					ContractValueDenomination: cd,
 				}
 				if contracts[j].FundingRate > 0 {
 					c.LatestRate = fundingrate.Rate{
@@ -2099,36 +2105,45 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
 				var s, e time.Time
 				e = contracts[j].ExpireTime.Time()
+				settlePair := currency.NewCode(settlePairs[k])
 				switch contracts[j].Cycle {
 				case "WEEKLY":
 					ct = futures.Weekly
-					s = e.Add(-kline.OneWeek.Duration())
+					s = e.Add(-futures.Weekly.Duration())
 				case "BI-WEEKLY":
 					ct = futures.Fortnightly
-					s = e.Add(-kline.TwoWeek.Duration())
+					s = e.Add(-futures.Fortnightly.Duration())
 				case "QUARTERLY":
 					ct = futures.Quarterly
-					s = e.Add(-kline.ThreeMonth.Duration())
+					s = e.Add(-futures.Quarterly.Duration())
 				case "BI-QUARTERLY":
 					ct = futures.HalfYearly
-					s = e.Add(-kline.SixMonth.Duration())
+					s = e.Add(-futures.HalfYearly.Duration())
 				default:
 					ct = futures.LongDated
 				}
+				cd := futures.QuoteDenomination
+				switch {
+				case settlePair.Equal(underlying.Base):
+					cd = futures.BaseDenomination
+				case settlePair.Equal(underlying.Quote):
+				default:
+
+				}
 				contractsToAdd[j] = futures.Contract{
-					Exchange:             g.Name,
-					Name:                 name,
-					Underlying:           underlying,
-					Asset:                item,
-					StartDate:            s,
-					EndDate:              e,
-					SettlementType:       futures.Linear,
-					IsActive:             !contracts[j].InDelisting,
-					Type:                 ct,
-					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
-					MarginCurrency:       currency.Code{},
-					ContractMultiplier:   contracts[j].QuantoMultiplier.Float64(),
-					MaxLeverage:          contracts[j].LeverageMax.Float64(),
+					Exchange:                  g.Name,
+					Name:                      name,
+					Underlying:                underlying,
+					Asset:                     item,
+					StartDate:                 s,
+					EndDate:                   e,
+					SettlementType:            futures.Linear,
+					IsActive:                  !contracts[j].InDelisting,
+					Type:                      ct,
+					SettlementCurrencies:      currency.Currencies{settlePair},
+					ContractMultiplier:        contracts[j].QuantoMultiplier.Float64(),
+					MaxLeverage:               contracts[j].LeverageMax.Float64(),
+					ContractValueDenomination: cd,
 				}
 			}
 			resp = append(resp, contractsToAdd...)
