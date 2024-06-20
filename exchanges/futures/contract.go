@@ -1,9 +1,17 @@
 package futures
 
 import (
-	"fmt"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+type Butts struct {
+	PremiumCandle kline.Candle
+	BaseCandle    kline.Candle
+}
+
+type Butteroo map[time.Time]*Butts
 
 func (c *HistoricalContractKline) Analyse() {
 	if len(c.Data) == 0 {
@@ -12,65 +20,76 @@ func (c *HistoricalContractKline) Analyse() {
 	for i := range c.Data {
 		c.Data[i].PremiumKline.ClearEmpty()
 		c.Data[i].BaseKline.ClearEmpty()
+	}
+	for i := range c.Data {
+		butts := make(Butteroo)
+		for j := range c.Data[i].PremiumKline.Candles {
+			if hello, ok := butts[c.Data[i].PremiumKline.Candles[j].Time]; ok {
+				hello.PremiumCandle = c.Data[i].PremiumKline.Candles[j]
+			} else {
+				butts[c.Data[i].PremiumKline.Candles[j].Time] = &Butts{
+					PremiumCandle: c.Data[i].PremiumKline.Candles[j],
+				}
+			}
+		}
+		for k := range c.Data[i].BaseKline.Candles {
+			if hello, ok := butts[c.Data[i].BaseKline.Candles[k].Time]; ok {
+				hello.BaseCandle = c.Data[i].BaseKline.Candles[k]
+			} else {
+				butts[c.Data[i].BaseKline.Candles[k].Time] = &Butts{
+					BaseCandle: c.Data[i].BaseKline.Candles[k],
+				}
+			}
+		}
+		for k, v := range butts {
+			if v.PremiumCandle.Close == 0 || v.BaseCandle.Close == 0 {
+				delete(butts, k)
+			}
+		}
+		if len(butts) == 0 {
+			return
+		}
+
 		analytics := ContractKlineAnalytics{
 			BaseCurrency:    c.Data[i].BaseKline.Pair,
 			PremiumCurrency: c.Data[i].PremiumKline.Pair,
 		}
-		if len(c.Data[i].PremiumKline.Candles) != len(c.Data[i].BaseKline.Candles) {
-			fmt.Println("candles not equal")
-		}
-		var endPremium, endBase float64
-	candlero:
-		for j := range c.Data[i].PremiumKline.Candles {
-			for k := range c.Data[i].BaseKline.Candles {
-				if !c.Data[i].PremiumKline.Candles[j].Time.Equal(c.Data[i].BaseKline.Candles[k].Time) {
-					continue
-				}
-				endPremium = c.Data[i].PremiumKline.Candles[j].Close
-				endBase = c.Data[i].BaseKline.Candles[k].Close
-				if c.Data[i].PremiumKline.Candles[j].Close == 0 {
-					continue candlero
-				}
-				// look into this and ensure candles are got
-				if c.Data[i].BaseKline.Candles[k].Close == 0 {
-					continue
-				}
-				if c.Data[i].PremiumKline.Candles[j].Close < c.Data[i].BaseKline.Candles[k].Close {
-					analytics.AchievedContango = true
-					c.AnyContangos = true
-					ct := ContangoTime{
-						Time:         c.Data[i].PremiumKline.Candles[j].Time,
-						BasePrice:    c.Data[i].BaseKline.Candles[k].Close,
-						PremiumPrice: c.Data[i].PremiumKline.Candles[j].Close,
-					}
-					if c.Data[i].PremiumKline.Candles[0].Close > 0 {
-						ct.Gain = ((c.Data[i].PremiumKline.Candles[0].Close - c.Data[i].PremiumKline.Candles[j].Close) / c.Data[i].PremiumKline.Candles[0].Close) * 100
-					}
-					analytics.ContagoTimes = append(analytics.ContagoTimes, ct)
-				}
-				break
-			}
-		}
-
-		analytics.Start = c.Data[i].PremiumContract.StartDate
-		analytics.End = c.Data[i].PremiumContract.EndDate
-		if len(c.Data[i].PremiumKline.Candles) > 0 && len(c.Data[i].BaseKline.Candles) > 0 {
-			analytics.BaseOpenPrice = c.Data[i].BaseKline.Candles[0].Open
-			analytics.PremiumOpenPrice = c.Data[i].PremiumKline.Candles[0].Open
-
-			analytics.BaseClosePrice = endBase
-			analytics.PremiumClosePrice = endPremium
-
-			if analytics.PremiumOpenPrice > 0 {
+		firstDone := false
+		x := 0
+		last := len(butts) - 1
+		for k, v := range butts {
+			if !firstDone {
+				analytics.Start = k
+				analytics.BaseOpenPrice = v.BaseCandle.Open
+				analytics.PremiumOpenPrice = v.PremiumCandle.Open
 				analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
+				firstDone = true
 			}
-			if analytics.PremiumClosePrice > 0 {
+			if v.PremiumCandle.Close < v.BaseCandle.Close {
+				analytics.AchievedContango = true
+				c.AnyContangos = true
+				ct := ContangoTime{
+					Time:         k,
+					BasePrice:    v.BaseCandle.Close,
+					PremiumPrice: v.PremiumCandle.Close,
+				}
+				if analytics.PremiumOpenPrice > 0 {
+					ct.Gain = ((analytics.PremiumOpenPrice - v.PremiumCandle.Close) / analytics.PremiumOpenPrice) * 100
+				}
+				analytics.ContagoTimes = append(analytics.ContagoTimes, ct)
+			}
+			x++
+			if x == last {
+				analytics.End = k
+				analytics.BaseClosePrice = v.BaseCandle.Close
+				analytics.PremiumClosePrice = v.PremiumCandle.Close
 				analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
+				analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 			}
-			analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
 		}
 		c.Analytics = append(c.Analytics, analytics)
 	}
+
 	if len(c.Analytics) > 0 {
 		c.AnalyticsPerformed = true
 		var contangos, positiveContangos, positiveEndResultPercent float64
