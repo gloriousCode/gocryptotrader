@@ -587,6 +587,30 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	}, nil
 }
 
+func (s *SubmitResponse) DeriveSubmit() (*Submit, error) {
+	if s == nil {
+		return nil, errOrderSubmitResponseIsNil
+	}
+	return &Submit{
+		Exchange:          s.Exchange,
+		Type:              s.Type,
+		Side:              s.Side,
+		Pair:              s.Pair,
+		AssetType:         s.AssetType,
+		ImmediateOrCancel: s.ImmediateOrCancel,
+		FillOrKill:        s.FillOrKill,
+		PostOnly:          s.PostOnly,
+		ReduceOnly:        s.ReduceOnly,
+		Leverage:          s.Leverage,
+		Price:             s.Price,
+		Amount:            s.Amount,
+		QuoteAmount:       s.QuoteAmount,
+		TriggerPrice:      s.TriggerPrice,
+		ClientID:          s.ClientID,
+		ClientOrderID:     s.ClientOrderID,
+	}, nil
+}
+
 // CopyPointerOrderSlice returns a copy of all order detail and returns a slice
 // of pointers.
 func CopyPointerOrderSlice(old []*Detail) []*Detail {

@@ -2581,6 +2581,9 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 	if err != nil {
 		return nil, err
 	}
+	if len(contracts) == 0 {
+		return nil, nil
+	}
 	var resp futures.HistoricalContractKline
 	resp.Data = make([]futures.ContractKline, 0, len(contracts))
 	latestContract := contracts[len(contracts)-1]
