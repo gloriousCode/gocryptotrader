@@ -3564,3 +3564,9 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Data)
 }
+
+func TestFetchUSDTMarginExchangeLimits(t *testing.T) {
+	resp, err := b.FetchUSDTMarginExchangeLimits(context.Background())
+	require.NoError(t, err)
+	t.Log(resp)
+}

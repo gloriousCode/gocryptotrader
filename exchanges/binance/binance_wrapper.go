@@ -1877,6 +1877,21 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 	return resp
 }
 
+func (b *Binance) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error) {
+	if a == asset.USDTMarginedFutures {
+		doesIt := cp.Quote.String()
+		switch {
+		case strings.Contains(doesIt, "USDT"):
+			cp.Quote = currency.USDT
+		case strings.Contains(doesIt, "BUSD"):
+			cp.Quote = currency.BUSD
+		case strings.Contains(doesIt, "USDC"):
+			cp.Quote = currency.USDC
+		}
+	}
+	return b.ExecutionLimits.GetOrderExecutionLimits(a, cp)
+}
+
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var limits []order.MinMaxLevel
