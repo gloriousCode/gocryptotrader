@@ -1700,18 +1700,19 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             by.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
-				SettlementType:       futures.Inverse,
-				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
-				Status:               inverseContracts.List[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
-				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Exchange:                  by.Name,
+				Name:                      cp.Format(format),
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 s,
+				EndDate:                   e,
+				SettlementType:            futures.Inverse,
+				IsActive:                  strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:                    inverseContracts.List[i].Status,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
+				MaxLeverage:               inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				ContractValueDenomination: futures.BaseDenomination,
 			})
 		}
 		return resp, nil
@@ -1778,19 +1779,20 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             by.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            instruments[i].LaunchTime.Time(),
-				EndDate:              instruments[i].DeliveryTime.Time(),
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDC},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				ContractMultiplier:   instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:                  by.Name,
+				Name:                      cp.Format(format),
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 instruments[i].LaunchTime.Time(),
+				EndDate:                   instruments[i].DeliveryTime.Time(),
+				SettlementType:            futures.Linear,
+				IsActive:                  strings.EqualFold(instruments[i].Status, "trading"),
+				Status:                    instruments[i].Status,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.USDC},
+				MaxLeverage:               instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				ContractMultiplier:        instruments[i].LeverageFilter.LeverageStep.Float64(),
+				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
 		return resp, nil
@@ -1851,19 +1853,20 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             by.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDT},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				ContractMultiplier:   instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:                  by.Name,
+				Name:                      cp.Format(format),
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 s,
+				EndDate:                   e,
+				SettlementType:            futures.Linear,
+				IsActive:                  strings.EqualFold(instruments[i].Status, "trading"),
+				Status:                    instruments[i].Status,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.USDT},
+				MaxLeverage:               instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				ContractMultiplier:        instruments[i].LeverageFilter.LeverageStep.Float64(),
+				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
 		return resp, nil
