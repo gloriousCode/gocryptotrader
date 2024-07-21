@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -580,7 +581,7 @@ func (p *Poloniex) Unsubscribe(subs subscription.List) error {
 }
 
 func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())

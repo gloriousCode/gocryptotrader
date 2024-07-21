@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
@@ -922,7 +922,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				ExchangeCredentials: []Credentials{
 					{
 						Exchange: mainExchange,
-						Keys: account.Credentials{
+						Keys: credentials.Credentials{
 							Key:    "",
 							Secret: "",
 						},
@@ -1455,7 +1455,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				ExchangeCredentials: []Credentials{
 					{
 						Exchange: mainExchange,
-						Keys: account.Credentials{
+						Keys: credentials.Credentials{
 							Key:        "",
 							Secret:     "",
 							SubAccount: "",

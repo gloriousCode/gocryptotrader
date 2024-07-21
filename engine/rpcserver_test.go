@@ -37,6 +37,7 @@ import (
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -2458,8 +2459,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake"})
+	ctx := credentials.DeployCredentialsToContext(context.Background(),
+		&credentials.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2469,8 +2470,8 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	ctx = account.DeployCredentialsToContext(context.Background(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+	ctx = credentials.DeployCredentialsToContext(context.Background(),
+		&credentials.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -108,6 +109,7 @@ type Config struct {
 	Communications       base.CommunicationsConfig `json:"communications"`
 	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
 	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
+	Credentials          []CredentialHolder        `json:"credentials"`
 	Exchanges            []Exchange                `json:"exchanges"`
 	BankAccounts         []banking.Account         `json:"bankAccounts"`
 
@@ -120,6 +122,12 @@ type Config struct {
 	// encryption session values
 	storedSalt []byte
 	sessionDK  []byte
+}
+
+type CredentialHolder struct {
+	ExchangePairAssetCredentials []key.ExchangePairAssetCredentials `json:"exchangePairAssetCredentials"`
+	ExchangeAssetCredentials     []key.ExchangeAssetCredentials     `json:"exchangeAssetCredentials"`
+	ExchangeCredentials          []key.ExchangeCredentials          `json:"exchangeCredentials"`
 }
 
 // OrderManager holds settings used for the order manager

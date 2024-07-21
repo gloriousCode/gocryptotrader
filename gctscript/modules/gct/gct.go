@@ -4,7 +4,7 @@ import (
 	"context"
 
 	objects "github.com/d5/tengo/v2"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -189,7 +189,7 @@ func processScriptContext(scriptCtx *Context) context.Context {
 			otp, _ = objects.ToString(object)
 		}
 
-		ctx = account.DeployCredentialsToContext(ctx, &account.Credentials{
+		ctx = credentials.DeployCredentialsToContext(ctx, &credentials.Credentials{
 			Key:             key,
 			Secret:          secret,
 			SubAccount:      subAccount,
@@ -199,7 +199,7 @@ func processScriptContext(scriptCtx *Context) context.Context {
 		})
 	} else if object = scriptCtx.Value["subaccount"]; object != nil {
 		subAccount, _ := objects.ToString(object)
-		ctx = account.DeploySubAccountOverrideToContext(ctx, subAccount)
+		ctx = credentials.DeploySubAccountOverrideToContext(ctx, subAccount)
 	}
 	return ctx
 }

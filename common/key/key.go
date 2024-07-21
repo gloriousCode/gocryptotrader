@@ -2,8 +2,10 @@ package key
 
 import (
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -13,6 +15,61 @@ type ExchangePairAsset struct {
 	Base     *currency.Item
 	Quote    *currency.Item
 	Asset    asset.Item
+}
+
+type ExchangePairAssetUnderlyingContractExpiry struct {
+	Exchange        string
+	Base            *currency.Item
+	Quote           *currency.Item
+	Asset           asset.Item
+	Contract        string
+	Expiry          time.Time `json:"Expiry,omitempty"`
+	UnderlyingBase  *currency.Item
+	UnderlyingQuote *currency.Item
+}
+
+type ExchangeCredentials struct {
+	Exchange    string
+	Credentials credentials.Credentials
+}
+
+type ExchangeAssetCredentials struct {
+	Exchange    string
+	Asset       asset.Item
+	Credentials credentials.Credentials
+}
+
+type ExchangePairAssetCredentials struct {
+	Exchange    string
+	Asset       asset.Item
+	Base        *currency.Item
+	Quote       *currency.Item
+	Credentials *credentials.Credentials
+}
+
+func (k *ExchangePairAssetCredentials) KeyNoCreds() ExchangePairAsset {
+	return ExchangePairAsset{
+		Exchange: k.Exchange,
+		Base:     k.Base,
+		Quote:    k.Quote,
+		Asset:    k.Asset,
+	}
+}
+
+func (k *ExchangePairAssetCredentials) Pair() currency.Pair {
+	if k == nil || (k.Base == nil && k.Quote == nil) {
+		return currency.EMPTYPAIR
+	}
+	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+}
+
+func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangePairAsset {
+	return ExchangePairAsset{
+		Exchange: k.Exchange,
+		Base:     k.Base,
+		Quote:    k.Quote,
+		Asset:    k.Asset,
+	}
 }
 
 // ExchangeAsset is a unique map key signature for exchange and asset
@@ -26,6 +83,11 @@ type PairAsset struct {
 	Base  *currency.Item
 	Quote *currency.Item
 	Asset asset.Item
+}
+
+type Pair struct {
+	Base  *currency.Item
+	Quote *currency.Item
 }
 
 // SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset

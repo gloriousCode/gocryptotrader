@@ -6,7 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -221,7 +221,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials account.Credentials
+	credentials credentials.Credentials
 	credMu      sync.RWMutex
 
 	CredentialsValidator config.APICredentialsValidatorConfig

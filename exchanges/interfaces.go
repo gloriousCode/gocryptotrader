@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -86,7 +87,7 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	GetCredentials(ctx context.Context) (*credentials.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
@@ -98,10 +99,10 @@ type IBotExchange interface {
 	// VerifyAPICredentials determines if the credentials supplied have unset
 	// required values. See exchanges/credentials.go Base method for
 	// implementation.
-	VerifyAPICredentials(creds *account.Credentials) error
+	VerifyAPICredentials(creds *credentials.Credentials) error
 	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
 	// config.json. See exchanges/credentials.go Base method for implementation.
-	GetDefaultCredentials() *account.Credentials
+	GetDefaultCredentials() *credentials.Credentials
 
 	FunctionalityChecker
 	AccountManagement

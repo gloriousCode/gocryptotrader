@@ -8,7 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -67,7 +67,7 @@ func (a *API) SetSubAccount(sub string) {
 
 // CheckCredentials checks to see if the required fields have been set before
 // sending an authenticated API request
-func (b *Base) CheckCredentials(creds *account.Credentials, isContext bool) error {
+func (b *Base) CheckCredentials(creds *credentials.Credentials, isContext bool) error {
 	if b.SkipAuthCheck {
 		return nil
 	}
@@ -98,10 +98,10 @@ func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 
 // GetDefaultCredentials returns the exchange.Base api credentials loaded by
 // config.json
-func (b *Base) GetDefaultCredentials() *account.Credentials {
+func (b *Base) GetDefaultCredentials() *credentials.Credentials {
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
-	if b.API.credentials == (account.Credentials{}) {
+	if b.API.credentials == (credentials.Credentials{}) {
 		return nil
 	}
 	creds := b.API.credentials
@@ -110,14 +110,14 @@ func (b *Base) GetDefaultCredentials() *account.Credentials {
 
 // GetCredentials checks and validates current credentials, context credentials
 // override default credentials, if no credentials found, will return an error.
-func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error) {
-	value := ctx.Value(account.ContextCredentialsFlag)
+func (b *Base) GetCredentials(ctx context.Context) (*credentials.Credentials, error) {
+	value := ctx.Value(credentials.ContextCredentialsFlag)
 	if value != nil {
-		ctxCredStore, ok := value.(*account.ContextCredentialsStore)
+		ctxCredStore, ok := value.(*credentials.ContextCredentialsStore)
 		if !ok {
 			// NOTE: Return empty credentials on error to limit panic on
 			// websocket handling.
-			return &account.Credentials{}, errContextCredentialsFailure
+			return &credentials.Credentials{}, errContextCredentialsFailure
 		}
 
 		creds := ctxCredStore.Get()
@@ -132,9 +132,9 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	if err != nil {
 		// NOTE: Return empty credentials on error to limit panic on websocket
 		// handling.
-		return &account.Credentials{}, err
+		return &credentials.Credentials{}, err
 	}
-	subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	subAccountOverride, ok := ctx.Value(credentials.ContextSubAccountFlag).(string)
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
 	if ok {
@@ -144,7 +144,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 }
 
 // VerifyAPICredentials verifies the exchanges API credentials
-func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
+func (b *Base) VerifyAPICredentials(creds *credentials.Credentials) error {
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
 	if creds.IsEmpty() {
