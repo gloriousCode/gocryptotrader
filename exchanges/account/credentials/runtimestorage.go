@@ -1,6 +1,7 @@
 package credentials
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 
@@ -29,6 +30,10 @@ type CredStore struct {
 	ExchangePairAssetCredentials map[key.ExchangePairAsset]*Credentials
 	ExchangeAssetCredentials     map[key.ExchangeAsset]*Credentials
 	ExchangeCredentials          map[string]*Credentials
+}
+
+func GetCredsByKey(k key.ExchangePairAsset) (*Credentials, error) {
+	return storage.GetCredentialsForKey(k)
 }
 
 // EasyStore stores credentials in an ez manner
@@ -108,4 +113,20 @@ func (c *CredStore) GetCredentialsForKey(k key.ExchangePairAsset) (*Credentials,
 		return creds, nil
 	}
 	return nil, ErrNoCredentialsForKey
+}
+
+func (c *CredStore) PrepareForSaving() (marshaledKeys []byte, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	var resp AtRestCredStore
+	for _, cred := range c.ExchangePairAssetCredentials {
+		resp.ExchangePairAssetCredentials = append(resp.ExchangePairAssetCredentials, cred)
+	}
+	for _, cred := range c.ExchangeAssetCredentials {
+		resp.ExchangeAssetCredentials = append(resp.ExchangeAssetCredentials, cred)
+	}
+	for _, cred := range c.ExchangeCredentials {
+		resp.ExchangeCredentials = append(resp.ExchangeCredentials, cred)
+	}
+	return json.Marshal(&resp)
 }

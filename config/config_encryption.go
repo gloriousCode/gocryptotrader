@@ -12,18 +12,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"golang.org/x/crypto/scrypt"
 )
 
 const (
-	// EncryptConfirmString has a the general confirmation string to allow us to
-	// see if the file is correctly encrypted
-	EncryptConfirmString = "THORS-HAMMER"
-	// SaltPrefix string
-	SaltPrefix = "~GCT~SO~SALTY~"
-	// SaltRandomLength is the number of random bytes to append after the prefix string
-	SaltRandomLength = 12
-
 	errAESBlockSize = "config file data is too small for the AES required block size"
 )
 
@@ -87,7 +78,7 @@ func PromptForConfigKey(initialSetup bool) ([]byte, error) {
 // EncryptConfigFile encrypts configuration data that is parsed in with a key
 // and returns it as a byte array with an error
 func EncryptConfigFile(configData, key []byte) ([]byte, error) {
-	sessionDK, salt, err := makeNewSessionDK(key)
+	sessionDK, salt, err := crypto.MakeNewSessionDK(key)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +106,7 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
-	appendedFile := []byte(EncryptConfirmString)
+	appendedFile := []byte(crypto.EncryptConfirmString)
 	appendedFile = append(appendedFile, c.storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
@@ -131,7 +122,7 @@ func DecryptConfigFile(configData, key []byte) ([]byte, error) {
 // decryptConfigData decrypts configuration data with the supplied key and
 // returns the un-encrypted data as a byte array with an error
 func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, error) {
-	err := skipECS(configReader)
+	err := crypto.SkipECS(configReader)
 	if err != nil {
 		return nil, err
 	}
@@ -141,11 +132,11 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 		return nil, err
 	}
 
-	if ConfirmSalt(configData) {
-		salt := make([]byte, len(SaltPrefix)+SaltRandomLength)
+	if crypto.ConfirmSalt(configData) {
+		salt := make([]byte, len(crypto.SaltPrefix)+crypto.SaltRandomLength)
 		salt = configData[0:len(salt)]
 
-		key, err = getScryptDK(key, salt)
+		key, err = crypto.GetScryptDK(key, salt)
 		if err != nil {
 			return nil, err
 		}
@@ -169,55 +160,11 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 	stream.XORKeyStream(configData, configData)
 	result := configData
 
-	sessionDK, storedSalt, err := makeNewSessionDK(origKey)
+	sessionDK, storedSalt, err := crypto.MakeNewSessionDK(origKey)
 	if err != nil {
 		return nil, err
 	}
 	c.sessionDK, c.storedSalt = sessionDK, storedSalt
 
 	return result, nil
-}
-
-// ConfirmSalt checks whether the encrypted data contains a salt
-func ConfirmSalt(file []byte) bool {
-	return bytes.Contains(file, []byte(SaltPrefix))
-}
-
-// ConfirmECS confirms that the encryption confirmation string is found
-func ConfirmECS(file []byte) bool {
-	return bytes.Contains(file, []byte(EncryptConfirmString))
-}
-
-// skipECS skips encryption confirmation string
-// or errors, if the prefix wasn't found
-func skipECS(file io.Reader) error {
-	buf := make([]byte, len(EncryptConfirmString))
-	if _, err := io.ReadFull(file, buf); err != nil {
-		return err
-	}
-	if string(buf) != EncryptConfirmString {
-		return errors.New("data does not start with ECS")
-	}
-	return nil
-}
-
-func getScryptDK(key, salt []byte) ([]byte, error) {
-	if len(key) == 0 {
-		return nil, errors.New("key is empty")
-	}
-	return scrypt.Key(key, salt, 32768, 8, 1, 32)
-}
-
-func makeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {
-	storedSalt, err = crypto.GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	dk, err = getScryptDK(key, storedSalt)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return dk, storedSalt, nil
 }

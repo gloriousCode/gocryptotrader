@@ -1,6 +1,9 @@
 package crypto
 
 import (
+	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/md5" //nolint:gosec // Used for exchanges
 	"crypto/rand"
@@ -12,6 +15,8 @@ import (
 	"errors"
 	"hash"
 	"io"
+
+	"golang.org/x/crypto/scrypt"
 )
 
 // Const declarations for common.go operations
@@ -21,6 +26,16 @@ const (
 	HashSHA512
 	HashSHA512_384
 	HashMD5
+)
+
+const (
+	// EncryptConfirmString has a the general confirmation string to allow us to
+	// see if the file is correctly encrypted
+	EncryptConfirmString = "THORS-HAMMER"
+	// SaltPrefix string
+	SaltPrefix = "~GCT~SO~SALTY~"
+	// SaltRandomLength is the number of random bytes to append after the prefix string
+	SaltRandomLength = 12
 )
 
 // HexEncodeToString takes in a hexadecimal byte array and returns a string
@@ -110,4 +125,69 @@ func Sha1ToHex(data string) (string, error) {
 	h := sha1.New() //nolint:gosec // hash function used by some exchanges
 	_, err := h.Write([]byte(data))
 	return hex.EncodeToString(h.Sum(nil)), err
+}
+
+func MakeNewSessionDK(key []byte) (dk, storedSalt []byte, err error) {
+	storedSalt, err = GetRandomSalt([]byte(SaltPrefix), SaltRandomLength)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dk, err = GetScryptDK(key, storedSalt)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return dk, storedSalt, nil
+}
+
+// ConfirmSalt checks whether the encrypted data contains a salt
+func ConfirmSalt(file []byte) bool {
+	return bytes.Contains(file, []byte(SaltPrefix))
+}
+
+// ConfirmECS confirms that the encryption confirmation string is found
+func ConfirmECS(file []byte) bool {
+	return bytes.Contains(file, []byte(EncryptConfirmString))
+}
+
+// skipECS skips encryption confirmation string
+// or errors, if the prefix wasn't found
+func SkipECS(file io.Reader) error {
+	buf := make([]byte, len(EncryptConfirmString))
+	if _, err := io.ReadFull(file, buf); err != nil {
+		return err
+	}
+	if string(buf) != EncryptConfirmString {
+		return errors.New("data does not start with ECS")
+	}
+	return nil
+}
+
+func GetScryptDK(key, salt []byte) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, errors.New("key is empty")
+	}
+	return scrypt.Key(key, salt, 32768, 8, 1, 32)
+}
+
+func Encrypt(key, data, sessionDK, storedSalt []byte) ([]byte, error) {
+	block, err := aes.NewCipher(sessionDK)
+	if err != nil {
+		return nil, err
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(data))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
+
+	appendedFile := []byte(EncryptConfirmString)
+	appendedFile = append(appendedFile, storedSalt...)
+	appendedFile = append(appendedFile, ciphertext...)
+	return appendedFile, nil
 }

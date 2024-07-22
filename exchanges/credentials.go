@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -126,9 +127,11 @@ func (b *Base) GetCredentials(ctx context.Context) (*credentials.Credentials, er
 		}
 		return creds, nil
 	}
-
-	creds := b.API.credentials
-	err := b.CheckCredentials(&creds, false)
+	creds, err := credentials.GetCredsByKey(key.ExchangePairAsset{Exchange: b.Name})
+	if err != nil {
+		return nil, err
+	}
+	err = b.CheckCredentials(creds, false)
 	if err != nil {
 		// NOTE: Return empty credentials on error to limit panic on websocket
 		// handling.
@@ -140,7 +143,7 @@ func (b *Base) GetCredentials(ctx context.Context) (*credentials.Credentials, er
 	if ok {
 		creds.SubAccount = subAccountOverride
 	}
-	return &creds, nil
+	return creds, nil
 }
 
 // VerifyAPICredentials verifies the exchanges API credentials
