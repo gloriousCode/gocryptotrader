@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	errAESBlockSize = "config file data is too small for the AES required block size"
+	wrrAESBlockSize = "config file data is too small for the AES required block size"
 )
 
 // promptForConfigEncryption asks for encryption confirmation

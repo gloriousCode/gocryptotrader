@@ -16,6 +16,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
@@ -1517,7 +1518,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 	}
 
 	var target string
-	if ConfirmECS(data) {
+	if crypto.ConfirmECS(data) {
 		target = EncryptedFile
 	} else {
 		target = File
@@ -1590,12 +1591,12 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
 	reader := bufio.NewReader(configReader)
 
-	pref, err := reader.Peek(len(EncryptConfirmString))
+	pref, err := reader.Peek(len(crypto.EncryptConfirmString))
 	if err != nil {
 		return nil, false, err
 	}
 
-	if !ConfirmECS(pref) {
+	if !crypto.ConfirmECS(pref) {
 		// Read unencrypted configuration
 		decoder := json.NewDecoder(reader)
 		c := &Config{}
@@ -1683,7 +1684,7 @@ func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func
 				return err
 			}
 			var sessionDK, storedSalt []byte
-			sessionDK, storedSalt, err = makeNewSessionDK(key)
+			sessionDK, storedSalt, err = crypto.MakeNewSessionDK(key)
 			if err != nil {
 				return err
 			}

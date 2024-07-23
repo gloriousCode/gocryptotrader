@@ -38,6 +38,10 @@ const (
 	SaltRandomLength = 12
 )
 
+var (
+	errAESBlockSize = "config file data is too small for the AES required block size"
+)
+
 // HexEncodeToString takes in a hexadecimal byte array and returns a string
 func HexEncodeToString(input []byte) string {
 	return hex.EncodeToString(input)
@@ -151,7 +155,7 @@ func ConfirmECS(file []byte) bool {
 	return bytes.Contains(file, []byte(EncryptConfirmString))
 }
 
-// skipECS skips encryption confirmation string
+// SkipECS skips encryption confirmation string
 // or errors, if the prefix wasn't found
 func SkipECS(file io.Reader) error {
 	buf := make([]byte, len(EncryptConfirmString))
@@ -171,7 +175,19 @@ func GetScryptDK(key, salt []byte) ([]byte, error) {
 	return scrypt.Key(key, salt, 32768, 8, 1, 32)
 }
 
-func Encrypt(key, data, sessionDK, storedSalt []byte) ([]byte, error) {
+func HandleSessionEncryptData(data, key []byte) (eData, sessionDK, salt []byte, err error) {
+	sessionDK, salt, err = MakeNewSessionDK(key)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	eData, err = encryptData(data, sessionDK, salt)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return eData, sessionDK, salt, nil
+}
+
+func encryptData(data, sessionDK, storedSalt []byte) ([]byte, error) {
 	block, err := aes.NewCipher(sessionDK)
 	if err != nil {
 		return nil, err
@@ -190,4 +206,48 @@ func Encrypt(key, data, sessionDK, storedSalt []byte) ([]byte, error) {
 	appendedFile = append(appendedFile, storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
+}
+
+func DecryptFileData(fileReader io.Reader, key []byte) (fileData, sessionDK, salt []byte, err error) {
+	err = SkipECS(fileReader)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	origKey := key
+	configData, err := io.ReadAll(fileReader)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	if ConfirmSalt(configData) {
+		salt = make([]byte, len(SaltPrefix)+SaltRandomLength)
+		salt = configData[0:len(salt)]
+		key, err = GetScryptDK(key, salt)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		configData = configData[len(salt):]
+	}
+
+	blockDecrypt, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	if len(configData) < aes.BlockSize {
+		return nil, nil, nil, errors.New(errAESBlockSize)
+	}
+
+	iv := configData[:aes.BlockSize]
+	configData = configData[aes.BlockSize:]
+
+	stream := cipher.NewCFBDecrypter(blockDecrypt, iv)
+	stream.XORKeyStream(configData, configData)
+	result := configData
+
+	sessionDK, salt, err = MakeNewSessionDK(origKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return result, sessionDK, salt, nil
 }
