@@ -45,6 +45,7 @@ const (
 	gateioSpotCandlesticks                               = "spot/candlesticks"
 	gateioSpotFeeRate                                    = "spot/fee"
 	gateioSpotAccounts                                   = "spot/accounts"
+	gateioUnifiedAccounts                                = "unified/accounts"
 	gateioSpotBatchOrders                                = "spot/batch_orders"
 	gateioSpotOpenOrders                                 = "spot/open_orders"
 	gateioSpotClosePositionWhenCrossCurrencyDisabledPath = "spot/cross_liquidate_orders"
@@ -550,6 +551,16 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 	var response []SpotAccount
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioSpotAccounts, params, nil, &response)
+}
+
+// GetUnifiedAccount retrieves unified account.
+func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var response UnifiedUserAccount
+	return &response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPrivateEPL, http.MethodGet, gateioUnifiedAccounts, params, nil, &response)
 }
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
@@ -1152,28 +1163,26 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if !strings.EqualFold(arg.From, asset.Spot.String()) {
-		return nil, fmt.Errorf("%w, only %s accounts can be used to transfer from", asset.ErrNotSupported, asset.Spot)
+	if arg.From == "" {
+		return nil, errors.New("from account is required")
 	}
-	if !g.isAccountAccepted(arg.To) {
-		return nil, fmt.Errorf("%w, only %v,%v,%v,%v,%v,and %v are supported", asset.ErrNotSupported, asset.Spot, asset.Margin, asset.Futures, asset.DeliveryFutures, asset.CrossMargin, asset.Options)
+	if arg.To == "" {
+		return nil, errors.New("to account is required")
 	}
-	if arg.Amount < 0 {
+	if arg.To == arg.From {
+		return nil, errors.New("from and to account cannot be the same")
+	}
+	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
+		return nil, errors.New("currency pair is required for margin account transfer")
+	}
+	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
+		return nil, errors.New("settle is required for futures account transfer")
+	}
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	var response *TransactionIDResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletEPL, http.MethodPost, walletTransfer, nil, &arg, &response)
-}
-
-func (g *Gateio) isAccountAccepted(account string) bool {
-	if account == "" {
-		return false
-	}
-	acc, err := asset.New(account)
-	if err != nil {
-		return false
-	}
-	return acc == asset.Spot || acc == asset.Margin || acc == asset.CrossMargin || acc == asset.Futures || acc == asset.DeliveryFutures || acc == asset.Options
 }
 
 func (g *Gateio) assetTypeToString(acc asset.Item) string {
