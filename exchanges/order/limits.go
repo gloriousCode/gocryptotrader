@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/common/math"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -357,8 +356,7 @@ func (m *MinMaxLevel) ConformToAmount(amount float64) float64 {
 }
 
 func (m *MinMaxLevel) ConformToFuturesAmountWithFallBack(amount float64) float64 {
-	amount = m.ConformToAmount(amount)
-	return math.RoundFloat(amount, 0)
+	return m.ConformToAmount(amount)
 }
 
 // ConformToMarketAmountWithFallback (POC) conforms amount to its amount interval
