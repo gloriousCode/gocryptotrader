@@ -313,10 +313,12 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			return err
 		}
 		limits[x] = order.MinMaxLevel{
-			Pair:                   pair,
-			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize.Float64(),
-			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+			Pair:                    pair,
+			Asset:                   a,
+			PriceStepIncrementSize:  insts[x].TickSize.Float64(),
+			MinimumBaseAmount:       insts[x].MinimumOrderSize.Float64(),
+			AmountStepIncrementSize: insts[x].TickSize.Float64(),
+			QuoteStepIncrementSize:  insts[x].TickSize.Float64(),
 		}
 	}
 

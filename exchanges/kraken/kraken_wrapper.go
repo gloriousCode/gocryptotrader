@@ -1964,12 +1964,11 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 			return nil, err
 		}
 		for j := range sc {
-			tt := time.Unix(int64(sc[j].Time), 0)
-			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
+			if sc[j].Time.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || sc[j].Time.After(contracts[i].Expiry) {
 				continue
 			}
 			spotKline.Candles = append(spotKline.Candles, kline.Candle{
-				Time:   time.UnixMilli(int64(sc[j].Time)),
+				Time:   sc[j].Time,
 				Open:   sc[j].Open,
 				High:   sc[j].High,
 				Low:    sc[j].Low,
