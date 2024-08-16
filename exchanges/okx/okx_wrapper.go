@@ -2269,29 +2269,36 @@ func (ok *Okx) instrumentResultToContract(instrumentResult *Instrument, item ass
 	if instrumentResult.SettlementCurrency == instrumentResult.BaseCurrency {
 		contractSettlementType = futures.Inverse
 	}
+	var settlementDenomination futures.ContractDenomination
+	if settleCurr.Equal(underlying.Base) {
+		settlementDenomination = futures.BaseDenomination
+	} else if settleCurr.Equal(underlying.Quote) {
+		settlementDenomination = futures.QuoteDenomination
+	}
 	cvc := currency.NewCode(instrumentResult.ContractValueCurrency)
-	var denomination futures.ContractDenomination
+	var valueDenomination futures.ContractDenomination
 	if cvc.Equal(underlying.Base) {
-		denomination = futures.BaseDenomination
+		valueDenomination = futures.BaseDenomination
 	} else if cvc.Equal(underlying.Quote) {
-		denomination = futures.QuoteDenomination
+		valueDenomination = futures.QuoteDenomination
 	}
 	return &futures.Contract{
-		Exchange:                  ok.Name,
-		Name:                      cp,
-		Underlying:                underlying,
-		Asset:                     item,
-		StartDate:                 instrumentResult.ListTime.Time,
-		EndDate:                   instrumentResult.ExpTime.Time,
-		IsActive:                  instrumentResult.State == "live",
-		Status:                    instrumentResult.State,
-		Type:                      ct,
-		SettlementType:            contractSettlementType,
-		SettlementCurrencies:      currency.Currencies{settleCurr},
-		MarginCurrency:            settleCurr,
-		ContractMultiplier:        instrumentResult.ContractValue.Float64(),
-		MaxLeverage:               instrumentResult.MaxLeverage.Float64(),
-		ContractValueDenomination: denomination,
+		Exchange:                       ok.Name,
+		Name:                           cp,
+		Underlying:                     underlying,
+		Asset:                          item,
+		StartDate:                      instrumentResult.ListTime.Time,
+		EndDate:                        instrumentResult.ExpTime.Time,
+		IsActive:                       instrumentResult.State == "live",
+		Status:                         instrumentResult.State,
+		Type:                           ct,
+		SettlementType:                 contractSettlementType,
+		SettlementCurrencies:           currency.Currencies{settleCurr},
+		MarginCurrency:                 settleCurr,
+		ContractMultiplier:             instrumentResult.ContractValue.Float64(),
+		MaxLeverage:                    instrumentResult.MaxLeverage.Float64(),
+		ContractSettlementDenomination: settlementDenomination,
+		ContractValueDenomination:      valueDenomination,
 	}, nil
 }
 
