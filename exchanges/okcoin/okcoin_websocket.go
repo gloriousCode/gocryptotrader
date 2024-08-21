@@ -145,7 +145,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	_, err = o.Websocket.AuthConn.SendMessageReturnResponse("login", authRequest)
+	_, err = o.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), "login", authRequest)
 	if err != nil {
 		return err
 	}
@@ -217,7 +217,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 				if resp.Data[x].RescheduleDescription != "" {
 					systemStatus = fmt.Sprintf("%s Rescheduled Description: %s", systemStatus, resp.Data[x].RescheduleDescription)
 				}
-				log.Warnf(log.ExchangeSys, systemStatus)
+				log.Warnln(log.ExchangeSys, systemStatus)
 			}
 			o.Websocket.DataHandler <- resp
 			return nil
@@ -256,8 +256,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 			o.Websocket.DataHandler <- eventResponse
 		case "error":
 			if o.Verbose {
-				log.Debugf(log.ExchangeSys,
-					o.Name+" - "+eventResponse.Event+" on channel: "+eventResponse.Channel)
+				log.Debugf(log.ExchangeSys, "%s - %s on channel: %s\n", o.Name, eventResponse.Event, eventResponse.Channel)
 			}
 		}
 	}
@@ -713,7 +712,7 @@ func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.
 func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
 	orderbookData.prepareOrderbook()
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0]
 			bidAmount := orderbookData.Bids[i][1]
@@ -738,7 +737,7 @@ func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, er
 // CalculateOrderbookUpdateChecksum calculated the orderbook update checksum using currency pair full snapshot.
 func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base) int32 {
 	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
+	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
 			bidAmount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
@@ -858,8 +857,8 @@ func (o *Okcoin) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 func (o *Okcoin) manageSubscriptions(operation string, subs subscription.List) error {
 	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
-	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
-	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
+	temp := WebsocketEventRequest{Arguments: []map[string]string{}}
+	authTemp := WebsocketEventRequest{Arguments: []map[string]string{}}
 	var err error
 	var channels subscription.List
 	var authChannels subscription.List

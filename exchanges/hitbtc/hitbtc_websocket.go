@@ -629,7 +629,7 @@ func (h *HitBTC) wsPlaceOrder(pair currency.Pair, side string, price, quantity f
 		},
 		ID: id,
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(id, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), id, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -656,7 +656,7 @@ func (h *HitBTC) wsCancelOrder(clientOrderID string) (*WsCancelOrderResponse, er
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -686,7 +686,7 @@ func (h *HitBTC) wsReplaceOrder(clientOrderID string, quantity, price float64) (
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -711,7 +711,7 @@ func (h *HitBTC) wsGetActiveOrders() (*wsActiveOrdersResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -736,7 +736,7 @@ func (h *HitBTC) wsGetTradingBalance() (*WsGetTradingBalanceResponse, error) {
 		Params: WsReplaceOrderRequestData{},
 		ID:     h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -760,7 +760,7 @@ func (h *HitBTC) wsGetCurrencies(currencyItem currency.Code) (*WsGetCurrenciesRe
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -789,7 +789,7 @@ func (h *HitBTC) wsGetSymbols(c currency.Pair) (*WsGetSymbolsResponse, error) {
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}
@@ -821,7 +821,7 @@ func (h *HitBTC) wsGetTrades(c currency.Pair, limit int64, sort, by string) (*Ws
 		},
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
-	resp, err := h.Websocket.Conn.SendMessageReturnResponse(request.ID, request)
+	resp, err := h.Websocket.Conn.SendMessageReturnResponse(context.TODO(), request.ID, request)
 	if err != nil {
 		return nil, fmt.Errorf("%v %v", h.Name, err)
 	}

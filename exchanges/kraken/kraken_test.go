@@ -2131,36 +2131,17 @@ func TestChecksumCalculation(t *testing.T) {
 
 func TestGetCharts(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromStrings("FI", "XBTUSD_221230")
-	if err != nil {
-		t.Error(err)
-	}
+	cp, err := currency.NewPairFromStrings("PI", "BCHUSD")
+	require.NoError(t, err)
 	cp.Delimiter = "_"
-	k.Verbose = true
-	end := time.Date(2022, 12, 30, 0, 0, 0, 0, time.UTC)
-	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end, end.Add(-time.Hour*24*90))
-	if err != nil {
-		t.Error(err)
-	}
-	resp2, err := k.GetOHLC(context.Background(), currency.NewPair(currency.XBT, currency.USDT), "1440", end.Add(-time.Hour*24*90).Unix())
-	t.Logf("%+v", resp)
-	t.Logf("%+v", resp2)
-}
+	resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Candles)
 
-/*
-FI_XBTUSD_220128
-FI_XBTUSD_220225
-FI_XBTUSD_220325
-FI_XBTUSD_220429
-FI_XBTUSD_220527
-FI_XBTUSD_220624
-FI_XBTUSD_220729
-FI_XBTUSD_220826
-FI_XBTUSD_220930
-FI_XBTUSD_221028
-FI_XBTUSD_221125
-FI_XBTUSD_221230
-*/
+	end := time.UnixMilli(resp.Candles[0].Time)
+	_, err = k.GetFuturesCharts(context.Background(), "1d", "spot", cp, end.Add(-time.Hour*24*7), end)
+	require.NoError(t, err)
+}
 
 func TestGetTheDataRanges(t *testing.T) {
 	t.Parallel()
@@ -2250,15 +2231,12 @@ func TestGetTheDataRanges(t *testing.T) {
 		t.Error(err)
 	}
 	sort.Slice(yo, func(i, j int) bool {
-		return yo[i].Time < yo[j].Time
+		return yo[i].Time.Before(yo[j].Time)
 	})
-	t.Log(time.Unix(int64(yo[0].Time), 0), yo[0].Close)
-	t.Log(time.Unix(int64(yo[len(yo)-1].Time), 0), yo[len(yo)-1].Close)
 	for i := range yo {
-		tt := time.Unix(int64(yo[i].Time), 0)
 		for j := range helloDates {
-			if tt.Equal(helloDates[j]) {
-				t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v", tt, yo[i].Close, helloClose[j], math.CalculatePercentageGainOrLoss(helloClose[j], yo[i].Close))
+			if yo[i].Time.Equal(helloDates[j]) {
+				t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v", yo[i].Time, yo[i].Close, helloClose[j], math.CalculatePercentageGainOrLoss(helloClose[j], yo[i].Close))
 			}
 		}
 	}
@@ -2672,6 +2650,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
+
 	_, err := k.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
@@ -2679,8 +2660,8 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	cp1 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
-	cp2 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp1 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	cp2 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, k, asset.Futures, cp1, cp2)
 
 	resp, err := k.GetOpenInterest(context.Background(), key.PairAsset{
@@ -2716,7 +2697,7 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
 			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-			require.NoError(tb, err, "Write should not error")
+			assert.NoError(tb, err, "Write should not error")
 			return
 		}
 		testexch.WsMockUpgrader(tb, w, r, h)
@@ -2846,4 +2827,21 @@ func TestErrorResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetFuturesErr(t *testing.T) {
+	t.Parallel()
+
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`unparsable rubbish`)), "invalid character", "Bad JSON should error correctly")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"candles":[]}`)), "JSON with no Result should not error")
+	assert.NoError(t, getFuturesErr(json.RawMessage(`{"Result":"4 goats"}`)), "JSON with non-error Result should not error")
+	assert.ErrorIs(t, getFuturesErr(json.RawMessage(`{"Result":"error"}`)), common.ErrUnknownError, "JSON with error Result should error correctly")
+	assert.ErrorContains(t, getFuturesErr(json.RawMessage(`{"Result":"error", "error": "1 goat"}`)), "1 goat", "JSON with an error should error correctly")
+	err := getFuturesErr(json.RawMessage(`{"Result":"error", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with errors should error correctly")
+	err = getFuturesErr(json.RawMessage(`{"Result":"error", "error": "too many goats", "errors": ["2 goats", "3 goats"]}`))
+	assert.ErrorContains(t, err, "2 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "3 goat", "JSON with both error and errors should error correctly")
+	assert.ErrorContains(t, err, "too many goat", "JSON both error and with errors should error correctly")
 }

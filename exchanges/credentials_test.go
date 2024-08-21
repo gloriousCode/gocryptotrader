@@ -208,7 +208,6 @@ func TestVerifyAPICredentials(t *testing.T) {
 	}
 
 	for x, tc := range testCases {
-		x, tc := x, tc
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			b := setupBase(&tc)
@@ -308,7 +307,6 @@ func TestCheckCredentials(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if err := tc.base.CheckCredentials(&tc.base.API.credentials, false); !errors.Is(err, tc.expectedErr) {
