@@ -173,6 +173,7 @@ var (
 
 // Gateio is the overarching type across this package
 type Gateio struct {
+	Counter common.Counter // Must be first	due to alignment requirements
 	exchange.Base
 }
 

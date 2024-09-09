@@ -27,7 +27,6 @@ import (
 const (
 	hitbtcWebsocketAddress = "wss://api.hitbtc.com/api/2/ws"
 	rpcVersion             = "2.0"
-	rateLimit              = 20
 	errAuthFailed          = 1002
 )
 
@@ -521,7 +520,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 		if err == nil {
 			err = h.Websocket.AddSuccessfulSubscriptions(s)
 		}
@@ -557,7 +556,7 @@ func (h *HitBTC) Unsubscribe(subs subscription.List) error {
 			r.Params.Limit = 100
 		}
 
-		err := h.Websocket.Conn.SendJSONMessage(r)
+		err := h.Websocket.Conn.SendJSONMessage(context.TODO(), r)
 		if err == nil {
 			err = h.Websocket.RemoveSubscriptions(s)
 		}
@@ -597,7 +596,7 @@ func (h *HitBTC) wsLogin(ctx context.Context) error {
 		ID: h.Websocket.Conn.GenerateMessageID(false),
 	}
 
-	err = h.Websocket.Conn.SendJSONMessage(request)
+	err = h.Websocket.Conn.SendJSONMessage(context.TODO(), request)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err

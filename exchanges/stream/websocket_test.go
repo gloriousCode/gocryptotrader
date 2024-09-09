@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -629,7 +630,7 @@ func TestDial(t *testing.T) {
 				ExchangeName:     "test1",
 				Verbose:          true,
 				URL:              websocketTestURL,
-				RateLimit:        10,
+				RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 				ResponseMaxLimit: 7000000000,
 			},
 		},
@@ -677,7 +678,7 @@ func TestSendMessage(t *testing.T) {
 			ExchangeName:     "test1",
 			Verbose:          true,
 			URL:              websocketTestURL,
-			RateLimit:        10,
+			RateLimit:        request.NewWeightedRateLimitByDuration(10 * time.Millisecond),
 			ResponseMaxLimit: 7000000000,
 		},
 		},
@@ -713,11 +714,11 @@ func TestSendMessage(t *testing.T) {
 				}
 				t.Fatal(err)
 			}
-			err = testData.WC.SendJSONMessage(Ping)
+			err = testData.WC.SendJSONMessage(context.Background(), Ping)
 			if err != nil {
 				t.Error(err)
 			}
-			err = testData.WC.SendRawMessage(websocket.TextMessage, []byte(Ping))
+			err = testData.WC.SendRawMessage(context.Background(), websocket.TextMessage, []byte(Ping))
 			if err != nil {
 				t.Error(err)
 			}
@@ -911,6 +912,9 @@ func TestGenerateMessageID(t *testing.T) {
 		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
 		ids[i] = id
 	}
+
+	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
+	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID must use bespokeGenerateMessageID")
 }
 
 // BenchmarkGenerateMessageID-8   	 2850018	       408 ns/op	      56 B/op	       4 allocs/op

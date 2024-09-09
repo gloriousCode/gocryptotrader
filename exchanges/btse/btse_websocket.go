@@ -79,7 +79,7 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		Operation: "authKeyExpires",
 		Arguments: []string{creds.Key, nonce, sign},
 	}
-	return b.Websocket.Conn.SendJSONMessage(req)
+	return b.Websocket.Conn.SendJSONMessage(ctx, req)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -420,7 +420,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 			subs++
 		}
 
-		err := b.Websocket.Conn.SendJSONMessage(sub)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), sub)
 		if err != nil {
 			return err
 		}
@@ -436,7 +436,7 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 		unSub.Arguments = append(unSub.Arguments,
 			channelsToUnsubscribe[i].Channel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(unSub)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), unSub)
 	if err == nil {
 		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}

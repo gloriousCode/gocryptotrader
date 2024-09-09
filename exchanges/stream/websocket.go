@@ -204,8 +204,14 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errWebsocketIsNil)
 	}
-	if c == (ConnectionSetup{}) {
-		return fmt.Errorf("%v %w: %w", w.exchangeName, errConnSetup, errExchangeConfigEmpty)
+
+	if c.ResponseCheckTimeout == 0 &&
+		c.ResponseMaxLimit == 0 &&
+		c.RateLimit == nil &&
+		c.URL == "" &&
+		c.ConnectionLevelReporter == nil &&
+		c.BespokeGenerateMessageID == nil {
+		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
 	if w.exchangeName == "" {
@@ -234,18 +240,19 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	}
 
 	newConn := &WebsocketConnection{
-		ExchangeName:      w.exchangeName,
-		URL:               connectionURL,
-		ProxyURL:          w.GetProxyAddress(),
-		Verbose:           w.verbose,
-		ResponseMaxLimit:  c.ResponseMaxLimit,
-		Traffic:           w.TrafficAlert,
-		readMessageErrors: w.ReadMessageErrors,
-		ShutdownC:         w.ShutdownC,
-		Wg:                &w.Wg,
-		Match:             w.Match,
-		RateLimit:         c.RateLimit,
-		Reporter:          c.ConnectionLevelReporter,
+		ExchangeName:             w.exchangeName,
+		URL:                      connectionURL,
+		ProxyURL:                 w.GetProxyAddress(),
+		Verbose:                  w.verbose,
+		ResponseMaxLimit:         c.ResponseMaxLimit,
+		Traffic:                  w.TrafficAlert,
+		readMessageErrors:        w.ReadMessageErrors,
+		ShutdownC:                w.ShutdownC,
+		Wg:                       &w.Wg,
+		Match:                    w.Match,
+		RateLimit:                c.RateLimit,
+		Reporter:                 c.ConnectionLevelReporter,
+		bespokeGenerateMessageID: c.BespokeGenerateMessageID,
 	}
 
 	if c.Authenticated {

@@ -605,7 +605,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 				}
 				req.Channel = s.Pairs[0].String()
 			}
-			err = p.Websocket.Conn.SendJSONMessage(req)
+			err = p.Websocket.Conn.SendJSONMessage(context.TODO(), req)
 		}
 		if err == nil {
 			if op == wsSubscribeOp {
@@ -636,7 +636,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 		Key:     key,
 		Payload: nonce,
 	}
-	return p.Websocket.Conn.SendJSONMessage(request)
+	return p.Websocket.Conn.SendJSONMessage(context.TODO(), request)
 }
 
 func (p *Poloniex) processAccountMarginPosition(notification []interface{}) error {
