@@ -365,19 +365,16 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-
-		pairs, err := b.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
-
 		for y := range tick {
-			cp, err := pairs.DeriveFrom(tick[y].Symbol)
+			cp, isEnabled, err := b.MatchSymbolCheckEnabled(tick[y].Symbol, a, false)
 			if err != nil {
 				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
 				return err
+			}
+			if !isEnabled {
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -402,18 +399,16 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		hi, err := b.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
 		for y := range tick {
-			cp, err := hi.DeriveFrom(tick[y].Symbol)
+			cp, isEnabled, err := b.MatchSymbolCheckEnabled(tick[y].Symbol, a, false)
 			if err != nil {
 				if errors.Is(err, currency.ErrPairNotFound) {
-					// clearly not worthy of being listed
 					continue
 				}
 				return err
+			}
+			if !isEnabled {
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[y].LastPrice,
@@ -439,7 +434,6 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 		for y := range tick {
 			splitter := strings.Split(tick[y].Symbol, "_")
-
 			cp, err := currency.NewPairFromStrings(splitter[0], strings.Join(splitter[1:], ""))
 			if err != nil {
 				return err

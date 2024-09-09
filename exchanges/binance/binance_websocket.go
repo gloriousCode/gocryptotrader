@@ -322,23 +322,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if len(streamType) <= 1 {
 		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
 	}
-	var (
-		pair      currency.Pair
-		isEnabled bool
-		symbol    string
-	)
 	item := websocketAssetType
-	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
+	symbol, err := jsonparser.GetUnsafeString(jsonData, "s")
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
 	}
-	pair, isEnabled, err = b.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	pair, err := currency.NewPairFromString(symbol)
 	if err != nil {
+		// there should be a symbol returned for all data types below
 		return err
-	}
-	if !isEnabled {
-		return nil
 	}
 	switch streamType[1] {
 	case "trade":
