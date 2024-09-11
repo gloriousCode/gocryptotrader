@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
@@ -17,17 +18,16 @@ type ExchangePairAsset struct {
 	Asset    asset.Item
 }
 
-
 type ExchangePairAssetUnderlyingContractExpiry struct {
-	Exchange        string
-	Base            *currency.Item
-	Quote           *currency.Item
-	Asset           asset.Item
-	Contract        string
+	Exchange         string
+	Base             *currency.Item
+	Quote            *currency.Item
+	Asset            asset.Item
+	Contract         string
 	ContractDecimals float64
-	Expiry          time.Time `json:"Expiry,omitempty"`
-	UnderlyingBase  *currency.Item
-	UnderlyingQuote *currency.Item
+	Expiry           time.Time `json:"Expiry,omitempty"`
+	UnderlyingBase   *currency.Item
+	UnderlyingQuote  *currency.Item
 }
 
 type ExchangeCredentials struct {
@@ -49,17 +49,16 @@ type ExchangePairAssetCredentials struct {
 	Credentials *credentials.Credentials
 }
 
-
-
-type ExchangePairAssetTime struct {
-	Exchange string
-	Base     *currency.Item
-	Quote    *currency.Item
-	Asset    asset.Item
-	Time    time.Time
+type OrderKey struct {
+	Exchange  string
+	Base      *currency.Item
+	Quote     *currency.Item
+	Asset     asset.Item
+	Time      time.Time
+	OrderID   string
+	OrderSide order.Side
+	OrderSize float64
 }
-
-
 
 func (k *ExchangePairAssetCredentials) KeyNoCreds() ExchangePairAsset {
 	return ExchangePairAsset{
