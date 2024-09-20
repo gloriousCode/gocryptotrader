@@ -252,30 +252,49 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		pairInfo, err := k.fetchSpotPairInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
+		}
+
+		limits = make([]order.MinMaxLevel, 0, len(pairInfo))
+		for pair, info := range pairInfo {
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                  a,
+				Pair:                   pair,
+				PriceStepIncrementSize: info.TickSize,
+				MinimumBaseAmount:      info.OrderMinimum,
+			})
+		}
+
+	case asset.Futures:
+		symbols, err := k.GetInstruments(ctx)
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, 0, len(symbols.Instruments))
+		for x := range symbols.Instruments {
+			if !symbols.Instruments[x].Tradable {
+				continue
+			}
+			pair, err := currency.NewPairFromString(symbols.Instruments[x].Symbol)
+			if err != nil {
+				return err
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                  a,
+				Pair:                   pair,
+				PriceStepIncrementSize: symbols.Instruments[x].TickSize,
+				MinimumBaseAmount:      symbols.Instruments[x].ContractSize,
+			})
+		}
 	}
-
-	pairInfo, err := k.fetchSpotPairInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", k.Name, a, err)
-	}
-
-	limits := make([]order.MinMaxLevel, 0, len(pairInfo))
-
-	for pair, info := range pairInfo {
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                  a,
-			Pair:                   pair,
-			PriceStepIncrementSize: info.TickSize,
-			MinimumBaseAmount:      info.OrderMinimum,
-		})
-	}
-
 	if err := k.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
 	}
-
 	return nil
 }
 
@@ -342,8 +361,7 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		pairs = make([]currency.Pair, 0, len(symbols.Instruments))
 		for x := range symbols.Instruments {
-			if strings.HasPrefix(symbols.Instruments[x].Symbol, "FF") ||
-				strings.HasPrefix(symbols.Instruments[x].Symbol, "PF") {
+			if !symbols.Instruments[x].Tradable {
 				continue
 			}
 			pair, err := currency.NewPairFromString(symbols.Instruments[x].Symbol)

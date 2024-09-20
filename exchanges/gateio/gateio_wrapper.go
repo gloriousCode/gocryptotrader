@@ -2173,7 +2173,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 
 	var limits []order.MinMaxLevel
 	switch a {
-	case asset.Spot:
+	case asset.Margin, asset.CrossMargin, asset.Spot:
 		var pairsData []CurrencyPairDetail
 		pairsData, err := g.ListSpotCurrencyPairs(ctx)
 		if err != nil {
@@ -2207,9 +2207,101 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				MinimumQuoteAmount:      pairsData[x].MinQuoteAmount.Float64(),
 			})
 		}
-	default:
-		// TODO: Add in other assets
-		return fmt.Errorf("%s %w", a, common.ErrNotYetImplemented)
+
+	case asset.Futures:
+		btcContracts, err := g.GetAllFutureContracts(ctx, settleBTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := g.GetAllFutureContracts(ctx, settleUSDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		limits = make([]order.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
+			p := strings.ToUpper(btcContracts[x].Name)
+			if !g.IsValidPairString(p) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    cp,
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				MarketStepIncrementSize: 1,
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.DeliveryFutures:
+		btcContracts, err := g.GetAllDeliveryContracts(ctx, settleBTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := g.GetAllDeliveryContracts(ctx, settleUSDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		limits = make([]order.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			if btcContracts[x].InDelisting {
+				continue
+			}
+			p := strings.ToUpper(btcContracts[x].Name)
+			if !g.IsValidPairString(p) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return err
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Asset:                   a,
+				Pair:                    cp,
+				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
+				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				MarketStepIncrementSize: 1,
+				AmountStepIncrementSize: 1,
+			})
+		}
+	case asset.Options:
+		underlyings, err := g.GetAllOptionsUnderlyings(ctx)
+		if err != nil {
+			return err
+		}
+		for x := range underlyings {
+			contracts, err := g.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
+			if err != nil {
+				return err
+			}
+			limits = make([]order.MinMaxLevel, 0, len(contracts))
+			for c := range contracts {
+				if !g.IsValidPairString(contracts[c].Name) {
+					continue
+				}
+				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
+				if err != nil {
+					return err
+				}
+				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
+				limits = append(limits, order.MinMaxLevel{
+					Asset:                   a,
+					Pair:                    cp,
+					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
+					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					MarketStepIncrementSize: 1,
+					AmountStepIncrementSize: 1,
+				})
+			}
+		}
 	}
 
 	return g.LoadLimits(limits)
