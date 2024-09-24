@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -56,7 +57,7 @@ func (b *Bitstamp) WsConnect() error {
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
-	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	b.Websocket.Conn.SetupPingHandler(request.Unset, stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     hbMsg,
 		Delay:       hbInterval,
@@ -309,7 +310,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe subscription.List) error {
 			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
 			req.Data.Auth = auth.Token
 		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
 			err = b.Websocket.AddSuccessfulSubscriptions(s)
 		}
@@ -331,7 +332,7 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 				Channel: s.Channel,
 			},
 		}
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), req)
+		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 		if err == nil {
 			err = b.Websocket.RemoveSubscriptions(s)
 		}
