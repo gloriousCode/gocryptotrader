@@ -43,9 +43,9 @@ type ExchangeAssetCredentials struct {
 
 type ExchangePairAssetCredentials struct {
 	Exchange    string
-	Asset       asset.Item
-	Base        *currency.Item
-	Quote       *currency.Item
+	Asset       asset.Item     `json:"asset,omitempty"`
+	Base        *currency.Item `json:"base,omitempty"`
+	Quote       *currency.Item `json:"quote,omitempty"`
 	Credentials *credentials.Credentials
 }
 
