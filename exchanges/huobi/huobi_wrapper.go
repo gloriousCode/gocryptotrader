@@ -2544,7 +2544,7 @@ func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, 
 	if k.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}
-	if common.StringDataCompareInsensitive(validContractShortTypes, k.Quote.String()) {
+	if common.StringSliceCompareInsensitive(validContractShortTypes, k.Quote.String()) {
 		return nil, fmt.Errorf("%w for %v, accepted quotes: %v", cannotGetExpired, k.Quote, validContractShortTypes)
 	}
 	latestExpiry := earliestExpiry
@@ -2576,4 +2576,3 @@ func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, 
 	}
 	return resp, nil
 }
-
