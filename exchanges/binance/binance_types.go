@@ -723,18 +723,18 @@ type WithdrawResponse struct {
 
 // WithdrawStatusResponse defines a withdrawal status response
 type WithdrawStatusResponse struct {
-	Address         string      `json:"address"`
-	Amount          float64     `json:"amount,string"`
-	ApplyTime       binanceTime `json:"applyTime"`
-	Coin            string      `json:"coin"`
-	ID              string      `json:"id"`
-	WithdrawOrderID string      `json:"withdrawOrderId"`
-	Network         string      `json:"network"`
-	TransferType    uint8       `json:"transferType"`
-	Status          int64       `json:"status"`
-	TransactionFee  float64     `json:"transactionFee,string"`
-	TransactionID   string      `json:"txId"`
-	ConfirmNumber   int64       `json:"confirmNo"`
+	Address         string     `json:"address"`
+	Amount          float64    `json:"amount,string"`
+	ApplyTime       types.Time `json:"applyTime"`
+	Coin            string     `json:"coin"`
+	ID              string     `json:"id"`
+	WithdrawOrderID string     `json:"withdrawOrderId"`
+	Network         string     `json:"network"`
+	TransferType    uint8      `json:"transferType"`
+	Status          int64      `json:"status"`
+	TransactionFee  float64    `json:"transactionFee,string"`
+	TransactionID   string     `json:"txId"`
+	ConfirmNumber   int64      `json:"confirmNo"`
 }
 
 // DepositAddress stores the deposit address info
@@ -922,15 +922,15 @@ type UserMarginInterestHistoryResponse struct {
 
 // UserMarginInterestHistory user margin interest history row
 type UserMarginInterestHistory struct {
-	TxID                int64       `json:"txId"`
-	InterestAccruedTime binanceTime `json:"interestAccuredTime"` // typo in docs, cannot verify due to API restrictions
-	Asset               string      `json:"asset"`
-	RawAsset            string      `json:"rawAsset"`
-	Principal           float64     `json:"principal,string"`
-	Interest            float64     `json:"interest,string"`
-	InterestRate        float64     `json:"interestRate,string"`
-	Type                string      `json:"type"`
-	IsolatedSymbol      string      `json:"isolatedSymbol"`
+	TxID                int64      `json:"txId"`
+	InterestAccruedTime types.Time `json:"interestAccuredTime"` // typo in docs, cannot verify due to API restrictions
+	Asset               string     `json:"asset"`
+	RawAsset            string     `json:"rawAsset"`
+	Principal           float64    `json:"principal,string"`
+	Interest            float64    `json:"interest,string"`
+	InterestRate        float64    `json:"interestRate,string"`
+	Type                string     `json:"type"`
+	IsolatedSymbol      string     `json:"isolatedSymbol"`
 }
 
 // CryptoLoansIncomeHistory stores crypto loan income history data
@@ -960,7 +960,7 @@ type LoanBorrowHistoryItem struct {
 	LoanTerm                int64         `json:"loanTerm,string"`
 	CollateralCoin          currency.Code `json:"collateralCoin"`
 	InitialCollateralAmount float64       `json:"initialCollateralAmount,string"`
-	BorrowTime              binanceTime   `json:"borrowTime"`
+	BorrowTime              types.Time    `json:"borrowTime"`
 	Status                  string        `json:"status"`
 }
 
@@ -979,7 +979,7 @@ type CryptoLoanOngoingOrderItem struct {
 	CollateralCoin   currency.Code `json:"collateralCoin"`
 	CollateralAmount float64       `json:"collateralAmount,string"`
 	CurrentLTV       float64       `json:"currentLTV,string"`
-	ExpirationTime   binanceTime   `json:"expirationTime"`
+	ExpirationTime   types.Time    `json:"expirationTime"`
 }
 
 // CryptoLoanOngoingOrder stores crypto loan ongoing order data
@@ -1007,7 +1007,7 @@ type CryptoLoanRepayHistoryItem struct {
 	CollateralUsed   float64       `json:"collateralUsed,string"`
 	CollateralReturn float64       `json:"collateralReturn,string"`
 	RepayType        string        `json:"repayType"`
-	RepayTime        binanceTime   `json:"repayTime"`
+	RepayTime        types.Time    `json:"repayTime"`
 	OrderID          int64         `json:"orderId"`
 }
 
@@ -1034,7 +1034,7 @@ type CryptoLoanLTVAdjustmentItem struct {
 	Amount         float64       `json:"amount,string"`
 	PreviousLTV    float64       `json:"preLTV,string"`
 	AfterLTV       float64       `json:"afterLTV,string"`
-	AdjustTime     binanceTime   `json:"adjustTime"`
+	AdjustTime     types.Time    `json:"adjustTime"`
 	OrderID        int64         `json:"orderId"`
 }
 
@@ -1098,7 +1098,7 @@ type CustomiseMarginCallItem struct {
 	CollateralCoin  currency.Code `json:"collateralCoin"`
 	PreMarginCall   float64       `json:"preMarginCall,string"`
 	AfterMarginCall float64       `json:"afterMarginCall,string"`
-	CustomiseTime   binanceTime   `json:"customizeTime"`
+	CustomiseTime   types.Time    `json:"customizeTime"`
 }
 
 // CustomiseMarginCall stores customise margin call data
@@ -1137,7 +1137,7 @@ type FlexibleLoanBorrowHistoryItem struct {
 	InitialLoanAmount       float64       `json:"initialLoanAmount,string"`
 	CollateralCoin          currency.Code `json:"collateralCoin"`
 	InitialCollateralAmount float64       `json:"initialCollateralAmount,string"`
-	BorrowTime              binanceTime   `json:"borrowTime"`
+	BorrowTime              types.Time    `json:"borrowTime"`
 	Status                  string        `json:"status"`
 }
 
@@ -1165,7 +1165,7 @@ type FlexibleLoanRepayHistoryItem struct {
 	CollateralCoin   currency.Code `json:"collateralCoin"`
 	CollateralReturn float64       `json:"collateralReturn,string"`
 	RepayStatus      string        `json:"repayStatus"`
-	RepayTime        binanceTime   `json:"repayTime"`
+	RepayTime        types.Time    `json:"repayTime"`
 }
 
 // FlexibleLoanRepayHistory stores flexible loan repayment history
@@ -1192,7 +1192,7 @@ type FlexibleLoanLTVAdjustmentHistoryItem struct {
 	CollateralAmount float64       `json:"collateralAmount,string"`
 	PreviousLTV      float64       `json:"preLTV,string"`
 	AfterLTV         float64       `json:"afterLTV,string"`
-	AdjustTime       binanceTime   `json:"adjustTime"`
+	AdjustTime       types.Time    `json:"adjustTime"`
 }
 
 // FlexibleLoanLTVAdjustmentHistory stores flexible loan LTV adjustment history

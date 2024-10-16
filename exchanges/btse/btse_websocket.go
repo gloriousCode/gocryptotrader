@@ -426,7 +426,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
 			return err
 		}
 	}
-	return b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	return b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, channelsToSubscribe...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -439,7 +439,7 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	}
 	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, unSub)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, channelsToUnsubscribe...)
 	}
 	return err
 }
