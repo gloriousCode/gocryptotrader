@@ -2548,6 +2548,48 @@ func (h *HUOBI) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency
 }
 
 var cannotGetExpired = errors.New("cannot get expired contracts")
+var fContractDateFormat = "060102"
+var validContractShortTypes = []string{
+	"cw", "nw", "cq", "nq",
+}
+
+func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+	loc, err := time.LoadLocation("Asia/Singapore")
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	tt = tt.In(loc)
+	switch pair.Quote.Item.Symbol {
+	case "NW":
+		tt = tt.AddDate(0, 0, 7)
+		fallthrough
+	case "CW":
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case "NQ":
+		tt = tt.AddDate(0, 3, 0)
+		fallthrough
+	case "CQ":
+		// Find the next quarter end
+		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+			tt = tt.AddDate(0, 1, 0)
+		}
+		// Find the last day of the quarter
+		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		// Find the last Friday of the quarter
+		for tt.Weekday() != time.Friday {
+			tt = tt.AddDate(0, 0, -1)
+		}
+	default:
+		return currency.EMPTYPAIR, fmt.Errorf(" %w %v", errInvalidContractType, pair)
+	}
+	pair.Quote = currency.NewCode(tt.Format(fContractDateFormat))
+	return pair, nil
+}
 
 // GetExpiredContracts returns previous expired contracts for a given pair
 func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {

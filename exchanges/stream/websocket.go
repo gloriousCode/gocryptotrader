@@ -1244,12 +1244,6 @@ func signalReceived(ch chan struct{}) bool {
 
 // EnableAndConnectNoSubs connects with no subs
 func (w *Websocket) EnableAndConnectNoSubs() error {
-	if w.connector == nil {
-		return errNoConnectFunc
-	}
-	w.m.Lock()
-	defer w.m.Unlock()
-
 	if !w.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
@@ -1265,22 +1259,142 @@ func (w *Websocket) EnableAndConnectNoSubs() error {
 	}
 	w.subscriptions.Clear()
 
-	w.dataMonitor()
-	w.trafficMonitor()
 	w.setState(connectingState)
 
-	err := w.connector()
-	if err != nil {
-		w.setState(disconnectedState)
-		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
-	}
-	w.setState(connectedState)
+	w.Wg.Add(2)
+	go w.monitorFrame(&w.Wg, w.monitorData)
+	go w.monitorFrame(&w.Wg, w.monitorTraffic)
 
-	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+	if !w.useMultiConnectionManagement {
+		if w.connector == nil {
+			return fmt.Errorf("%v %w", w.exchangeName, errNoConnectFunc)
+		}
+		err := w.connector()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
+			w.setState(disconnectedState)
+			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+		}
+		w.setState(connectedState)
+
+		if w.connectionMonitorRunning.CompareAndSwap(false, true) {
+			// This oversees all connections and does not need to be part of wait group management.
+			go w.monitorFrame(nil, w.monitorConnection)
+		}
+
+		subs, err := w.GenerateSubs() // regenerate state on new connection
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		if len(subs) != 0 {
+			if err := w.SubscribeToChannels(nil, subs); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if len(w.connectionManager) == 0 {
+		w.setState(disconnectedState)
+		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
+	}
+
+	// multiConnectFatalError is a fatal error that will cause all connections to
+	// be shutdown and the websocket to be disconnected.
+	var multiConnectFatalError error
+
+	// TODO: Implement concurrency below.
+	for i := range w.connectionManager {
+		if w.connectionManager[i].Setup.GenerateSubscriptions == nil {
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+			break
+		}
+
+		subs, err := w.connectionManager[i].Setup.GenerateSubscriptions() // regenerate state on new connection
+		if err != nil {
+			multiConnectFatalError = fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+			break
+		}
+
+		if w.connectionManager[i].Setup.Connector == nil {
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errNoConnectFunc)
+			break
+		}
+		if w.connectionManager[i].Setup.Handler == nil {
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketDataHandlerUnset)
+			break
+		}
+		if w.connectionManager[i].Setup.Subscriber == nil {
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, w.connectionManager[i].Setup.URL, errWebsocketSubscriberUnset)
+			break
+		}
+
+		// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
+
+		conn := w.getConnectionFromSetup(w.connectionManager[i].Setup)
+
+		err = w.connectionManager[i].Setup.Connector(context.TODO(), conn)
+		if err != nil {
+			multiConnectFatalError = fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+			break
+		}
+
+		if !conn.IsConnected() {
+			multiConnectFatalError = fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", w.exchangeName, i+1, conn.URL)
+			break
+		}
+
+		w.connections[conn] = &w.connectionManager[i]
+		w.connectionManager[i].Connection = conn
+
+		w.Wg.Add(1)
+		go w.Reader(context.TODO(), conn, w.connectionManager[i].Setup.Handler)
+
+		err = w.connectionManager[i].Setup.Subscriber(context.TODO(), conn, subs)
+		if err != nil {
+			multiConnectFatalError = fmt.Errorf("%v Error subscribing %w", w.exchangeName, err)
+			break
+		}
+
+		if w.verbose {
+			log.Debugf(log.WebsocketMgr, "%s websocket: [conn:%d] [URL:%s] connected. [Subscribed: %d]",
+				w.exchangeName,
+				i+1,
+				conn.URL,
+				len(subs))
 		}
 	}
+
+	if multiConnectFatalError != nil {
+		// Roll back any successful connections and flush subscriptions
+		for x := range w.connectionManager {
+			if w.connectionManager[x].Connection != nil {
+				if err := w.connectionManager[x].Connection.Shutdown(); err != nil {
+					log.Errorln(log.WebsocketMgr, err)
+				}
+				w.connectionManager[x].Connection = nil
+			}
+			w.connectionManager[x].Subscriptions.Clear()
+		}
+		clear(w.connections)
+		w.setState(disconnectedState) // Flip from connecting to disconnected.
+
+		// Drain residual error in the single buffered channel, this mitigates
+		// the cycle when `Connect` is called again and the connectionMonitor
+		// starts but there is an old error in the channel.
+		drain(w.ReadMessageErrors)
+
+		return multiConnectFatalError
+	}
+
+	// Assume connected state here. All connections have been established.
+	// All subscriptions have been sent and stored. All data received is being
+	// handled by the appropriate data handler.
+	w.setState(connectedState)
+
+	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
+		// This oversees all connections and does not need to be part of wait group management.
+		go w.monitorFrame(nil, w.monitorConnection)
+	}
+
 	return nil
 }

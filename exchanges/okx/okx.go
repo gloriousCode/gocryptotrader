@@ -3433,22 +3433,22 @@ func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*
 }
 
 type FundingRateData struct {
-	Acc3DFundingRate types.Number         `json:"acc3dFundingRate"`
-	Apy              types.Number         `json:"apy"`
-	ArbitrageId      string               `json:"arbitrageId"`
-	BuyInstId        string               `json:"buyInstId"`
-	BuyInstType      string               `json:"buyInstType"`
-	Ccy              string               `json:"ccy"`
-	FundingRate      types.Number         `json:"fundingRate"`
-	FundingTime      convert.ExchangeTime `json:"fundingTime"`
-	NextFundingRate  types.Number         `json:"nextFundingRate"`
-	NotionalUsd      types.Number         `json:"notionalUsd"`
-	SellInstId       string               `json:"sellInstId"`
-	SellInstType     string               `json:"sellInstType"`
-	Spread           string               `json:"spread"`
-	State            string               `json:"state"`
-	Ts               convert.ExchangeTime `json:"ts"`
-	Yield3DPer10K    types.Number         `json:"yield3dPer10K"`
+	Acc3DFundingRate types.Number `json:"acc3dFundingRate"`
+	Apy              types.Number `json:"apy"`
+	ArbitrageId      string       `json:"arbitrageId"`
+	BuyInstId        string       `json:"buyInstId"`
+	BuyInstType      string       `json:"buyInstType"`
+	Ccy              string       `json:"ccy"`
+	FundingRate      types.Number `json:"fundingRate"`
+	FundingTime      types.Time   `json:"fundingTime"`
+	NextFundingRate  types.Number `json:"nextFundingRate"`
+	NotionalUsd      types.Number `json:"notionalUsd"`
+	SellInstId       string       `json:"sellInstId"`
+	SellInstType     string       `json:"sellInstType"`
+	Spread           string       `json:"spread"`
+	State            string       `json:"state"`
+	Ts               types.Time   `json:"ts"`
+	Yield3DPer10K    types.Number `json:"yield3dPer10K"`
 }
 
 // GetPrivateFundingRates is a private endpoint for retrieving funding rates.
