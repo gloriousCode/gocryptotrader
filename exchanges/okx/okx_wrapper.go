@@ -2267,8 +2267,12 @@ func (ok *Okx) instrumentResultToContract(instrumentResult *Instrument, item ass
 		switch instrumentResult.Alias {
 		case "this_week", "next_week":
 			ct = futures.Weekly
+		case "this_month", "next_month":
+			ct = futures.Monthly
 		case "quarter", "next_quarter":
 			ct = futures.Quarterly
+		default:
+			panic(instrumentResult.Alias)
 		}
 	}
 	contractSettlementType := futures.Linear
@@ -2287,6 +2291,9 @@ func (ok *Okx) instrumentResultToContract(instrumentResult *Instrument, item ass
 		valueDenomination = futures.BaseDenomination
 	} else if cvc.Equal(underlying.Quote) {
 		valueDenomination = futures.QuoteDenomination
+	}
+	if ct != futures.Perpetual && (instrumentResult.ExpTime.IsZero() || instrumentResult.ExpTime.Equal(time.Unix(0,0))) {
+		fmt.Println("hi")
 	}
 	return &futures.Contract{
 		Exchange:                       ok.Name,
