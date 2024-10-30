@@ -484,72 +484,6 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 	return nil
 }
 
-/*
-var tradeHolder TradeData
-			err = json.Unmarshal(respRaw, &tradeHolder)
-			if err != nil {
-				return err
-			}
-			var trades []trade.Data
-			for i := range tradeHolder.Data {
-				if tradeHolder.Data[i].Price == 0 {
-					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
-					// These have a size of 0 and are used only to indicate a changing price.
-					continue
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
-				if err != nil {
-					return err
-				}
-				b.Websocket.DataHandler <- &ticker.Price{
-					Last:         tradeHolder.Data[i].Price,
-					Pair:         p,
-					ExchangeName: b.Name,
-					AssetType:    a,
-					LastUpdated:  tradeHolder.Data[i].Timestamp,
-				}
-			}
-			if !b.IsSaveTradeDataEnabled() {
-				return nil
-			}
-
-			for i := range tradeHolder.Data {
-				if tradeHolder.Data[i].Price == 0 {
-					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
-					// These have a size of 0 and are used only to indicate a changing price.
-					continue
-				}
-				var p currency.Pair
-				var a asset.Item
-				p, a, err = b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
-				if err != nil {
-					return err
-				}
-				var oSide order.Side
-				oSide, err = order.StringToOrderSide(tradeHolder.Data[i].Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						Err:      err,
-					}
-				}
-
-				trades = append(trades, trade.Data{
-					TID:          tradeHolder.Data[i].TrdMatchID,
-					Exchange:     b.Name,
-					CurrencyPair: p,
-					AssetType:    a,
-					Side:         oSide,
-					Price:        tradeHolder.Data[i].Price,
-					Amount:       float64(tradeHolder.Data[i].Size),
-					Timestamp:    tradeHolder.Data[i].Timestamp,
-				})
-			}
-			return b.AddTradesToBuffer(trades...)
- */
-
 func (b *Bitmex) handleWsTrades(msg []byte) error {
 
 	var tradeHolder TradeData
@@ -564,7 +498,7 @@ func (b *Bitmex) handleWsTrades(msg []byte) error {
 			continue
 		}
 
-		p, a, err := b.GetPairAndAssetTypeRequestFormatted(tradeHolder.Data[i].Symbol)
+		p, a, err := b.GetPairAndAssetTypeRequestFormatted(t.Symbol)
 		if err != nil {
 			return err
 		}
