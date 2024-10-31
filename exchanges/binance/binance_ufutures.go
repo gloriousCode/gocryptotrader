@@ -382,7 +382,7 @@ func (b *Binance) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]UM
 // UGetFundingRateInfo returns extra details about funding rates
 func (b *Binance) UGetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
 	var resp []FundingRateInfoResponse
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateInfo, uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateInfo, uFuturesFundingRate, &resp)
 }
 
 // UGetFundingHistory gets funding history for USDTMarginedFutures

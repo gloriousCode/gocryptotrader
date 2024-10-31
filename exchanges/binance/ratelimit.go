@@ -24,6 +24,8 @@ const (
 	uFuturesRequestRate      = 2400
 	uFuturesOrderInterval    = time.Minute
 	uFuturesOrderRequestRate = 1200
+	fundingRequestRate       = 500
+	fundingRequestInterval   = time.Minute * 5
 )
 
 // Binance Spot rate limits
@@ -43,6 +45,7 @@ const (
 	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
+	uFuturesFundingRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
 	uFuturesSymbolOrdersRate
@@ -100,6 +103,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 	usdMarginedFuturesOrdersLimiter := request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate)
 	coinMarginedFuturesLimiter := request.NewRateLimit(cFuturesInterval, cFuturesRequestRate)
 	coinMarginedFuturesOrdersLimiter := request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate)
+	fundingRateLimiter := request.NewRateLimit(fundingRequestInterval, fundingRequestRate)
 
 	return request.RateLimitDefinitions{
 		spotDefaultRate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 1),
@@ -109,7 +113,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
 		spotOrderbookDepth1000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
 		spotAccountInformationRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
-		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
+		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 20),
 		spotPriceChangeAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
 		spotOrderbookDepth5000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 50),
 		spotOrderRate:                   request.GetRateLimiterWithWeight(spotOrderLimiter, 1),
@@ -118,6 +122,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		spotAllOrdersRate:               request.GetRateLimiterWithWeight(spotOrderLimiter, 10),
 		spotOpenOrdersAllRate:           request.GetRateLimiterWithWeight(spotOrderLimiter, 40),
 		uFuturesDefaultRate:             request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
+		uFuturesFundingRate:             request.GetRateLimiterWithWeight(fundingRateLimiter, 1),
 		uFuturesKline100Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 		uFuturesOrderbook50Rate:         request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
 		uFuturesKline500Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
