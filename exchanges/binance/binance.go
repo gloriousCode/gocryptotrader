@@ -133,6 +133,10 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	if err != nil {
 		return nil, err
 	}
+	if obd.Limit == 0 {
+		// default
+		obd.Limit = 500
+	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.Itoa(obd.Limit))
 
@@ -493,27 +497,51 @@ func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (Av
 // symbol: string of currency pair
 func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
 	resp := PriceChangeStats{}
-	params := url.Values{}
-	rateLimit := spotPriceChangeAllRate
-	if !symbol.IsEmpty() {
-		rateLimit = spotDefaultRate
-		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
-		if err != nil {
-			return resp, err
-		}
-		params.Set("symbol", symbolValue)
+	if symbol.IsEmpty() {
+		return resp, errors.New("symbol is required, use GetTickers")
 	}
+	params := url.Values{}
+	rl := spotTicker1Rate
+	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
+	if err != nil {
+		return resp, err
+	}
+	params.Set("symbol", symbolValue)
 	path := priceChange + "?" + params.Encode()
-
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, rateLimit, &resp)
+		exchange.RestSpotSupplementary, path, rl, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
-func (b *Binance) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
+func (b *Binance) GetTickers(ctx context.Context, symbols ...currency.Pair) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
+	symbolLength := len(symbols)
+	params := url.Values{}
+	var rl request.EndpointLimit
+	switch {
+	case symbolLength == 1:
+		rl = spotTicker1Rate
+	case symbolLength > 1 && symbolLength <= 20:
+		rl = spotTicker20Rate
+	case symbolLength > 20 && symbolLength <= 100:
+		rl = spotTicker100Rate
+	case symbolLength > 100, symbolLength == 0:
+		rl = spotTickerAllRate
+	}
+	symbolValues := make([]string, symbolLength)
+	for i := range symbols {
+		symbolValue, err := b.FormatSymbol(symbols[i], asset.Spot)
+		if err != nil {
+			return resp, err
+		}
+		symbolValues[i] = symbolValue
+	}
+	if len(symbolValues) > 0 {
+		params.Set("symbols", strings.Join(symbolValues, ","))
+	}
+	path := priceChange + "?" + params.Encode()
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
+		exchange.RestSpotSupplementary, path, rl, &resp)
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
