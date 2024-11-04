@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1063,15 +1064,14 @@ func (b *BTCMarkets) UpdateOrderExecutionLimits(ctx context.Context, a asset.Ite
 		}
 
 		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   asset.Spot,
+			Key:                     key.NewExchangePairAssetKey(b.Name, asset.Spot, pair),
 			MinimumBaseAmount:       markets[x].MinOrderAmount,
 			MaximumBaseAmount:       markets[x].MaxOrderAmount,
 			AmountStepIncrementSize: math.Pow(10, -markets[x].AmountDecimals),
 			PriceStepIncrementSize:  math.Pow(10, -markets[x].PriceDecimals),
 		}
 	}
-	return b.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {

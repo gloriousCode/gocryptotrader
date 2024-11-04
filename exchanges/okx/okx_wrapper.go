@@ -319,8 +319,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			return err
 		}
 		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   a,
+			Key:                     key.NewExchangePairAssetKey(ok.Name, a, pair),
 			PriceStepIncrementSize:  insts[x].TickSize.Float64(),
 			MinimumBaseAmount:       insts[x].MinimumOrderSize.Float64(),
 			AmountStepIncrementSize: insts[x].TickSize.Float64(),
@@ -328,7 +327,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		}
 	}
 
-	return ok.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -2292,7 +2291,7 @@ func (ok *Okx) instrumentResultToContract(instrumentResult *Instrument, item ass
 	} else if cvc.Equal(underlying.Quote) {
 		valueDenomination = futures.QuoteDenomination
 	}
-	if ct != futures.Perpetual && (instrumentResult.ExpTime.IsZero() || instrumentResult.ExpTime.Equal(time.Unix(0,0))) {
+	if ct != futures.Perpetual && (instrumentResult.ExpTime.IsZero() || instrumentResult.ExpTime.Equal(time.Unix(0, 0))) {
 		fmt.Println("hi")
 	}
 	return &futures.Contract{

@@ -7,7 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
@@ -16,6 +15,15 @@ type ExchangePairAsset struct {
 	Base     *currency.Item
 	Quote    *currency.Item
 	Asset    asset.Item
+}
+
+func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
+	return ExchangePairAsset{
+		Exchange: exch,
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    a,
+	}
 }
 
 type ExchangePairAssetUnderlyingContractExpiry struct {
@@ -56,7 +64,7 @@ type OrderKey struct {
 	Asset     asset.Item
 	Time      time.Time
 	OrderID   string
-	OrderSide order.Side
+	OrderSide string
 	OrderSize float64
 }
 

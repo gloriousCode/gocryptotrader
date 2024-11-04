@@ -1048,7 +1048,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	lim, err := b.ExecutionLimits.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
+	lim, err := b.executionLimitsButts.GetOrderExecutionLimits(asset.Spot, currency.NewPair(currency.BTC, currency.AUD))
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}

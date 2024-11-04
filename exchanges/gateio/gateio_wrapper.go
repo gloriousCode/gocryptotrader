@@ -2261,8 +2261,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			}
 
 			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    pair,
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, pair),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[x].Precision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[x].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
@@ -2294,8 +2293,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				return err
 			}
 			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    cp,
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				MarketStepIncrementSize: 1,
@@ -2326,8 +2324,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				return err
 			}
 			limits = append(limits, order.MinMaxLevel{
-				Asset:                   a,
-				Pair:                    cp,
+				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				MarketStepIncrementSize: 1,
@@ -2355,8 +2352,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				}
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				limits = append(limits, order.MinMaxLevel{
-					Asset:                   a,
-					Pair:                    cp,
+					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
 					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
 					MarketStepIncrementSize: 1,
@@ -2366,7 +2362,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		}
 	}
 
-	return g.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract

@@ -1295,20 +1295,19 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 
 		limits := make([]order.MinMaxLevel, len(instrumentsData))
-		for x := range instrumentsData {
+		for y := range instrumentsData {
 			var pair currency.Pair
-			pair, err = currency.NewPairFromString(instrumentsData[x].InstrumentName)
+			pair, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
-				Pair:                   pair,
-				Asset:                  a,
-				PriceStepIncrementSize: instrumentsData[x].TickSize,
-				MinimumBaseAmount:      instrumentsData[x].MinimumTradeAmount,
+			limits[y] = order.MinMaxLevel{
+				Key:                    key.NewExchangePairAssetKey(d.Name, a, pair),
+				PriceStepIncrementSize: instrumentsData[y].TickSize,
+				MinimumBaseAmount:      instrumentsData[y].MinimumTradeAmount,
 			}
 		}
-		err = d.LoadLimits(limits)
+		err = order.LoadLimits(limits)
 		if err != nil {
 			return err
 		}

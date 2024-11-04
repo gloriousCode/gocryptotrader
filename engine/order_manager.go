@@ -13,6 +13,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -479,8 +480,8 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	}
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
-	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
-		newOrder.Pair,
+	err = order.CheckOrderExecutionLimits(
+		key.NewExchangePairAssetKey(newOrder.Exchange, newOrder.AssetType, newOrder.Pair),
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Type)
@@ -531,8 +532,8 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if checkExchangeLimits {
 		// Checks for exchange min max limits for order amounts before order
 		// execution can occur
-		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
-			newOrder.Pair,
+		err = order.CheckOrderExecutionLimits(
+			key.NewExchangePairAssetKey(newOrder.Exchange, newOrder.AssetType, newOrder.Pair),
 			newOrder.Price,
 			newOrder.Amount,
 			newOrder.Type)

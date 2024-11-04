@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -541,8 +542,7 @@ func (b *Bitfinex) GetSiteInfoConfigData(ctx context.Context, assetType asset.It
 			return nil, err
 		}
 		pairs = append(pairs, order.MinMaxLevel{
-			Asset:             assetType,
-			Pair:              pair,
+			Key:               key.NewExchangePairAssetKey(b.Name, assetType, pair),
 			MinimumBaseAmount: minOrder,
 			MaximumBaseAmount: maxOrder,
 		})

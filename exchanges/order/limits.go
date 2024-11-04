@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -38,19 +38,22 @@ var (
 	errInvalidQuoteLevels  = errors.New("invalid quote levels, cannot load limits")
 )
 
-// ExecutionLimits defines minimum and maximum values in relation to
+// executionLimits defines minimum and maximum values in relation to
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
-type ExecutionLimits struct {
-	m   map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel
+type executionLimits struct {
+	m   map[key.ExchangePairAsset]*MinMaxLevel
 	mtx sync.RWMutex
+}
+
+var executionLimitsManager executionLimits = executionLimits{
+	m: make(map[key.ExchangePairAsset]*MinMaxLevel),
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
 // for outbound exchange execution
 type MinMaxLevel struct {
-	Pair                    currency.Pair
-	Asset                   asset.Item
+	Key                     key.ExchangePairAsset
 	MinPrice                float64
 	MaxPrice                float64
 	PriceStepIncrementSize  float64
@@ -73,44 +76,42 @@ type MinMaxLevel struct {
 	MaxAlgoOrders           int64
 }
 
+func LoadLimits(levels []MinMaxLevel) error {
+	return executionLimitsManager.LoadLimits(levels)
+}
+
+func GetOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
+	return executionLimitsManager.GetOrderExecutionLimits(k)
+}
+
+func CheckOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType Type) error {
+	return executionLimitsManager.CheckOrderExecutionLimits(k, price, amount, orderType)
+}
+
 // LoadLimits loads all limits levels into memory
-func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
+func (e *executionLimits) LoadLimits(levels []MinMaxLevel) error {
 	if len(levels) == 0 {
 		return errCannotLoadLimit
 	}
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 	if e.m == nil {
-		e.m = make(map[asset.Item]map[*currency.Item]map[*currency.Item]MinMaxLevel)
+		e.m = make(map[key.ExchangePairAsset]*MinMaxLevel)
 	}
 
 	for x := range levels {
-		if !levels[x].Asset.IsValid() {
-			return fmt.Errorf("cannot load levels for '%s': %w", levels[x].Asset, asset.ErrNotSupported)
-		}
-		m1, ok := e.m[levels[x].Asset]
-		if !ok {
-			m1 = make(map[*currency.Item]map[*currency.Item]MinMaxLevel)
-			e.m[levels[x].Asset] = m1
-		}
-
-		if levels[x].Pair.IsEmpty() {
-			return currency.ErrCurrencyPairEmpty
-		}
-
-		m2, ok := m1[levels[x].Pair.Base.Item]
-		if !ok {
-			m2 = make(map[*currency.Item]MinMaxLevel)
-			m1[levels[x].Pair.Base.Item] = m2
+		if !levels[x].Key.Asset.IsValid() {
+			return fmt.Errorf("cannot load levels for '%s': %w", levels[x].Key.Asset, asset.ErrNotSupported)
 		}
 
 		if levels[x].MinPrice > 0 &&
 			levels[x].MaxPrice > 0 &&
 			levels[x].MinPrice > levels[x].MaxPrice {
-			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
+			return fmt.Errorf("%w for %s %s %s supplied min: %f max: %f",
 				errInvalidPriceLevels,
-				levels[x].Asset,
-				levels[x].Pair,
+				levels[x].Key.Exchange,
+				levels[x].Key.Asset,
+				levels[x].Key.Pair(),
 				levels[x].MinPrice,
 				levels[x].MaxPrice)
 		}
@@ -118,10 +119,11 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 		if levels[x].MinimumBaseAmount > 0 &&
 			levels[x].MaximumBaseAmount > 0 &&
 			levels[x].MinimumBaseAmount > levels[x].MaximumBaseAmount {
-			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
+			return fmt.Errorf("%w for %s %s %s supplied min: %f max: %f",
 				errInvalidAmountLevels,
-				levels[x].Asset,
-				levels[x].Pair,
+				levels[x].Key.Exchange,
+				levels[x].Key.Asset,
+				levels[x].Key.Pair(),
 				levels[x].MinimumBaseAmount,
 				levels[x].MaximumBaseAmount)
 		}
@@ -129,48 +131,36 @@ func (e *ExecutionLimits) LoadLimits(levels []MinMaxLevel) error {
 		if levels[x].MinimumQuoteAmount > 0 &&
 			levels[x].MaximumQuoteAmount > 0 &&
 			levels[x].MinimumQuoteAmount > levels[x].MaximumQuoteAmount {
-			return fmt.Errorf("%w for %s %s supplied min: %f max: %f",
+			return fmt.Errorf("%w for %s %s %s supplied min: %f max: %f",
 				errInvalidQuoteLevels,
-				levels[x].Asset,
-				levels[x].Pair,
+				levels[x].Key.Exchange,
+				levels[x].Key.Asset,
+				levels[x].Key.Pair(),
 				levels[x].MinimumQuoteAmount,
 				levels[x].MaximumQuoteAmount)
 		}
-
-		m2[levels[x].Pair.Quote.Item] = levels[x]
+		e.m[levels[x].Key] = &levels[x]
 	}
 	return nil
 }
 
 // GetOrderExecutionLimits returns the exchange limit parameters for a currency
-func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (MinMaxLevel, error) {
+func (e *executionLimits) GetOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 	if e.m == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
-
-	m1, ok := e.m[a]
-	if !ok {
-		return MinMaxLevel{}, fmt.Errorf("%w %v", ErrCannotValidateAsset, a)
+	if e, ok := e.m[k]; !ok {
+		return MinMaxLevel{}, ErrCannotValidateAsset
+	} else {
+		return *e, nil
 	}
-
-	m2, ok := m1[cp.Base.Item]
-	if !ok {
-		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitBase, cp.Base)
-	}
-
-	limit, ok := m2[cp.Quote.Item]
-	if !ok {
-		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitQuote, cp.Quote)
-	}
-
-	return limit, nil
 }
 
 // CheckOrderExecutionLimits checks to see if the price and amount conforms with
 // exchange level order execution limits
-func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType Type) error {
+func (e *executionLimits) CheckOrderExecutionLimits(k key.ExchangePairAsset, price, amount float64, orderType Type) error {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
@@ -179,24 +169,14 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 		return nil
 	}
 
-	m1, ok := e.m[a]
+	m1, ok := e.m[k]
 	if !ok {
 		return ErrCannotValidateAsset
 	}
 
-	m2, ok := m1[cp.Base.Item]
-	if !ok {
-		return ErrCannotValidateBaseCurrency
-	}
-
-	limit, ok := m2[cp.Quote.Item]
-	if !ok {
-		return ErrCannotValidateQuoteCurrency
-	}
-
-	err := limit.Conforms(price, amount, orderType)
+	err := m1.Conforms(price, amount, orderType)
 	if err != nil {
-		return fmt.Errorf("%w for %s %s", err, a, cp)
+		return fmt.Errorf("%w for %s %s %s", err, k.Exchange, k.Asset, k.Pair())
 	}
 
 	return nil

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -846,14 +847,13 @@ func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			return err
 		}
 		resp = append(resp, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   a,
+			Key:                     key.NewExchangePairAssetKey(g.Name, asset.Spot, cp),
 			AmountStepIncrementSize: details[i].TickSize,
 			MinimumBaseAmount:       details[i].MinOrderSize.Float64(),
 			QuoteStepIncrementSize:  details[i].QuoteIncrement,
 		})
 	}
-	return g.LoadLimits(resp)
+	return order.LoadLimits(resp)
 }
 
 // GetLatestFundingRates returns the latest funding rates data

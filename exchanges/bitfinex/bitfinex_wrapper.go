@@ -295,7 +295,7 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if err != nil {
 		return err
 	}
-	if err := b.LoadLimits(limits); err != nil {
+	if err := order.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return nil

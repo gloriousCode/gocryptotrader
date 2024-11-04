@@ -831,7 +831,7 @@ func (b *Bithumb) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) 
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return b.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // UpdateCurrencyStates updates currency states for exchange

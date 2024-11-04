@@ -1561,40 +1561,62 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	var err error
-	var instrumentsInfo *InstrumentsInfo
+	var instrumentsInfo InstrumentsInfo
+	NPCT := ""
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", "", 400)
-		if err != nil {
-			return err
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", NPCT, 1000)
+			if err != nil {
+				return err
+			}
+			NPCT = instrumentsInfo.NextPageCursor
+			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			if NPCT == "" {
+				break
+			}
 		}
 	case asset.Options:
-		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "BTC", "", 400)
-		if err != nil {
-			return err
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "BTC", NPCT, 1000)
+			if err != nil {
+				return err
+			}
+			NPCT = instrumentsInfo.NextPageCursor
+			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			if NPCT == "" {
+				break
+			}
 		}
-		var ethInstruments *InstrumentsInfo
-		ethInstruments, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "ETH", "", 400)
-		if err != nil {
-			return err
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "ETH", NPCT, 1000)
+			if err != nil {
+				return err
+			}
+			NPCT = instrumentsInfo.NextPageCursor
+			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			if NPCT == "" {
+				break
+			}
 		}
-		instrumentsInfo.List = append(instrumentsInfo.List, ethInstruments.List...)
+		for {
+			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "SOL", NPCT, 1000)
+			if err != nil {
+				return err
+			}
+			NPCT = instrumentsInfo.NextPageCursor
+			instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+			if NPCT == "" {
+				break
+			}
+		}
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
 	for x := range instrumentsInfo.List {
-		var pair currency.Pair
-		pair, err = by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", by.Name, instrumentsInfo.List[x].Symbol)
-			continue
-		}
-
 		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+			Key:                     key.NewExchangePairAssetKey(by.Name, asset.Spot, pair),
 			MinimumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
 			MaximumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
 			MinPrice:                instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
@@ -1606,7 +1628,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			MaximumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
-	return by.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
@@ -1724,12 +1746,11 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				SettlementCurrencies:      currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
 				MaxLeverage:               inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
-
 			})
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
-		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1809,7 +1830,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}

@@ -1290,8 +1290,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			continue
 		}
 		limits = append(limits, order.MinMaxLevel{
-			Pair:                    p,
-			Asset:                   a,
+			Key:                     key.NewExchangePairAssetKey(b.Name, a, p),
 			MinimumBaseAmount:       marketInfo.MinOrderSize,
 			MaximumBaseAmount:       marketInfo.MaxOrderSize,
 			AmountStepIncrementSize: marketInfo.MinSizeIncrement,
@@ -1299,7 +1298,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 			PriceStepIncrementSize:  marketInfo.MinPriceIncrement,
 		})
 	}
-	if err = b.LoadLimits(limits); err != nil {
+	if err = order.LoadLimits(limits); err != nil {
 		errs = common.AppendError(errs, err)
 	}
 	return errs

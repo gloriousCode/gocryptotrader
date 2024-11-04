@@ -1884,7 +1884,12 @@ func (b *Binance) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order
 			cp.Quote = currency.USDC
 		}
 	}
-	return b.ExecutionLimits.GetOrderExecutionLimits(a, cp)
+	return order.GetOrderExecutionLimits(key.ExchangePairAsset{
+		Exchange: b.Name,
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    a,
+	})
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -1906,7 +1911,7 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	return b.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific

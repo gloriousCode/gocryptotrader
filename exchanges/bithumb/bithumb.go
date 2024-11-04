@@ -16,6 +16,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -709,8 +710,7 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 	limits := make([]order.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
 		limits = append(limits, order.MinMaxLevel{
-			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
-			Asset:             asset.Spot,
+			Key:               key.NewExchangePairAssetKey(b.Name, asset.Spot, currency.NewPair(currency.NewCode(code), currency.KRW)),
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})
 	}

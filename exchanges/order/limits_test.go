@@ -17,7 +17,7 @@ var (
 
 func TestLoadLimits(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
+	e := executionLimits{}
 	err := e.LoadLimits(nil)
 	if !errors.Is(err, errCannotLoadLimit) {
 		t.Fatalf("expected error %v but received %v", errCannotLoadLimit, err)
@@ -143,7 +143,7 @@ func TestLoadLimits(t *testing.T) {
 
 func TestGetOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
+	e := executionLimits{}
 	_, err := e.GetOrderExecutionLimits(asset.Spot, btcusd)
 	if !errors.Is(err, ErrExchangeLimitNotLoaded) {
 		t.Fatalf("expected error %v but received %v", ErrExchangeLimitNotLoaded, err)
@@ -195,7 +195,7 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 
 func TestCheckLimit(t *testing.T) {
 	t.Parallel()
-	e := ExecutionLimits{}
+	e := executionLimits{}
 	err := e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 1337, Limit)
 	if !errors.Is(err, nil) {
 		t.Fatalf("expected error %v but received %v", nil, err)

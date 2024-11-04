@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1142,8 +1143,7 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.USDTMarginedFutures,
+			Key:                     key.NewExchangePairAssetKey(b.Name, asset.USDTMarginedFutures, cp),
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,

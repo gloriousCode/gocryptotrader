@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -228,14 +229,13 @@ func (b *Bitstamp) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 		limits = append(limits, order.MinMaxLevel{
-			Asset:                   a,
-			Pair:                    pair,
+			Key:                     key.NewExchangePairAssetKey(b.Name, a, pair),
 			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
 			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
-	if err := b.LoadLimits(limits); err != nil {
+	if err := order.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", b.Name, err)
 	}
 	return nil

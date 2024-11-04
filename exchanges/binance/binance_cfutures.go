@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1485,8 +1486,7 @@ func (b *Binance) FetchCoinMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		}
 
 		limits = append(limits, order.MinMaxLevel{
-			Pair:                    cp,
-			Asset:                   asset.CoinMarginedFutures,
+			Key:                     key.NewExchangePairAssetKey(b.Name, asset.CoinMarginedFutures, cp),
 			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,

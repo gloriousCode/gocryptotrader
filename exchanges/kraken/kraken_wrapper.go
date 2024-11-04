@@ -274,8 +274,7 @@ func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		limits = make([]order.MinMaxLevel, 0, len(pairInfo))
 		for pair, info := range pairInfo {
 			limits = append(limits, order.MinMaxLevel{
-				Asset:                  a,
-				Pair:                   pair,
+				Key:                    key.NewExchangePairAssetKey(k.Name, a, pair),
 				PriceStepIncrementSize: info.TickSize,
 				MinimumBaseAmount:      info.OrderMinimum,
 			})
@@ -296,14 +295,13 @@ func (k *Kraken) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				return err
 			}
 			limits = append(limits, order.MinMaxLevel{
-				Asset:                  a,
-				Pair:                   pair,
+				Key:                    key.NewExchangePairAssetKey(k.Name, a, pair),
 				PriceStepIncrementSize: symbols.Instruments[x].TickSize,
 				MinimumBaseAmount:      symbols.Instruments[x].ContractSize,
 			})
 		}
 	}
-	if err := k.LoadLimits(limits); err != nil {
+	if err := order.LoadLimits(limits); err != nil {
 		return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
 	}
 	return nil

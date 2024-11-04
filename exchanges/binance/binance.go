@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1258,8 +1259,7 @@ func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]orde
 				continue
 			}
 			l := order.MinMaxLevel{
-				Pair:  cp,
-				Asset: a,
+				Key: key.NewExchangePairAssetKey(b.Name, a, cp),
 			}
 			for _, f := range s.Filters {
 				// TODO: Unhandled filters:

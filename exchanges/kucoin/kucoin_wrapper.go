@@ -2397,8 +2397,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				continue
 			}
 			limits = append(limits, order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+				Key:                     key.NewExchangePairAssetKey(ku.Name, a, pair),
 				AmountStepIncrementSize: symbols[x].BaseIncrement,
 				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
 				PriceStepIncrementSize:  symbols[x].PriceIncrement,
@@ -2423,8 +2422,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				continue
 			}
 			limits = append(limits, order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
+				Key:                     key.NewExchangePairAssetKey(ku.Name, a, pair),
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
@@ -2433,7 +2431,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 	}
 
-	return ku.LoadLimits(limits)
+	return order.LoadLimits(limits)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
