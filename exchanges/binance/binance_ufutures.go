@@ -99,12 +99,10 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 		limit = 500
 	}
 	strLimit := strconv.FormatInt(limit, 10)
-	if strLimit != "" {
-		if !slices.Contains(uValidOBLimits, strLimit) {
-			return nil, fmt.Errorf("invalid limit: %v", limit)
-		}
-		params.Set("limit", strLimit)
+	if !slices.Contains(uValidOBLimits, strLimit) {
+		return nil, fmt.Errorf("invalid limit: %v", limit)
 	}
+	params.Set("limit", strLimit)
 
 	rateBudget := uFuturesOrderbook500Rate
 	switch {

@@ -12,12 +12,14 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,7 +32,9 @@ type Bybit struct {
 
 	// AccountType holds information about whether the account to which the api key belongs is a unified margin account or not.
 	// 0: unified, and 1: for normal account
-	AccountType uint8
+	AccountType         uint8
+	instrumentInfoMutex sync.Mutex
+	instrumentInfoCache map[asset.Item]*IICH
 }
 
 const (

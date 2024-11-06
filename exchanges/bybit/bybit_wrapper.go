@@ -297,7 +297,8 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
-		response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+
+		response, err = by.cacheInstrumentInfo(ctx, a)
 		if err != nil {
 			return nil, err
 		}
@@ -1566,7 +1567,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		for {
-			instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", NPCT, 1000)
+			instrumentInfo, err := by.cacheInstrumentInfo(ctx, a)
 			if err != nil {
 				return err
 			}
@@ -1615,8 +1616,12 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.List))
 	for x := range instrumentsInfo.List {
+		pair, err := by.MatchSymbolWithAvailablePairs(instrumentsInfo.List[x].Symbol, a, true)
+		if err != nil {
+			continue
+		}
 		limits = append(limits, order.MinMaxLevel{
-			Key:                     key.NewExchangePairAssetKey(by.Name, asset.Spot, pair),
+			Key:                     key.NewExchangePairAssetKey(by.Name, a, pair),
 			MinimumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),
 			MaximumBaseAmount:       instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64(),
 			MinPrice:                instrumentsInfo.List[x].PriceFilter.MinPrice.Float64(),
@@ -1682,7 +1687,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	if !by.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	inverseContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
+	inverseContracts, err := by.cacheInstrumentInfo(ctx, item)
 	if err != nil {
 		return nil, err
 	}
@@ -1750,7 +1755,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
-		linearContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
+		linearContracts, err := by.cacheInstrumentInfo(ctx, item)
 		if err != nil {
 			return nil, err
 		}
@@ -1830,7 +1835,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		linearContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
+		linearContracts, err := by.cacheInstrumentInfo(ctx, item)
 		if err != nil {
 			return nil, err
 		}
@@ -1959,8 +1964,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if err != nil {
 			return nil, err
 		}
-
-		instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(r.Asset), symbol, "", "", "", 1000)
+		instrumentInfo, err := by.getCachedInstrumentInfo(symbol, r.Asset)
 		if err != nil {
 			return nil, err
 		}
@@ -1976,11 +1980,11 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				continue
 			}
 			var fundingInterval time.Duration
-			for j := range instrumentInfo.List {
-				if instrumentInfo.List[j].Symbol != ticks.List[i].Symbol {
+			for j := range instrumentInfo {
+				if instrumentInfo[j].Symbol != ticks.List[i].Symbol {
 					continue
 				}
-				fundingInterval = time.Duration(instrumentInfo.List[j].FundingInterval) * time.Minute
+				fundingInterval = time.Duration(instrumentInfo[j].FundingInterval) * time.Minute
 				break
 			}
 			var lrt time.Time
@@ -2085,6 +2089,56 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 	return resp, nil
 }
 
+func (by *Bybit) getCachedInstrumentInfo(symbol string, a asset.Item) ([]InstrumentInfo, error) {
+	ii, err := by.cacheInstrumentInfo(context.Background(), a)
+	if err != nil {
+		return nil, err
+	}
+	if symbol == "" {
+		return ii.List, nil
+	}
+	for i := range ii.List {
+		if ii.List[i].Symbol == symbol {
+			return []InstrumentInfo{ii.List[i]}, nil
+		}
+	}
+	return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, symbol)
+}
+
+func (by *Bybit) cacheInstrumentInfo(ctx context.Context, a asset.Item) (*InstrumentsInfo, error) {
+	by.instrumentInfoMutex.Lock()
+	defer by.instrumentInfoMutex.Unlock()
+	if by.instrumentInfoCache == nil {
+		by.instrumentInfoCache = make(map[asset.Item]*IICH)
+	}
+	if res, ok := by.instrumentInfoCache[a]; ok && time.Since(res.TimeLoaded) < time.Minute {
+		return res.InstrumentsInfo, nil
+	}
+	var instrumentsInfo InstrumentsInfo
+	NPCT := ""
+	for {
+		instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "Trading", "", NPCT, 1000)
+		if err != nil {
+			return nil, err
+		}
+		NPCT = instrumentsInfo.NextPageCursor
+		instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+		if NPCT == "" {
+			break
+		}
+	}
+	by.instrumentInfoCache[a] = &IICH{
+		InstrumentsInfo: &instrumentsInfo,
+		TimeLoaded:      time.Now(),
+	}
+	return &instrumentsInfo, nil
+}
+
+type IICH struct {
+	InstrumentsInfo *InstrumentsInfo
+	TimeLoaded      time.Time
+}
+
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := by.CurrencyPairs.IsPairEnabled(cp, a)
@@ -2106,16 +2160,12 @@ func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curre
 			return "", err
 		}
 		// convert long-dated to static contracts
-		var io *InstrumentsInfo
-		io, err = by.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
-		if err != nil {
-			return "", err
-		}
-		if len(io.List) != 1 {
+		io, err := by.getCachedInstrumentInfo(symbol, a)
+		if len(io) != 1 {
 			return "", fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, cp)
 		}
 		var length futures.ContractType
-		length, err = getContractLength(io.List[0].DeliveryTime.Time().Sub(io.List[0].LaunchTime.Time()))
+		length, err = getContractLength(io[0].DeliveryTime.Time().Sub(io[0].LaunchTime.Time()))
 		if err != nil {
 			return "", err
 		}

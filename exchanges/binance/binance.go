@@ -136,7 +136,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	}
 	if obd.Limit == 0 {
 		// default
-		obd.Limit = 500
+		obd.Limit = 100
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.Itoa(obd.Limit))

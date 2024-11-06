@@ -3,6 +3,8 @@ package order
 import (
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/shopspring/decimal"
@@ -42,12 +44,17 @@ var (
 // order size, order pricing, total notional values, total maximum orders etc
 // for execution on an exchange.
 type executionLimits struct {
-	m   map[key.ExchangePairAsset]*MinMaxLevel
-	mtx sync.RWMutex
+	epa              map[key.ExchangePairAsset]*MinMaxLevel
+	ea               map[key.ExchangeAsset][]*MinMaxLevel
+	e                map[string][]*MinMaxLevel
+	mtx              sync.RWMutex
+	proliferationMTX sync.Mutex
 }
 
 var executionLimitsManager executionLimits = executionLimits{
-	m: make(map[key.ExchangePairAsset]*MinMaxLevel),
+	epa: make(map[key.ExchangePairAsset]*MinMaxLevel),
+	ea:  make(map[key.ExchangeAsset][]*MinMaxLevel),
+	e:   make(map[string][]*MinMaxLevel),
 }
 
 // MinMaxLevel defines the minimum and maximum parameters for a currency pair
@@ -95,14 +102,15 @@ func (e *executionLimits) LoadLimits(levels []MinMaxLevel) error {
 	}
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
-	if e.m == nil {
-		e.m = make(map[key.ExchangePairAsset]*MinMaxLevel)
+	if e.epa == nil {
+		e.epa = make(map[key.ExchangePairAsset]*MinMaxLevel)
 	}
 
 	for x := range levels {
 		if !levels[x].Key.Asset.IsValid() {
 			return fmt.Errorf("cannot load levels for '%s': %w", levels[x].Key.Asset, asset.ErrNotSupported)
 		}
+		levels[x].Key.Exchange = strings.ToLower(levels[x].Key.Exchange)
 
 		if levels[x].MinPrice > 0 &&
 			levels[x].MaxPrice > 0 &&
@@ -139,19 +147,51 @@ func (e *executionLimits) LoadLimits(levels []MinMaxLevel) error {
 				levels[x].MinimumQuoteAmount,
 				levels[x].MaximumQuoteAmount)
 		}
-		e.m[levels[x].Key] = &levels[x]
+		e.epa[levels[x].Key] = &levels[x]
 	}
+	go e.proliferate()
 	return nil
+}
+
+func (e *executionLimits) proliferate() {
+	e.proliferationMTX.Lock()
+	defer e.proliferationMTX.Unlock()
+	e.mtx.RLock()
+	defer e.mtx.RUnlock()
+	for x := range e.epa {
+		if e.epa[x] == nil {
+			continue
+		}
+		eak := key.ExchangeAsset{
+			Exchange: x.Exchange,
+			Asset:    x.Asset,
+		}
+		ea, ok := e.ea[eak]
+		if !ok {
+			e.ea[eak] = []*MinMaxLevel{e.epa[x]}
+		} else if !slices.Contains(ea, e.epa[x]) {
+			ea = append(ea, e.epa[x])
+		}
+		e.ea[eak] = ea
+
+		ex, ok := e.e[x.Exchange]
+		if !ok {
+			e.e[x.Exchange] = []*MinMaxLevel{e.epa[x]}
+		} else if !slices.Contains(ea, e.epa[x]) {
+			ex = append(ex, e.epa[x])
+		}
+		e.e[x.Exchange] = ex
+	}
 }
 
 // GetOrderExecutionLimits returns the exchange limit parameters for a currency
 func (e *executionLimits) GetOrderExecutionLimits(k key.ExchangePairAsset) (MinMaxLevel, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
-	if e.m == nil {
+	if e.epa == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
-	if e, ok := e.m[k]; !ok {
+	if e, ok := e.epa[k]; !ok {
 		return MinMaxLevel{}, ErrCannotValidateAsset
 	} else {
 		return *e, nil
@@ -164,12 +204,12 @@ func (e *executionLimits) CheckOrderExecutionLimits(k key.ExchangePairAsset, pri
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
-	if e.m == nil {
+	if e.epa == nil {
 		// No exchange limits loaded so we can nil this
 		return nil
 	}
 
-	m1, ok := e.m[k]
+	m1, ok := e.epa[k]
 	if !ok {
 		return ErrCannotValidateAsset
 	}
