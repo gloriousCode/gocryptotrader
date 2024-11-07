@@ -50,11 +50,8 @@ type ExchangeAssetCredentials struct {
 }
 
 type ExchangePairAssetCredentials struct {
-	Exchange    string
-	Asset       asset.Item     `json:"asset,omitempty"`
-	Base        *currency.Item `json:"base,omitempty"`
-	Quote       *currency.Item `json:"quote,omitempty"`
-	Credentials *credentials.Credentials
+	Key         ExchangePairAsset        `json:"key"`
+	Credentials *credentials.Credentials `json:"credentials"`
 }
 
 type OrderKey struct {
@@ -69,19 +66,14 @@ type OrderKey struct {
 }
 
 func (k *ExchangePairAssetCredentials) KeyNoCreds() ExchangePairAsset {
-	return ExchangePairAsset{
-		Exchange: k.Exchange,
-		Base:     k.Base,
-		Quote:    k.Quote,
-		Asset:    k.Asset,
-	}
+	return k.Key
 }
 
 func (k *ExchangePairAssetCredentials) Pair() currency.Pair {
-	if k == nil || (k.Base == nil && k.Quote == nil) {
+	if k == nil || (k.Key.Base == nil && k.Key.Quote == nil) {
 		return currency.EMPTYPAIR
 	}
-	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+	return currency.NewPair(k.Key.Base.Currency(), k.Key.Quote.Currency())
 }
 
 func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangePairAsset {
