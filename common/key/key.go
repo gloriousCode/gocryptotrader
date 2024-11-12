@@ -11,10 +11,10 @@ import (
 
 // ExchangePairAsset is a unique map key signature for exchange, currency pair and asset
 type ExchangePairAsset struct {
-	Exchange string
-	Base     *currency.Item
-	Quote    *currency.Item
-	Asset    asset.Item
+	Exchange string         `json:"exchange"`
+	Base     *currency.Item `json:"base,omitempty"`
+	Quote    *currency.Item `json:"quote,omitempty"`
+	Asset    asset.Item     `json:"asset,omitempty"`
 }
 
 func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
@@ -38,20 +38,9 @@ type ExchangePairAssetUnderlyingContractExpiry struct {
 	UnderlyingQuote  *currency.Item
 }
 
-type ExchangeCredentials struct {
-	Exchange    string
-	Credentials credentials.Credentials
-}
-
-type ExchangeAssetCredentials struct {
-	Exchange    string
-	Asset       asset.Item
-	Credentials *credentials.Credentials
-}
-
 type ExchangePairAssetCredentials struct {
-	Key         ExchangePairAsset        `json:"key"`
-	Credentials *credentials.Credentials `json:"credentials"`
+	Key         ExchangePairAsset       `json:"key"`
+	Credentials credentials.Credentials `json:"credentials"`
 }
 
 type OrderKey struct {
