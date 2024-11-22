@@ -609,7 +609,7 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 func (h *HUOBI) Subscribe(subs subscription.List) error {
 	ctx := context.Background()
 	var errs error
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	if len(subs.Private()) > 0 {
 		if creds, errs = h.GetCredentials(ctx); errs != nil {
 			return errs
@@ -635,7 +635,7 @@ func (h *HUOBI) Subscribe(subs subscription.List) error {
 func (h *HUOBI) Unsubscribe(subs subscription.List) error {
 	ctx := context.Background()
 	var errs error
-	var creds *account.Credentials
+	var creds *credentials.Credentials
 	if len(subs.Private()) > 0 {
 		if creds, errs = h.GetCredentials(ctx); errs != nil {
 			return errs

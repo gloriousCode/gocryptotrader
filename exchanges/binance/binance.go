@@ -498,7 +498,7 @@ func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (Av
 func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (*PriceChangeStats, error) {
 	resp := PriceChangeStats{}
 	if symbol.IsEmpty() {
-		return resp, errors.New("symbol is required, use GetTickers")
+		return nil, errors.New("symbol is required, use GetTickers")
 	}
 	params := url.Values{}
 	rateLimit := spotTickerAllRate

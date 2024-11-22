@@ -2089,7 +2089,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if err != nil {
 					return nil, err
 				}
-				settlePair := currency.NewCode(settlePairs[k])
+				settlePair := settlementCurrencies[k]
 				cd := futures.QuoteDenomination
 				contractSettlementType := futures.Linear
 				switch {
@@ -2104,15 +2104,15 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					cd = futures.BaseDenomination
 				}
 				c := futures.Contract{
-					Exchange:             g.Name,
-					Name:                 name,
-					Underlying:           name,
-					Asset:                item,
-					IsActive:             !contracts[j].InDelisting,
-					Type:                 futures.Perpetual,
-					SettlementType:       contractSettlementType,
-					SettlementCurrencies: currency.Currencies{settlementCurrencies[k]},
-					ContractMultiplier:           contracts[j].QuantoMultiplier.Float64(),
+					Exchange:                  g.Name,
+					Name:                      name,
+					Underlying:                name,
+					Asset:                     item,
+					IsActive:                  !contracts[j].InDelisting,
+					Type:                      futures.Perpetual,
+					SettlementType:            contractSettlementType,
+					SettlementCurrencies:      currency.Currencies{settlementCurrencies[k]},
+					ContractMultiplier:        contracts[j].QuantoMultiplier.Float64(),
 					ContractValueDenomination: cd,
 				}
 				if contracts[j].FundingRate > 0 {
@@ -2149,7 +2149,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
 				var s, e time.Time
 				e = contracts[j].ExpireTime.Time()
-				settlePair := currency.NewCode(settlePairs[k])
+				settlePair := settlementCurrencies[k]
 				switch contracts[j].Cycle {
 				case "WEEKLY":
 					ct = futures.Weekly
@@ -2175,19 +2175,19 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 				}
 				contractsToAdd[j] = futures.Contract{
-					Exchange:             g.Name,
-					Name:                 name,
-					Underlying:           underlying,
-					Asset:                item,
-					StartDate:            s,
-					EndDate:              e,
-					SettlementType:       futures.Linear,
-					IsActive:             !contracts[j].InDelisting,
-					Type:                 ct,
-					SettlementCurrencies: currency.Currencies{settlementCurrencies[k]},
-					MarginCurrency:       currency.Code{},
-					ContractMultiplier:           contracts[j].QuantoMultiplier.Float64(),
-					MaxLeverage:          contracts[j].LeverageMax.Float64(),
+					Exchange:                  g.Name,
+					Name:                      name,
+					Underlying:                underlying,
+					Asset:                     item,
+					StartDate:                 s,
+					EndDate:                   e,
+					SettlementType:            futures.Linear,
+					IsActive:                  !contracts[j].InDelisting,
+					Type:                      ct,
+					SettlementCurrencies:      currency.Currencies{settlementCurrencies[k]},
+					MarginCurrency:            currency.Code{},
+					ContractMultiplier:        contracts[j].QuantoMultiplier.Float64(),
+					MaxLeverage:               contracts[j].LeverageMax.Float64(),
 					ContractValueDenomination: cd,
 				}
 			}
@@ -2241,11 +2241,11 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		}
 
 	case asset.Futures:
-		btcContracts, err := g.GetAllFutureContracts(ctx, settleBTC)
+		btcContracts, err := g.GetAllFutureContracts(ctx, currency.BTC)
 		if err != nil {
 			return err
 		}
-		usdtContracts, err := g.GetAllFutureContracts(ctx, settleUSDT)
+		usdtContracts, err := g.GetAllFutureContracts(ctx, currency.USDT)
 		if err != nil {
 			return err
 		}
@@ -2272,11 +2272,11 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			})
 		}
 	case asset.DeliveryFutures:
-		btcContracts, err := g.GetAllDeliveryContracts(ctx, settleBTC)
+		btcContracts, err := g.GetAllDeliveryContracts(ctx, currency.BTC)
 		if err != nil {
 			return err
 		}
-		usdtContracts, err := g.GetAllDeliveryContracts(ctx, settleUSDT)
+		usdtContracts, err := g.GetAllDeliveryContracts(ctx, currency.USDT)
 		if err != nil {
 			return err
 		}
