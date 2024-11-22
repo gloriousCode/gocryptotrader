@@ -193,8 +193,8 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		start := time.Now()
-		hi := r.limiter[endpoint]
-		fmt.Println(&r.name, "MAKING REQUEST:", p.Path, "WEIGHT:", hi.Weight)
+		//hi := r.limiter[endpoint]
+		//fmt.Println(&r.name, "MAKING REQUEST:", p.Path, "WEIGHT:", hi.Weight)
 
 		resp, err := r._HTTPClient.do(req)
 
@@ -205,7 +205,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		if retry, checkErr := r.retryPolicy(resp, err); checkErr != nil {
 			return checkErr
 		} else if retry {
-			fmt.Println("RETRTING REQUEST:", p.Path)
+			//fmt.Println("RETRTING REQUEST:", p.Path)
 			if err == nil {
 				// If the body isn't fully read, the connection cannot be re-used
 				r.drainBody(resp.Body)
@@ -237,7 +237,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			}
 
 			if delay > 0 {
-				fmt.Println("BEING DELAYED FOR REQUEST:", p.Path, "FOR", delay)
+				//fmt.Println("BEING DELAYED FOR REQUEST:", p.Path, "FOR", delay)
 
 				// Allow for context cancellation while delaying the retry.
 				select {
