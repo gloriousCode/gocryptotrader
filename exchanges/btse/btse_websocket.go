@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -28,6 +28,16 @@ const (
 	btseWebsocket      = "wss://ws.btse.com/ws/spot"
 	btseWebsocketTimer = time.Second * 57
 )
+
+var subscriptionNames = map[string]string{
+	subscription.MyTradesChannel:  "notificationApi",
+	subscription.AllTradesChannel: "tradeHistory",
+}
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
+}
 
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
@@ -65,7 +75,7 @@ func (b *BTSE) WsAuthenticate(ctx context.Context) error {
 		return err
 	}
 	nonce := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	path := "/spotWS" + nonce
+	path := "/ws/spot" + nonce
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384,
 		[]byte((path)),
@@ -373,73 +383,70 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 	return price == 0 || amount == 0
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() (subscription.List, error) {
-	var channels = []string{ "tradeHistory:%s"}
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	var subscriptions subscription.List
-	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, &subscription.Subscription{
-			Channel: "notificationApi",
-		})
-	}
-	for i := range channels {
-		for j := range pairs {
-			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: fmt.Sprintf(channels[i], pairs[j]),
-				Pairs:   currency.Pairs{pairs[j]},
-				Asset:   asset.Spot,
-			})
-		}
-	}
-	return subscriptions, nil
+// generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+func (b *BTSE) generateSubscriptions() (subscription.List, error) {
+	return b.Features.Subscriptions.ExpandTemplates(b)
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe subscription.List) error {
-	messageLim := 25
-	subLim := 50
-	subs := 0
-	for x := 0; x < messageLim; x += messageLim {
-		if subs == subLim {
-			break
-		}
-		var sub wsSub
-		sub.Operation = "subscribe"
-		lim := messageLim
-		if len(channelsToSubscribe[x:]) < lim {
-			lim = len(channelsToSubscribe[x:])
-		}
-		for i := range channelsToSubscribe[x : x+lim] {
-			if subs == subLim {
-				break
-			}
-			sub.Arguments = append(sub.Arguments, channelsToSubscribe[i].Channel)
-			subs++
-		}
-
-		err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, sub)
-		if err != nil {
-			return err
-		}
-	}
-	return b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, channelsToSubscribe...)
+// GetSubscriptionTemplate returns a subscription channel template
+func (b *BTSE) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName":     channelName,
+		"isSymbolChannel": isSymbolChannel,
+	}).Parse(subTplText)
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	var unSub wsSub
-	unSub.Operation = "unsubscribe"
-	for i := range channelsToUnsubscribe {
-		unSub.Arguments = append(unSub.Arguments,
-			channelsToUnsubscribe[i].Channel)
+// Subscribe sends a websocket message to receive data from a list of channels
+func (b *BTSE) Subscribe(subs subscription.List) error {
+	req := wsSub{Operation: "subscribe"}
+	for _, s := range subs {
+		req.Arguments = append(req.Arguments, s.QualifiedChannel)
 	}
-	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, unSub)
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
 	if err == nil {
-		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, channelsToUnsubscribe...)
+		err = b.Websocket.AddSuccessfulSubscriptions(b.Websocket.Conn, subs...)
 	}
 	return err
 }
+
+// Unsubscribe sends a websocket message to stop receiving data from a list of channels
+func (b *BTSE) Unsubscribe(subs subscription.List) error {
+	req := wsSub{Operation: "unsubscribe"}
+	for _, s := range subs {
+		req.Arguments = append(req.Arguments, s.QualifiedChannel)
+	}
+	err := b.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, req)
+	if err == nil {
+		err = b.Websocket.RemoveSubscriptions(b.Websocket.Conn, subs...)
+	}
+	return err
+}
+
+// channelName returns the correct channel name for the asset
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	panic("Channel not supported: " + s.Channel)
+}
+
+// isSymbolChannel returns if the channel expects receive a symbol
+func isSymbolChannel(s *subscription.Subscription) bool {
+	return s.Channel != subscription.MyTradesChannel
+}
+
+const subTplText = `
+{{- with $name := channelName $.S }}
+	{{ range $asset, $pairs := $.AssetPairs }}
+		{{- if isSymbolChannel $.S }}
+			{{- range $p := $pairs -}}
+				{{- $name -}} : {{- $p -}}
+				{{- $.PairSeparator }}
+			{{- end }}
+		{{- else -}}
+			{{ $name }}
+		{{- end }}
+		{{- $.AssetSeparator }}
+	{{- end }}
+{{- end }}
+`

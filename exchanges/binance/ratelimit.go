@@ -17,15 +17,13 @@ const (
 	spotOrderInterval        = 10 * time.Second
 	spotOrderRequestRate     = 100
 	cFuturesInterval         = time.Minute
-	cFuturesRequestRate      = 2000
+	cFuturesRequestRate      = 2400
 	cFuturesOrderInterval    = time.Minute
 	cFuturesOrderRequestRate = 1200
 	uFuturesInterval         = time.Minute
 	uFuturesRequestRate      = 2400
-	uFuturesOrderInterval    = time.Minute
-	uFuturesOrderRequestRate = 1200
-	fundingRequestRate       = 500
-	fundingRequestInterval   = time.Minute * 5
+	uFuturesOrderInterval    = time.Second * 10
+	uFuturesOrderRequestRate = 300
 )
 
 // Binance Spot rate limits
@@ -35,15 +33,14 @@ const (
 	spotHistoricalTradesRate
 	spotOrderbookDepth100Rate
 	spotOrderbookDepth500Rate
+	spotOrderbookDepth100Rate
 	spotOrderbookDepth1000Rate
 	spotOrderbookDepth5000Rate
 	spotOrderbookTickerAllRate
-	spotPriceChangeAllRate
 	spotTicker1Rate
 	spotTicker20Rate
 	spotTicker100Rate
 	spotTickerAllRate
-	spotSymbolPriceAllRate
 	spotOpenOrdersAllRate
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -113,15 +110,13 @@ func GetRateLimits() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		spotDefaultRate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 1),
 		spotOrderbookTickerAllRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
-		spotSymbolPriceAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
 		spotHistoricalTradesRate:        request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
 		spotOrderbookDepth100Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 5),
 		spotOrderbookDepth500Rate:       request.GetRateLimiterWithWeight(spotDefaultLimiter, 25),
 		spotOrderbookDepth1000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 50),
 		spotOrderbookDepth5000Rate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 250),
 		spotAccountInformationRate:      request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
-		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 20),
-		spotPriceChangeAllRate:          request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
+		spotExchangeInfo:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 10),
 		spotTicker1Rate:                 request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
 		spotTicker20Rate:                request.GetRateLimiterWithWeight(spotDefaultLimiter, 2),
 		spotTicker100Rate:               request.GetRateLimiterWithWeight(spotDefaultLimiter, 40),
