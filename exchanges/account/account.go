@@ -113,7 +113,7 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 		}
 		assetHoldings.m.Lock()
 		currencyBalances = append(currencyBalances, Balance{
-			Currency:               currency.Code{Item: mapKey.Currency, UpperCase: true},
+			Currency:               mapKey.Currency.Currency().Upper(),
 			Total:                  assetHoldings.total,
 			Hold:                   assetHoldings.hold,
 			Free:                   assetHoldings.free,
