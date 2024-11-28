@@ -21,8 +21,10 @@ const (
 	privatePortfolioMarginEPL
 )
 
-// GetRateLimits returns the rate limit for the exchange
-func GetRateLimits() request.RateLimitDefinitions {
+var rateLimit = GetRateLimit()
+
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		nonMatchingEPL:            request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
 		matchingEPL:               request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, minMatchingBurst), matchingWeight),

@@ -117,7 +117,7 @@ func (c *CoinbasePro) SetDefaults() {
 
 	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
+		request.WithLimiter(rateLimit))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

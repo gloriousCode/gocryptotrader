@@ -15,6 +15,8 @@ const (
 	orderFunc
 )
 
+var rateLimit = GetRateLimit()
+
 // GetRateLimit returns the rate limit for the exchange
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{

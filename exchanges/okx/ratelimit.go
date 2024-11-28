@@ -363,6 +363,8 @@ const (
 	getIndexCandlestickEPL
 )
 
+var rateLimit = GetRateLimit()
+
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{

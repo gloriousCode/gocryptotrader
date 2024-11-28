@@ -145,7 +145,7 @@ func (b *BTSE) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
+		request.WithLimiter(rateLimit))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

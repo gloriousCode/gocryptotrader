@@ -38,6 +38,8 @@ const (
 	spotAccountInformationRate
 )
 
+var rateLimit = GetRateLimit()
+
 // GetRateLimit returns the rate limit for the exchange
 func GetRateLimit() request.RateLimitDefinitions {
 	spotRate := request.NewRateLimit(spotInterval, spotRequestRate)

@@ -124,7 +124,7 @@ func (p *Poloniex) SetDefaults() {
 
 	p.Requester, err = request.New(p.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()))
+		request.WithLimiter(rateLimit))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

@@ -211,6 +211,8 @@ const (
 	marginActiveHFOrdersEPL
 )
 
+var rateLimit = GetRateLimit()
+
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func GetRateLimit() request.RateLimitDefinitions {
 	spotRate := request.NewRateLimit(thirtySecondsInterval, 4000)

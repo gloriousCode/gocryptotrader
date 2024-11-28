@@ -151,7 +151,7 @@ func (g *Gateio) SetDefaults() {
 	}
 	g.Requester, err = request.New(g.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(GetRateLimit()),
+		request.WithLimiter(rateLimit),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
