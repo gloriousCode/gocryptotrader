@@ -2765,7 +2765,7 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 		if err != nil {
 			return nil, err
 		}
-		settle, err := g.getSettlementFromCurrency(contract, false)
+		settle, err := getSettlementFromCurrency(contract)
 		if err != nil {
 			return nil, err
 		}
@@ -2798,7 +2798,7 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 			ct = futures.LongDated
 		}
 		cd := futures.BaseDenomination
-		if settle == "USD" || settle == "USDT" {
+		if settle.Equal(currency.USD) || settle.Equal(currency.USDT) {
 			cd = futures.QuoteDenomination
 		}
 		if cd != denomination {
@@ -2814,7 +2814,7 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 			IsActive:                  !sc.InDelisting,
 			Type:                      ct,
 			SettlementType:            futures.Linear,
-			SettlementCurrencies:      currency.Currencies{currency.NewCode(settle)},
+			SettlementCurrencies:      currency.Currencies{settle},
 			ContractMultiplier:        sc.QuantoMultiplier.Float64(),
 			MaxLeverage:               sc.LeverageMax.Float64(),
 			ContractValueDenomination: denomination,
