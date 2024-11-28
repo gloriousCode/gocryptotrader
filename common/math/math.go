@@ -24,6 +24,10 @@ var (
 	errCAGRNoIntervals         = errors.New("cannot calculate CAGR with no intervals")
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
+
+	one        = decimal.NewFromInt(1)
+	two        = decimal.NewFromInt(2)
+	oneHundred = decimal.NewFromInt(100)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -36,18 +40,19 @@ func CalculateFee(amount, fee float64) float64 {
 	return amount * (fee / 100)
 }
 
-// CalculatePercentageGainOrLoss returns the percentage rise over a certain
-// period
-func CalculatePercentageGainOrLoss(priceNow, priceThen float64) float64 {
-	return (priceNow - priceThen) / priceThen * 100
+// PercentageChange returns the percentage change between two numbers, x is reference value.
+func PercentageChange(x, y float64) float64 {
+	return (y - x) / x * 100
+}
+
+// PercentageDifference returns difference between two numbers as a percentage of their average
+func PercentageDifference(x, y float64) float64 {
+	return math.Abs(x-y) / ((x + y) / 2) * 100
 }
 
 // CalculatePercentageDifference returns the percentage of difference between
 // multiple time periods
 func CalculatePercentageDifference(amount, secondAmount float64) float64 {
-	if amount+secondAmount == 0 {
-		return 0
-	}
 	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
 }
 
@@ -270,7 +275,7 @@ func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, nu
 	if pow.IsZero() {
 		return decimal.Zero, ErrPowerDifferenceTooSmall
 	}
-	k := pow.Sub(decimal.NewFromInt(1)).Mul(decimal.NewFromInt(100))
+	k := pow.Sub(one).Mul(oneHundred)
 	return k, nil
 }
 
@@ -320,7 +325,7 @@ func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decim
 	diffs := make([]decimal.Decimal, len(values))
 	for x := range values {
 		val := values[x].Sub(valAvg)
-		exp := decimal.NewFromInt(2)
+		exp := two
 		pow := DecimalPow(val, exp)
 		diffs[x] = pow
 	}
@@ -352,11 +357,11 @@ func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, 
 	superMean := make([]decimal.Decimal, len(values))
 	var combined decimal.Decimal
 	for i := range values {
-		pow := values[i].Sub(mean).Pow(decimal.NewFromInt(2))
+		pow := values[i].Sub(mean).Pow(two)
 		superMean[i] = pow
 		combined.Add(pow)
 	}
-	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(decimal.NewFromInt(1)))
+	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(one))
 	f, exact := avg.Float64()
 	err = nil
 	if !exact {
@@ -373,7 +378,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 	if len(values) == 0 {
 		return decimal.Zero, errZeroValue
 	}
-	product := decimal.NewFromInt(1)
+	product := one
 	for i := range values {
 		if values[i].LessThanOrEqual(decimal.Zero) {
 			// cannot use negative or zero values in geometric calculation
@@ -381,7 +386,7 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 		}
 		product = product.Mul(values[i])
 	}
-	exp := decimal.NewFromInt(1).Div(decimal.NewFromInt(int64(len(values))))
+	exp := one.Div(decimal.NewFromInt(int64(len(values))))
 	pow := DecimalPow(product, exp)
 	geometricPower := pow
 	return geometricPower, nil
@@ -416,7 +421,7 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
 		// negative numbers (eg -0.1 translates to 0.9) and positive numbers (eg 0.1 becomes 1.1)
-		modVal := values[i].Add(decimal.NewFromInt(1)).InexactFloat64()
+		modVal := values[i].Add(one).InexactFloat64()
 		product *= modVal
 	}
 	prod := 1 / float64(len(values))
@@ -449,7 +454,7 @@ func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInt
 	totalNegativeResultsSquared := decimal.Zero
 	for x := range movementPerCandle {
 		if movementPerCandle[x].Sub(riskFreeRatePerInterval).LessThan(decimal.Zero) {
-			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).Pow(decimal.NewFromInt(2)))
+			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).Pow(two))
 		}
 	}
 	if totalNegativeResultsSquared.IsZero() {
