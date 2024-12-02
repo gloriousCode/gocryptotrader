@@ -205,6 +205,7 @@ type CollateralCalculator struct {
 type OpenInterest struct {
 	Key          key.ExchangePairAsset
 	OpenInterest float64
+	LastUpdated  time.Time
 }
 
 // PNLCalculator implements the PNLCalculation interface
