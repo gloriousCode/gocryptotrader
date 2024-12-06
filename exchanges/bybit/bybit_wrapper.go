@@ -1752,6 +1752,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				SettlementCurrencies:      currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
 				MaxLeverage:               inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
+				ContractMultiplier:        inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
