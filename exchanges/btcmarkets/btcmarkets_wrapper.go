@@ -115,6 +115,7 @@ func (b *BTCMarkets) SetDefaults() {
 				GlobalResultLimit: 1000,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	b.Requester, err = request.New(b.Name,
@@ -164,7 +165,7 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:          true,
