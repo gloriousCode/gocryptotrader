@@ -285,7 +285,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	var pair currency.Pair
-	var category string
 	format, err := by.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
@@ -298,7 +297,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	var nextPageCursor string
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
-		category = getCategoryName(a)
 		for {
 			response, err = by.cacheInstrumentInfo(ctx, a)
 			if err != nil {
@@ -311,20 +309,17 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			}
 		}
 	case asset.Options:
-		category = getCategoryName(a)
-		for x := range supportedOptionsTypes {
-			nextPageCursor = ""
-			for {
-				response, err = by.cacheInstrumentInfo(ctx, a)
-				if err != nil {
-					return nil, err
-				}
-				allPairs = append(allPairs, response.List...)
-				if response.NextPageCursor == "" || (nextPageCursor != "" && nextPageCursor == response.NextPageCursor) || len(response.List) == 0 {
-					break
-				}
-				nextPageCursor = response.NextPageCursor
+		nextPageCursor = ""
+		for {
+			response, err = by.cacheInstrumentInfo(ctx, a)
+			if err != nil {
+				return nil, err
 			}
+			allPairs = append(allPairs, response.List...)
+			if response.NextPageCursor == "" || (nextPageCursor != "" && nextPageCursor == response.NextPageCursor) || len(response.List) == 0 {
+				break
+			}
+			nextPageCursor = response.NextPageCursor
 		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
@@ -1549,18 +1544,6 @@ func (i *InstrumentInfo) transformSymbol(a asset.Item) string {
 	}
 }
 
-func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.Pair, error) {
-	pairs, err := by.CurrencyPairs.GetPairs(item, true)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	pair, err := pairs.DeriveFrom(symbol)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	return pair, nil
-}
-
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var (
@@ -1621,11 +1604,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			continue
 		}
 		symbol := allInstrumentsInfo.List[x].transformSymbol(a)
-		pair, err := by.MatchSymbolWithAvailablePairs(symbol, a, true)
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %s %v, pair data missing", by.Name, a, symbol)
-			continue
-		}
+		pair, _ := currency.NewPairFromString(symbol)
 		limits = append(limits, order.MinMaxLevel{
 			Key:                     key.NewExchangePairAssetKey(by.Name, a, pair),
 			MinimumBaseAmount:       allInstrumentsInfo.List[x].LotSizeFilter.MinOrderQty.Float64(),

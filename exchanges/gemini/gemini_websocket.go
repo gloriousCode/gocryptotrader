@@ -302,7 +302,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				return err
 			}
 			return g.wsProcessUpdate(l2MarketData)
-		case wsTradeChannel:
+		case "trade":
 			var result wsTrade
 			err := json.Unmarshal(respRaw, &result)
 			if err != nil {
