@@ -1,6 +1,7 @@
 package key
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -19,7 +20,7 @@ type ExchangePairAsset struct {
 
 func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
 	return ExchangePairAsset{
-		Exchange: exch,
+		Exchange: strings.ToLower(exch),
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
 		Asset:    a,
@@ -113,6 +114,11 @@ func (k *ExchangePairAsset) Pair() currency.Pair {
 		return currency.EMPTYPAIR
 	}
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
+}
+
+// Pair combines the base and quote into a pair
+func (k *ExchangePairAsset) String() string {
+	return fmt.Sprintf("%s %s %s-%s", k.Exchange, k.Asset, k.Base, k.Quote)
 }
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
