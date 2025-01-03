@@ -191,6 +191,7 @@ func (e *executionLimits) GetOrderExecutionLimits(k key.ExchangePairAsset) (MinM
 	if e.epa == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
+	fmt.Println(k)
 	if el, ok := e.epa[k]; !ok {
 		return MinMaxLevel{}, ErrCannotValidateAsset
 	} else {

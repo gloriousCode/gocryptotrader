@@ -85,6 +85,7 @@ type IBotExchange interface {
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool

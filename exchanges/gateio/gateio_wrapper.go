@@ -337,6 +337,8 @@ func (g *Gateio) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 			Bid:          tickerNew.HighestBid.Float64(),
 			Ask:          tickerNew.LowestAsk.Float64(),
 			Last:         tickerNew.Last.Float64(),
+			Volume:       tickerNew.BaseVolume.Float64(),
+			QuoteVolume:  tickerNew.QuoteVolume.Float64(),
 			ExchangeName: g.Name,
 			AssetType:    a,
 		}
