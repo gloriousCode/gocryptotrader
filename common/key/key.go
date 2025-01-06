@@ -1,6 +1,7 @@
 package key
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+var (
+	ErrNotFound = errors.New("key not found")
 )
 
 // ExchangePairAsset is a unique map key signature for exchange, currency pair and asset

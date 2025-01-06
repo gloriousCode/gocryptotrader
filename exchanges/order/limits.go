@@ -191,9 +191,15 @@ func (e *executionLimits) GetOrderExecutionLimits(k key.ExchangePairAsset) (MinM
 	if e.epa == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
-	fmt.Println(k)
 	if el, ok := e.epa[k]; !ok {
-		return MinMaxLevel{}, ErrCannotValidateAsset
+		e.proliferationMTX.Lock()
+		defer e.proliferationMTX.Unlock()
+		if e.ea[key.ExchangeAsset{Exchange: k.Exchange, Asset: k.Asset}] == nil {
+			return MinMaxLevel{}, fmt.Errorf("%v %w no list yet", k, key.ErrNotFound)
+		}
+
+		fmt.Println("list", e.ea[key.ExchangeAsset{Exchange: k.Exchange, Asset: k.Asset}])
+		return MinMaxLevel{}, fmt.Errorf("%w for %s %s %s", ErrExchangeLimitNotLoaded, k.Exchange, k.Asset, k.Pair())
 	} else {
 		return *el, nil
 	}
@@ -212,7 +218,11 @@ func (e *executionLimits) CheckOrderExecutionLimits(k key.ExchangePairAsset, pri
 
 	m1, ok := e.epa[k]
 	if !ok {
-		return ErrCannotValidateAsset
+		if e.ea[key.ExchangeAsset{Exchange: k.Exchange, Asset: k.Asset}] == nil {
+			return fmt.Errorf("%v %w", k, key.ErrNotFound)
+		}
+		fmt.Println("list", e.ea[key.ExchangeAsset{Exchange: k.Exchange, Asset: k.Asset}])
+		return fmt.Errorf("%w for %s %s %s", ErrExchangeLimitNotLoaded, k.Exchange, k.Asset, k.Pair())
 	}
 
 	err := m1.Conforms(price, amount, orderType)
