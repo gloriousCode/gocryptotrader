@@ -111,7 +111,6 @@ func (e *executionLimits) LoadLimits(levels []MinMaxLevel) error {
 			return fmt.Errorf("cannot load levels for '%s': %w", levels[x].Key.Asset, asset.ErrNotSupported)
 		}
 		levels[x].Key.Exchange = strings.ToLower(levels[x].Key.Exchange)
-
 		if levels[x].MinPrice > 0 &&
 			levels[x].MaxPrice > 0 &&
 			levels[x].MinPrice > levels[x].MaxPrice {
@@ -191,6 +190,7 @@ func (e *executionLimits) GetOrderExecutionLimits(k key.ExchangePairAsset) (MinM
 	if e.epa == nil {
 		return MinMaxLevel{}, ErrExchangeLimitNotLoaded
 	}
+	k.Exchange = strings.ToLower(k.Exchange)
 	if el, ok := e.epa[k]; !ok {
 		e.proliferationMTX.Lock()
 		defer e.proliferationMTX.Unlock()
@@ -216,6 +216,7 @@ func (e *executionLimits) CheckOrderExecutionLimits(k key.ExchangePairAsset, pri
 		return nil
 	}
 
+	k.Exchange = strings.ToLower(k.Exchange)
 	m1, ok := e.epa[k]
 	if !ok {
 		if e.ea[key.ExchangeAsset{Exchange: k.Exchange, Asset: k.Asset}] == nil {
