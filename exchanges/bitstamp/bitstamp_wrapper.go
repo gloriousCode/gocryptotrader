@@ -92,6 +92,7 @@ func (b *Bitstamp) SetDefaults() {
 				DateRanges: true,
 			},
 		},
+
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
@@ -156,14 +157,13 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitstampWSURL,
-		RunningURL:            wsURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig: exch,
+		DefaultURL:     bitstampWSURL,
+		RunningURL:     wsURL,
+		Connector:      b.WsConnect,
+		Subscriber:     b.Subscribe,
+		Unsubscriber:   b.Unsubscribe,
+		Features:       &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err

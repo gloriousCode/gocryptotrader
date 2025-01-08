@@ -1,6 +1,8 @@
 package bitstamp
 
 import (
+	"errors"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -19,6 +21,8 @@ const (
 	SellOrder
 )
 
+var errWSPairParsingError = errors.New("unable to parse currency pair from wsResponse.Channel")
+
 // Ticker holds ticker information
 type Ticker struct {
 	Last            float64   `json:"last,string"`
@@ -33,22 +37,6 @@ type Ticker struct {
 	Open24          float64   `json:"open_24,string"`
 	Side            orderSide `json:"side,string"`
 	PercentChange24 float64   `json:"percent_change_24,string"`
-}
-
-// TickerFromBatch holds ticker information
-type TickerFromBatch struct {
-	Ask       types.Number `json:"ask"`
-	Bid       types.Number `json:"bid"`
-	High      types.Number `json:"high"`
-	Last      types.Number `json:"last"`
-	Low       types.Number `json:"low"`
-	Open      types.Number `json:"open"`
-	Open24    types.Number `json:"open_24"`
-	Pair      string       `json:"pair"`
-	Side      string       `json:"side"`
-	Timestamp int64        `json:"timestamp,string"`
-	Volume    types.Number `json:"volume"`
-	Vwap      types.Number `json:"vwap"`
 }
 
 // OrderbookBase holds singular price information
@@ -232,8 +220,10 @@ type websocketData struct {
 }
 
 type websocketResponse struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
+	Event       string `json:"event"`
+	Channel     string `json:"channel"`
+	channelType string
+	pair        currency.Pair
 }
 
 type websocketTradeResponse struct {
@@ -304,4 +294,20 @@ type websocketOrderData struct {
 	Side            orderSide  `json:"order_type"`
 	Datetime        types.Time `json:"datetime"`
 	Microtimestamp  types.Time `json:"microtimestamp"`
+}
+
+// TickerFromBatch holds ticker information
+type TickerFromBatch struct {
+	Ask       types.Number `json:"ask"`
+	Bid       types.Number `json:"bid"`
+	High      types.Number `json:"high"`
+	Last      types.Number `json:"last"`
+	Low       types.Number `json:"low"`
+	Open      types.Number `json:"open"`
+	Open24    types.Number `json:"open_24"`
+	Pair      string       `json:"pair"`
+	Side      string       `json:"side"`
+	Timestamp int64        `json:"timestamp,string"`
+	Volume    types.Number `json:"volume"`
+	Vwap      types.Number `json:"vwap"`
 }

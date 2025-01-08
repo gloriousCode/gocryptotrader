@@ -1398,7 +1398,7 @@ func (w *Websocket) EnableAndConnectNoSubs() error {
 			break
 		}
 
-		w.connections[conn] = &w.connectionManager[i]
+		w.connections[conn] = w.connectionManager[i]
 		w.connectionManager[i].Connection = conn
 
 		w.Wg.Add(1)

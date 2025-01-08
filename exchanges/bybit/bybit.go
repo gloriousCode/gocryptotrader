@@ -29,7 +29,9 @@ import (
 // Bybit is the overarching type across this package
 type Bybit struct {
 	exchange.Base
-	account accountTypeHolder
+	account             accountTypeHolder
+	instrumentInfoMutex sync.Mutex
+	instrumentInfoCache map[asset.Item]*IICH
 }
 
 const (
