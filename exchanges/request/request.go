@@ -207,7 +207,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		} else if retry {
 			//fmt.Println("RETRTING REQUEST:", p.Path)
 			if err == nil {
-				// If the body isn't fully read, the connection cannot be re-used
+				// If the body isn't fully read, the connection cannot be reused
 				r.drainBody(resp.Body)
 			}
 
