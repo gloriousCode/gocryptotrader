@@ -4304,15 +4304,6 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
 
-// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type
-func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, currency.DashDelimiter)
-	if len(codes) >= 2 {
-		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
-	}
-	return currency.NewPairFromString(instrumentID)
-}
-
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp
 func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponseDetail, error) {
 	if instrumentID == "" {
@@ -4990,6 +4981,8 @@ type FundingRateData struct {
 	Yield3DPer10K    types.Number `json:"yield3dPer10K"`
 }
 
+var publicFundingRateArbitrage = "funding-rate-arbitrage"
+
 // GetPrivateFundingRates is a private endpoint for retrieving funding rates.
 func (ok *Okx) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbitrageType string, snapshotTime time.Time) ([]FundingRateData, error) {
 	params := url.Values{}
@@ -4997,7 +4990,7 @@ func (ok *Okx) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbi
 		return nil, errMissingInstrumentID
 	}
 	if ctType != "inverse" && ctType != "linear" {
-		return nil, errInstrumentTypeRequired
+		return nil, errMissingInstrumentID
 	}
 	params.Set("ccyType", ccyType)
 	params.Set("ctType", ctType)
@@ -5008,7 +5001,7 @@ func (ok *Okx) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbi
 	params.Set("t", fmt.Sprint(snapshotTime.UnixMilli()))
 
 	var resp []FundingRateData
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months.
@@ -5934,7 +5927,7 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 			headers["x-simulated-trading"] = "1"
 		}
 		if authenticated == request.AuthenticatedRequest {
-			var creds *account.Credentials
+			var creds *credentials.Credentials
 			creds, err = ok.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

@@ -350,7 +350,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 				return err
 			}
 			limits[x] = order.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(ok.Name, a, pair),
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].TickSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 			}
@@ -371,7 +371,7 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 				return err
 			}
 			limits[x] = order.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(ok.Name, a, pair),
+				Key:                    key.NewExchangePairAssetKey(ok.Name, a, pair),
 				PriceStepIncrementSize: insts[x].MinSize.Float64(),
 				MinimumBaseAmount:      insts[x].MinSize.Float64(),
 				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
@@ -2922,7 +2922,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				case "quarter", "next_quarter":
 					ct = futures.Quarterly
 				default:
-					panic(instrumentResult.Alias)
+					panic(result[i].Alias)
 				}
 			}
 			contractSettlementType := futures.Linear
@@ -2942,25 +2942,23 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			} else if cvc.Equal(underlying.Quote) {
 				valueDenomination = futures.QuoteDenomination
 			}
-			if ct != futures.Perpetual && (result[i].ExpTime.IsZero() || result[i].ExpTime.Equal(time.Unix(0, 0))) {
+			if ct != futures.Perpetual && (result[i].ExpTime.Time().IsZero() || result[i].ExpTime.Time().Equal(time.Unix(0, 0))) {
 				fmt.Println("hi")
 			}
 
-
-
 			resp[i] = futures.Contract{
-				Exchange:             ok.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            result[i].ListTime.Time(),
-				EndDate:              result[i].ExpTime.Time(),
-				IsActive:             result[i].State == "live",
-				Status:               result[i].State,
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				SettlementCurrencies: currency.Currencies{settleCurr},
-				MarginCurrency:       settleCurr,
+				Exchange:                       ok.Name,
+				Name:                           cp,
+				Underlying:                     underlying,
+				Asset:                          item,
+				StartDate:                      result[i].ListTime.Time(),
+				EndDate:                        result[i].ExpTime.Time(),
+				IsActive:                       result[i].State == "live",
+				Status:                         result[i].State,
+				Type:                           ct,
+				SettlementType:                 contractSettlementType,
+				SettlementCurrencies:           currency.Currencies{settleCurr},
+				MarginCurrency:                 settleCurr,
 				ContractMultiplier:             result[i].ContractValue.Float64(),
 				MaxLeverage:                    result[i].MaxLeverage.Float64(),
 				ContractSettlementDenomination: settlementDenomination,
@@ -3387,12 +3385,12 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 					continue
 				}
 				klinesForContract = append(klinesForContract, kline.Candle{
-					Time:   candles[k].OpenTime,
-					Open:   candles[k].OpenPrice,
-					High:   candles[k].HighestPrice,
-					Low:    candles[k].LowestPrice,
-					Close:  candles[k].ClosePrice,
-					Volume: candles[k].Volume,
+					Time:   candles[k].OpenTime.Time(),
+					Open:   candles[k].OpenPrice.Float64(),
+					High:   candles[k].HighestPrice.Float64(),
+					Low:    candles[k].LowestPrice.Float64(),
+					Close:  candles[k].ClosePrice.Float64(),
+					Volume: candles[k].Volume.Float64(),
 				})
 			}
 		}
@@ -3419,12 +3417,12 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 			}
 			for j := range candles {
 				spotCandles = append(spotCandles, kline.Candle{
-					Time:   candles[j].OpenTime,
-					Open:   candles[j].OpenPrice,
-					High:   candles[j].HighestPrice,
-					Low:    candles[j].LowestPrice,
-					Close:  candles[j].ClosePrice,
-					Volume: candles[j].Volume,
+					Time:   candles[j].OpenTime.Time(),
+					Open:   candles[j].OpenPrice.Float64(),
+					High:   candles[j].HighestPrice.Float64(),
+					Low:    candles[j].LowestPrice.Float64(),
+					Close:  candles[j].ClosePrice.Float64(),
+					Volume: candles[j].Volume.Float64(),
 				})
 			}
 		}

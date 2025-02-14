@@ -2140,6 +2140,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
 			var name, underlying currency.Pair
+			var settlePair currency.Code
 			name, err = currency.NewPairFromString(contracts[i].Name)
 			if err != nil {
 				return nil, err
@@ -2178,19 +2179,19 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 			}
 			resp[i] = futures.Contract{
-				Exchange:             g.Name,
-				Name:                 name,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				EndDate:              e,
-				SettlementType:       futures.Linear,
-				IsActive:             !contracts[i].InDelisting,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDT},
-				MarginCurrency:       currency.Code{},
-				ContractMultiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:                  g.Name,
+				Name:                      name,
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 s,
+				EndDate:                   e,
+				SettlementType:            futures.Linear,
+				IsActive:                  !contracts[i].InDelisting,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.USDT},
+				MarginCurrency:            currency.Code{},
+				ContractMultiplier:        contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:               contracts[i].LeverageMax.Float64(),
 				ContractValueDenomination: cd,
 			}
 		}
@@ -2770,7 +2771,7 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 		if err != nil {
 			return nil, err
 		}
-		sc, err := g.GetSingleDeliveryContracts(ctx, settle, contract)
+		sc, err := g.GetDeliveryContract(ctx, settle, contract)
 		if err != nil {
 			return nil, err
 		}

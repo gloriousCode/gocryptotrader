@@ -123,6 +123,7 @@ const (
 	Inverse
 	Quanto
 	LinearOrInverse
+	Hybrid
 )
 
 // String returns the string representation of a contract settlement type
@@ -138,6 +139,8 @@ func (d ContractSettlementType) String() string {
 		return "quanto"
 	case LinearOrInverse:
 		return "linearOrInverse"
+	case Hybrid:
+		return "hybrid"
 	default:
 		return "unknown"
 	}

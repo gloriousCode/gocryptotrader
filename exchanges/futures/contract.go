@@ -11,64 +11,14 @@ import (
 type Butts struct {
 	PremiumCandle kline.Candle
 	BaseCandle    kline.Candle
+}
+
 // var error definitions
 var (
 	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
 )
 
-// Contract holds details on futures contracts
-type Contract struct {
-	Exchange       string
-	Name           currency.Pair
-	Underlying     currency.Pair
-	Asset          asset.Item
-	StartDate      time.Time
-	EndDate        time.Time
-	IsActive       bool
-	Status         string
-	Type           ContractType
-	SettlementType ContractSettlementType
-	// Optional values if the exchange offers them
-	SettlementCurrencies currency.Currencies
-	MarginCurrency       currency.Code
-	Multiplier           float64
-	MaxLeverage          float64
-	LatestRate           fundingrate.Rate
-	FundingRateFloor     decimal.Decimal
-	FundingRateCeiling   decimal.Decimal
-}
-
 type Butteroo map[time.Time]*Butts
-
-	// ContractSettlementType definitions
-	const (
-	UnsetSettlementType ContractSettlementType = iota
-	Linear
-	Inverse
-	Quanto
-	LinearOrInverse
-	Hybrid
-	)
-
-	// String returns the string representation of a contract settlement type
-	func (d ContractSettlementType) String() string {
-	switch d {
-	case UnsetSettlementType:
-	return "unset"
-	case Linear:
-	return "linear"
-	case Inverse:
-	return "inverse"
-	case Quanto:
-	return "quanto"
-	case LinearOrInverse:
-	return "linearOrInverse"
-	case Hybrid:
-	return "hybrid"
-	default:
-	return "unknown"
-	}
-	}
 
 func (c *HistoricalContractKline) Analyse() {
 	if len(c.Data) == 0 {
@@ -106,7 +56,6 @@ func (c *HistoricalContractKline) Analyse() {
 		if len(butts) == 0 {
 			return
 		}
-
 
 		analytics := ContractKlineAnalytics{
 			BaseCurrency:    c.Data[i].BaseKline.Pair,
@@ -147,7 +96,6 @@ func (c *HistoricalContractKline) Analyse() {
 		}
 		c.Analytics = append(c.Analytics, analytics)
 	}
-
 
 	if len(c.Analytics) > 0 {
 		c.AnalyticsPerformed = true
@@ -190,9 +138,6 @@ func StringToContractSettlementType(cstype string) (ContractSettlementType, erro
 		return UnsetSettlementType, ErrInvalidContractSettlementType
 	}
 }
-
-// ContractType holds the various style of contracts offered by futures exchanges
-type ContractType uint8
 
 func (c ContractType) IsLongDated() bool {
 	return c == LongDated ||
