@@ -1601,6 +1601,7 @@ var (
 	MYR              = NewCode("MYR")
 	AFN              = NewCode("AFN")
 	ARS              = NewCode("ARS")
+	GRASS              = NewCode("GRASS")
 	AWG              = NewCode("AWG")
 	AZN              = NewCode("AZN")
 	BSD              = NewCode("BSD")

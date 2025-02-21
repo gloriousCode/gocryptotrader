@@ -3001,7 +3001,8 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				FundingRateFloor:          fundingRateFloor,
 				FundingRateCeiling:        fundingRateCeil,
 				ContractMultiplier:        1,
-				ContractValueDenomination: futures.BaseDenomination,
+				ContractValueDenomination: futures.QuoteDenomination,
+				ContractSettlementDenomination: futures.QuoteDenomination,
 			})
 		}
 		return resp, nil
@@ -3051,6 +3052,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:                      ct,
 				ContractMultiplier:        ei.Symbols[i].ContractSize,
 				ContractValueDenomination: futures.QuoteDenomination,
+				ContractSettlementDenomination: futures.BaseDenomination,
 			})
 		}
 		return resp, nil
