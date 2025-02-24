@@ -119,66 +119,6 @@ func (h *HUOBI) wsReadMsgs(s stream.Connection) {
 	}
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "submitted":
-		return order.New, nil
-	case "canceled":
-		return order.Cancelled, nil
-	case "partial-filled":
-		return order.PartiallyFilled, nil
-	case "partial-canceled":
-		return order.PartiallyCancelled, nil
-	default:
-		return order.UnknownStatus,
-			errors.New(status + " not recognised as order status")
-	}
-}
-
-func stringToOrderSide(side string) (order.Side, error) {
-	switch {
-	case strings.Contains(side, "buy"):
-		return order.Buy, nil
-	case strings.Contains(side, "sell"):
-		return order.Sell, nil
-	}
-
-	return order.UnknownSide,
-		errors.New(side + " not recognised as order side")
-}
-
-func stringToOrderType(oType string) (order.Type, error) {
-	switch {
-	case strings.Contains(oType, "limit"):
-		return order.Limit, nil
-	case strings.Contains(oType, "market"):
-		return order.Market, nil
-	}
-
-	return order.UnknownType,
-		errors.New(oType + " not recognised as order type")
-}
-
-type WsTicker struct {
-	Ch   string `json:"ch"`
-	Ts   int64  `json:"ts"`
-	Tick struct {
-		Open      float64 `json:"open"`
-		High      float64 `json:"high"`
-		Low       float64 `json:"low"`
-		Close     float64 `json:"close"`
-		Amount    float64 `json:"amount"`
-		Vol       float64 `json:"vol"`
-		Count     float64 `json:"count"`
-		Bid       float64 `json:"bid"`
-		BidSize   float64 `json:"bidSize"`
-		Ask       float64 `json:"ask"`
-		AskSize   float64 `json:"askSize"`
-		LastPrice float64 `json:"lastPrice"`
-		LastSize  float64 `json:"lastSize"`
-	} `json:"tick"`
-}
-
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if h.Websocket.Match.IncomingWithData(id, respRaw) {
@@ -334,24 +274,27 @@ func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) 
 	}
 	var p currency.Pair
 	var a asset.Item
-	p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
+	p, a, err := h.GetRequestFormattedPairAndAssetType(data[1])
 	if err != nil {
 		return err
 	}
 
 	h.Websocket.DataHandler <- &ticker.Price{
-		ExchangeName: h.Name,
-		Open:         wsTicker.Tick.Open,
-		Close:        wsTicker.Tick.Close,
-		Volume:       wsTicker.Tick.Amount,
-		QuoteVolume:  wsTicker.Tick.Volume,
+		Last:         wsTicker.Tick.LastPrice,
 		High:         wsTicker.Tick.High,
 		Low:          wsTicker.Tick.Low,
-		LastUpdated:  wsTicker.Timestamp.Time(),
-		Bid: wsTicker.Tick.Bid,
-		Ask: wsTicker.Tick.Ask,
-		AssetType:    a,
+		Bid:          wsTicker.Tick.Bid,
+		BidSize:      wsTicker.Tick.BidSize,
+		Ask:          wsTicker.Tick.Ask,
+		AskSize:      wsTicker.Tick.AskSize,
+		Volume:       wsTicker.Tick.Amount,
+		QuoteVolume:  wsTicker.Tick.Volume,
+		Open:         wsTicker.Tick.Open,
+		Close:        wsTicker.Tick.Close,
 		Pair:         p,
+		ExchangeName: h.Name,
+		AssetType:    a,
+		LastUpdated:  wsTicker.Timestamp.Time(),
 	}
 	return nil
 }

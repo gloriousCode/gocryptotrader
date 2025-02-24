@@ -853,15 +853,21 @@ type WsTick struct {
 	Rep       string     `json:"rep"`
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
-		Amount    float64    `json:"amount"`
-		Close     float64    `json:"close"`
-		Count     float64    `json:"count"`
-		High      float64    `json:"high"`
-		ID        float64    `json:"id"`
-		Low       float64    `json:"low"`
 		Open      float64    `json:"open"`
-		Timestamp types.Time `json:"ts"`
+		High      float64    `json:"high"`
+		Low       float64    `json:"low"`
+		Close     float64    `json:"close"`
+		Amount    float64    `json:"amount"`
 		Volume    float64    `json:"vol"`
+		Count     float64    `json:"count"`
+		ID        float64    `json:"id"`
+		Timestamp types.Time `json:"ts"`
+		Bid       float64    `json:"bid"`
+		BidSize   float64    `json:"bidSize"`
+		Ask       float64    `json:"ask"`
+		AskSize   float64    `json:"askSize"`
+		LastPrice float64    `json:"lastPrice"`
+		LastSize  float64    `json:"lastSize"`
 	} `json:"tick"`
 }
 
