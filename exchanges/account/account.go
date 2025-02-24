@@ -19,11 +19,14 @@ func init() {
 	service.mux = dispatch.GetNewMux(nil)
 }
 
+// Public errors
+var (
+	ErrExchangeHoldingsNotFound = errors.New("exchange holdings not found")
+)
+
 var (
 	errHoldingsIsNil                = errors.New("holdings cannot be nil")
 	errExchangeNameUnset            = errors.New("exchange name unset")
-	errExchangeHoldingsNotFound     = errors.New("exchange holdings not found")
-	errAssetHoldingsNotFound        = errors.New("asset holdings not found")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errBalanceIsNil                 = errors.New("balance is nil")
@@ -93,16 +96,12 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
+		return Holdings{}, fmt.Errorf("%s %w: `%s`", exch, ErrExchangeHoldingsNotFound, assetType)
 	}
 
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %s %w",
-			exch,
-			creds,
-			assetType,
-			errNoCredentialBalances)
+		return Holdings{}, fmt.Errorf("%s %s %s %w %w", exch, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
 	}
 
 	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
@@ -128,10 +127,7 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 		}
 	}
 	if len(currencyBalances) == 0 {
-		return Holdings{}, fmt.Errorf("%s %s %w",
-			exch,
-			assetType,
-			errAssetHoldingsNotFound)
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, ErrExchangeHoldingsNotFound)
 	}
 	return Holdings{Exchange: exch, Accounts: []SubAccount{{
 		Credentials: Protected{creds: cpy},
@@ -165,7 +161,7 @@ func GetBalance(exch, subAccount string, creds *credentials.Credentials, ai asse
 
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return nil, fmt.Errorf("%s %w", exch, errExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%s %w", exch, ErrExchangeHoldingsNotFound)
 	}
 
 	subAccounts, ok := accounts.SubAccounts[*creds]
