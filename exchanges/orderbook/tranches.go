@@ -275,19 +275,26 @@ func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*
 	for x := range ts {
 		trancheValue := ts[x].Amount * ts[x].Price
 		leftover := quote - trancheValue
+		m.Trades = append(m.Trades, Trade{
+			Price:  ts[x].Price,
+			Amount: ts[x].Amount,
+		})
 		if leftover < 0 {
 			m.Purchased += quote
 			m.Sold += quote / trancheValue * ts[x].Amount
 			// This tranche is not consumed so the book shifts to this price.
 			m.EndPrice = ts[x].Price
 			quote = 0
+
 			break
 		}
+		m.Trades[x].ConsumedTranche = true
 		// Full tranche consumed
 		m.Purchased += ts[x].Price * ts[x].Amount
 		m.Sold += ts[x].Amount
 		quote = leftover
 		if leftover == 0 {
+
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact. If available.
 			if x+1 < len(ts) {
@@ -322,6 +329,10 @@ func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Moveme
 	m := Movement{StartPrice: refPrice}
 	for x := range ts {
 		leftover := base - ts[x].Amount
+		m.Trades = append(m.Trades, Trade{
+			Price:  ts[x].Price,
+			Amount: ts[x].Amount,
+		})
 		if leftover < 0 {
 			m.Purchased += ts[x].Price * base
 			m.Sold += base
@@ -331,6 +342,7 @@ func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Moveme
 			break
 		}
 		// Full tranche consumed
+		m.Trades[x].ConsumedTranche = true
 		m.Purchased += ts[x].Price * ts[x].Amount
 		m.Sold += ts[x].Amount
 		base = leftover

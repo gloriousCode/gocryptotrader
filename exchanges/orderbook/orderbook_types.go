@@ -210,6 +210,13 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket stream.
 	FullBookSideConsumed bool
+	Trades []Trade
+}
+
+type Trade struct {
+	Price     float64
+	Amount    float64
+	ConsumedTranche bool
 }
 
 // SideAmounts define the amounts total for the tranches, total value in
