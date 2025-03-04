@@ -214,8 +214,9 @@ type Movement struct {
 }
 
 type Trade struct {
-	Price     float64
-	Amount    float64
+	Price           float64
+	PurchaseSize float64
+	TrancheSize     float64
 	ConsumedTranche bool
 }
 
