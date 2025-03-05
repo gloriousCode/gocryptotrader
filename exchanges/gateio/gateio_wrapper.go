@@ -2061,30 +2061,34 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					return nil, err
 				}
 				settlePair := settlementCurrencies[k]
-				cd := futures.QuoteDenomination
+				contractDenomination := futures.QuoteDenomination
 				contractSettlementType := futures.Linear
+				contractSettlementDenomination := futures.QuoteDenomination
 				switch {
-				case name.Base.Equal(currency.BTC) && settlementCurrencies[k].Equal(currency.BTC):
+				case name.Base.Equal(currency.BTC) && settlePair.Equal(currency.BTC):
 					contractSettlementType = futures.Inverse
-				case !name.Base.Equal(settlementCurrencies[k]) && !settlementCurrencies[k].Equal(currency.USDT):
-					cd = futures.BaseDenomination
+					contractSettlementDenomination = futures.BaseDenomination
+				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
+					contractDenomination = futures.BaseDenomination
 				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
 					contractSettlementType = futures.Quanto
 				case name.Base.Equal(settlePair):
 					contractSettlementType = futures.Inverse
-					cd = futures.BaseDenomination
+					contractDenomination = futures.BaseDenomination
 				}
 				c := futures.Contract{
-					Exchange:                  g.Name,
-					Name:                      name,
-					Underlying:                name,
-					Asset:                     item,
-					IsActive:                  !contracts[j].InDelisting,
-					Type:                      futures.Perpetual,
-					SettlementType:            contractSettlementType,
-					SettlementCurrencies:      currency.Currencies{settlementCurrencies[k]},
-					ContractMultiplier:        contracts[j].QuantoMultiplier.Float64(),
-					ContractValueDenomination: cd,
+					Exchange:                       g.Name,
+					Name:                           name,
+					Underlying:                     name,
+					Asset:                          item,
+					IsActive:                       !contracts[j].InDelisting,
+					Type:                           futures.Perpetual,
+					SettlementType:                 contractSettlementType,
+					SettlementCurrencies:           currency.Currencies{settlePair},
+					ContractMultiplier:             contracts[j].QuantoMultiplier.Float64(),
+					ContractValueDenomination:      contractDenomination,
+					ContractSettlementDenomination: contractSettlementDenomination,
+					MaxLeverage:                    contracts[j].LeverageMax.Float64(),
 				}
 				if contracts[j].FundingRate > 0 {
 					c.LatestRate = fundingrate.Rate{
