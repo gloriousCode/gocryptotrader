@@ -30,6 +30,14 @@ const (
 	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
 )
 
+var (
+	errParsingWSPair      = errors.New("unable to parse currency pair from wsResponse.Channel")
+	errChannelHyphens     = errors.New("channel name does not contain exactly 0 or 2 hyphens")
+	errChannelUnderscores = errors.New("channel name does not contain exactly 2 underscores")
+
+	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
+)
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
@@ -103,13 +111,9 @@ func (b *Bitstamp) wsReadData() {
 }
 
 func (b *Bitstamp) wsHandleData(respRaw []byte) error {
-	wsResponse := &websocketResponse{}
-	if err := json.Unmarshal(respRaw, wsResponse); err != nil {
-		return err
-	}
-
-	if err := b.parseChannelName(wsResponse); err != nil {
-		return err
+	event, err := jsonparser.GetUnsafeString(respRaw, "event")
+	if err != nil {
+		return fmt.Errorf("%w `event`: %w", common.ErrParsingWSField, err)
 	}
 
 	switch wsResponse.Event {
@@ -162,7 +166,7 @@ func (b *Bitstamp) handleWSOrderbook(wsResp *websocketResponse, msg []byte) erro
 	wsOrderBookTemp := websocketOrderBookResponse{}
 	err := json.Unmarshal(msg, &wsOrderBookTemp)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
 	}
 
 	return b.wsUpdateOrderbook(&wsOrderBookTemp.Data, wsResp.pair, asset.Spot)
@@ -186,7 +190,7 @@ func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
 	if wsTradeTemp.Data.Type == 1 {
 		side = order.Sell
 	}
-	return trade.AddTradesToBuffer(b.Name, trade.Data{
+	return trade.AddTradesToBuffer(trade.Data{
 		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 		CurrencyPair: wsResp.pair,
 		AssetType:    asset.Spot,
@@ -442,10 +446,11 @@ func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, err
 	return resp, nil
 }
 
-// parseChannel splits the ws response channel and sets the channel type and pair
-func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
-	if r.Channel == "" {
-		return nil
+// parseChannelName splits the ws message channel and returns the channel name and pair
+func (b *Bitstamp) parseChannelName(respRaw []byte) (string, currency.Pair, error) {
+	channel, err := jsonparser.GetUnsafeString(respRaw, "channel")
+	if err != nil {
+		return "", currency.EMPTYPAIR, fmt.Errorf("%w `channel`: %w", common.ErrParsingWSField, err)
 	}
 
 	chanName := r.Channel

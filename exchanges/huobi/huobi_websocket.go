@@ -256,7 +256,7 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 		})
 	}
-	return trade.AddTradesToBuffer(h.Name, trades...)
+	return trade.AddTradesToBuffer(trades...)
 }
 
 func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
