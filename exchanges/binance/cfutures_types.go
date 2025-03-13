@@ -1,8 +1,6 @@
 package binance
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -654,7 +652,7 @@ type CExchangeInfo struct {
 		DeliveryDate          types.Time `json:"deliveryDate"`
 		OnboardDate           types.Time `json:"onboardDate"`
 		ContractStatus        string     `json:"contractStatus"`
-		ContractSize          float64      `json:"contractSize"`
+		ContractSize          float64    `json:"contractSize"`
 		QuoteAsset            string     `json:"quoteAsset"`
 		BaseAsset             string     `json:"baseAsset"`
 		MarginAsset           string     `json:"marginAsset"`

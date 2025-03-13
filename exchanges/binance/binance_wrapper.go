@@ -2950,21 +2950,21 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			}
 			oneContract := ei.Symbols[i].Filters[2].StepSize
 			resp = append(resp, futures.Contract{
-				Exchange:                  b.Name,
-				Name:                      cp,
-				Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:                     item,
-				SettlementType:            futures.Linear,
-				StartDate:                 ei.Symbols[i].OnboardDate.Time(),
-				EndDate:                   ed,
-				IsActive:                  ei.Symbols[i].Status == "TRADING",
-				Status:                    ei.Symbols[i].Status,
-				MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
-				Type:                      ct,
-				FundingRateFloor:          fundingRateFloor,
-				FundingRateCeiling:        fundingRateCeil,
-				ContractMultiplier:        oneContract,
-				ContractValueDenomination: futures.BaseDenomination,
+				Exchange:                       b.Name,
+				Name:                           cp,
+				Underlying:                     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:                          item,
+				SettlementType:                 futures.Linear,
+				StartDate:                      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:                        ed,
+				IsActive:                       ei.Symbols[i].Status == "TRADING",
+				Status:                         ei.Symbols[i].Status,
+				MarginCurrency:                 currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:                           ct,
+				FundingRateFloor:               fundingRateFloor,
+				FundingRateCeiling:             fundingRateCeil,
+				ContractMultiplier:             oneContract,
+				ContractValueDenomination:      futures.BaseDenomination,
 				ContractSettlementDenomination: futures.QuoteDenomination,
 			})
 		}
@@ -3003,18 +3003,18 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:                  b.Name,
-				Name:                      cp,
-				Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:                     item,
-				StartDate:                 ei.Symbols[i].OnboardDate.Time(),
-				EndDate:                   ed,
-				IsActive:                  ei.Symbols[i].ContractStatus == "TRADING",
-				MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
-				SettlementType:            futures.Inverse,
-				Type:                      ct,
-				ContractMultiplier:        ei.Symbols[i].ContractSize,
-				ContractValueDenomination: futures.QuoteDenomination,
+				Exchange:                       b.Name,
+				Name:                           cp,
+				Underlying:                     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:                          item,
+				StartDate:                      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:                        ed,
+				IsActive:                       ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency:                 currency.NewCode(ei.Symbols[i].MarginAsset),
+				SettlementType:                 futures.Inverse,
+				Type:                           ct,
+				ContractMultiplier:             ei.Symbols[i].ContractSize,
+				ContractValueDenomination:      futures.QuoteDenomination,
 				ContractSettlementDenomination: futures.BaseDenomination,
 			})
 		}
@@ -3329,7 +3329,7 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 	var resp futures.HistoricalContractKline
 	resp.Data = make([]futures.ContractKline, len(contracts))
 	for i := range contracts {
-		var klineFunc func(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error)
+		var klineFunc func(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]FuturesCandleStick, error)
 		switch req.Asset {
 		case asset.USDTMarginedFutures:
 			klineFunc = b.UKlineData
@@ -3371,7 +3371,7 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 			candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
 				Symbol:    req.UnderlyingPair,
 				Interval:  b.FormatExchangeKlineInterval(req.Interval),
-				Limit:     int(spotUnderlyingReq.RequestLimit),
+				Limit:     spotUnderlyingReq.RequestLimit,
 				StartTime: spotUnderlyingReq.RangeHolder.Ranges[j].Start.Time,
 				EndTime:   spotUnderlyingReq.RangeHolder.Ranges[j].End.Time,
 			})
@@ -3407,7 +3407,7 @@ func (b *Binance) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		candles, err := b.GetSpotKline(ctx, &KlinesRequestParams{
 			Symbol:    req.UnderlyingPair,
 			Interval:  b.FormatExchangeKlineInterval(req.Interval),
-			Limit:     int(spotUnderlyingReq.RequestLimit),
+			Limit:     spotUnderlyingReq.RequestLimit,
 			StartTime: spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time,
 			EndTime:   spotUnderlyingReq.RangeHolder.Ranges[i].End.Time,
 		})
