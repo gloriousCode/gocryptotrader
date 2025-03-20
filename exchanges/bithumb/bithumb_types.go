@@ -44,12 +44,12 @@ type Orderbook struct {
 		OrderCurrency   string `json:"order_currency"`
 		PaymentCurrency string `json:"payment_currency"`
 		Bids            []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
+			Quantity types.Number `json:"quantity"`
+			Price    types.Number `json:"price"`
 		} `json:"bids"`
 		Asks []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
+			Quantity types.Number `json:"quantity"`
+			Price    types.Number `json:"price"`
 		} `json:"asks"`
 	} `json:"data"`
 	Message string `json:"message"`

@@ -169,50 +169,13 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 // of open orders and each order is represented as a list holding the price and
 // the amount.
 func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderbook, error) {
-	type response struct {
-		Timestamp int64       `json:"timestamp,string"`
-		Bids      [][2]string `json:"bids"`
-		Asks      [][2]string `json:"asks"`
-	}
-
 	path := "/v" + bitstampAPIVersion + "/" + bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
-	var resp response
+	var resp Orderbook
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
 		return nil, err
 	}
-
-	orderbook := Orderbook{
-		Timestamp: resp.Timestamp,
-		Bids:      make([]OrderbookBase, len(resp.Bids)),
-		Asks:      make([]OrderbookBase, len(resp.Asks)),
-	}
-
-	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[x] = OrderbookBase{price, amount}
-	}
-
-	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OrderbookBase{price, amount}
-	}
-
-	return &orderbook, nil
+	return &resp, nil
 }
 
 // GetTradingPairs returns a list of trading pairs which Bitstamp

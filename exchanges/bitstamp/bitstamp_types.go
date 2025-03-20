@@ -35,17 +35,11 @@ type Ticker struct {
 	PercentChange24 float64   `json:"percent_change_24,string"`
 }
 
-// OrderbookBase holds singular price information
-type OrderbookBase struct {
-	Price  float64
-	Amount float64
-}
-
 // Orderbook holds orderbook information
 type Orderbook struct {
-	Timestamp int64 `json:"timestamp,string"`
-	Bids      []OrderbookBase
-	Asks      []OrderbookBase
+	Timestamp types.Time `json:"timestamp"`
+	Bids      [][2]types.Number
+	Asks      [][2]types.Number
 }
 
 // TradingPair holds trading pair information
@@ -251,10 +245,10 @@ type websocketOrderBookResponse struct {
 }
 
 type websocketOrderBook struct {
-	Asks           [][2]string `json:"asks"`
-	Bids           [][2]string `json:"bids"`
-	Timestamp      int64       `json:"timestamp,string"`
-	Microtimestamp int64       `json:"microtimestamp,string"`
+	Asks           [][2]types.Number `json:"asks"`
+	Bids           [][2]types.Number `json:"bids"`
+	Timestamp      int64             `json:"timestamp,string"`
+	Microtimestamp int64             `json:"microtimestamp,string"`
 }
 
 // OHLCResponse holds returned candle data

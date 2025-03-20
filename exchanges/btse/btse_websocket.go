@@ -293,43 +293,26 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
 			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
 		}
-		var price, amount float64
 		for i := range t.Data.SellQuote {
-			p := strings.Replace(t.Data.SellQuote[i].Price, ",", "", -1)
-			price, err = strconv.ParseFloat(p, 64)
-			if err != nil {
-				return err
-			}
-			a := strings.Replace(t.Data.SellQuote[i].Size, ",", "", -1)
-			amount, err = strconv.ParseFloat(a, 64)
-			if err != nil {
-				return err
-			}
-			if b.orderbookFilter(price, amount) {
+			if b.orderbookFilter(t.Data.SellQuote[i].Price.Float64(), t.Data.SellQuote[i].Size.Float64()) {
 				continue
 			}
 			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
-				Price:  price,
-				Amount: amount,
+				Price:     t.Data.SellQuote[i].Price.Float64(),
+				StrAmount: t.Data.SellQuote[i].Price.String(),
+				Amount:    t.Data.SellQuote[i].Size.Float64(),
+				StrPrice:  t.Data.SellQuote[i].Size.String(),
 			})
 		}
 		for j := range t.Data.BuyQuote {
-			p := strings.Replace(t.Data.BuyQuote[j].Price, ",", "", -1)
-			price, err = strconv.ParseFloat(p, 64)
-			if err != nil {
-				return err
-			}
-			a := strings.Replace(t.Data.BuyQuote[j].Size, ",", "", -1)
-			amount, err = strconv.ParseFloat(a, 64)
-			if err != nil {
-				return err
-			}
-			if b.orderbookFilter(price, amount) {
+			if b.orderbookFilter(t.Data.BuyQuote[j].Price.Float64(), t.Data.BuyQuote[j].Size.Float64()) {
 				continue
 			}
 			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
-				Price:  price,
-				Amount: amount,
+				Price:     t.Data.BuyQuote[j].Price.Float64(),
+				StrPrice:  t.Data.BuyQuote[j].Price.String(),
+				Amount:    t.Data.BuyQuote[j].Size.Float64(),
+				StrAmount: t.Data.BuyQuote[j].Size.String(),
 			})
 		}
 		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])

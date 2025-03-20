@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -167,15 +168,15 @@ type OrderBookDataRequestParams struct {
 
 // OrderbookItem stores an individual orderbook item
 type OrderbookItem struct {
-	Price    float64
-	Quantity float64
+	Price    types.Number
+	Quantity types.Number
 }
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // OrderBook actual structured data that can be used for orderbook
@@ -840,20 +841,20 @@ type update struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string      `json:"e"`
-	Timestamp     time.Time   `json:"E"`
-	Pair          string      `json:"s"`
-	FirstUpdateID int64       `json:"U"`
-	LastUpdateID  int64       `json:"u"`
-	UpdateBids    [][2]string `json:"b"`
-	UpdateAsks    [][2]string `json:"a"`
+	Event         string            `json:"e"`
+	Timestamp     time.Time         `json:"E"`
+	Pair          string            `json:"s"`
+	FirstUpdateID int64             `json:"U"`
+	LastUpdateID  int64             `json:"u"`
+	UpdateBids    [][2]types.Number `json:"b"`
+	UpdateAsks    [][2]types.Number `json:"a"`
 }
 
 // WebsocketDepthDiffStream websocket response of depth diff stream
 type WebsocketDepthDiffStream struct {
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // WsAccountInfoData defines websocket account info data

@@ -310,12 +310,14 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return book, err
 	}
-
+	book.LastUpdated = orderbookNew.Timestamp.Time()
 	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
+			Amount:    orderbookNew.Bids[x][1].Float64(),
+			StrAmount: orderbookNew.Bids[x][1].String(),
+			StrPrice:  orderbookNew.Bids[x][0].String(),
+			Price:     orderbookNew.Bids[x][0].Float64(),
 		}
 	}
 
@@ -324,8 +326,10 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
+			Amount:    orderbookNew.Asks[x][1].Float64(),
+			StrAmount: orderbookNew.Asks[x][1].String(),
+			StrPrice:  orderbookNew.Asks[x][0].String(),
+			Price:     orderbookNew.Asks[x][0].Float64(),
 		}
 	}
 

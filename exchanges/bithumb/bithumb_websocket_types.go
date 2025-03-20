@@ -49,8 +49,8 @@ type WsOrderbooks struct {
 type WsOrderbook struct {
 	Symbol    currency.Pair `json:"symbol"`
 	OrderSide string        `json:"orderType"`
-	Price     float64       `json:"price,string"`
-	Quantity  float64       `json:"quantity,string"`
+	Price     types.Number  `json:"price"`
+	Quantity  types.Number  `json:"quantity"`
 	Total     int32         `json:"total,string"`
 }
 

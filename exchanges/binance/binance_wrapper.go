@@ -551,15 +551,19 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
+			Amount:    orderbookNew.Bids[x].Quantity.Float64(),
+			StrAmount: orderbookNew.Bids[x].Quantity.String(),
+			Price:     orderbookNew.Bids[x].Price.Float64(),
+			StrPrice:  orderbookNew.Bids[x].Price.String(),
 		}
 	}
 	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
+			Amount:    orderbookNew.Asks[x].Quantity.Float64(),
+			StrAmount: orderbookNew.Asks[x].Quantity.String(),
+			Price:     orderbookNew.Asks[x].Price.Float64(),
+			StrPrice:  orderbookNew.Asks[x].Price.String(),
 		}
 	}
 

@@ -144,49 +144,14 @@ func (b *BTCMarkets) GetOrderbook(ctx context.Context, marketID string, level in
 	if level != 0 {
 		params.Set("level", strconv.FormatInt(level, 10))
 	}
-	var temp tempOrderbook
+	var resp Orderbook
 	err := b.SendHTTPRequest(ctx, btcMarketsUnauthPath+"/"+marketID+btcMarketOrderBook+params.Encode(),
-		&temp)
+		&resp)
 	if err != nil {
 		return nil, err
 	}
 
-	orderbook := Orderbook{
-		MarketID:   temp.MarketID,
-		SnapshotID: temp.SnapshotID,
-		Bids:       make([]OBData, len(temp.Bids)),
-		Asks:       make([]OBData, len(temp.Asks)),
-	}
-
-	for x := range temp.Asks {
-		price, err := strconv.ParseFloat(temp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(temp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Asks[x] = OBData{
-			Price:  price,
-			Volume: amount,
-		}
-	}
-	for a := range temp.Bids {
-		price, err := strconv.ParseFloat(temp.Bids[a][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(temp.Bids[a][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		orderbook.Bids[a] = OBData{
-			Price:  price,
-			Volume: amount,
-		}
-	}
-	return &orderbook, nil
+	return &resp, nil
 }
 
 // GetMarketCandles gets candles for specified currency pair
@@ -231,7 +196,7 @@ func (b *BTCMarkets) GetTickers(ctx context.Context, marketIDs currency.Pairs) (
 
 // GetMultipleOrderbooks gets orderbooks
 func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []string) ([]Orderbook, error) {
-	var temp []tempOrderbook
+	var temp []Orderbook
 	params := url.Values{}
 	for x := range marketIDs {
 		params.Add("marketId", marketIDs[x])
@@ -243,35 +208,12 @@ func (b *BTCMarkets) GetMultipleOrderbooks(ctx context.Context, marketIDs []stri
 	}
 	orderbooks := make([]Orderbook, 0, len(marketIDs))
 	for i := range temp {
-		var tempOB Orderbook
-		var price, volume float64
-		tempOB.MarketID = temp[i].MarketID
-		tempOB.SnapshotID = temp[i].SnapshotID
-		tempOB.Asks = make([]OBData, len(temp[i].Asks))
-		tempOB.Bids = make([]OBData, len(temp[i].Bids))
-		for a := range temp[i].Asks {
-			volume, err = strconv.ParseFloat(temp[i].Asks[a][1], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			price, err = strconv.ParseFloat(temp[i].Asks[a][0], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			tempOB.Asks[a] = OBData{Price: price, Volume: volume}
-		}
-		for y := range temp[i].Bids {
-			volume, err = strconv.ParseFloat(temp[i].Bids[y][1], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			price, err = strconv.ParseFloat(temp[i].Bids[y][0], 64)
-			if err != nil {
-				return orderbooks, err
-			}
-			tempOB.Bids[y] = OBData{Price: price, Volume: volume}
-		}
-		orderbooks = append(orderbooks, tempOB)
+		orderbooks = append(orderbooks, Orderbook{
+			MarketID:   temp[i].MarketID,
+			SnapshotID: temp[i].SnapshotID,
+			Asks:       temp[i].Asks,
+			Bids:       temp[i].Bids,
+		})
 	}
 	return orderbooks, nil
 }

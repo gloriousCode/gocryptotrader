@@ -112,10 +112,10 @@ func (b *Binance) setupOrderbookManager() {
 		// Change state on reconnect for initial sync.
 		for _, m1 := range b.obm.state {
 			for _, m2 := range m1 {
-				for _, update := range m2 {
-					update.initialSync = true
-					update.needsFetchingBook = true
-					update.lastUpdateID = 0
+				for _, u := range m2 {
+					u.initialSync = true
+					u.needsFetchingBook = true
+					u.lastUpdateID = 0
 				}
 			}
 		}
@@ -460,7 +460,7 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
+func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBookData) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
 		Asset:           asset.Spot,
@@ -473,14 +473,18 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
+			Amount:    orderbookNew.Bids[i][0].Float64(),
+			StrAmount: orderbookNew.Bids[i][0].String(),
+			Price:     orderbookNew.Bids[i][1].Float64(),
+			StrPrice:  orderbookNew.Bids[i][1].String(),
 		}
 	}
 	for i := range orderbookNew.Asks {
 		newOrderBook.Asks[i] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
+			Amount:    orderbookNew.Asks[i][0].Float64(),
+			StrAmount: orderbookNew.Asks[i][0].String(),
+			Price:     orderbookNew.Asks[i][1].Float64(),
+			StrPrice:  orderbookNew.Asks[i][1].String(),
 		}
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -618,15 +622,19 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		updateBid[i] = orderbook.Tranche{
-			Price:  ws.UpdateBids[i][0].Float64(),
-			Amount: ws.UpdateBids[i][1].Float64(),
+			Price:     ws.UpdateBids[i][0].Float64(),
+			StrPrice:  ws.UpdateBids[i][1].String(),
+			Amount:    ws.UpdateBids[i][1].Float64(),
+			StrAmount: ws.UpdateBids[i][0].String(),
 		}
 	}
 	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
 		updateAsk[i] = orderbook.Tranche{
-			Price:  ws.UpdateAsks[i][0].Float64(),
-			Amount: ws.UpdateAsks[i][1].Float64(),
+			Price:     ws.UpdateAsks[i][0].Float64(),
+			StrPrice:  ws.UpdateAsks[i][1].String(),
+			Amount:    ws.UpdateAsks[i][1].Float64(),
+			StrAmount: ws.UpdateAsks[i][0].String(),
 		}
 	}
 	return b.Websocket.Orderbook.Update(&orderbook.Update{

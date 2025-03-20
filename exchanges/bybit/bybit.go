@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Bybit is the overarching type across this package
@@ -288,7 +289,7 @@ func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limi
 	if err != nil {
 		return nil, err
 	}
-	return constructOrderbook(&resp)
+	return constructOrderbook(&resp), nil
 }
 
 func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url.Values, error) {
@@ -1420,10 +1421,10 @@ func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.FrozenPeriod <= 0 {
 		return errFrozenPeriodRequired
 	}
-	if arg.TradeQuantityLimit <= 0 {
+	if arg.TradeQuantityLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
 	}
-	if arg.DeltaLimit <= 0 {
+	if arg.DeltaLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
@@ -1602,7 +1603,7 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -1657,7 +1658,7 @@ func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParam
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -2528,20 +2529,15 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
-	var err error
+func processOB(ob [][2]types.Number) []orderbook.Tranche {
 	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x].Amount, err = strconv.ParseFloat(ob[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		o[x].Price, err = strconv.ParseFloat(ob[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
+		o[x].Price = ob[x][0].Float64()
+		o[x].StrPrice = ob[x][0].String()
+		o[x].Amount = ob[x][1].Float64()
+		o[x].StrAmount = ob[x][1].String()
 	}
-	return o, nil
+	return o
 }
 
 // SendHTTPRequest sends an unauthenticated request

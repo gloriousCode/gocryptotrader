@@ -511,20 +511,8 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Pair:            p,
 		Asset:           assetType,
 		VerifyOrderbook: by.CanVerifyOrderbook,
-		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
-		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
-	}
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price,
-		}
-	}
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price,
-		}
+		Bids:            orderbookNew.Bids,
+		Asks:            orderbookNew.Asks,
 	}
 	err = book.Process()
 	if err != nil {

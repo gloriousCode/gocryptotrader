@@ -91,7 +91,7 @@ func (b *BTCMarkets) wsReadData() {
 
 // UnmarshalJSON implements the unmarshaler interface.
 func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
-	resp := make([][3]interface{}, len(data))
+	resp := make(WsOrderbookUpdate, len(data))
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
@@ -99,36 +99,12 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 
 	*w = WebsocketOrderbook(make(orderbook.Tranches, len(resp)))
 	for x := range resp {
-		sPrice, ok := resp[x][0].(string)
-		if !ok {
-			return fmt.Errorf("price string %w", errTypeAssertionFailure)
-		}
-		var price float64
-		price, err = strconv.ParseFloat(sPrice, 64)
-		if err != nil {
-			return err
-		}
-
-		sAmount, ok := resp[x][1].(string)
-		if !ok {
-			return fmt.Errorf("amount string %w", errTypeAssertionFailure)
-		}
-
-		var amount float64
-		amount, err = strconv.ParseFloat(sAmount, 64)
-		if err != nil {
-			return err
-		}
-
-		count, ok := resp[x][2].(float64)
-		if !ok {
-			return fmt.Errorf("count float64 %w", errTypeAssertionFailure)
-		}
-
 		(*w)[x] = orderbook.Tranche{
-			Amount:     amount,
-			Price:      price,
-			OrderCount: int64(count),
+			Price:      resp[x][0].Float64(),
+			StrPrice:   resp[x][0].String(),
+			Amount:     resp[x][1].Float64(),
+			StrAmount:  resp[x][1].String(),
+			OrderCount: resp[x][2].Int64(),
 		}
 	}
 	return nil
@@ -215,39 +191,39 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			TID:          strconv.FormatInt(t.TradeID, 10),
 		})
 	case tick:
-		var tick WsTick
-		err := json.Unmarshal(respRaw, &tick)
+		var t WsTick
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(tick.Currency)
+		p, err := currency.NewPairFromString(t.Currency)
 		if err != nil {
 			return err
 		}
 
 		b.Websocket.DataHandler <- &ticker.Price{
 			ExchangeName: b.Name,
-			Volume:       tick.Volume,
-			High:         tick.High24,
-			Low:          tick.Low24h,
-			Bid:          tick.Bid,
-			Ask:          tick.Ask,
-			Last:         tick.Last,
-			LastUpdated:  tick.Timestamp,
+			Volume:       t.Volume,
+			High:         t.High24,
+			Low:          t.Low24h,
+			Bid:          t.Bid,
+			Ask:          t.Ask,
+			Last:         t.Last,
+			LastUpdated:  t.Timestamp,
 			AssetType:    asset.Spot,
 			Pair:         p,
 		}
 	case fundChange:
 		var transferData WsFundTransfer
-		err := json.Unmarshal(respRaw, &transferData)
+		err = json.Unmarshal(respRaw, &transferData)
 		if err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- transferData
 	case orderChange:
 		var orderData WsOrderChange
-		err := json.Unmarshal(respRaw, &orderData)
+		err = json.Unmarshal(respRaw, &orderData)
 		if err != nil {
 			return err
 		}

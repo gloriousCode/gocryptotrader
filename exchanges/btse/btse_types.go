@@ -137,8 +137,8 @@ type Trade struct {
 
 // QuoteData stores quote data
 type QuoteData struct {
-	Price float64 `json:"price,string"`
-	Size  float64 `json:"size,string"`
+	Price types.Number `json:"price"`
+	Size  types.Number `json:"size"`
 }
 
 // Orderbook stores orderbook info
@@ -299,9 +299,9 @@ type wsSub struct {
 }
 
 type wsQuoteData struct {
-	Total string `json:"cumulativeTotal"`
-	Price string `json:"price"`
-	Size  string `json:"size"`
+	Total types.Number `json:"cumulativeTotal"`
+	Price types.Number `json:"price"`
+	Size  types.Number `json:"size"`
 }
 
 type wsOBData struct {

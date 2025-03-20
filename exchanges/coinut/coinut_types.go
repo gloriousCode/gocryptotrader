@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // GenericResponse is the generic response you will get from coinut
@@ -50,9 +51,9 @@ type Ticker struct {
 
 // OrderbookBase is a sub-type holding price and quantity
 type OrderbookBase struct {
-	Count    int     `json:"count"`
-	Price    float64 `json:"price,string"`
-	Quantity float64 `json:"qty,string"`
+	Count    int          `json:"count"`
+	Price    types.Number `json:"price"`
+	Quantity types.Number `json:"qty"`
 }
 
 // Orderbook is the full order book
@@ -317,22 +318,22 @@ type WsOrderbookSnapshot struct {
 
 // WsOrderbookData defines singular orderbook data
 type WsOrderbookData struct {
-	Count  int64   `json:"count"`
-	Price  float64 `json:"price,string"`
-	Volume float64 `json:"qty,string"`
+	Count  int64        `json:"count"`
+	Price  types.Number `json:"price"`
+	Volume types.Number `json:"qty"`
 }
 
 // WsOrderbookUpdate defines orderbook update response from the websocket
 // connection
 type WsOrderbookUpdate struct {
-	Count    int64   `json:"count"`
-	InstID   int64   `json:"inst_id"`
-	Price    float64 `json:"price,string"`
-	Volume   float64 `json:"qty,string"`
-	TotalBuy float64 `json:"total_buy,string"`
-	Reply    string  `json:"reply"`
-	Side     string  `json:"side"`
-	TransID  int64   `json:"trans_id"`
+	Count    int64        `json:"count"`
+	InstID   int64        `json:"inst_id"`
+	Price    types.Number `json:"price"`
+	Volume   types.Number `json:"qty"`
+	TotalBuy types.Number `json:"total_buy"`
+	Reply    string       `json:"reply"`
+	Side     string       `json:"side"`
+	TransID  int64        `json:"trans_id"`
 }
 
 // WsTradeSnapshot defines Market trade response from the websocket

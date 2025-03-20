@@ -320,22 +320,26 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 	book.Bids = make(orderbook.Tranches, 0, len(a.BuyQuote))
 	for x := range a.BuyQuote {
-		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
+		if b.orderbookFilter(a.BuyQuote[x].Price.Float64(), a.BuyQuote[x].Size.Float64()) {
 			continue
 		}
 		book.Bids = append(book.Bids, orderbook.Tranche{
-			Price:  a.BuyQuote[x].Price,
-			Amount: a.BuyQuote[x].Size,
+			Price:     a.BuyQuote[x].Price.Float64(),
+			StrPrice:  a.BuyQuote[x].Price.String(),
+			Amount:    a.BuyQuote[x].Size.Float64(),
+			StrAmount: a.BuyQuote[x].Size.String(),
 		})
 	}
 	book.Asks = make(orderbook.Tranches, 0, len(a.SellQuote))
 	for x := range a.SellQuote {
-		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
+		if b.orderbookFilter(a.SellQuote[x].Price.Float64(), a.SellQuote[x].Size.Float64()) {
 			continue
 		}
 		book.Asks = append(book.Asks, orderbook.Tranche{
-			Price:  a.SellQuote[x].Price,
-			Amount: a.SellQuote[x].Size,
+			Price:     a.SellQuote[x].Price.Float64(),
+			StrPrice:  a.SellQuote[x].Price.String(),
+			Amount:    a.SellQuote[x].Size.Float64(),
+			StrAmount: a.SellQuote[x].Size.String(),
 		})
 	}
 	book.Asks.SortAsks()
@@ -359,12 +363,12 @@ func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (acc
 	}
 
 	currencies := make([]account.Balance, len(balance))
-	for b := range balance {
-		currencies[b] = account.Balance{
-			Currency: currency.NewCode(balance[b].Currency),
-			Total:    balance[b].Total,
-			Hold:     balance[b].Total - balance[b].Available,
-			Free:     balance[b].Available,
+	for bal := range balance {
+		currencies[bal] = account.Balance{
+			Currency: currency.NewCode(balance[bal].Currency),
+			Total:    balance[bal].Total,
+			Hold:     balance[bal].Total - balance[bal].Available,
+			Free:     balance[bal].Available,
 		}
 	}
 	a.Exchange = b.Name

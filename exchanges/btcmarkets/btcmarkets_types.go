@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Market holds a tradable market instrument
@@ -41,26 +42,12 @@ type Trade struct {
 	Side      string    `json:"side"`
 }
 
-// tempOrderbook stores orderbook data
-type tempOrderbook struct {
-	MarketID   string      `json:"marketId"`
-	SnapshotID int64       `json:"snapshotId"`
-	Asks       [][2]string `json:"asks"`
-	Bids       [][2]string `json:"bids"`
-}
-
-// OBData stores orderbook data
-type OBData struct {
-	Price  float64
-	Volume float64
-}
-
-// Orderbook holds current orderbook information returned from the exchange
+// Orderbook stores orderbook data
 type Orderbook struct {
-	MarketID   string
-	SnapshotID int64
-	Asks       []OBData
-	Bids       []OBData
+	MarketID   string            `json:"marketId"`
+	SnapshotID int64             `json:"snapshotId"`
+	Asks       [][2]types.Number `json:"asks"`
+	Bids       [][2]types.Number `json:"bids"`
 }
 
 // MarketCandle stores candle data for a given pair
@@ -442,3 +429,5 @@ type CandleResponse [][6]string
 // WebsocketOrderbook defines a specific websocket orderbook type to directly
 // unmarshal json.
 type WebsocketOrderbook orderbook.Tranches
+
+type WsOrderbookUpdate [][3]types.Number

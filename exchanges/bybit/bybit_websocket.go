@@ -697,25 +697,17 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	}
 	asks := make([]orderbook.Tranche, len(result.Asks))
 	for i := range result.Asks {
-		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		asks[i].Amount, err = strconv.ParseFloat(result.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[i].Price = result.Asks[i][0].Float64()
+		asks[i].StrPrice = result.Asks[i][0].String()
+		asks[i].Amount = result.Asks[i][1].Float64()
+		asks[i].StrAmount = result.Asks[i][1].String()
 	}
 	bids := make([]orderbook.Tranche, len(result.Bids))
 	for i := range result.Bids {
-		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		bids[i].Amount, err = strconv.ParseFloat(result.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[i].Price = result.Bids[i][0].Float64()
+		bids[i].StrPrice = result.Bids[i][0].String()
+		bids[i].Amount = result.Bids[i][1].Float64()
+		bids[i].StrAmount = result.Bids[i][1].String()
 	}
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil
