@@ -86,7 +86,7 @@ func (b *Binance) UExchangeInfo(ctx context.Context) (UFuturesExchangeInfo, erro
 }
 
 // UFuturesOrderbook gets orderbook data for usdt margined futures
-func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error) {
+func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*Orderbook, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -114,48 +114,13 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 		rateBudget = uFuturesOrderbook500Rate
 	}
 
-	var data OrderbookData
-	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
+	var resp Orderbook
+	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &resp)
 	if err != nil {
 		return nil, err
 	}
+	resp.Symbol = symbolValue
 
-	resp := OrderBook{
-		Symbol:       symbolValue,
-		LastUpdateID: data.LastUpdateID,
-		Bids:         make([]OrderbookItem, len(data.Bids)),
-		Asks:         make([]OrderbookItem, len(data.Asks)),
-	}
-
-	var price, quantity float64
-	for x := range data.Asks {
-		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
-	}
-	for y := range data.Bids {
-		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Bids[y] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
-	}
 	return &resp, nil
 }
 

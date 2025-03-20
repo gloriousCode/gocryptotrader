@@ -1424,10 +1424,10 @@ func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.FrozenPeriod <= 0 {
 		return errFrozenPeriodRequired
 	}
-	if arg.TradeQuantityLimit <= 0 {
+	if arg.TradeQuantityLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
 	}
-	if arg.DeltaLimit <= 0 {
+	if arg.DeltaLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
@@ -1606,7 +1606,7 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -1661,7 +1661,7 @@ func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParam
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {

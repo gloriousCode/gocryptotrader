@@ -787,6 +787,21 @@ func (d *Depth) GetTranches(count int) (ask, bid []Tranche, err error) {
 	return d.askTranches.retrieve(count), d.bidTranches.retrieve(count), nil
 }
 
+func (d *Depth) GetTranche(count int, isBid bool) ([]Tranche, error) {
+	if count < 0 {
+		return nil, errInvalidBookDepth
+	}
+	d.m.RLock()
+	defer d.m.RUnlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
+	if isBid {
+		return d.bidTranches.retrieve(count), nil
+	}
+	return d.askTranches.retrieve(count), nil
+}
+
 // Pair returns the pair associated with the depth
 func (d *Depth) Pair() currency.Pair {
 	d.m.RLock()

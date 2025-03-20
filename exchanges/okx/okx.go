@@ -1449,7 +1449,7 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg *LendingRate) (*LendingRa
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
-	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
+	} else if arg.Rate.Float64() < 0.01 || arg.Rate.Float64() > 3.65 {
 		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errRateRequired)
 	}
 	var resp *LendingRate

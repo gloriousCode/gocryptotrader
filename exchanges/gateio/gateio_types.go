@@ -1,12 +1,12 @@
 package gateio
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -521,11 +521,11 @@ type Ticker struct {
 
 // OrderbookData holds orderbook ask and bid datas.
 type OrderbookData struct {
-	ID      int64       `json:"id"`
-	Current types.Time  `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time  `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    [][2]string `json:"asks"`
-	Bids    [][2]string `json:"bids"`
+	ID      int64             `json:"id"`
+	Current types.Time        `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time        `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Asks    [][2]types.Number `json:"asks"`
+	Bids    [][2]types.Number `json:"bids"`
 }
 
 // MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
@@ -535,52 +535,34 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 		Current: a.Current,
 		Update:  a.Update,
 	}
-	ob.Asks = make([]OrderbookItem, len(a.Asks))
-	ob.Bids = make([]OrderbookItem, len(a.Bids))
+	ob.Asks = make([]orderbook.Tranche, len(a.Asks))
+	ob.Bids = make([]orderbook.Tranche, len(a.Bids))
 	for x := range a.Asks {
-		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Asks[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
+		ob.Asks[x] = orderbook.Tranche{
+			Price:     a.Asks[x][0].Float64(),
+			StrPrice:  a.Asks[x][0].String(),
+			StrAmount: a.Asks[x][1].String(),
+			Amount:    a.Asks[x][1].Float64(),
 		}
 	}
 	for x := range a.Bids {
-		price, err := strconv.ParseFloat(a.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Bids[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
+		ob.Bids[x] = orderbook.Tranche{
+			Price:     a.Bids[x][0].Float64(),
+			StrPrice:  a.Bids[x][0].String(),
+			StrAmount: a.Bids[x][1].String(),
+			Amount:    a.Bids[x][1].Float64(),
 		}
 	}
 	return ob, nil
 }
 
-// OrderbookItem stores an orderbook item
-type OrderbookItem struct {
-	Price  types.Number `json:"p"`
-	Amount float64      `json:"s"`
-}
-
 // Orderbook stores the orderbook data
 type Orderbook struct {
-	ID      int64           `json:"id"`
-	Current types.Time      `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time      `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Bids    []OrderbookItem `json:"bids"`
-	Asks    []OrderbookItem `json:"asks"`
+	ID      int64               `json:"id"`
+	Current types.Time          `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time          `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Bids    []orderbook.Tranche `json:"bids"`
+	Asks    []orderbook.Tranche `json:"asks"`
 }
 
 // Trade represents market trade.

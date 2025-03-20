@@ -34,6 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -1930,7 +1931,7 @@ allOrders:
 				orderAmount := orderList[i].Size
 				if orderList[i].QuantityType == "quote_ccy" {
 					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
+					orderAmount = types.NumberFromFloat64(orderAmount.Float64() / orderList[i].AveragePrice.Float64())
 				}
 
 				remainingAmount := float64(0)
@@ -2728,7 +2729,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			orderAmount := positions[j].Size
 			if positions[j].QuantityType == "quote_ccy" {
 				// Size is quote amount.
-				orderAmount /= positions[j].AveragePrice
+				orderAmount = types.NumberFromFloat64(positions[j].Size.Float64() / positions[j].AveragePrice.Float64())
 			}
 
 			remainingAmount := float64(0)
@@ -3344,7 +3345,7 @@ func (ok *Okx) GetHistoricalContractKlineData(ctx context.Context, req *futures.
 				return nil, err
 			}
 			for k := range candles {
-				if candles[k].ClosePrice == 0 {
+				if candles[k].ClosePrice.Float64() == 0 {
 					continue
 				}
 				klinesForContract = append(klinesForContract, kline.Candle{

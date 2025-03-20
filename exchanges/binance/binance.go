@@ -124,7 +124,7 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
+func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*Orderbook, error) {
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
@@ -140,54 +140,15 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.Itoa(obd.Limit))
-	var resp OrderBookData
+	var resp Orderbook
 	if err := b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		orderBookDepth+"?"+params.Encode(),
 		orderbookLimit(obd.Limit), &resp); err != nil {
 		return nil, err
 	}
-
-	orderbook := OrderBook{
-		Bids:         make([]OrderbookItem, len(resp.Bids)),
-		Asks:         make([]OrderbookItem, len(resp.Asks)),
-		LastUpdateID: resp.LastUpdateID,
-	}
-	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
-	}
-
-	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
-		}
-	}
-
-	return &orderbook, nil
+	resp.Symbol = symbol
+	return &resp, nil
 }
 
 // GetMostRecentTrades returns recent trade activity

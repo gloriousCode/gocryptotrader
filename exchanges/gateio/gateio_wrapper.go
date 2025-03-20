@@ -745,21 +745,10 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		Pair:            p.Upper(),
 		LastUpdateID:    orderbookNew.ID,
 		LastUpdated:     orderbookNew.Update.Time(),
+		Asks:            orderbookNew.Asks,
+		Bids:            orderbookNew.Bids,
 	}
-	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price.Float64(),
-		}
-	}
-	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price.Float64(),
-		}
-	}
+
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -1051,8 +1040,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			// When doing spot market orders when purchasing base currency, the
 			// quote currency amount is used. When selling the base currency the
 			// base currency amount is used.
-			Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
-			Price:        types.Number(s.Price),
+			Amount:       types.NumberFromFloat64(s.GetTradeAmount(g.GetTradingRequirements())),
+			Price:        types.NumberFromFloat64(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
 			TimeInForce:  timeInForce,
@@ -1182,7 +1171,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		optionOrder, err := g.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      types.Number(s.Price),
+			Price:      types.NumberFromFloat64(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1579,7 +1568,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	response, err := g.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
+			Amount:   types.NumberFromFloat64(withdrawRequest.Amount),
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -2090,7 +2079,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					ContractSettlementDenomination: contractSettlementDenomination,
 					MaxLeverage:                    contracts[j].LeverageMax.Float64(),
 				}
-				if contracts[j].FundingRate > 0 {
+				if contracts[j].FundingRate.Float64() > 0 {
 					c.LatestRate = fundingrate.Rate{
 						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
 						Rate: contracts[j].FundingRate.Decimal(),

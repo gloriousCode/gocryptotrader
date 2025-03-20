@@ -39,7 +39,7 @@ const (
 
 type BinanceWebsocket struct {
 	streamURL            string
-	orderbookPartialFunc func(ctx context.Context, symbol currency.Pair, limit int64) (*OrderBook, error)
+	orderbookPartialFunc func(ctx context.Context, symbol currency.Pair, limit int64) (*Orderbook, error)
 	authTokenURL         string
 	ws                   *stream.Websocket
 }
@@ -385,7 +385,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
 			LastUpdated:  t.EventTime.Time(),
-			AssetType:   item,
+			AssetType:    item,
 			Pair:         pair,
 		}
 		return nil
@@ -491,7 +491,7 @@ func (b *Binance) SeedLocalCache(ctx context.Context, p currency.Pair, item asse
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook, item asset.Item) error {
+func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, item asset.Item) error {
 	newOrderBook := orderbook.Base{
 		Pair:            p,
 		Asset:           item,
@@ -504,14 +504,18 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
+			Amount:    orderbookNew.Bids[i][1].Float64(),
+			Price:     orderbookNew.Bids[i][0].Float64(),
+			StrPrice:  orderbookNew.Bids[i][0].String(),
+			StrAmount: orderbookNew.Bids[i][1].String(),
 		}
 	}
 	for i := range orderbookNew.Asks {
 		newOrderBook.Asks[i] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
+			Amount:    orderbookNew.Asks[i][1].Float64(),
+			Price:     orderbookNew.Asks[i][0].Float64(),
+			StrPrice:  orderbookNew.Asks[i][0].String(),
+			StrAmount: orderbookNew.Asks[i][1].String(),
 		}
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
@@ -649,15 +653,19 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
 		updateBid[i] = orderbook.Tranche{
-			Price:  ws.UpdateBids[i][0].Float64(),
-			Amount: ws.UpdateBids[i][1].Float64(),
+			Price:     ws.UpdateBids[i][0].Float64(),
+			StrPrice:  ws.UpdateBids[i][1].String(),
+			Amount:    ws.UpdateBids[i][1].Float64(),
+			StrAmount: ws.UpdateBids[i][1].String(),
 		}
 	}
 	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
 		updateAsk[i] = orderbook.Tranche{
-			Price:  ws.UpdateAsks[i][0].Float64(),
-			Amount: ws.UpdateAsks[i][1].Float64(),
+			Price:     ws.UpdateAsks[i][0].Float64(),
+			StrPrice:  ws.UpdateAsks[i][1].String(),
+			Amount:    ws.UpdateAsks[i][1].Float64(),
+			StrAmount: ws.UpdateAsks[i][1].String(),
 		}
 	}
 	return b.Websocket.Orderbook.Update(&orderbook.Update{

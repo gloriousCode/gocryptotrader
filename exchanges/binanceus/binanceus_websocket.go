@@ -672,32 +672,22 @@ func (bi *Binanceus) SynchroniseWebsocketOrderbook() {
 func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		price := ws.UpdateBids[i][0]
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
+		updateBid[i] = orderbook.Tranche{
+			Price:     ws.UpdateBids[i][0].Float64(),
+			StrPrice:  ws.UpdateBids[i][0].String(),
+			Amount:    ws.UpdateBids[i][1].Float64(),
+			StrAmount: ws.UpdateBids[i][1].String(),
 		}
-		amount := ws.UpdateBids[i][1]
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateBid[i] = orderbook.Tranche{Price: p, Amount: a}
 	}
 
 	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		price := ws.UpdateAsks[i][0]
-		p, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			return err
+		updateBid[i] = orderbook.Tranche{
+			Price:     ws.UpdateAsks[i][0].Float64(),
+			StrPrice:  ws.UpdateAsks[i][0].String(),
+			Amount:    ws.UpdateAsks[i][1].Float64(),
+			StrAmount: ws.UpdateAsks[i][1].String(),
 		}
-		amount := ws.UpdateAsks[i][1]
-		a, err := strconv.ParseFloat(amount, 64)
-		if err != nil {
-			return err
-		}
-		updateAsk[i] = orderbook.Tranche{Price: p, Amount: a}
 	}
 
 	return bi.Websocket.Orderbook.Update(&orderbook.Update{
@@ -848,14 +838,18 @@ func (bi *Binanceus) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Order
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
+			Amount:    orderbookNew.Bids[i].Quantity.Float64(),
+			StrAmount: orderbookNew.Bids[i].Quantity.String(),
+			Price:     orderbookNew.Bids[i].Price.Float64(),
+			StrPrice:  orderbookNew.Bids[i].Price.String(),
 		}
 	}
 	for i := range orderbookNew.Asks {
 		newOrderBook.Asks[i] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
+			Amount:    orderbookNew.Asks[i].Quantity.Float64(),
+			StrAmount: orderbookNew.Asks[i].Quantity.String(),
+			Price:     orderbookNew.Asks[i].Price.Float64(),
+			StrPrice:  orderbookNew.Asks[i].Price.String(),
 		}
 	}
 	return bi.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
