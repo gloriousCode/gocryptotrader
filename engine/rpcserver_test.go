@@ -25,7 +25,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -486,9 +485,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -505,9 +505,10 @@ func RPCTestSetup(t *testing.T) *Engine {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1216,8 +1217,8 @@ func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
 func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
 func (d *dummyServer) SetTrailer(metadata.MD)                 {}
 func (d *dummyServer) Context() context.Context               { return context.Background() }
-func (d *dummyServer) SendMsg(_ interface{}) error            { return nil }
-func (d *dummyServer) RecvMsg(_ interface{}) error            { return nil }
+func (d *dummyServer) SendMsg(_ any) error                    { return nil }
+func (d *dummyServer) RecvMsg(_ any) error                    { return nil }
 
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)
@@ -1269,7 +1270,7 @@ func TestGetAccountInfo(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -1297,7 +1298,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -1343,9 +1344,10 @@ func TestGetOrders(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1453,9 +1455,10 @@ func TestGetOrder(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1535,102 +1538,58 @@ func TestCheckVars(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
 	err := checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeNotLoaded) {
-		t.Errorf("expected %v, got %v", errExchangeNotLoaded, err)
-	}
+	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
 	e = &binance.Binance{}
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errExchangeNotEnabled) {
-		t.Errorf("expected %v, got %v", errExchangeNotEnabled, err)
-	}
+	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 
 	e.SetEnabled(true)
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, currency.ErrPairManagerNotInitialised) {
-		t.Errorf("expected %v, got %v", currency.ErrPairManagerNotInitialised, err)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat: &currency.PairFormat{
-			Delimiter: currency.DashDelimiter,
-			Uppercase: true,
-		},
-	}
-	coinFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.UnderscoreDelimiter,
-		},
-	}
-	usdtFutures := currency.PairStore{
-		RequestFormat: &currency.PairFormat{
-			Uppercase: true,
-		},
-		ConfigFormat: &currency.PairFormat{
-			Uppercase: true,
-			Delimiter: currency.DashDelimiter,
-		},
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.Margin, fmt1)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.CoinMarginedFutures, coinFutures)
-	if err != nil {
-		t.Error(err)
-	}
-	err = e.GetBase().StoreAssetPairFormat(asset.USDTMarginedFutures, usdtFutures)
-	if err != nil {
-		t.Error(err)
+	b := e.GetBase()
+
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		ps := currency.PairStore{
+			AssetEnabled:  true,
+			RequestFormat: &currency.PairFormat{Uppercase: true},
+			ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+		}
+		switch a {
+		case asset.CoinMarginedFutures:
+			ps.RequestFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+		case asset.USDTMarginedFutures:
+			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+		}
+		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errCurrencyPairInvalid) {
-		t.Errorf("expected %v, got %v", errCurrencyPairInvalid, err)
-	}
+	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
 
-	var data = []currency.Pair{
+	data := []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
 	}
 
-	err = e.GetBase().CurrencyPairs.StorePairs(asset.Spot, data, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
+	require.NoError(t, err, "StorePairs must not error")
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if !errors.Is(err, errCurrencyNotEnabled) {
-		t.Errorf("expected %v, got %v", errCurrencyNotEnabled, err)
-	}
+	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
 
-	err = e.GetBase().CurrencyPairs.EnablePair(
-		asset.Spot,
-		currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
-	)
-	if err != nil {
-		t.Error(err)
-	}
+	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
+	require.NoError(t, err, "EnablePair must not error")
 
 	err = checkParams("Binance", e, asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "checkParams must not error")
 }
 
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
-	var exchangeName = "Binance"
+	exchangeName := "Binance"
 	testData := make([]*withdraw.Response, 5)
 	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
@@ -1705,7 +1664,8 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
-		AssetEnabled: convert.BoolPtr(true)}
+		AssetEnabled: true,
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -1975,9 +1935,10 @@ func TestGetManagedOrders(t *testing.T) {
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true}}
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+	}
 	err = em.Add(exch)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
@@ -2207,7 +2168,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow", Asset: "meow"})
+			Exchange: "wow", Asset: "meow",
+		})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v, but expected: %v", err, asset.ErrNotSupported)
 	}
@@ -2216,7 +2178,8 @@ func TestCurrencyStateWithdraw(t *testing.T) {
 		Engine: &Engine{},
 	}).CurrencyStateWithdraw(context.Background(),
 		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: "wow", Asset: "spot"})
+			Exchange: "wow", Asset: "spot",
+		})
 	if !errors.Is(err, ErrSubSystemNotStarted) {
 		t.Fatalf("received: %v, but expected: %v", err, ErrSubSystemNotStarted)
 	}
@@ -2278,7 +2241,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
@@ -2290,8 +2253,10 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
-	s := RPCServer{Engine: &Engine{ExchangeManager: em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em}}}
+	s := RPCServer{Engine: &Engine{
+		ExchangeManager:      em,
+		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
+	}}
 
 	_, err = s.CurrencyStateTradingPair(context.Background(),
 		&gctrpc.CurrencyStateTradingPairRequest{
@@ -2324,14 +2289,14 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -2406,13 +2371,13 @@ func TestGetCollateral(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.EMPTYFORMAT,
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
@@ -2531,13 +2496,13 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.PairFormat{},
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.PairFormat{},
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
@@ -2803,7 +2768,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 		ConfigFormat: &currency.PairFormat{},
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
@@ -2946,7 +2911,7 @@ func TestGetFundingRates(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
@@ -2957,7 +2922,7 @@ func TestGetFundingRates(t *testing.T) {
 	}
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3054,7 +3019,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
@@ -3064,7 +3029,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3159,14 +3124,14 @@ func TestGetManagedPosition(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp, cp2},
@@ -3302,14 +3267,14 @@ func TestGetAllManagedPositions(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp, cp2},
 		Enabled:       currency.Pairs{cp, cp2},
 	}
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp, cp2},
@@ -3408,7 +3373,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3521,7 +3486,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3627,7 +3592,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3735,7 +3700,7 @@ func TestChangePositionMargin(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3798,7 +3763,7 @@ func TestSetLeverage(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3876,7 +3841,7 @@ func TestGetLeverage(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -3956,7 +3921,7 @@ func TestSetMarginType(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -4016,7 +3981,7 @@ func TestSetCollateralMode(t *testing.T) {
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
@@ -4065,7 +4030,7 @@ func TestGetCollateralMode(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 	}
 
 	fakeExchange := fExchange{
@@ -4108,7 +4073,7 @@ func TestGetOpenInterest(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
-		AssetEnabled: convert.BoolPtr(true),
+		AssetEnabled: true,
 	}
 
 	fakeExchange := fExchange{
@@ -4289,7 +4254,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	b.Enabled = true
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		Enabled:       []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 		Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 		RequestFormat: &currency.PairFormat{Uppercase: true},

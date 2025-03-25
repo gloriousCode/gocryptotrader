@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -220,10 +221,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 			after := RetryAfter(resp, time.Now())
 			backoff := r.backoff(attempt)
-			delay := backoff
-			if after > backoff {
-				delay = after
-			}
+			delay := max(backoff, after)
 
 			if dl, ok := req.Context().Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 				if err != nil {
@@ -270,9 +268,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		if p.HeaderResponse != nil {
-			for k, v := range resp.Header {
-				(*p.HeaderResponse)[k] = v
-			}
+			maps.Copy(*p.HeaderResponse, resp.Header)
 		}
 
 		if resp.StatusCode < http.StatusOK ||

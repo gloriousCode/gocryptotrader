@@ -52,7 +52,7 @@ type ExchangeInfo struct {
 		Interval      string `json:"interval"`
 		Limit         int64  `json:"limit"`
 	} `json:"rateLimits"`
-	ExchangeFilters interface{} `json:"exchangeFilters"`
+	ExchangeFilters any `json:"exchangeFilters"`
 	Symbols         []struct {
 		Symbol                     string   `json:"symbol"`
 		Status                     string   `json:"status"`
@@ -163,7 +163,7 @@ func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType as
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int64         `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Limit  int64         `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
 }
 
 // OrderbookItem stores an individual orderbook item
@@ -810,9 +810,9 @@ type UserAccountStream struct {
 
 // WebsocketPayload defines the payload through the websocket connection
 type WebsocketPayload struct {
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
-	ID     int64         `json:"id"`
+	Method string `json:"method"`
+	Params []any  `json:"params"`
+	ID     int64  `json:"id"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation

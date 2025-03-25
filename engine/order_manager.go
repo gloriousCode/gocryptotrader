@@ -40,15 +40,15 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 	if cfg == nil {
 		return nil, fmt.Errorf("%w OrderManager", errNilConfig)
 	}
-
-	var respectOrderHistoryLimits bool
-	if cfg.RespectOrderHistoryLimits != nil {
-		respectOrderHistoryLimits = *cfg.RespectOrderHistoryLimits
+	if cfg.ActivelyTrackFuturesPositions && cfg.FuturesTrackingSeekDuration <= 0 {
+		return nil, errInvalidFuturesTrackingSeekDuration
 	}
+
 	om := &OrderManager{
 		shutdown:                      make(chan struct{}),
 		activelyTrackFuturesPositions: cfg.ActivelyTrackFuturesPositions,
-		respectOrderHistoryLimits:     respectOrderHistoryLimits,
+		futuresPositionSeekDuration:   cfg.FuturesTrackingSeekDuration,
+		respectOrderHistoryLimits:     cfg.RespectOrderHistoryLimits,
 		orderStore: store{
 			Orders:                    make(map[string][]*order.Detail),
 			exchangeManager:           exchangeManager,
@@ -60,15 +60,6 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 		cfg: orderManagerConfig{
 			CancelOrdersOnShutdown: cfg.CancelOrdersOnShutdown,
 		},
-	}
-	if cfg.ActivelyTrackFuturesPositions {
-		if cfg.FuturesTrackingSeekDuration > 0 {
-			cfg.FuturesTrackingSeekDuration *= -1
-		}
-		if cfg.FuturesTrackingSeekDuration == 0 {
-			cfg.FuturesTrackingSeekDuration = defaultOrderSeekTime
-		}
-		om.futuresPositionSeekDuration = cfg.FuturesTrackingSeekDuration
 	}
 	return om, nil
 }
@@ -731,7 +722,7 @@ func (m *OrderManager) processOrders() {
 					return
 				}
 				if sd.IsZero() {
-					sd = time.Now().Add(m.futuresPositionSeekDuration)
+					sd = time.Now().Add(-m.futuresPositionSeekDuration)
 				}
 				positions, err = exchanges[x].GetFuturesPositionOrders(context.TODO(), &futures.PositionsRequest{
 					Asset:                     enabledAssets[y],

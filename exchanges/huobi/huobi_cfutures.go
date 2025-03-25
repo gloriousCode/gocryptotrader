@@ -401,7 +401,7 @@ func (h *HUOBI) GetBasisData(ctx context.Context, code currency.Pair, period, ba
 // GetSwapAccountInfo gets swap account info
 func (h *HUOBI) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (SwapAccountInformation, error) {
 	var resp SwapAccountInformation
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
@@ -415,7 +415,7 @@ func (h *HUOBI) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (Swa
 // GetSwapPositionsInfo gets swap positions' info
 func (h *HUOBI) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (SwapPositionInfo, error) {
 	var resp SwapPositionInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -427,7 +427,7 @@ func (h *HUOBI) GetSwapPositionsInfo(ctx context.Context, code currency.Pair) (S
 // GetSwapAssetsAndPositions gets swap positions and asset info
 func (h *HUOBI) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pair) (SwapAssetsAndPositionsData, error) {
 	var resp SwapAssetsAndPositionsData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -439,7 +439,7 @@ func (h *HUOBI) GetSwapAssetsAndPositions(ctx context.Context, code currency.Pai
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
 func (h *HUOBI) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) (SubAccountsAssetData, error) {
 	var resp SubAccountsAssetData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
@@ -453,7 +453,7 @@ func (h *HUOBI) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pair) 
 // SwapSingleSubAccAssets gets a subaccount's assets info
 func (h *HUOBI) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountAssetsInfo, error) {
 	var resp SingleSubAccountAssetsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -466,7 +466,7 @@ func (h *HUOBI) SwapSingleSubAccAssets(ctx context.Context, code currency.Pair, 
 // GetSubAccPositionInfo gets a subaccount's positions info
 func (h *HUOBI) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, subUID int64) (SingleSubAccountPositionsInfo, error) {
 	var resp SingleSubAccountPositionsInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -479,7 +479,7 @@ func (h *HUOBI) GetSubAccPositionInfo(ctx context.Context, code currency.Pair, s
 // GetAccountFinancialRecords gets the account's financial records
 func (h *HUOBI) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -503,7 +503,7 @@ func (h *HUOBI) GetAccountFinancialRecords(ctx context.Context, code currency.Pa
 // GetSwapSettlementRecords gets the swap account's settlement records
 func (h *HUOBI) GetSwapSettlementRecords(ctx context.Context, code currency.Pair, startTime, endTime time.Time, pageIndex, pageSize int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -528,7 +528,7 @@ func (h *HUOBI) GetSwapSettlementRecords(ctx context.Context, code currency.Pair
 // GetAvailableLeverage gets user's available leverage data
 func (h *HUOBI) GetAvailableLeverage(ctx context.Context, code currency.Pair) (AvailableLeverageData, error) {
 	var resp AvailableLeverageData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !code.IsEmpty() {
 		codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
@@ -542,7 +542,7 @@ func (h *HUOBI) GetAvailableLeverage(ctx context.Context, code currency.Pair) (A
 // GetSwapOrderLimitInfo gets order limit info for swaps
 func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (SwapOrderLimitInfo, error) {
 	var resp SwapOrderLimitInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -558,7 +558,7 @@ func (h *HUOBI) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, o
 // GetSwapTradingFeeInfo gets trading fee info for swaps
 func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (SwapTradingFeeData, error) {
 	var resp SwapTradingFeeData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -570,7 +570,7 @@ func (h *HUOBI) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair) (
 // GetSwapTransferLimitInfo gets transfer limit info for swaps
 func (h *HUOBI) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair) (TransferLimitData, error) {
 	var resp TransferLimitData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -582,7 +582,7 @@ func (h *HUOBI) GetSwapTransferLimitInfo(ctx context.Context, code currency.Pair
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
 func (h *HUOBI) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair) (PositionLimitData, error) {
 	var resp PositionLimitData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -594,7 +594,7 @@ func (h *HUOBI) GetSwapPositionLimitInfo(ctx context.Context, code currency.Pair
 // AccountTransferData gets asset transfer data between master and subaccounts
 func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, subUID, transferType string, amount float64) (InternalAccountTransferData, error) {
 	var resp InternalAccountTransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -612,7 +612,7 @@ func (h *HUOBI) AccountTransferData(ctx context.Context, code currency.Pair, sub
 // AccountTransferRecords gets asset transfer records between master and subaccounts
 func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, transferType string, createDate, pageIndex, pageSize int64) (InternalAccountTransferData, error) {
 	var resp InternalAccountTransferData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -638,7 +638,7 @@ func (h *HUOBI) AccountTransferRecords(ctx context.Context, code currency.Pair, 
 // PlaceSwapOrders places orders for swaps
 func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientOrderID, direction, offset, orderPriceType string, price, volume, leverage float64) (SwapOrderData, error) {
 	var resp SwapOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -662,7 +662,7 @@ func (h *HUOBI) PlaceSwapOrders(ctx context.Context, code currency.Pair, clientO
 // PlaceSwapBatchOrders places a batch of orders for swaps
 func (h *HUOBI) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequestType) (BatchOrderData, error) {
 	var resp BatchOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if len(data.Data) > 10 || len(data.Data) == 0 {
 		return resp, errors.New("invalid data provided: maximum of 10 batch orders supported")
 	}
@@ -687,7 +687,7 @@ func (h *HUOBI) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequest
 // CancelSwapOrder sends a request to cancel an order
 func (h *HUOBI) CancelSwapOrder(ctx context.Context, orderID, clientOrderID string, contractCode currency.Pair) (CancelOrdersData, error) {
 	var resp CancelOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if orderID != "" {
 		req["order_id"] = orderID
 	}
@@ -701,7 +701,7 @@ func (h *HUOBI) CancelSwapOrder(ctx context.Context, orderID, clientOrderID stri
 // CancelAllSwapOrders sends a request to cancel an order
 func (h *HUOBI) CancelAllSwapOrders(ctx context.Context, contractCode currency.Pair) (CancelOrdersData, error) {
 	var resp CancelOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["contract_code"] = contractCode
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelAllOrders, nil, req, &resp)
 }
@@ -709,7 +709,7 @@ func (h *HUOBI) CancelAllSwapOrders(ctx context.Context, contractCode currency.P
 // PlaceLightningCloseOrder places a lightning close order
 func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode currency.Pair, direction, orderPriceType string, volume float64, clientOrderID int64) (LightningCloseOrderData, error) {
 	var resp LightningCloseOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["contract_code"] = contractCode
 	req["volume"] = volume
 	req["direction"] = direction
@@ -728,7 +728,7 @@ func (h *HUOBI) PlaceLightningCloseOrder(ctx context.Context, contractCode curre
 // GetSwapOrderDetails gets order info
 func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.Pair, orderID, createdAt, orderType string, pageIndex, pageSize int64) (SwapOrderData, error) {
 	var resp SwapOrderData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
 	req["created_at"] = createdAt
@@ -749,7 +749,7 @@ func (h *HUOBI) GetSwapOrderDetails(ctx context.Context, contractCode currency.P
 // GetSwapOrderInfo gets info on a swap order
 func (h *HUOBI) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair, orderID, clientOrderID string) (SwapOrderInfo, error) {
 	var resp SwapOrderInfo
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	if !contractCode.IsEmpty() {
 		codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 		if err != nil {
@@ -769,7 +769,7 @@ func (h *HUOBI) GetSwapOrderInfo(ctx context.Context, contractCode currency.Pair
 // GetSwapOpenOrders gets open orders for swap
 func (h *HUOBI) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pair, pageIndex, pageSize int64) (SwapOpenOrdersData, error) {
 	var resp SwapOpenOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -787,7 +787,7 @@ func (h *HUOBI) GetSwapOpenOrders(ctx context.Context, contractCode currency.Pai
 // GetSwapOrderHistory gets swap order history
 func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
 	var resp SwapOrderHistory
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -836,7 +836,7 @@ func (h *HUOBI) GetSwapOrderHistory(ctx context.Context, contractCode currency.P
 // GetSwapTradeHistory gets swap trade history
 func (h *HUOBI) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -863,7 +863,7 @@ func (h *HUOBI) GetSwapTradeHistory(ctx context.Context, contractCode currency.P
 // PlaceSwapTriggerOrder places a trigger order for a swap
 func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, triggerType, direction, offset, orderPriceType string, triggerPrice, orderPrice, volume, leverageRate float64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -890,7 +890,7 @@ func (h *HUOBI) PlaceSwapTriggerOrder(ctx context.Context, contractCode currency
 // CancelSwapTriggerOrder cancels swap trigger order
 func (h *HUOBI) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (CancelTriggerOrdersData, error) {
 	var resp CancelTriggerOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
 	return resp, h.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelTriggerOrder, nil, req, &resp)
@@ -899,7 +899,7 @@ func (h *HUOBI) CancelSwapTriggerOrder(ctx context.Context, contractCode currenc
 // CancelAllSwapTriggerOrders cancels all swap trigger orders
 func (h *HUOBI) CancelAllSwapTriggerOrders(ctx context.Context, contractCode currency.Pair) (CancelTriggerOrdersData, error) {
 	var resp CancelTriggerOrdersData
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
@@ -911,7 +911,7 @@ func (h *HUOBI) CancelAllSwapTriggerOrders(ctx context.Context, contractCode cur
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
 func (h *HUOBI) GetSwapTriggerOrderHistory(ctx context.Context, contractCode currency.Pair, status, tradeType string, createDate, pageIndex, pageSize int64) (TriggerOrderHistory, error) {
 	var resp TriggerOrderHistory
-	req := make(map[string]interface{})
+	req := make(map[string]any)
 	codeValue, err := h.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
