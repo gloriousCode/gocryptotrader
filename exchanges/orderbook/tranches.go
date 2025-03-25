@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )

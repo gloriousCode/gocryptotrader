@@ -133,7 +133,7 @@ func (b *BTSE) wsReadData() {
 func (b *BTSE) wsHandleData(respRaw []byte) error {
 	type Result map[string]any
 	var result Result
-	err = json.Unmarshal(respRaw, &result)
+	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
 		if strings.Contains(string(respRaw), "connect success") {
 			return nil
@@ -271,14 +271,10 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 				ExchangeName: b.Name,
 				AssetType:    a,
-				LastUpdated:  time.UnixMilli(tradeHistory.Data[x].TransactionTime),
+				LastUpdated:  tradeHistory.Data[x].Timestamp.Time(),
 			}
 			if !b.IsSaveTradeDataEnabled() {
 				continue
-			}
-			side := order.Buy
-			if tradeHistory.Data[x].Gain == -1 {
-				side = order.Sell
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeHistory.Data[x].Timestamp.Time().UTC(),

@@ -204,7 +204,7 @@ func (k *Kraken) GetOHLC(ctx context.Context, symbol currency.Pair, interval str
 		return nil, err
 	}
 
-	ohlcData, ok := result[translatedAsset].([]any)
+	ohlcData, ok := result.Data[translatedAsset].([]any)
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}

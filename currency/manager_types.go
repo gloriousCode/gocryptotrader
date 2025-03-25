@@ -3,7 +3,6 @@ package currency
 import (
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -24,7 +23,7 @@ func (p *PairsManager) DisableAllPairs() {
 	defer p.mutex.Unlock()
 	for x := range p.Pairs {
 		p.Pairs[x].Enabled = nil
-		p.Pairs[x].AssetEnabled = convert.BoolPtr(false)
+		p.Pairs[x].AssetEnabled = false
 	}
 }
 

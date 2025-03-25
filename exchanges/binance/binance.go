@@ -122,7 +122,7 @@ func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*OrderBook, error) {
+func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestParams) (*Orderbook, error) {
 	params := url.Values{}
 	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
