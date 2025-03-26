@@ -1,7 +1,6 @@
 package gateio
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -519,68 +518,19 @@ type Ticker struct {
 	EtfLeverage      types.Number `json:"etf_leverage"`
 }
 
-// OrderbookData holds orderbook ask and bid datas.
-type OrderbookData struct {
-	ID      int64       `json:"id"`
-	Current types.Time  `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time  `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Asks    [][2]string `json:"asks"`
-	Bids    [][2]string `json:"bids"`
-}
-
-// MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
-func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
-	ob := &Orderbook{
-		ID:      a.ID,
-		Current: a.Current,
-		Update:  a.Update,
-	}
-	ob.Asks = make([]OrderbookItem, len(a.Asks))
-	ob.Bids = make([]OrderbookItem, len(a.Bids))
-	for x := range a.Asks {
-		price, err := strconv.ParseFloat(a.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Asks[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
-	}
-	for x := range a.Bids {
-		price, err := strconv.ParseFloat(a.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		amount, err := strconv.ParseFloat(a.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		ob.Bids[x] = OrderbookItem{
-			Price:  types.Number(price),
-			Amount: amount,
-		}
-	}
-	return ob, nil
+// Orderbook holds orderbook ask and bid datas.
+type Orderbook struct {
+	ID      int64             `json:"id"`
+	Current types.Time        `json:"current"` // The timestamp of the response data being generated (in milliseconds)
+	Update  types.Time        `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
+	Asks    [][2]types.Number `json:"asks"`
+	Bids    [][2]types.Number `json:"bids"`
 }
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
 	Price  types.Number `json:"p"`
-	Amount float64      `json:"s"`
-}
-
-// Orderbook stores the orderbook data
-type Orderbook struct {
-	ID      int64           `json:"id"`
-	Current types.Time      `json:"current"` // The timestamp of the response data being generated (in milliseconds)
-	Update  types.Time      `json:"update"`  // The timestamp of when the orderbook last changed (in milliseconds)
-	Bids    []OrderbookItem `json:"bids"`
-	Asks    []OrderbookItem `json:"asks"`
+	Amount types.Number `json:"s"`
 }
 
 // Trade represents market trade.

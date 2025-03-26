@@ -11,7 +11,11 @@ import (
 var errInvalidNumberValue = errors.New("invalid value for Number type")
 
 // Number represents a floating point number, and implements json.Unmarshaller and json.Marshaller
-type Number float64
+// Upon unmarshalling, it stores the string value and the float64 value
+type Number struct {
+	f float64
+	s string
+}
 
 // UnmarshalJSON implements json.Unmarshaler
 func (f *Number) UnmarshalJSON(data []byte) error {
@@ -30,49 +34,86 @@ func (f *Number) UnmarshalJSON(data []byte) error {
 	}
 
 	if len(data) == 0 {
-		*f = Number(0)
+		*f = Number{f: 0, s: "0"}
 		return nil
 	}
-
-	val, err := strconv.ParseFloat(string(data), 64)
+	s := string(data)
+	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data) // We don't use err; We know it's not valid and errInvalidNumberValue is clearer
 	}
 
-	*f = Number(val)
-
+	*f = Number{
+		f: val,
+		s: s,
+	}
 	return nil
+}
+
+func NewNumberFromFloat(f float64) Number {
+	return Number{
+		f: f,
+		s: strconv.FormatFloat(f, 'f', -1, 64),
+	}
+}
+
+func NewNumberFromString(s string) (Number, error) {
+	val, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return Number{}, fmt.Errorf("%w: %s", errInvalidNumberValue, s)
+	}
+	return Number{
+		f: val,
+		s: s,
+	}, nil
+}
+
+// IsZero returns true if the number is zero
+func (f Number) IsZero() bool {
+	return f.f == 0
+}
+
+// IsValid is only relevant if someone has tried to instantiate a Number struct manually
+// that really shouldn't happen and so you probably won't ever call this
+func (f Number) IsValid() bool {
+	return f.s != ""
 }
 
 // MarshalJSON implements json.Marshaler by formatting to a json string
 // 1337.37 will marshal to "1337.37"
 // 0 will marshal to an empty string: ""
 func (f Number) MarshalJSON() ([]byte, error) {
-	if f == 0 {
+	if f.f == 0 {
 		return []byte(`""`), nil
 	}
-	val := strconv.FormatFloat(float64(f), 'f', -1, 64)
-	return []byte(`"` + val + `"`), nil
+	return fmt.Appendf(nil, "%q", f.s), nil
 }
 
 // Float64 returns the underlying float64
 func (f Number) Float64() float64 {
-	return float64(f)
+	return f.f
 }
 
 // Int64 returns the truncated integer component of the number
 func (f Number) Int64() int64 {
 	// It's likely this is sufficient, since Numbers probably have not had floating point math performed on them
 	// However if issues arise then we can switch to math.Round
-	return int64(f)
+	return int64(f.f)
 }
 
 // Decimal returns a decimal.Decimal
 func (f Number) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(f))
+	return decimal.NewFromFloat(f.f)
+}
+
+// DecimalFromString returns a decimal.Decimal.
+// It is faster and more precise than Decimal(), but returns an error if Number is invalid
+// The likelihood of Number being invalid is very low, but a well-regarded programmer could call it after UnmarshalJSON errors
+func (f Number) DecimalFromString() (decimal.Decimal, error) {
+	return decimal.NewFromString(f.s)
 }
 
 // String returns a string representation of the number
 func (f Number) String() string {
-	return strconv.FormatFloat(float64(f), 'f', -1, 64)
+	return f.s
 }

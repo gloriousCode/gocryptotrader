@@ -365,8 +365,22 @@ func (g *Gateio) processOrderbookTicker(incoming []byte, updatePushedAt time.Tim
 		Asset:          asset.Spot,
 		LastUpdated:    data.UpdateTime.Time(),
 		UpdatePushedAt: updatePushedAt,
-		Bids:           []orderbook.Tranche{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:           []orderbook.Tranche{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+		Bids: []orderbook.Tranche{
+			{
+				Price:     data.BestBidPrice.Float64(),
+				StrPrice:  data.BestBidPrice.String(),
+				Amount:    data.BestBidAmount.Float64(),
+				StrAmount: data.BestBidAmount.String(),
+			},
+		},
+		Asks: []orderbook.Tranche{
+			{
+				Price:     data.BestAskPrice.Float64(),
+				StrPrice:  data.BestAskPrice.String(),
+				Amount:    data.BestAskAmount.Float64(),
+				StrAmount: data.BestAskAmount.String(),
+			},
+		},
 	})
 }
 
@@ -408,12 +422,16 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte, updatePushedAt time.Tim
 	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
+		asks[x].StrPrice = data.Asks[x][0].String()
 		asks[x].Amount = data.Asks[x][1].Float64()
+		asks[x].StrAmount = data.Asks[x][1].String()
 	}
 	bids := make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
+		bids[x].StrPrice = data.Bids[x][0].String()
 		bids[x].Amount = data.Bids[x][1].Float64()
+		bids[x].StrAmount = data.Bids[x][1].String()
 	}
 
 	for _, a := range enabledAssets {
@@ -441,12 +459,16 @@ func (g *Gateio) processOrderbookSnapshot(incoming []byte, updatePushedAt time.T
 	asks := make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x][0].Float64()
+		asks[x].StrPrice = data.Asks[x][0].String()
 		asks[x].Amount = data.Asks[x][1].Float64()
+		asks[x].StrAmount = data.Asks[x][1].String()
 	}
 	bids := make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x][0].Float64()
+		bids[x].StrPrice = data.Bids[x][0].String()
 		bids[x].Amount = data.Bids[x][1].Float64()
+		bids[x].StrAmount = data.Bids[x][1].String()
 	}
 
 	for _, a := range standardMarginAssetTypes {
