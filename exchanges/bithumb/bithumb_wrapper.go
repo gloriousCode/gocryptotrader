@@ -531,11 +531,13 @@ func (b *Bithumb) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			Pair:            pair,
 		}
 
-		if orders.Data[i].Type == "bid" {
+		switch orders.Data[i].Type {
+		case "bid":
 			orderDetail.Side = order.Buy
-		} else if orders.Data[i].Type == "ask" {
+		case "ask":
 			orderDetail.Side = order.Sell
 		}
+
 		return &orderDetail, nil
 	}
 	return nil, fmt.Errorf("%w %v", order.ErrOrderNotFound, orderID)
@@ -664,9 +666,10 @@ func (b *Bithumb) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 
@@ -719,9 +722,10 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					format.Delimiter),
 			}
 
-			if resp.Data[i].Type == "bid" {
+			switch resp.Data[i].Type {
+			case "bid":
 				orderDetail.Side = order.Buy
-			} else if resp.Data[i].Type == "ask" {
+			case "ask":
 				orderDetail.Side = order.Sell
 			}
 

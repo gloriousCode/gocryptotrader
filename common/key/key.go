@@ -93,6 +93,12 @@ type PairAsset struct {
 	Asset asset.Item
 }
 
+// SubAccountAsset is a unique map key signature for subaccount and asset
+type SubAccountAsset struct {
+	SubAccount string
+	Asset      asset.Item
+}
+
 type Pair struct {
 	Base  *currency.Item
 	Quote *currency.Item
@@ -101,8 +107,8 @@ type Pair struct {
 // SubAccountCurrencyAsset is a unique map key signature for subaccount, currency code and asset
 type SubAccountCurrencyAsset struct {
 	SubAccount string
-	Currency   *currency.Item
 	Asset      asset.Item
+	Currency   *currency.Item
 }
 
 // Pair combines the base and quote into a pair

@@ -586,7 +586,7 @@ func (bot *Engine) Stop() {
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
 	if len(bot.portfolioManager.GetAddresses()) != 0 {
-		bot.Config.Portfolio = *bot.portfolioManager.GetPortfolio()
+		bot.Config.Portfolio = bot.portfolioManager.GetPortfolio()
 	}
 
 	if bot.gctScriptManager.IsRunning() {

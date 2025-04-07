@@ -16,6 +16,7 @@ type Butts struct {
 // var error definitions
 var (
 	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
+	ErrContractNotSupported          = errors.New("unsupported contract")
 )
 
 type Butteroo map[time.Time]*Butts

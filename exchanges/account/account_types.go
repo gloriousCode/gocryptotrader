@@ -35,8 +35,10 @@ type Accounts struct {
 	// TODO: Credential tracker to match to keys that are managed and return
 	// pointer.
 	// TODO: Have different cred struct for centralized verse DEFI exchanges.
-	SubAccounts map[credentials.Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance
+	subAccounts map[credentials.Credentials]map[key.SubAccountAsset]currencyBalances
 }
+
+type currencyBalances = map[*currency.Item]*ProtectedBalance
 
 // Holdings is a generic type to hold each exchange's holdings for all enabled
 // currencies
