@@ -1212,7 +1212,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:                      ct,
 				SettlementType:            contractSettlementType,
 				SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
-				ContractMultiplier:        marketSummary[i].ContractSize,
+				Multiplier:                marketSummary[i].ContractSize,
 				MaxLeverage:               marketSummary[i].MaxLeverage,
 				ContractValueDenomination: futures.QuoteDenomination,
 			})
@@ -1305,7 +1305,7 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
-		multiplier = contracts[i].ContractMultiplier
+		multiplier = contracts[i].Multiplier
 		settlementType = contracts[i].SettlementType
 		break
 	}
@@ -1649,7 +1649,7 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 			Type:                      ct,
 			SettlementType:            contractSettlementType,
 			SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary.SettlementCurrency)},
-			ContractMultiplier:        marketSummary.ContractSize,
+			Multiplier:                marketSummary.ContractSize,
 			MaxLeverage:               marketSummary.MaxLeverage,
 			ContractValueDenomination: denomination,
 		})

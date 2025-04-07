@@ -2958,7 +2958,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				Type:                           ct,
 				FundingRateFloor:               fundingRateFloor,
 				FundingRateCeiling:             fundingRateCeil,
-				ContractMultiplier:             oneContract,
+				Multiplier:                     oneContract,
 				ContractValueDenomination:      futures.BaseDenomination,
 				ContractSettlementDenomination: futures.QuoteDenomination,
 			})
@@ -3008,7 +3008,7 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				MarginCurrency:                 currency.NewCode(ei.Symbols[i].MarginAsset),
 				SettlementType:                 futures.Inverse,
 				Type:                           ct,
-				ContractMultiplier:             ei.Symbols[i].ContractSize,
+				Multiplier:                     ei.Symbols[i].ContractSize,
 				ContractValueDenomination:      futures.QuoteDenomination,
 				ContractSettlementDenomination: futures.BaseDenomination,
 			})
@@ -3190,7 +3190,7 @@ func (b *Binance) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
 					SettlementType:            futures.Linear,
 					Type:                      ct,
-					ContractMultiplier:        ei.Symbols[i].ContractSize,
+					Multiplier:                ei.Symbols[i].ContractSize,
 					ContractValueDenomination: futures.BaseDenomination,
 				})
 				t = t.Add(backwardsInterval)
@@ -3246,7 +3246,7 @@ func (b *Binance) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
 					SettlementType:            futures.Inverse,
 					Type:                      ct,
-					ContractMultiplier:        ei.Symbols[i].ContractSize,
+					Multiplier:                ei.Symbols[i].ContractSize,
 					ContractValueDenomination: futures.QuoteDenomination,
 				})
 				t = t.Add(backwardsInterval)

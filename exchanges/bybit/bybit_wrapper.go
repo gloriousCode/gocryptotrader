@@ -1699,7 +1699,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				SettlementCurrencies:      currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
 				MaxLeverage:               inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
-				ContractMultiplier:        inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
+				Multiplier:                inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -1778,7 +1778,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                      ct,
 				SettlementCurrencies:      currency.Currencies{currency.USDC},
 				MaxLeverage:               instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				ContractMultiplier:        instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Multiplier:                instruments[i].LeverageFilter.LeverageStep.Float64(),
 				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
@@ -1852,7 +1852,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                      ct,
 				SettlementCurrencies:      currency.Currencies{currency.USDT},
 				MaxLeverage:               instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				ContractMultiplier:        instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Multiplier:                instruments[i].LeverageFilter.LeverageStep.Float64(),
 				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}

@@ -10,7 +10,7 @@ import (
 	objects "github.com/d5/tengo/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
@@ -480,7 +480,7 @@ func TestSetSubAccount(t *testing.T) {
 		t.Fatal("should not be nil")
 	}
 
-	subaccount, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	subaccount, ok := ctx.Value(credentials.ContextSubAccountFlag).(string)
 	if !ok {
 		t.Fatal("wrong type")
 	}

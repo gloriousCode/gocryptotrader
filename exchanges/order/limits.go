@@ -264,7 +264,7 @@ func (m *MinMaxLevel) Conforms(price, amount float64, orderType Type) error {
 		}
 	}
 
-	// ContractMultiplier checking not done due to the fact we need coherence with the
+	// Multiplier checking not done due to the fact we need coherence with the
 	// last average price (TODO)
 	// m.multiplierUp will be used to determine how far our price can go up
 	// m.multiplierDown will be used to determine how far our price can go down

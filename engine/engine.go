@@ -409,7 +409,7 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnablePortfolioManager {
 		if bot.portfolioManager == nil {
-			if p, err := SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, &bot.Config.Portfolio); err != nil {
+			if p, err := SetupPortfolioManager(bot.ExchangeManager, bot.Settings.PortfolioManagerDelay, bot.Config.Portfolio); err != nil {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
 				bot.portfolioManager = p

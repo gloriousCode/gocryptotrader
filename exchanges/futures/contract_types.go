@@ -27,7 +27,7 @@ type Contract struct {
 	// Optional values if the exchange offers them
 	SettlementCurrencies           currency.Currencies
 	MarginCurrency                 currency.Code
-	ContractMultiplier             float64
+	Multiplier                     float64
 	ContractValueInSettlement      float64
 	MaxLeverage                    float64
 	LatestRate                     fundingrate.Rate

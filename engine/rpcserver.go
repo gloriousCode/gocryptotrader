@@ -34,7 +34,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	gctcredentials "github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
+	credentials2 "github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -116,7 +116,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, errors.New("username/password mismatch")
 	}
-	ctx, err = gctcredentials.ParseCredentialsMetadata(ctx, md)
+	ctx, err = credentials2.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
 		return ctx, err
 	}

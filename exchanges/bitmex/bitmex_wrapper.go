@@ -1084,7 +1084,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Type:                 futures.Perpetual,
 					SettlementType:       contractSettlementType,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-					ContractMultiplier:   float64(marketInfo[x].Multiplier),
+					Multiplier:           float64(marketInfo[x].Multiplier),
 					LatestRate: fundingrate.Rate{
 						Time: marketInfo[x].FundingTimestamp,
 						Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1162,7 +1162,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Status:               marketInfo[x].State,
 					Type:                 ct,
 					SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-					ContractMultiplier:   float64(marketInfo[x].Multiplier),
+					Multiplier:           float64(marketInfo[x].Multiplier),
 					SettlementType:       contractSettlementType,
 				})
 			}

@@ -2407,7 +2407,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := account.DeployCredentialsToContext(context.Background(),
+	ctx := credentials.DeployCredentialsToContext(context.Background(),
 		&credentials.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
@@ -2418,7 +2418,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	ctx = account.DeployCredentialsToContext(context.Background(),
+	ctx = credentials.DeployCredentialsToContext(context.Background(),
 		&credentials.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{

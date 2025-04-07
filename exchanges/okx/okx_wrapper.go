@@ -2435,7 +2435,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	if err != nil {
 		return 0, err
 	}
-	switch cfg.AccountLevel {
+	switch cfg.AccountLevel.Int64() {
 	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
@@ -2535,7 +2535,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
-		multiplier = contracts[i].ContractMultiplier
+		multiplier = contracts[i].Multiplier
 		contractSettlementType = contracts[i].SettlementType
 		break
 	}
@@ -2915,7 +2915,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				SettlementType:                 contractSettlementType,
 				SettlementCurrencies:           currency.Currencies{settleCurr},
 				MarginCurrency:                 settleCurr,
-				ContractMultiplier:             result[i].ContractValue.Float64(),
+				Multiplier:                     result[i].ContractValue.Float64(),
 				MaxLeverage:                    result[i].MaxLeverage.Float64(),
 				ContractSettlementDenomination: settlementDenomination,
 				ContractValueDenomination:      valueDenomination,
@@ -3289,7 +3289,7 @@ func (ok *Okx) GetLongDatedContractsFromDate(ctx context.Context, item asset.Ite
 				MarginCurrency:            currency.NewCode(ei[i].SettlementCurrency),
 				SettlementType:            futures.Linear,
 				Type:                      ct,
-				ContractMultiplier:        ei[i].ContractMultiplier.Float64(),
+				Multiplier:                ei[i].ContractMultiplier.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
 			})
 			if t.After(time.Now()) {

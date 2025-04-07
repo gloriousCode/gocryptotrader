@@ -1692,7 +1692,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			IsActive:                  result.Instruments[i].Tradable,
 			Type:                      ct,
 			ContractValueDenomination: cvd,
-			ContractMultiplier:        result.Instruments[i].ContractSize,
+			Multiplier:                result.Instruments[i].ContractSize,
 		}
 	}
 	return resp, nil

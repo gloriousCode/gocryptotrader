@@ -2075,7 +2075,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Type:                           futures.Perpetual,
 					SettlementType:                 contractSettlementType,
 					SettlementCurrencies:           currency.Currencies{settlePair},
-					ContractMultiplier:             contracts[j].QuantoMultiplier.Float64(),
+					Multiplier:                     contracts[j].QuantoMultiplier.Float64(),
 					ContractValueDenomination:      contractDenomination,
 					ContractSettlementDenomination: contractSettlementDenomination,
 					MaxLeverage:                    contracts[j].LeverageMax.Float64(),
@@ -2149,7 +2149,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                      ct,
 				SettlementCurrencies:      currency.Currencies{currency.USDT},
 				MarginCurrency:            currency.Code{},
-				ContractMultiplier:        contracts[i].QuantoMultiplier.Float64(),
+				Multiplier:                contracts[i].QuantoMultiplier.Float64(),
 				MaxLeverage:               contracts[i].LeverageMax.Float64(),
 				ContractValueDenomination: cd,
 			}
@@ -2776,7 +2776,7 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 			Type:                      ct,
 			SettlementType:            futures.Linear,
 			SettlementCurrencies:      currency.Currencies{settle},
-			ContractMultiplier:        sc.QuantoMultiplier.Float64(),
+			Multiplier:                sc.QuantoMultiplier.Float64(),
 			MaxLeverage:               sc.LeverageMax.Float64(),
 			ContractValueDenomination: denomination,
 		})
