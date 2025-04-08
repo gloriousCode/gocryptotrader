@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -584,10 +583,10 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
-		if args[x].Amount.Float64() <= 0 {
+		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
 		}
-		if args[x].Price.Float64() <= 0 {
+		if args[x].Price <= 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -622,10 +621,10 @@ func (g *Gateio) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Context,
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price.Float64() <= 0 {
+	if arg.Price <= 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -650,10 +649,10 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price.Float64() < 0 {
+	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -750,7 +749,7 @@ func (g *Gateio) AmendSpotOrder(ctx context.Context, orderID string, currencyPai
 	if isCrossMarginAccount {
 		params.Set("account", asset.CrossMargin.String())
 	}
-	if arg.Amount.Float64() != 0 && arg.Price.Float64() != 0 {
+	if arg.Amount != 0 && arg.Price != 0 {
 		return nil, errors.New("only can chose one of amount or price")
 	}
 	var resp *SpotOrder
@@ -838,7 +837,7 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
 	}
-	if arg.Trigger.Price.Float64() < 0 {
+	if arg.Trigger.Price < 0 {
 		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
@@ -855,10 +854,10 @@ func (g *Gateio) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrigge
 	if arg.Put.Side != "buy" && arg.Put.Side != "sell" {
 		return nil, errInvalidOrderSide
 	}
-	if arg.Put.Price.Float64() < 0 {
+	if arg.Put.Price < 0 {
 		return nil, fmt.Errorf("%w, %s", errInvalidPrice, "put price has to be greater than 0")
 	}
-	if arg.Put.Amount.Float64() <= 0 {
+	if arg.Put.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	arg.Put.Account = strings.ToLower(arg.Put.Account)
@@ -1049,7 +1048,7 @@ func (g *Gateio) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl reque
 
 // WithdrawCurrency to withdraw a currency.
 func (g *Gateio) WithdrawCurrency(ctx context.Context, arg WithdrawalRequestParam) (*WithdrawalResponse, error) {
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w currency amount must be greater than zero", errInvalidAmount)
 	}
 	if arg.Currency.IsEmpty() {
@@ -1166,7 +1165,7 @@ func (g *Gateio) TransferCurrency(ctx context.Context, arg *TransferCurrencyPara
 	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
 		return nil, errors.New("settle is required for futures account transfer")
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	var response *TransactionIDResponse
@@ -1193,7 +1192,7 @@ func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferP
 	if arg.Direction != "to" && arg.Direction != "from" {
 		return errInvalidTransferDirection
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
 	if arg.SubAccountType != "" && arg.SubAccountType != asset.Spot.String() && arg.SubAccountType != asset.Futures.String() && arg.SubAccountType != asset.CrossMargin.String() {
@@ -1247,7 +1246,7 @@ func (g *Gateio) SubAccountTransferToSubAccount(ctx context.Context, arg *InterS
 	if arg.SubAccountToAssetType == asset.Empty {
 		return errors.New("sub-account to transfer to is required")
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return errInvalidAmount
 	}
 	return g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountToSubAccountTransferEPL, http.MethodPost, walletInterSubAccountTransfer, nil, &arg, nil)
@@ -1427,16 +1426,16 @@ func (g *Gateio) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*
 	if arg.Side != sideLend && arg.Side != sideBorrow {
 		return nil, errInvalidLoanSide
 	}
-	if arg.Side == sideBorrow && arg.Rate.Float64() == 0 {
+	if arg.Side == sideBorrow && arg.Rate == 0 {
 		return nil, errors.New("`rate` is required in borrowing")
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Rate.Float64() != 0 && arg.Rate.Float64() > 0.002 || arg.Rate.Float64() < 0.0002 {
+	if arg.Rate != 0 && arg.Rate > 0.002 || arg.Rate < 0.0002 {
 		return nil, errors.New("invalid loan rate, rate must be between 0.0002 and 0.002")
 	}
 	var response *MarginLoanResponse
@@ -1733,7 +1732,7 @@ func (g *Gateio) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMargi
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w, borrow amount must be greater than 0", errInvalidAmount)
 	}
 	var response CrossMarginLoanResponse
@@ -1747,7 +1746,7 @@ func (g *Gateio) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount.Float64() <= 0 {
+	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w, repay amount must be greater than 0", errInvalidAmount)
 	}
 	var response []CrossMarginLoanResponse
@@ -2421,7 +2420,7 @@ func (g *Gateio) AmendFuturesOrder(ctx context.Context, settle currency.Code, or
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
 	}
-	if arg.Size.Float64() <= 0 && arg.Price.Float64() <= 0 {
+	if arg.Size <= 0 && arg.Price <= 0 {
 		return nil, errors.New("missing update 'size' or 'price', please specify 'size' or 'price' or both information")
 	}
 	var response *Order
@@ -2523,7 +2522,7 @@ func (g *Gateio) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle cu
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price.Float64() < 0 {
+	if arg.Initial.Price < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
@@ -3043,7 +3042,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle curr
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price.Float64() < 0 {
+	if arg.Initial.Price < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.Size <= 0 {
@@ -3062,7 +3061,7 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle curr
 	if arg.Trigger.PriceType != 0 && arg.Trigger.PriceType != 1 && arg.Trigger.PriceType != 2 {
 		return nil, errors.New("price type must be 0 or 1 or 2")
 	}
-	if arg.Trigger.Price.Float64() <= 0 {
+	if arg.Trigger.Price <= 0 {
 		return nil, errors.New("invalid argument: trigger.price")
 	}
 	if arg.Trigger.OrderType != "" &&
@@ -3337,8 +3336,8 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF {
 		arg.TimeInForce = ""
 	}
-	if arg.TimeInForce == iocTIF || arg.Price.Float64() < 0 {
-		arg.Price = types.NumberFromFloat64(0)
+	if arg.TimeInForce == iocTIF || arg.Price < 0 {
+		arg.Price = 0
 	}
 	var response *OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSubmitOrderEPL, http.MethodPost, gateioOptionsOrders, nil, &arg, &response)
@@ -3550,10 +3549,10 @@ func (g *Gateio) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderPar
 	if arg.SellCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, sell currency can not empty", currency.ErrCurrencyCodeEmpty)
 	}
-	if arg.SellAmount.Float64() <= 0 {
+	if arg.SellAmount <= 0 {
 		return nil, fmt.Errorf("%w, sell_amount can not be less than or equal to 0", errInvalidAmount)
 	}
-	if arg.BuyAmount.Float64() <= 0 {
+	if arg.BuyAmount <= 0 {
 		return nil, fmt.Errorf("%w, buy_amount amount can not be less than or equal to 0", errInvalidAmount)
 	}
 	var response *FlashSwapOrderResponse

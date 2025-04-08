@@ -3546,6 +3546,40 @@ func (d *DummyConnection) SendMessageReturnResponse(context.Context, request.End
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
 
+func BenchmarkNewButts(b *testing.B) {
+	b.ReportAllocs()
+	hello := make([]Candlestick, b.N)
+	tn := time.Now()
+
+	for i := range b.N {
+		hello[i] = Candlestick{
+			Timestamp:      tn,
+			QuoteCcyVolume: 1337,
+			ClosePrice:     1337,
+			HighestPrice:   1337,
+			LowestPrice:    1337,
+			OpenPrice:      1337,
+			BaseCcyAmount:  1337,
+		}
+	}
+}
+
+func BenchmarkNewButts2(b *testing.B) {
+	b.ReportAllocs()
+	hello := make([]Candlestick, b.N)
+	tn := time.Now()
+
+	for i := range b.N {
+		hello[i].Timestamp = tn
+		hello[i].QuoteCcyVolume = 1337
+		hello[i].ClosePrice = 1337
+		hello[i].HighestPrice = 1337
+		hello[i].LowestPrice = 1337
+		hello[i].OpenPrice = 1337
+		hello[i].BaseCcyAmount = 1337
+	}
+}
+
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 

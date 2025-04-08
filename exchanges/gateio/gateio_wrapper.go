@@ -32,7 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // unfundedFuturesAccount defines an error string when an account associated
@@ -745,10 +744,25 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 		Pair:            p.Upper(),
 		LastUpdateID:    orderbookNew.ID,
 		LastUpdated:     orderbookNew.Update.Time(),
-		Asks:            orderbookNew.Asks,
-		Bids:            orderbookNew.Bids,
+		Asks:            make([]orderbook.Tranche, len(orderbookNew.Asks)),
+		Bids:            make([]orderbook.Tranche, len(orderbookNew.Bids)),
 	}
-
+	for x := range orderbookNew.Bids {
+		book.Bids[x] = orderbook.Tranche{
+			Amount:    orderbookNew.Bids[x].Amount.Float64(),
+			StrAmount: orderbookNew.Bids[x].Amount.String(),
+			Price:     orderbookNew.Bids[x].Price.Float64(),
+			StrPrice:  orderbookNew.Bids[x].Price.String(),
+		}
+	}
+	for x := range orderbookNew.Asks {
+		book.Asks[x] = orderbook.Tranche{
+			Amount:    orderbookNew.Asks[x].Amount.Float64(),
+			StrAmount: orderbookNew.Asks[x].Amount.String(),
+			Price:     orderbookNew.Asks[x].Price.Float64(),
+			StrPrice:  orderbookNew.Asks[x].Price.String(),
+		}
+	}
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -1040,8 +1054,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			// When doing spot market orders when purchasing base currency, the
 			// quote currency amount is used. When selling the base currency the
 			// base currency amount is used.
-			Amount:       types.NumberFromFloat64(s.GetTradeAmount(g.GetTradingRequirements())),
-			Price:        types.NumberFromFloat64(s.Price),
+			Amount:       s.GetTradeAmount(g.GetTradingRequirements()),
+			Price:        s.Price,
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
 			TimeInForce:  timeInForce,
@@ -1172,7 +1186,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		optionOrder, err := g.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      types.NumberFromFloat64(s.Price),
+			Price:      s.Price,
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1569,7 +1583,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	response, err := g.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.NumberFromFloat64(withdrawRequest.Amount),
+			Amount:   withdrawRequest.Amount,
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
