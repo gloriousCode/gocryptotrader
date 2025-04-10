@@ -41,7 +41,7 @@ type BinanceWebsocket struct {
 	streamURL            string
 	orderbookPartialFunc func(ctx context.Context, symbol currency.Pair, limit int64) (*Orderbook, error)
 	authTokenURL         string
-	ws                   *stream.Websocket
+	ws                   *websocket.Manager
 }
 
 var listenKey string
