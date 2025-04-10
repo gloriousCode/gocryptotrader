@@ -2094,6 +2094,9 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					ContractSettlementDenomination: contractSettlementDenomination,
 					MaxLeverage:                    contracts[j].LeverageMax.Float64(),
 				}
+				if contracts[j].QuantoMultiplier.Float64() == 0 {
+					c.Multiplier = 1
+				}
 				if contracts[j].FundingRate.Float64() > 0 {
 					c.LatestRate = fundingrate.Rate{
 						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
@@ -2151,6 +2154,10 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			default:
 
 			}
+			mult := contracts[i].QuantoMultiplier.Float64()
+			if mult == 0 {
+				mult = 1
+			}
 			resp[i] = futures.Contract{
 				Exchange:                  g.Name,
 				Name:                      name,
@@ -2158,12 +2165,11 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Asset:                     item,
 				StartDate:                 s,
 				EndDate:                   e,
-				SettlementType:            futures.Linear,
 				IsActive:                  !contracts[i].InDelisting,
 				Type:                      ct,
+				SettlementType:            futures.Linear,
 				SettlementCurrencies:      currency.Currencies{currency.USDT},
-				MarginCurrency:            currency.Code{},
-				Multiplier:                contracts[i].QuantoMultiplier.Float64(),
+				Multiplier:                mult,
 				MaxLeverage:               contracts[i].LeverageMax.Float64(),
 				ContractValueDenomination: cd,
 			}
