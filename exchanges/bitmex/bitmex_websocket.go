@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
+	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -20,10 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -85,9 +85,9 @@ var defaultSubscriptions = subscription.List{
 // WsConnect initiates a new websocket connection
 func (b *Bitmex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
+		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
+	var dialer gws.Dialer
 	if err := b.Websocket.Conn.Dial(&dialer, http.Header{}); err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ const (
 	wsClosePacket   = 2
 )
 
-func (b *Bitmex) wsOpenStream(ctx context.Context, c stream.Connection, name string) error {
+func (b *Bitmex) wsOpenStream(ctx context.Context, c websocket.Connection, name string) error {
 	resp, err := c.SendMessageReturnResponse(ctx, request.Unset, "open:"+name, []any{wsOpenPacket, name, name})
 	if err != nil {
 		return err
@@ -402,7 +402,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 		}
 		b.Websocket.DataHandler <- response
 	default:
-		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(msg)}
+		b.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: b.Name + websocket.UnhandledMessage + string(msg)}
 	}
 
 	return nil

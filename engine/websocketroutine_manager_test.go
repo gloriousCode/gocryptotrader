@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/internal/exchange/websocket"
 )
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
@@ -164,7 +164,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err == nil {
 		t.Error("Error not handled correctly")
 	}
-	err = m.websocketDataHandler(exchName, stream.FundingData{})
+	err = m.websocketDataHandler(exchName, websocket.FundingData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -176,7 +176,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
-	err = m.websocketDataHandler(exchName, stream.KlineData{})
+	err = m.websocketDataHandler(exchName, websocket.KlineData{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -229,10 +229,9 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = m.websocketDataHandler(exchName, stream.UnhandledMessageWarning{
+	err = m.websocketDataHandler(exchName, websocket.UnhandledMessageWarning{
 		Message: "there's an issue here's a tissue",
-	},
-	)
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -299,7 +298,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 		t.Fatal("unexpected data handlers registered")
 	}
 
-	mock := stream.NewWebsocket()
+	mock := websocket.NewManager()
 	mock.ToRoutine = make(chan any)
 	m.state = readyState
 	err = m.websocketDataReceiver(mock)
