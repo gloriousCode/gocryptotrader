@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // unfundedFuturesAccount defines an error string when an account associated
@@ -2782,7 +2783,7 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 
 		var cost float64
 		var purchased float64
-		if resp.AverageDealPrice != 0 {
+		if resp.AverageDealPrice.Float64() != 0 {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
@@ -2845,7 +2846,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		}
 
 		oType := order.Market
-		if resp.Price != 0 {
+		if resp.Price.Float64() != 0 {
 			oType = order.Limit
 		}
 
@@ -2902,8 +2903,8 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 		Side:         s.Side.Lower(),
 		Type:         s.Type.Lower(),
 		Account:      g.assetTypeToString(s.AssetType),
-		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
-		Price:        types.Number(s.Price),
+		Amount:       types.NumberFromFloat64(s.GetTradeAmount(g.GetTradingRequirements())),
+		Price:        types.NumberFromFloat64(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  timeInForce,
