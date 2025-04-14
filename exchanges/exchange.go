@@ -58,7 +58,6 @@ var (
 )
 
 var (
-	errSetAssetPairStore                 = errors.New("error storing asset pair store")
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
@@ -1941,6 +1940,11 @@ func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (
 		return account.Holdings{}, err
 	}
 	return account.GetHoldings(b.Name, creds, assetType)
+}
+
+// WebsocketSubmitOrder submits an order to the exchange via a websocket connection
+func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 func (b *Base) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {

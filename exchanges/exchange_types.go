@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	credentials2 "github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
