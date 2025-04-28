@@ -36,6 +36,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -350,13 +351,13 @@ func TestGetBlockTrade(t *testing.T) {
 	trades, err := ok.GetPublicBlockTrades(contextGenerate(), "BTC-USDT")
 	require.NoError(t, err)
 	if assert.NotEmpty(t, trades, "Should get some block trades") {
-		trade := trades[0]
-		assert.Equal(t, "BTC-USDT", trade.InstrumentID, "InstrumentID should have correct value")
-		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-		assert.Positive(t, trade.Price, "Price should have a positive value")
-		assert.Positive(t, trade.Size, "Size should have a positive value")
-		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
+		tt := trades[0]
+		assert.Equal(t, "BTC-USDT", tt.InstrumentID, "InstrumentID should have correct value")
+		assert.NotEmpty(t, tt.TradeID, "TradeID should not be empty")
+		assert.True(t, tt.Price.IsPos(), "Price should have a positive value")
+		assert.True(t, tt.Size.IsPos(), "Size should have a positive value")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, tt.Side, "Side should be a side")
+		assert.WithinRange(t, tt.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
 	}
 
 	testexch.UpdatePairsOnce(t, ok)
@@ -370,8 +371,8 @@ func TestGetBlockTrade(t *testing.T) {
 
 	tested := false
 LOOP:
-	for _, trade := range publicTrades {
-		for _, leg := range trade.Legs {
+	for _, pt := range publicTrades {
+		for _, leg := range pt.Legs {
 			p, err := ok.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
 			if err != nil {
 				continue
@@ -379,17 +380,17 @@ LOOP:
 
 			trades, err = ok.GetPublicBlockTrades(contextGenerate(), p.String())
 			require.NoError(t, err, "GetBlockTrades should not error on Options")
-			for _, trade := range trades {
-				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
-				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
-				assert.Positive(t, trade.Price, "Price should have a positive value")
-				assert.Positive(t, trade.Size, "Size should have a positive value")
-				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-				assert.Positive(t, trade.FillVolatility, "FillVolatility should have a positive value")
-				assert.Positive(t, trade.ForwardPrice, "ForwardPrice should have a positive value")
-				assert.Positive(t, trade.IndexPrice, "IndexPrice should have a positive value")
-				assert.Positive(t, trade.MarkPrice, "MarkPrice should have a positive value")
-				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
+			for _, tt := range trades {
+				assert.Equal(t, p.String(), tt.InstrumentID, "InstrumentID should have correct value")
+				assert.NotEmpty(t, tt.TradeID, "TradeID should not be empty")
+				assert.True(t, tt.Price.IsPos(), "Price should have a positive value")
+				assert.True(t, tt.Size.IsPos(), "Size should have a positive value")
+				assert.Contains(t, []order.Side{order.Buy, order.Sell}, tt.Side, "Side should be a side")
+				assert.True(t, tt.FillVolatility.IsPos(), "FillVolatility should have a positive value")
+				assert.True(t, tt.ForwardPrice.IsPos(), "ForwardPrice should have a positive value")
+				assert.True(t, tt.IndexPrice.IsPos(), "IndexPrice should have a positive value")
+				assert.True(t, tt.MarkPrice.IsPos(), "MarkPrice should have a positive value")
+				assert.NotEmpty(t, tt.Timestamp, "Timestamp should not be empty")
 				tested = true
 				break LOOP
 			}
@@ -614,10 +615,10 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 	arg.Underlying = "BTC-USDT"
 	r, err := ok.GetInsuranceFundInformation(contextGenerate(), arg)
 	assert.NoError(t, err)
-	assert.Positive(t, r.Total, "Total should be positive")
+	assert.True(t, r.Total.IsPos(), "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
-		assert.Positive(t, d.Balance, "Balance should be positive")
+		assert.True(t, d.Balance.IsPos(), "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
@@ -628,10 +629,10 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		Limit:          2,
 	})
 	assert.NoError(t, err)
-	assert.Positive(t, r.Total, "Total should be positive")
+	assert.True(t, r.Total.IsPos(), "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
-		assert.Positive(t, d.Balance, "Balance should be positive")
+		assert.True(t, d.Balance.IsPos(), "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
 		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
@@ -1544,13 +1545,13 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = ok.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
+	data := MakerInstrumentSetting{MaxBlockSize: types.NewNumberFromInt64(10000), MakerPriceBand: types.NewNumberFromInt64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = ok.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInvalidUnderlying)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
+	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: types.NewNumberFromInt64(10000), MakerPriceBand: types.NewNumberFromInt64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = ok.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1562,8 +1563,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   10000,
-					MakerPriceBand: 5,
+					MaxBlockSize:   types.NewNumberFromInt64(10000),
+					MakerPriceBand: types.NewNumberFromInt64(5),
 				},
 				{
 					Underlying: "ETH-USDT",
@@ -1982,13 +1983,13 @@ func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
 	_, err := ok.SetLendingRate(contextGenerate(), &LendingRate{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
+	_, err = ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: types.NewNumberFromInt64(2)})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
 	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-	result, err := ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
+	result, err := ok.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: types.NewNumberFromInt64(2)})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2625,7 +2626,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		SimAsset: []SimulatedAsset{
 			{
 				Currency: "USDT",
-				Amount:   100,
+				Amount:   types.NewNumberFromInt64(100),
 			},
 		},
 		SpotOffsetType: "1",
@@ -2987,7 +2988,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = 1234.5
+	arg.TakeProfitTriggerPrice = types.NewNumberFromFloat64(1234.5)
 	_, err = ok.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -4741,21 +4742,21 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
+	assert.Equal(t, 125, i.MaxLeverage.Int(), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, 1, int(i.LotSize))
+	assert.Equal(t, 1, i.LotSize.Int())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxStopSize))
+	assert.Equal(t, 100000000, i.MaxQuantityOfSpotLimitOrder.Int())
+	assert.Equal(t, 85000, i.MaxQuantityOfMarketLimitOrder.Int())
+	assert.Equal(t, 85000, i.MaxStopSize.Int())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
-	assert.Equal(t, 1, int(i.MinimumOrderSize))
+	assert.Equal(t, 0, i.MaxQuantityOfSpotTwapLimitOrder.Int(), "expected empty max TWAP size")
+	assert.Equal(t, 1, i.MinimumOrderSize.Int())
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
 	assert.Equal(t, "live", i.State)
-	assert.Empty(t, i.StrikePrice, "expected empty strike price")
+	assert.True(t, i.StrikePrice.IsZero(), "expected empty strike price")
 	assert.Equal(t, 0.1, i.TickSize.Float64())
 	assert.Equal(t, "BTC-USDC", i.Underlying, "expected BTC-USDC underlying")
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Bybit is the overarching type across this package
@@ -1420,10 +1421,10 @@ func (by *Bybit) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.FrozenPeriod <= 0 {
 		return errFrozenPeriodRequired
 	}
-	if arg.TradeQuantityLimit <= 0 {
+	if arg.TradeQuantityLimit.LessThanOrEqual(types.NumberZero) {
 		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
 	}
-	if arg.DeltaLimit <= 0 {
+	if arg.DeltaLimit.LessThanOrEqual(types.NumberZero) {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
@@ -1602,7 +1603,7 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.LessThanOrEqual(types.NumberZero) {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -1657,7 +1658,7 @@ func (by *Bybit) CreateUniversalTransfer(ctx context.Context, arg *TransferParam
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.LessThanOrEqual(types.NumberZero) {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {

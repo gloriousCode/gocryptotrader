@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -624,7 +625,7 @@ func (b *Bitfinex) handleWSChannelUpdate(s *subscription.Subscription, respRaw [
 
 	switch s.Channel {
 	case subscription.OrderbookChannel:
-		return b.handleWSBookUpdate(s, d)
+		return b.handleWSOrderbook(s, respRaw)
 	case subscription.CandlesChannel:
 		return b.handleWSCandleUpdate(s, d)
 	case subscription.TickerChannel:
@@ -670,103 +671,95 @@ func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []any) error
 	return nil
 }
 
-func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []any) error {
+func (b *Bitfinex) handleWSOrderbook(c *subscription.Subscription, respRaw []byte) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
-	var newOrderbook []WebsocketBook
-	obSnapBundle, ok := d[1].([]any)
-	if !ok {
-		return errors.New("orderbook interface cast failed")
+	var (
+		seqNo        int64
+		snapshotData [][]types.Number
+		updateData   []types.Number
+	)
+	if _, err := jsonparser.ArrayEach(respRaw, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s unable to parse orderbook update: %v", b.Name, err)
+			return
+		}
+		switch {
+		case dataType == jsonparser.Number:
+			if offset > 3 { // ignore the first number entry
+				seqNo, err = jsonparser.GetInt(value)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s unable to parse orderbook update: %v", b.Name, err)
+					return
+				}
+				_ = seqNo
+			}
+		case dataType == jsonparser.Array:
+			if value[0] == '[' && value[1] == '[' {
+				err = json.Unmarshal(value, &snapshotData)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s unable to unmarshal orderbook update: %v", b.Name, err)
+					return
+				}
+			} else {
+				err = json.Unmarshal(value, &updateData)
+				if err != nil {
+					log.Errorf(log.ExchangeSys, "%s unable to unmarshal orderbook update: %v", b.Name, err)
+					return
+				}
+			}
+		}
+	}); err != nil {
+		return err
 	}
-	if len(obSnapBundle) == 0 {
-		return errors.New("no data within orderbook snapshot")
-	}
-	if len(d) < 3 {
-		return errNoSeqNo
-	}
-	sequenceNo, ok := d[2].(float64)
-	if !ok {
-		return errors.New("type assertion failure")
+	if seqNo == 0 {
+		return fmt.Errorf("%w: %s", errNoSeqNo, respRaw)
 	}
 	var fundingRate bool
-	switch id := obSnapBundle[0].(type) {
-	case []any:
-		for i := range obSnapBundle {
-			data, ok := obSnapBundle[i].([]any)
-			if !ok {
-				return errors.New("type assertion failed for orderbok item data")
-			}
-			id, okAssert := data[0].(float64)
-			if !okAssert {
-				return errors.New("type assertion failed for orderbook id data")
-			}
-			pricePeriod, okAssert := data[1].(float64)
-			if !okAssert {
-				return errors.New("type assertion failed for orderbook price data")
-			}
-			rateAmount, okAssert := data[2].(float64)
-			if !okAssert {
-				return errors.New("type assertion failed for orderbook rate data")
-			}
-			if len(data) == 4 {
+	if len(snapshotData) > 0 {
+		newOrderbook := make([]WebsocketBook, len(snapshotData))
+		for i := range snapshotData {
+			if len(snapshotData[i]) == 4 {
 				fundingRate = true
-				amount, okFunding := data[3].(float64)
-				if !okFunding {
-					return errors.New("type assertion failed for orderbook funding data")
+				newOrderbook[i] = WebsocketBook{
+					ID:     snapshotData[i][0],
+					Period: snapshotData[i][1],
+					Price:  snapshotData[i][2],
+					Amount: snapshotData[i][3],
 				}
-				newOrderbook = append(newOrderbook, WebsocketBook{
-					ID:     int64(id),
-					Period: int64(pricePeriod),
-					Price:  rateAmount,
-					Amount: amount,
-				})
 			} else {
-				newOrderbook = append(newOrderbook, WebsocketBook{
-					ID:     int64(id),
-					Price:  pricePeriod,
-					Amount: rateAmount,
-				})
+				newOrderbook[i] = WebsocketBook{
+					ID:     snapshotData[i][0],
+					Price:  snapshotData[i][1],
+					Amount: snapshotData[i][2],
+				}
 			}
 		}
 		if err := b.WsInsertSnapshot(c.Pairs[0], c.Asset, newOrderbook, fundingRate); err != nil {
 			return fmt.Errorf("inserting snapshot error: %s",
 				err)
 		}
-	case float64:
-		pricePeriod, okSnap := obSnapBundle[1].(float64)
-		if !okSnap {
-			return errors.New("type assertion failed for orderbook price snapshot data")
-		}
-		amountRate, okSnap := obSnapBundle[2].(float64)
-		if !okSnap {
-			return errors.New("type assertion failed for orderbook amount snapshot data")
-		}
-		if len(obSnapBundle) == 4 {
-			fundingRate = true
-			var amount float64
-			amount, okSnap = obSnapBundle[3].(float64)
-			if !okSnap {
-				return errors.New("type assertion failed for orderbook amount snapshot data")
+	} else if len(updateData) > 0 {
+		updatedBook := make([]WebsocketBook, 1)
+		if len(updateData) == 4 {
+			updatedBook[0] = WebsocketBook{
+				ID:     updateData[0],
+				Period: updateData[1],
+				Price:  updateData[2],
+				Amount: updateData[3],
 			}
-			newOrderbook = append(newOrderbook, WebsocketBook{
-				ID:     int64(id),
-				Period: int64(pricePeriod),
-				Price:  amountRate,
-				Amount: amount,
-			})
 		} else {
-			newOrderbook = append(newOrderbook, WebsocketBook{
-				ID:     int64(id),
-				Price:  pricePeriod,
-				Amount: amountRate,
-			})
+			updatedBook[0] = WebsocketBook{
+				ID:     updateData[0],
+				Price:  updateData[1],
+				Amount: updateData[2],
+			}
 		}
-
-		if err := b.WsUpdateOrderbook(c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
+		if err := b.WsUpdateOrderbook(c, c.Pairs[0], c.Asset, updatedBook, seqNo, fundingRate); err != nil {
 			return fmt.Errorf("updating orderbook error: %s",
 				err)
 		}
@@ -1533,10 +1526,12 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Asks = make(orderbook.Tranches, 0, len(books))
 	for i := range books {
 		item := orderbook.Tranche{
-			ID:     books[i].ID,
-			Amount: books[i].Amount,
-			Price:  books[i].Price,
-			Period: books[i].Period,
+			Amount:    books[i].Amount.Float64(),
+			StrAmount: books[i].Amount.String(),
+			Price:     books[i].Price.Float64(),
+			StrPrice:  books[i].Price.String(),
+			ID:        books[i].ID.Int64(),
+			Period:    books[i].Period.Int64(),
 		}
 		if fundingRate {
 			if item.Amount < 0 {
@@ -1546,7 +1541,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 				book.Asks = append(book.Asks, item)
 			}
 		} else {
-			if books[i].Amount > 0 {
+			if books[i].Amount.GreaterThan(types.NumberZero) {
 				book.Bids = append(book.Bids, item)
 			} else {
 				item.Amount *= -1
@@ -1584,23 +1579,25 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 
 	for i := range book {
 		item := orderbook.Tranche{
-			ID:     book[i].ID,
-			Amount: book[i].Amount,
-			Price:  book[i].Price,
-			Period: book[i].Period,
+			Amount:    book[i].Amount.Float64(),
+			StrAmount: book[i].Amount.String(),
+			Price:     book[i].Price.Float64(),
+			StrPrice:  book[i].Price.String(),
+			ID:        book[i].ID.Int64(),
+			Period:    book[i].Period.Int64(),
 		}
 
-		if book[i].Price > 0 {
+		if book[i].Price.GreaterThan(types.NumberZero) {
 			orderbookUpdate.Action = orderbook.UpdateInsert
 			if fundingRate {
-				if book[i].Amount < 0 {
+				if book[i].Amount.LessThan(types.NumberZero) {
 					item.Amount *= -1
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				} else {
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				}
 			} else {
-				if book[i].Amount > 0 {
+				if book[i].Amount.GreaterThan(types.NumberZero) {
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				} else {
 					item.Amount *= -1
@@ -1610,7 +1607,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 		} else {
 			orderbookUpdate.Action = orderbook.Delete
 			if fundingRate {
-				if book[i].Amount == 1 {
+				if book[i].Amount.Equal(types.NewNumberFromInt64(1)) {
 					// delete bid
 					orderbookUpdate.Asks = append(orderbookUpdate.Asks, item)
 				} else {
@@ -1618,7 +1615,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				}
 			} else {
-				if book[i].Amount == 1 {
+				if book[i].Amount.Equal(types.NewNumberFromInt64(1)) {
 					// delete bid
 					orderbookUpdate.Bids = append(orderbookUpdate.Bids, item)
 				} else {
@@ -2098,45 +2095,25 @@ func validateCRC32(book *orderbook.Base, token uint32) error {
 			asks = append(asks, book.Asks[i])
 		}
 	}
-
-	// ensure '-' (negative amount) is passed back to string buffer as
-	// this is needed for calcs - These get swapped if funding rate
-	bidmod := float64(1)
-	if book.IsFundingRate {
-		bidmod = -1
-	}
-
-	askMod := float64(-1)
-	if book.IsFundingRate {
-		askMod = 1
-	}
-
 	var check strings.Builder
 	for i := range 25 {
 		if i < len(bids) {
-			check.WriteString(strconv.FormatInt(bids[i].ID, 10))
-			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(bidmod*bids[i].Amount, 'f', -1, 64))
-			check.WriteString(":")
+			check.WriteString(strconv.FormatInt(bids[i].ID, 10) + ":" + bids[i].StrAmount + ":")
 		}
-
 		if i < len(asks) {
-			check.WriteString(strconv.FormatInt(asks[i].ID, 10))
-			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(askMod*asks[i].Amount, 'f', -1, 64))
-			check.WriteString(":")
+			check.WriteString(strconv.FormatInt(asks[i].ID, 10) + ":" + asks[i].StrAmount + ":")
 		}
 	}
 
 	checksumStr := strings.TrimSuffix(check.String(), ":")
-	checksum := crc32.ChecksumIEEE([]byte(checksumStr))
-	if checksum == token {
+	cs := crc32.ChecksumIEEE([]byte(checksumStr))
+	if cs == token {
 		return nil
 	}
 	return fmt.Errorf("invalid checksum for %s %s: calculated [%d] does not match [%d]",
 		book.Asset,
 		book.Pair,
-		checksum,
+		cs,
 		token)
 }
 

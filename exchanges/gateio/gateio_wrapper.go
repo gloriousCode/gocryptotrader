@@ -743,15 +743,19 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Tranche{
-			Amount: orderbookNew.Bids[x].Amount,
-			Price:  orderbookNew.Bids[x].Price.Float64(),
+			Amount:    orderbookNew.Bids[x].Amount.Float64(),
+			StrAmount: orderbookNew.Bids[x].Amount.String(),
+			Price:     orderbookNew.Bids[x].Price.Float64(),
+			StrPrice:  orderbookNew.Bids[x].Price.String(),
 		}
 	}
 	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Tranche{
-			Amount: orderbookNew.Asks[x].Amount,
-			Price:  orderbookNew.Asks[x].Price.Float64(),
+			Amount:    orderbookNew.Asks[x].Amount.Float64(),
+			StrAmount: orderbookNew.Asks[x].Amount.String(),
+			Price:     orderbookNew.Asks[x].Price.Float64(),
+			StrPrice:  orderbookNew.Asks[x].Price.String(),
 		}
 	}
 	err = book.Process()
@@ -1157,7 +1161,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		optionOrder, err := g.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      types.Number(s.Price),
+			Price:      types.NewNumberFromFloat64(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1554,7 +1558,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	response, err := g.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
+			Amount:   types.NewNumberFromFloat64(withdrawRequest.Amount),
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -2054,7 +2058,7 @@ func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
 					MaxLeverage:          contracts[j].LeverageMax.Float64(),
 				}
-				if contracts[j].FundingRate > 0 {
+				if contracts[j].FundingRate.GreaterThan(types.NumberZero) {
 					c.LatestRate = fundingrate.Rate{
 						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
 						Rate: contracts[j].FundingRate.Decimal(),
@@ -2654,10 +2658,10 @@ func (g *Gateio) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrderRe
 
 		var cost float64
 		var purchased float64
-		if resp.AverageDealPrice != 0 {
+		if !resp.AverageDealPrice.IsZero() {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
-				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
+				purchased = resp.FilledTotal.Div(resp.AverageDealPrice).Float64()
 			} else {
 				cost = resp.Amount.Float64()
 				purchased = resp.FilledTotal.Float64()
@@ -2717,7 +2721,7 @@ func (g *Gateio) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFutu
 		}
 
 		oType := order.Market
-		if resp.Price != 0 {
+		if !resp.Price.IsZero() {
 			oType = order.Limit
 		}
 
@@ -2774,8 +2778,8 @@ func (g *Gateio) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, erro
 		Side:         s.Side.Lower(),
 		Type:         s.Type.Lower(),
 		Account:      g.assetTypeToString(s.AssetType),
-		Amount:       types.Number(s.GetTradeAmount(g.GetTradingRequirements())),
-		Price:        types.Number(s.Price),
+		Amount:       types.NewNumberFromFloat64(s.GetTradeAmount(g.GetTradingRequirements())),
+		Price:        types.NewNumberFromFloat64(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  timeInForce,

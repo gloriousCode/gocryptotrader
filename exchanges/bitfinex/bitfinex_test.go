@@ -1364,8 +1364,8 @@ func TestWSOrderBook(t *testing.T) {
 		t.Error(err)
 	}
 	pressXToJSON = `[23405,[7617,52.98726298,7617.1,53.601795929999994,-550.9,-0.0674,7617,8318.92961981,8257.8,7500]]`
-	assert.NotPanics(t, func() { err = b.wsHandleData([]byte(pressXToJSON)) }, "handleWSBookUpdate should not panic when seqNo is not configured to be sent")
-	assert.ErrorIs(t, err, errNoSeqNo, "handleWSBookUpdate should send correct error")
+	assert.NotPanics(t, func() { err = b.wsHandleData([]byte(pressXToJSON)) }, "handleWSOrderbook should not panic when seqNo is not configured to be sent")
+	assert.ErrorIs(t, err, errNoSeqNo, "handleWSOrderbook should send correct error")
 }
 
 func TestWSAllTrades(t *testing.T) {
@@ -1792,28 +1792,28 @@ func TestGetHistoricTrades(t *testing.T) {
 
 var testOb = orderbook.Base{
 	Asks: []orderbook.Tranche{
-		{Price: 0.05005, Amount: 0.00000500},
-		{Price: 0.05010, Amount: 0.00000500},
-		{Price: 0.05015, Amount: 0.00000500},
-		{Price: 0.05020, Amount: 0.00000500},
-		{Price: 0.05025, Amount: 0.00000500},
-		{Price: 0.05030, Amount: 0.00000500},
-		{Price: 0.05035, Amount: 0.00000500},
-		{Price: 0.05040, Amount: 0.00000500},
-		{Price: 0.05045, Amount: 0.00000500},
-		{Price: 0.05050, Amount: 0.00000500},
+		{Price: 0.05005, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05010, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05015, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05020, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05025, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05030, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05035, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05040, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05045, Amount: -0.00000500, StrAmount: "-0.000005"},
+		{Price: 0.05050, Amount: -0.00000500, StrAmount: "-0.000005"},
 	},
 	Bids: []orderbook.Tranche{
-		{Price: 0.05000, Amount: 0.00000500},
-		{Price: 0.04995, Amount: 0.00000500},
-		{Price: 0.04990, Amount: 0.00000500},
-		{Price: 0.04980, Amount: 0.00000500},
-		{Price: 0.04975, Amount: 0.00000500},
-		{Price: 0.04970, Amount: 0.00000500},
-		{Price: 0.04965, Amount: 0.00000500},
-		{Price: 0.04960, Amount: 0.00000500},
-		{Price: 0.04955, Amount: 0.00000500},
-		{Price: 0.04950, Amount: 0.00000500},
+		{Price: 0.05000, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04995, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04990, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04980, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04975, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04970, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04965, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04960, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04955, Amount: 0.00000500, StrAmount: "0.000005"},
+		{Price: 0.04950, Amount: 0.00000500, StrAmount: "0.000005"},
 	},
 }
 

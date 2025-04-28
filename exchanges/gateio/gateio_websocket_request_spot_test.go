@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestWebsocketLogin(t *testing.T) {
@@ -42,11 +43,11 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	out.Side = strings.ToLower(order.Sell.String())
 	_, err = g.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = 1
+	out.Amount = types.NewNumberFromInt64(1)
 	out.Type = "limit"
 	_, err = g.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = 100
+	out.Price = types.NewNumberFromInt64(100)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 
@@ -70,11 +71,11 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	out.Side = strings.ToLower(order.Buy.String())
 	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = 0.0003
+	out.Amount = types.NewNumberFromFloat64(0.0003)
 	out.Type = "limit"
 	_, err = g.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = 20000
+	out.Price = types.NewNumberFromInt64(20000)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 

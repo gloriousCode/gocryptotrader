@@ -381,7 +381,7 @@ type Instrument struct {
 	ContractMultiplier              types.Number `json:"ctMult"`
 	ContractValueCurrency           string       `json:"ctValCcy"`
 	OptionType                      string       `json:"optType"`
-	StrikePrice                     types.Number `json:"stk"`
+	StrikePrice                     types.Number `json:"stk,omitzero"`
 	ListTime                        types.Time   `json:"listTime"`
 	ExpTime                         types.Time   `json:"expTime"`
 	MaxLeverage                     types.Number `json:"lever"`

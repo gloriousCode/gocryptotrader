@@ -1928,7 +1928,7 @@ allOrders:
 				orderAmount := orderList[i].Size
 				if orderList[i].QuantityType == "quote_ccy" {
 					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
+					orderAmount = orderAmount.Div(orderList[i].AveragePrice)
 				}
 
 				remainingAmount := float64(0)
@@ -2340,7 +2340,7 @@ func (ok *Okx) GetCollateralMode(ctx context.Context, item asset.Item) (collater
 	if err != nil {
 		return 0, err
 	}
-	switch cfg.AccountLevel {
+	switch cfg.AccountLevel.Float64() {
 	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
@@ -2626,7 +2626,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 			orderAmount := positions[j].Size
 			if positions[j].QuantityType == "quote_ccy" {
 				// Size is quote amount.
-				orderAmount /= positions[j].AveragePrice
+				orderAmount = orderAmount.Div(positions[j].AveragePrice)
 			}
 
 			remainingAmount := float64(0)

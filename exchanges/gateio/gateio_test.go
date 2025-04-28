@@ -316,16 +316,16 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
-			Amount:       0.001,
-			Price:        12349,
+			Amount:       types.NewNumberFromFloat64(0.001),
+			Price:        types.NewNumberFromFloat64(12349),
 			Account:      g.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
 		{
 			CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 			Side:         "buy",
-			Amount:       1,
-			Price:        1234567789,
+			Amount:       types.NewNumberFromFloat64(1),
+			Price:        types.NewNumberFromFloat64(1234567789),
 			Account:      g.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
@@ -345,8 +345,8 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{
-		Amount:       0.1,
-		Price:        1234567384,
+		Amount:       types.NewNumberFromFloat64(0.1),
+		Price:        types.NewNumberFromFloat64(1234567384),
 		CurrencyPair: getPair(t, asset.Spot),
 	}); err != nil {
 		t.Errorf("%s SpotClosePositionWhenCrossCurrencyDisabled() error %v", g.Name, err)
@@ -359,8 +359,8 @@ func TestCreateSpotOrder(t *testing.T) {
 	_, err := g.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
-		Amount:       1,
-		Price:        900000,
+		Amount:       types.NewNumberFromFloat64(1),
+		Price:        types.NewNumberFromFloat64(900000),
 		Account:      g.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	})
@@ -414,20 +414,20 @@ func TestGetSpotOrder(t *testing.T) {
 func TestAmendSpotOrder(t *testing.T) {
 	t.Parallel()
 	_, err := g.AmendSpotOrder(t.Context(), "", getPair(t, asset.Spot), false, &PriceAndAmount{
-		Price: 1000,
+		Price: types.NewNumberFromFloat64(1000),
 	})
 	if !errors.Is(err, errInvalidOrderID) {
 		t.Errorf("expecting %v, but found %v", errInvalidOrderID, err)
 	}
 	_, err = g.AmendSpotOrder(t.Context(), "123", currency.EMPTYPAIR, false, &PriceAndAmount{
-		Price: 1000,
+		Price: types.NewNumberFromFloat64(1000),
 	})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("expecting %v, but found %v", currency.ErrCurrencyPairEmpty, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err = g.AmendSpotOrder(t.Context(), "123", getPair(t, asset.Spot), false, &PriceAndAmount{
-		Price: 1000,
+		Price: types.NewNumberFromFloat64(1000),
 	})
 	if err != nil {
 		t.Error(err)
@@ -473,15 +473,15 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderParam{
 		Trigger: TriggerPriceInfo{
-			Price:      123,
+			Price:      types.NewNumberFromFloat64(123),
 			Rule:       ">=",
 			Expiration: 3600,
 		},
 		Put: PutOrderData{
 			Type:        "limit",
 			Side:        "sell",
-			Price:       2312312,
-			Amount:      30,
+			Price:       types.NewNumberFromFloat64(2312312),
+			Amount:      types.NewNumberFromFloat64(30),
 			TimeInForce: "gtc",
 		},
 		Market: currency.Pair{Base: currency.GT, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
@@ -554,11 +554,11 @@ func TestMarginLoan(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	if _, err := g.MarginLoan(t.Context(), &MarginLoanRequestParam{
 		Side:         "borrow",
-		Amount:       1,
+		Amount:       types.NewNumberFromFloat64(1),
 		Currency:     currency.BTC,
 		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 		Days:         10,
-		Rate:         0.0002,
+		Rate:         types.NewNumberFromFloat64(0.0002),
 	}); err != nil {
 		t.Errorf("%s MarginLoan() error %v", g.Name, err)
 	}
@@ -740,7 +740,7 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{
 		Currency: currency.BTC,
-		Amount:   3,
+		Amount:   types.NewNumberFromFloat64(3),
 	}); err != nil {
 		t.Errorf("%s CreateCrossMarginBorrowLoan() error %v", g.Name, err)
 	}
@@ -767,7 +767,7 @@ func TestExecuteRepayment(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	if _, err := g.ExecuteRepayment(t.Context(), CurrencyAndAmount{
 		Currency: currency.USD,
-		Amount:   1234.55,
+		Amount:   types.NewNumberFromFloat64(1234.55),
 	}); err != nil {
 		t.Errorf("%s ExecuteRepayment() error %v", g.Name, err)
 	}
@@ -835,7 +835,7 @@ func TestTransferCurrency(t *testing.T) {
 		Currency:     currency.BTC,
 		From:         g.assetTypeToString(asset.Spot),
 		To:           g.assetTypeToString(asset.Margin),
-		Amount:       1202.000,
+		Amount:       types.NewNumberFromFloat64(1202.000),
 		CurrencyPair: getPair(t, asset.Spot),
 	}); err != nil {
 		t.Errorf("%s TransferCurrency() error %v", g.Name, err)
@@ -849,7 +849,7 @@ func TestSubAccountTransfer(t *testing.T) {
 		Currency:   currency.BTC,
 		SubAccount: "12222",
 		Direction:  "to",
-		Amount:     1,
+		Amount:     types.NewNumberFromFloat64(1),
 	}); err != nil {
 		t.Errorf("%s SubAccountTransfer() error %v", g.Name, err)
 	}
@@ -872,7 +872,7 @@ func TestSubAccountTransferToSubAccount(t *testing.T) {
 		SubAccountFromAssetType: asset.Spot,
 		SubAccountToUserID:      "4567",
 		SubAccountToAssetType:   asset.Spot,
-		Amount:                  1234,
+		Amount:                  types.NewNumberFromFloat64(1234),
 	}); err != nil {
 		t.Error(err)
 	}
@@ -1193,14 +1193,14 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	_, err := g.GetDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
-			Price:    1234.,
+			Price:    types.NewNumberFromFloat64(1234),
 			Size:     12,
 			Contract: getPair(t, asset.DeliveryFutures),
 		},
 		Trigger: FuturesTrigger{
 			Rule:      1,
 			OrderType: "close-short-position",
-			Price:     123400,
+			Price:     types.NewNumberFromFloat64(123400),
 		},
 	})
 	assert.NoError(t, err, "GetDeliveryPriceTriggeredOrder should not error")
@@ -1370,7 +1370,7 @@ func TestAmendFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
 	_, err := g.AmendFuturesOrder(t.Context(), currency.BTC, "1234", AmendFuturesOrderParam{
-		Price: 12345.990,
+		Price: types.NewNumberFromFloat64(12345.990),
 	})
 	assert.NoError(t, err, "AmendFuturesOrder should not error")
 }
@@ -1412,7 +1412,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	require.NoError(t, err, "getSettlementFromCurrency must not error")
 	_, err = g.CreatePriceTriggeredFuturesOrder(t.Context(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
-			Price:    1234.,
+			Price:    types.NewNumberFromFloat64(1234),
 			Size:     2,
 			Contract: getPair(t, asset.Futures),
 		},
@@ -1424,7 +1424,7 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	assert.NoError(t, err, "CreatePriceTriggeredFuturesOrder should not error")
 	_, err = g.CreatePriceTriggeredFuturesOrder(t.Context(), settle, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
-			Price:    1234.,
+			Price:    types.NewNumberFromFloat64(1234),
 			Size:     1,
 			Contract: getPair(t, asset.Futures),
 		},
@@ -1636,8 +1636,8 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 		PreviewID:    "1234",
 		SellCurrency: currency.USDT,
 		BuyCurrency:  currency.BTC,
-		BuyAmount:    34234,
-		SellAmount:   34234,
+		BuyAmount:    types.NewNumberFromFloat64(34234),
+		SellAmount:   types.NewNumberFromFloat64(34234),
 	}); err != nil {
 		t.Errorf("%s CreateFlashSwapOrder() error %v", g.Name, err)
 	}
@@ -1666,7 +1666,7 @@ func TestInitiateFlashSwapOrderReview(t *testing.T) {
 		PreviewID:    "1234",
 		SellCurrency: currency.USDT,
 		BuyCurrency:  currency.BTC,
-		SellAmount:   100,
+		SellAmount:   types.NewNumberFromFloat64(100),
 	}); err != nil {
 		t.Errorf("%s InitiateFlashSwapOrderReview() error %v", g.Name, err)
 	}
@@ -1734,7 +1734,7 @@ func TestPlaceOptionOrder(t *testing.T) {
 		Iceberg:     0,
 		Text:        "-",
 		TimeInForce: "gtc",
-		Price:       100,
+		Price:       types.NewNumberFromFloat64(100),
 	})
 	if err != nil {
 		t.Errorf("%s PlaceOptionOrder() error %v", g.Name, err)
@@ -1793,7 +1793,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	}
 	_, err = g.WithdrawCurrency(t.Context(), WithdrawalRequestParam{
 		Currency: currency.BTC,
-		Amount:   0.00000001,
+		Amount:   types.NewNumberFromFloat64(0.00000001),
 		Chain:    "BTC",
 		Address:  core.BitcoinDonationAddress,
 	})
@@ -3596,109 +3596,112 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		orders   [][]byte
+		order    []byte
 		error    error
-		expected []*order.SubmitResponse
+		expected *order.SubmitResponse
 	}{
 		{
-			name:   "no response",
-			orders: [][]byte{},
-			error:  common.ErrNoResponse,
+			name:  "spot order 1",
+			order: []byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
+			expected: &order.SubmitResponse{
+				Exchange:             g.Name,
+				OrderID:              "766075454481",
+				AssetType:            asset.Spot,
+				Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+				ClientOrderID:        "t-1735720637181634009",
+				Date:                 time.UnixMilli(1735720637188),
+				LastUpdated:          time.UnixMilli(1735720637188),
+				Amount:               0.0001,
+				AverageExecutedPrice: 93503.3,
+				Type:                 order.Market,
+				Side:                 order.Sell,
+				Status:               order.Filled,
+				ImmediateOrCancel:    true,
+				Cost:                 0.0001,
+				Purchased:            9.35033,
+			},
 		},
 		{
-			name: "assortment of spot orders",
-			orders: [][]byte{
-				[]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`),
-				[]byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
-				[]byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
-				[]byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
-				[]byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
+			name:  "spot order 2",
+			order: []byte(`{"left":"0.000008","update_time":"1735720637","amount":"9.99152","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"HNS_USDT","type":"market","account":"spot","side":"buy","amend_text":"-","text":"t-1735720637126962151","status":"closed","iceberg":"0","avg_deal_price":"0.01224","filled_total":"9.991512","id":"766075454188","fill_price":"9.991512","update_time_ms":1735720637142,"create_time_ms":1735720637142}`),
+			expected: &order.SubmitResponse{
+				Exchange:             g.Name,
+				OrderID:              "766075454188",
+				AssetType:            asset.Spot,
+				Pair:                 currency.NewPair(currency.HNS, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+				ClientOrderID:        "t-1735720637126962151",
+				Date:                 time.UnixMilli(1735720637142),
+				LastUpdated:          time.UnixMilli(1735720637142),
+				RemainingAmount:      0.000008,
+				Amount:               9.99152,
+				AverageExecutedPrice: 0.01224,
+				Type:                 order.Market,
+				Side:                 order.Buy,
+				Status:               order.Filled,
+				ImmediateOrCancel:    true,
+				Cost:                 9.991512,
+				Purchased:            816.3,
 			},
-			expected: []*order.SubmitResponse{
-				{
-					Exchange:             g.Name,
-					OrderID:              "766075454481",
-					AssetType:            asset.Spot,
-					Pair:                 currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:        "t-1735720637181634009",
-					Date:                 time.UnixMilli(1735720637188),
-					LastUpdated:          time.UnixMilli(1735720637188),
-					Amount:               0.0001,
-					AverageExecutedPrice: 93503.3,
-					Type:                 order.Market,
-					Side:                 order.Sell,
-					Status:               order.Filled,
-					ImmediateOrCancel:    true,
-					Cost:                 0.0001,
-					Purchased:            9.35033,
-				},
-				{
-					Exchange:             g.Name,
-					OrderID:              "766075454188",
-					AssetType:            asset.Spot,
-					Pair:                 currency.NewPair(currency.HNS, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:        "t-1735720637126962151",
-					Date:                 time.UnixMilli(1735720637142),
-					LastUpdated:          time.UnixMilli(1735720637142),
-					RemainingAmount:      0.000008,
-					Amount:               9.99152,
-					AverageExecutedPrice: 0.01224,
-					Type:                 order.Market,
-					Side:                 order.Buy,
-					Status:               order.Filled,
-					ImmediateOrCancel:    true,
-					Cost:                 9.991512,
-					Purchased:            816.3,
-				},
-				{
-					Exchange:             g.Name,
-					OrderID:              "766488882062",
-					AssetType:            asset.Spot,
-					Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:        "t-1364",
-					Date:                 time.UnixMilli(1735778597363),
-					LastUpdated:          time.UnixMilli(1735778597363),
-					Amount:               200,
-					Price:                0.03673,
-					AverageExecutedPrice: 0.03673,
-					Type:                 order.Limit,
-					Side:                 order.Buy,
-					Status:               order.Filled,
-					FillOrKill:           true,
-					Cost:                 7.346,
-					Purchased:            200,
-				},
-				{
-					Exchange:        g.Name,
-					OrderID:         "766504537761",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-1735780321603944400",
-					Date:            time.UnixMilli(1735780321729),
-					LastUpdated:     time.UnixMilli(1735780321729),
-					RemainingAmount: 0.0003,
-					Amount:          0.0003,
-					Price:           20000,
-					Type:            order.Limit,
-					Side:            order.Buy,
-					Status:          order.Open,
-					PostOnly:        true,
-				},
-				{
-					Exchange:        g.Name,
-					OrderID:         "766536556747",
-					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
-					ClientOrderID:   "t-1735784754905434100",
-					Date:            time.UnixMilli(1735784755068),
-					LastUpdated:     time.UnixMilli(1735784755068),
-					RemainingAmount: 1,
-					Amount:          1,
-					Price:           100,
-					Type:            order.Limit,
-					Side:            order.Sell,
-					Status:          order.Open,
-				},
+		},
+		{
+			name:  "spot order 3",
+			order: []byte(`{"left":"0","update_time":"1735778597","amount":"200","create_time":"1735778597","price":"0.03673","finish_as":"filled","time_in_force":"fok","currency_pair":"REX_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1364","status":"closed","iceberg":"0","avg_deal_price":"0.03673","filled_total":"7.346","id":"766488882062","fill_price":"7.346","update_time_ms":1735778597363,"create_time_ms":1735778597363}`),
+			expected: &order.SubmitResponse{
+				Exchange:             g.Name,
+				OrderID:              "766488882062",
+				AssetType:            asset.Spot,
+				Pair:                 currency.NewPair(currency.NewCode("REX"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+				ClientOrderID:        "t-1364",
+				Date:                 time.UnixMilli(1735778597363),
+				LastUpdated:          time.UnixMilli(1735778597363),
+				Amount:               200,
+				Price:                0.03673,
+				AverageExecutedPrice: 0.03673,
+				Type:                 order.Limit,
+				Side:                 order.Buy,
+				Status:               order.Filled,
+				FillOrKill:           true,
+				Cost:                 7.346,
+				Purchased:            200,
+			},
+		},
+		{
+			name:  "spot order 3",
+			order: []byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
+			expected: &order.SubmitResponse{
+				Exchange:        g.Name,
+				OrderID:         "766504537761",
+				AssetType:       asset.Spot,
+				Pair:            currency.NewPair(currency.BTC, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+				ClientOrderID:   "t-1735780321603944400",
+				Date:            time.UnixMilli(1735780321729),
+				LastUpdated:     time.UnixMilli(1735780321729),
+				RemainingAmount: 0.0003,
+				Amount:          0.0003,
+				Price:           20000,
+				Type:            order.Limit,
+				Side:            order.Buy,
+				Status:          order.Open,
+				PostOnly:        true,
+			},
+		},
+		{
+			name:  "spot order 3",
+			order: []byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
+			expected: &order.SubmitResponse{
+				Exchange:        g.Name,
+				OrderID:         "766536556747",
+				AssetType:       asset.Spot,
+				Pair:            currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+				ClientOrderID:   "t-1735784754905434100",
+				Date:            time.UnixMilli(1735784755068),
+				LastUpdated:     time.UnixMilli(1735784755068),
+				RemainingAmount: 1,
+				Amount:          1,
+				Price:           100,
+				Type:            order.Limit,
+				Side:            order.Sell,
+				Status:          order.Open,
 			},
 		},
 	}
@@ -3706,20 +3709,12 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+			var resp *WebsocketOrderResponse
+			require.NoError(t, json.Unmarshal(tc.order, &resp), "unmarshal must not error")
 
-			orders := bytes.Join(tc.orders, []byte(","))
-			orders = append([]byte("["), append(orders, []byte("]")...)...)
-
-			var resp []*WebsocketOrderResponse
-			require.NoError(t, json.Unmarshal(orders, &resp), "unmarshal must not error")
-
-			got, err := g.deriveSpotWebsocketOrderResponses(resp)
+			got, err := g.deriveSpotWebsocketOrderResponses([]*WebsocketOrderResponse{resp})
 			require.ErrorIs(t, err, tc.error)
-
-			require.Len(t, got, len(tc.expected))
-			for i := range got {
-				assert.Equal(t, tc.expected[i], got[i])
-			}
+			assert.Equal(t, []*order.SubmitResponse{tc.expected}, got)
 		})
 	}
 }
