@@ -3666,7 +3666,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			},
 		},
 		{
-			name:  "spot order 3",
+			name:  "spot order 4",
 			order: []byte(`{"left":"0.0003","update_time":"1735780321","amount":"0.0003","create_time":"1735780321","price":"20000","finish_as":"open","time_in_force":"poc","currency_pair":"BTC_USDT","type":"limit","account":"spot","side":"buy","amend_text":"-","text":"t-1735780321603944400","status":"open","iceberg":"0","filled_total":"0","id":"766504537761","fill_price":"0","update_time_ms":1735780321729,"create_time_ms":1735780321729}`),
 			expected: &order.SubmitResponse{
 				Exchange:        g.Name,
@@ -3686,7 +3686,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			},
 		},
 		{
-			name:  "spot order 3",
+			name:  "spot order 5",
 			order: []byte(`{"left":"1","update_time":"1735784755","amount":"1","create_time":"1735784755","price":"100","finish_as":"open","time_in_force":"gtc","currency_pair":"GT_USDT","type":"limit","account":"spot","side":"sell","amend_text":"-","text":"t-1735784754905434100","status":"open","iceberg":"0","filled_total":"0","id":"766536556747","fill_price":"0","update_time_ms":1735784755068,"create_time_ms":1735784755068}`),
 			expected: &order.SubmitResponse{
 				Exchange:        g.Name,

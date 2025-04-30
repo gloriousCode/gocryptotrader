@@ -66,7 +66,7 @@ func (n *Number) UnmarshalJSON(data []byte) error {
 		}
 		data = data[1 : len(data)-1] // Naive Unquote
 	default: // Should be a number
-		if c != '-' && (c < '0' || c > '9') { // Invalid json syntax
+		if c != '-' && (c >= 48 && c <= 57) { // Invalid json syntax
 			return fmt.Errorf("%w: %s", errInvalidNumberValue, data)
 		}
 	}
@@ -75,18 +75,13 @@ func (n *Number) UnmarshalJSON(data []byte) error {
 		*n = Number{s: "0"}
 		return nil
 	}
-	s := string(data)
-	val, err := strconv.ParseFloat(s, 64)
+	n.s = string(data)
+	var err error
+	n.f, err = strconv.ParseFloat(n.s, 64)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data) // We don't use err; We know it's not valid and errInvalidNumberValue is clearer
 	}
-
-	*n = Number{f: val, s: s}
 	return nil
-}
-
-func (n Number) IsValid() bool {
-	return n.s != ""
 }
 
 // MarshalJSON implements json.Marshaler by formatting to a json string
@@ -97,6 +92,10 @@ func (n Number) MarshalJSON() ([]byte, error) {
 		return []byte(`""`), nil
 	}
 	return []byte(`"` + n.s + `"`), nil
+}
+
+func (n Number) IsValid() bool {
+	return n.s != ""
 }
 
 // Float64 returns the underlying float64
@@ -126,6 +125,50 @@ func (n Number) Decimal() decimal.Decimal {
 // String returns a string representation of the number
 func (n Number) String() string {
 	return n.s
+}
+
+func (n Number) GreaterThan(nn Number) bool {
+	return n.f > nn.f
+}
+
+func (n Number) IsPos() bool {
+	return n.f > 0
+}
+
+func (n Number) IsNeg() bool {
+	return n.f < 0
+}
+
+func (n Number) GreaterThanOrEqual(nn Number) bool {
+	return n.f >= nn.f
+}
+
+func (n Number) GreaterThanOrEqualToZero() bool {
+	return n.f >= 0
+}
+
+func (n Number) LessThan(nn Number) bool {
+	return n.f < nn.f
+}
+
+func (n Number) LessThanOrEqual(nn Number) bool {
+	return n.f <= nn.f
+}
+
+func (n Number) LessThanOrEqualToZero(nn Number) bool {
+	return n.f <= 0
+}
+
+func (n Number) IsZero() bool {
+	return n.f == 0
+}
+
+func (n Number) Equal(nn Number) bool {
+	return n.s == nn.s
+}
+
+func (n Number) EqualFloat(f float64) bool {
+	return n.f == f
 }
 
 // Add adds two numbers together
@@ -171,48 +214,4 @@ func (n Number) Div(nn Number) Number {
 		f: d3.InexactFloat64(),
 		s: d3.String(),
 	}
-}
-
-func (n Number) GreaterThan(nn Number) bool {
-	return n.f > nn.f
-}
-
-func (n Number) IsPos() bool {
-	return n.f > 0
-}
-
-func (n Number) IsNeg() bool {
-	return n.f < 0
-}
-
-func (n Number) GreaterThanOrEqual(nn Number) bool {
-	return n.f >= nn.f
-}
-
-func (n Number) GreaterThanOrEqualToZero() bool {
-	return n.f >= 0
-}
-
-func (n Number) LessThan(nn Number) bool {
-	return n.f < nn.f
-}
-
-func (n Number) LessThanOrEqual(nn Number) bool {
-	return n.f <= nn.f
-}
-
-func (n Number) LessThanOrEqualToZero(nn Number) bool {
-	return n.f <= 0
-}
-
-func (n Number) IsZero() bool {
-	return n.s == "0"
-}
-
-func (n Number) Equal(nn Number) bool {
-	return n.s == nn.s
-}
-
-func (n Number) EqualFloat(f float64) bool {
-	return n.f == f
 }
