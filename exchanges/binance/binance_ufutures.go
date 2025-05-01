@@ -113,49 +113,8 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 		rateBudget = uFuturesOrderbook500Rate
 	}
 
-	var data OrderbookData
-	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := OrderBook{
-		Symbol:       symbolValue,
-		LastUpdateID: data.LastUpdateID,
-		Bids:         make([]OrderbookItem, len(data.Bids)),
-		Asks:         make([]OrderbookItem, len(data.Asks)),
-	}
-
-	var price, quantity float64
-	for x := range data.Asks {
-		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
-	}
-	for y := range data.Bids {
-		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		resp.Bids[y] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
-		}
-	}
-	return &resp, nil
+	var data OrderBook
+	return &data, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOrderbook+params.Encode(), rateBudget, &data)
 }
 
 // URecentTrades gets recent trades for usdt margined futures

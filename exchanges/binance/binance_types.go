@@ -128,29 +128,13 @@ type OrderBookDataRequestParams struct {
 	Limit  int           `json:"limit"`  // Default 100; max 5000. If limit > 5000, then the response will truncate to 5000
 }
 
-// OrderbookItem stores an individual orderbook item
-type OrderbookItem struct {
-	Price    float64
-	Quantity float64
-}
-
-// OrderBookData is resp data from orderbook endpoint
-type OrderBookData struct {
-	Code         int         `json:"code"`
-	Msg          string      `json:"msg"`
-	LastUpdateID int64       `json:"lastUpdateId"`
-	Bids         [][2]string `json:"bids"`
-	Asks         [][2]string `json:"asks"`
-}
-
-// OrderBook actual structured data that can be used for orderbook
+// OrderBook is resp data from orderbook endpoint
 type OrderBook struct {
-	Symbol       string
-	LastUpdateID int64
-	Code         int
-	Msg          string
-	Bids         []OrderbookItem
-	Asks         []OrderbookItem
+	Code         int               `json:"code"`
+	Msg          string            `json:"msg"`
+	LastUpdateID int64             `json:"lastUpdateId"`
+	Bids         [][2]types.Number `json:"bids"`
+	Asks         [][2]types.Number `json:"asks"`
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
