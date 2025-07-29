@@ -2877,6 +2877,8 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 					ct = futures.Monthly
 				case "quarter", "next_quarter":
 					ct = futures.Quarterly
+				case "third_quarter":
+					ct = futures.NineMonthly
 				default:
 					panic(result[i].Alias)
 				}

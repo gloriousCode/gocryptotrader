@@ -25,7 +25,7 @@ type ExchangePairAsset struct {
 
 func NewExchangePairAssetKey(exch string, a asset.Item, cp currency.Pair) ExchangePairAsset {
 	return ExchangePairAsset{
-		Exchange: strings.ToLower(exch),
+		Exchange: exch,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
 		Asset:    a,
