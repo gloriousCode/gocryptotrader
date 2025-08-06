@@ -275,7 +275,7 @@ func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*
 		if leftover < 0 {
 			existingTradeQuote := quote
 			for i := range m.Trades {
-				existingTradeQuote -= m.Trades[i].PurchaseSize * m.Trades[x].Price
+				existingTradeQuote -= m.Trades[i].PurchaseSize * m.Trades[i].Price
 			}
 			m.Trades = append(m.Trades, Trade{
 				Price:        ts[x].Price,
