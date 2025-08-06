@@ -50,6 +50,14 @@ func PercentageDifference(x, y float64) float64 {
 	return math.Abs(x-y) / ((x + y) / 2) * 100
 }
 
+// PercentageDifferenceDecimal returns the difference between two decimal values as a percentage of their average
+func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
+	if x.IsZero() && y.IsZero() {
+		return decimal.Zero
+	}
+	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
+}
+
 // CalculatePercentageDifference returns the percentage of difference between
 // multiple time periods
 func CalculatePercentageDifference(amount, secondAmount float64) float64 {

@@ -21,9 +21,9 @@ const PortfolioManagerName = "portfolio"
 // PortfolioSleepDelay defines the default sleep time between portfolio manager runs
 var PortfolioSleepDelay = time.Minute
 
-// PortfolioManager routinely retrieves a user's holdings through exchange APIs as well
+// portfolioManager routinely retrieves a user's holdings through exchange APIs as well
 // as through addresses provided in the config
-type PortfolioManager struct {
+type portfolioManager struct {
 	started               int32
 	processing            int32
 	portfolioManagerDelay time.Duration
@@ -33,8 +33,8 @@ type PortfolioManager struct {
 	m                     sync.Mutex
 }
 
-// SetupPortfolioManager creates a new portfolio manager
-func SetupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Duration, cfg *portfolio.Base) (*PortfolioManager, error) {
+// setupPortfolioManager creates a new portfolio manager
+func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Duration, cfg *portfolio.Base) (*portfolioManager, error) {
 	if e == nil {
 		return nil, errNilExchangeManager
 	}
@@ -45,7 +45,7 @@ func SetupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 	if cfg == nil {
 		cfg = &portfolio.Base{Addresses: []portfolio.Address{}}
 	}
-	m := &PortfolioManager{
+	m := &portfolioManager{
 		portfolioManagerDelay: portfolioManagerDelay,
 		exchangeManager:       e,
 		shutdown:              make(chan struct{}),
@@ -55,12 +55,12 @@ func SetupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 }
 
 // IsRunning safely checks whether the subsystem is running
-func (m *PortfolioManager) IsRunning() bool {
+func (m *portfolioManager) IsRunning() bool {
 	return m != nil && atomic.LoadInt32(&m.started) == 1
 }
 
 // Start runs the subsystem
-func (m *PortfolioManager) Start(wg *sync.WaitGroup) error {
+func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
@@ -79,7 +79,7 @@ func (m *PortfolioManager) Start(wg *sync.WaitGroup) error {
 }
 
 // Stop attempts to shutdown the subsystem
-func (m *PortfolioManager) Stop() error {
+func (m *portfolioManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
@@ -96,7 +96,7 @@ func (m *PortfolioManager) Stop() error {
 }
 
 // run periodically will check and update portfolio holdings
-func (m *PortfolioManager) run(wg *sync.WaitGroup) {
+func (m *portfolioManager) run(wg *sync.WaitGroup) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	timer := time.NewTimer(0)
 	for {
@@ -118,7 +118,7 @@ func (m *PortfolioManager) run(wg *sync.WaitGroup) {
 }
 
 // processPortfolio updates portfolio holdings
-func (m *PortfolioManager) processPortfolio() {
+func (m *portfolioManager) processPortfolio() {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
 	}
@@ -144,7 +144,7 @@ func (m *PortfolioManager) processPortfolio() {
 }
 
 // seedExchangeAccountInfo seeds account info
-func (m *PortfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) {
+func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) {
 	if len(accounts) == 0 {
 		return
 	}
@@ -225,7 +225,7 @@ func (m *PortfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 }
 
 // getExchangeAccountInfo returns all the current enabled exchanges
-func (m *PortfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
+func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
 	response := make([]account.Holdings, 0, len(exchanges))
 	for x := range exchanges {
 		if !exchanges[x].IsEnabled() {
@@ -273,7 +273,7 @@ func (m *PortfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 }
 
 // AddAddress adds a new portfolio address for the portfolio manager to track
-func (m *PortfolioManager) AddAddress(address, description string, coinType currency.Code, balance float64) error {
+func (m *portfolioManager) AddAddress(address, description string, coinType currency.Code, balance float64) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
@@ -286,7 +286,7 @@ func (m *PortfolioManager) AddAddress(address, description string, coinType curr
 }
 
 // RemoveAddress removes a portfolio address
-func (m *PortfolioManager) RemoveAddress(address, description string, coinType currency.Code) error {
+func (m *portfolioManager) RemoveAddress(address, description string, coinType currency.Code) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
@@ -299,7 +299,7 @@ func (m *PortfolioManager) RemoveAddress(address, description string, coinType c
 }
 
 // GetPortfolioSummary returns a summary of all portfolio holdings
-func (m *PortfolioManager) GetPortfolioSummary() portfolio.Summary {
+func (m *portfolioManager) GetPortfolioSummary() portfolio.Summary {
 	if m == nil || !m.IsRunning() {
 		return portfolio.Summary{}
 	}
@@ -307,7 +307,7 @@ func (m *PortfolioManager) GetPortfolioSummary() portfolio.Summary {
 }
 
 // GetAddresses returns all addresses
-func (m *PortfolioManager) GetAddresses() []portfolio.Address {
+func (m *portfolioManager) GetAddresses() []portfolio.Address {
 	if m == nil || !m.IsRunning() {
 		return nil
 	}
@@ -316,7 +316,7 @@ func (m *PortfolioManager) GetAddresses() []portfolio.Address {
 
 // GetPortfolio returns a copy of the internal portfolio base for
 // saving addresses to the config
-func (m *PortfolioManager) GetPortfolio() *portfolio.Base {
+func (m *portfolioManager) GetPortfolio() *portfolio.Base {
 	if m == nil || !m.IsRunning() {
 		return nil
 	}
@@ -325,7 +325,7 @@ func (m *PortfolioManager) GetPortfolio() *portfolio.Base {
 }
 
 // IsWhiteListed checks if an address is whitelisted to withdraw to
-func (m *PortfolioManager) IsWhiteListed(address string) bool {
+func (m *portfolioManager) IsWhiteListed(address string) bool {
 	if m == nil || !m.IsRunning() {
 		return false
 	}
@@ -333,7 +333,7 @@ func (m *PortfolioManager) IsWhiteListed(address string) bool {
 }
 
 // IsExchangeSupported checks if an exchange is supported
-func (m *PortfolioManager) IsExchangeSupported(exchange, address string) bool {
+func (m *portfolioManager) IsExchangeSupported(exchange, address string) bool {
 	if m == nil || !m.IsRunning() {
 		return false
 	}

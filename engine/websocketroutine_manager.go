@@ -36,22 +36,6 @@ func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
 
-func SetupGloriousWebsocketRoutineManager(exchangeManager iExchangeManager, syncer ICurrencyPairSyncer, pairFormat *currency.PairFormat, verbose bool) (*WebsocketRoutineManager, error) {
-	if exchangeManager == nil {
-		return nil, errNilExchangeManager
-	}
-	if syncer == nil {
-		return nil, errNilCurrencyPairSyncer
-	}
-	man := &WebsocketRoutineManager{
-		verbose:         verbose,
-		exchangeManager: exchangeManager,
-		syncer:          syncer,
-		currencyFormat:  pairFormat,
-	}
-	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
-}
-
 // Start runs the subsystem
 func (m *WebsocketRoutineManager) Start() error {
 	if m == nil {
