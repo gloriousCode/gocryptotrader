@@ -2880,7 +2880,7 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 				case "third_quarter":
 					ct = futures.NineMonthly
 				default:
-					panic(result[i].Alias)
+					return nil, fmt.Errorf("unknown alias value: %q", result[i].Alias)
 				}
 			}
 			contractSettlementType := futures.Linear
