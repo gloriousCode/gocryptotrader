@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -44,11 +43,6 @@ type ExchangePairAssetUnderlyingContractExpiry struct {
 	UnderlyingQuote  *currency.Item
 }
 
-type ExchangePairAssetCredentials struct {
-	Key         ExchangePairAsset       `json:"key"`
-	Credentials credentials.Credentials `json:"credentials"`
-}
-
 type OrderKey struct {
 	Exchange  string
 	Base      *currency.Item
@@ -58,17 +52,6 @@ type OrderKey struct {
 	OrderID   string
 	OrderSide string
 	OrderSize float64
-}
-
-func (k *ExchangePairAssetCredentials) KeyNoCreds() ExchangePairAsset {
-	return k.Key
-}
-
-func (k *ExchangePairAssetCredentials) Pair() currency.Pair {
-	if k == nil || (k.Key.Base == nil && k.Key.Quote == nil) {
-		return currency.EMPTYPAIR
-	}
-	return currency.NewPair(k.Key.Base.Currency(), k.Key.Quote.Currency())
 }
 
 func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangePairAsset {

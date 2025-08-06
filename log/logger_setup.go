@@ -260,5 +260,9 @@ func init() {
 	Trade = registerNewSubLogger("TRADE")
 	Fill = registerNewSubLogger("FILL")
 	Currency = registerNewSubLogger("CURRENCY")
+	
+	LinkSys = registerNewSubLogger("LINKSYS")
+	QuickSpy = registerNewSubLogger("QUICKSPY")
+	SpyVsSpy = registerNewSubLogger("SPYVSSPY")
 	mu.Unlock()
 }

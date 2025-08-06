@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -90,7 +89,7 @@ type IBotExchange interface {
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
-	GetCredentials(ctx context.Context) (*credentials.Credentials, error)
+	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
@@ -99,10 +98,10 @@ type IBotExchange interface {
 	// VerifyAPICredentials determines if the credentials supplied have unset
 	// required values. See exchanges/credentials.go Base method for
 	// implementation.
-	VerifyAPICredentials(creds *credentials.Credentials) error
+	VerifyAPICredentials(creds *account.Credentials) error
 	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
 	// config.json. See exchanges/credentials.go Base method for implementation.
-	GetDefaultCredentials() *credentials.Credentials
+	GetDefaultCredentials() *account.Credentials
 
 	FunctionalityChecker
 	AccountManagement

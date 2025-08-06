@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -227,7 +227,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 				continue
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
-			var creds *credentials.Credentials
+			var creds *account.Credentials
 			creds, err = g.GetCredentials(context.Background())
 			if err != nil {
 				return nil, err

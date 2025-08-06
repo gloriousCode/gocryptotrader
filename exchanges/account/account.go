@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -73,14 +72,14 @@ func SubscribeToExchangeAccount(exchange string) (dispatch.Pipe, error) {
 }
 
 // Process processes new account holdings updates
-func Process(h *Holdings, c *credentials.Credentials) error {
+func Process(h *Holdings, c *Credentials) error {
 	return service.Save(h, c)
 }
 
 // GetHoldings returns full holdings for an exchange.
 // NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
-func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.Item) (Holdings, error) {
+func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holdings, error) {
 	if exch == "" {
 		return Holdings{}, errExchangeNameUnset
 	}
@@ -144,7 +143,7 @@ func GetHoldings(exch string, creds *credentials.Credentials, assetType asset.It
 }
 
 // GetBalance returns the internal balance for that asset item.
-func GetBalance(exch, subAccount string, creds *credentials.Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
+func GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
 		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
 	}
@@ -191,7 +190,7 @@ func GetBalance(exch, subAccount string, creds *credentials.Credentials, a asset
 
 // Save saves the holdings with new account info
 // incoming should be a full update, and any missing currencies will be zeroed
-func (s *Service) Save(incoming *Holdings, creds *credentials.Credentials) error {
+func (s *Service) Save(incoming *Holdings, creds *Credentials) error {
 	if incoming == nil {
 		return fmt.Errorf("cannot update holdings: %w", errHoldingsIsNil)
 	}
@@ -216,7 +215,7 @@ func (s *Service) Save(incoming *Holdings, creds *credentials.Credentials) error
 		}
 		accounts = &Accounts{
 			ID:          id,
-			subAccounts: make(map[credentials.Credentials]map[key.SubAccountAsset]currencyBalances),
+			subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}

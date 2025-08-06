@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -570,7 +570,7 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 	return err
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *credentials.Credentials, timestamp string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)

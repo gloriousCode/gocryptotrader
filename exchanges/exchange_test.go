@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -2938,11 +2937,11 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
-	creds := &credentials.Credentials{
+	creds := &account.Credentials{
 		Key:    "test",
 		Secret: "test",
 	}
-	ctx := credentials.DeployCredentialsToContext(context.Background(), &credentials.Credentials{
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})

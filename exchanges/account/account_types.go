@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -35,7 +34,7 @@ type Accounts struct {
 	// TODO: Credential tracker to match to keys that are managed and return
 	// pointer.
 	// TODO: Have different cred struct for centralized verse DEFI exchanges.
-	subAccounts map[credentials.Credentials]map[key.SubAccountAsset]currencyBalances
+	subAccounts map[Credentials]map[key.SubAccountAsset]currencyBalances
 }
 
 type currencyBalances = map[*currency.Item]*ProtectedBalance
@@ -93,7 +92,7 @@ type ProtectedBalance struct {
 // Protected limits the access to the underlying credentials outside of this
 // package.
 type Protected struct {
-	creds credentials.Credentials
+	creds Credentials
 }
 
 // String strings the credentials in a protected way.
@@ -102,6 +101,6 @@ func (p *Protected) String() string {
 }
 
 // Equal determines if the keys are the same
-func (p *Protected) Equal(other *credentials.Credentials) bool {
+func (p *Protected) Equal(other *Credentials) bool {
 	return p.creds.Equal(other)
 }

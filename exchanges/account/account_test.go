@@ -12,11 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var happyCredentials = &credentials.Credentials{Key: "AAAAA"}
+var happyCredentials = &Credentials{Key: "AAAAA"}
 
 func TestCollectBalances(t *testing.T) {
 	t.Parallel()
@@ -129,7 +128,7 @@ func TestGetHoldings(t *testing.T) {
 	_, err = GetHoldings("Test", happyCredentials, asset.UpsideProfitContract)
 	assert.ErrorIs(t, err, ErrExchangeHoldingsNotFound)
 
-	_, err = GetHoldings("Test", &credentials.Credentials{Key: "BBBBB"}, asset.Spot)
+	_, err = GetHoldings("Test", &Credentials{Key: "BBBBB"}, asset.Spot)
 	assert.ErrorIs(t, err, errNoCredentialBalances)
 
 	u, err := GetHoldings("Test", happyCredentials, asset.Spot)
@@ -211,7 +210,7 @@ func TestGetBalance(t *testing.T) {
 	}, happyCredentials)
 	require.NoError(t, err, "process must not error")
 
-	_, err = GetBalance("bruh", "1336", &credentials.Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
+	_, err = GetBalance("bruh", "1336", &Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
 	assert.ErrorIs(t, err, errNoCredentialBalances)
 
 	_, err = GetBalance("bruh", "1336", happyCredentials, asset.Spot, currency.BTC)
@@ -431,15 +430,15 @@ func TestProtectedString(t *testing.T) {
 func TestProtectedCredentialsEqual(t *testing.T) {
 	t.Parallel()
 	var this Protected
-	var that *credentials.Credentials
+	var that *Credentials
 	if this.Equal(that) {
 		t.Fatal("unexpected value")
 	}
-	this.creds = credentials.Credentials{}
+	this.creds = Credentials{}
 	if this.Equal(that) {
 		t.Fatal("unexpected value")
 	}
-	that = &credentials.Credentials{Key: "1337"}
+	that = &Credentials{Key: "1337"}
 	if this.Equal(that) {
 		t.Fatal("unexpected value")
 	}

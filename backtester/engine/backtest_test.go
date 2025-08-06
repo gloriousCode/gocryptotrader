@@ -41,7 +41,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
@@ -352,7 +352,7 @@ func TestLoadDataLive(t *testing.T) {
 				ExchangeCredentials: []config.Credentials{
 					{
 						Exchange: testExchange,
-						Keys: credentials.Credentials{
+						Keys: account.Credentials{
 							Key:             "test",
 							Secret:          "test",
 							ClientID:        "test",
@@ -1576,7 +1576,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 	// enter them here
 	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{
 		Exchange: testExchange,
-		Keys: credentials.Credentials{
+		Keys: account.Credentials{
 			Key:    "test",
 			Secret: "test",
 		},

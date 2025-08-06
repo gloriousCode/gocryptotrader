@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account/credentials"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -286,7 +285,7 @@ var (
 	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
-	credentialsParam     = reflect.TypeOf((**credentials.Credentials)(nil)).Elem()
+	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
 	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
 	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
 	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
@@ -336,7 +335,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Asset: argGenerator.AssetParams.Asset,
 		})
 	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
-		input = reflect.ValueOf(&credentials.Credentials{
+		input = reflect.ValueOf(&account.Credentials{
 			Key:             "test",
 			Secret:          "test",
 			ClientID:        "test",
