@@ -80,9 +80,6 @@ func (b *Bithumb) SetDefaults() {
 				KlineFetching:       true,
 			},
 			Websocket: true,
-			DefaultWebsocketAssets: map[asset.Item]bool{
-				asset.Spot: true,
-			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:     true,
 				TickerFetching:    true,

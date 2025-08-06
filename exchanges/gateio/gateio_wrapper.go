@@ -66,11 +66,6 @@ func (g *Gateio) SetDefaults() {
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
-			DefaultWebsocketAssets: map[asset.Item]bool{
-				asset.Spot:        true,
-				asset.Margin:      true,
-				asset.CrossMargin: true,
-			},
 			RESTCapabilities: protocol.Features{
 				TickerBatching:        true,
 				TickerFetching:        true,
