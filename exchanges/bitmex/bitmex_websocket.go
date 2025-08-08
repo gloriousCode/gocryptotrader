@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -470,23 +471,30 @@ func (e *Exchange) processOrderbook(data []OrderBookL2, action string, p currenc
 }
 
 func (e *Exchange) handleWsTrades(msg []byte) error {
-	if !e.IsSaveTradeDataEnabled() {
-		return nil
-	}
 	var tradeHolder TradeData
 	if err := json.Unmarshal(msg, &tradeHolder); err != nil {
 		return err
 	}
 	trades := make([]trade.Data, 0, len(tradeHolder.Data))
+	// bitmex sends trade data individually and can be consumed as a tick stream
+	sde := e.IsSaveTradeDataEnabled()
 	for _, t := range tradeHolder.Data {
-		if t.Size == 0 {
-			// Indices (symbols starting with .) post trades at intervals to the trade feed
-			// These have a size of 0 and are used only to indicate a changing price
-			continue
-		}
 		p, a, err := e.GetPairAndAssetTypeRequestFormatted(t.Symbol)
 		if err != nil {
 			return err
+		}
+
+		e.Websocket.DataHandler <- &ticker.Price{
+			Last:         t.Price,
+			Pair:         p,
+			ExchangeName: e.Name,
+			AssetType:    a,
+			LastUpdated:  t.Timestamp,
+		}
+		if !sde || t.Size == 0 {
+			// Indices (symbols starting with .) post trades at intervals to the trade feed
+			// These have a size of 0 and are used only to indicate a changing price
+			continue
 		}
 		oSide, err := order.StringToOrderSide(t.Side)
 		if err != nil {
@@ -503,6 +511,9 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 			Amount:       float64(t.Size),
 			Timestamp:    t.Timestamp,
 		})
+	}
+	if !sde {
+		return nil
 	}
 	return e.AddTradesToBuffer(trades...)
 }

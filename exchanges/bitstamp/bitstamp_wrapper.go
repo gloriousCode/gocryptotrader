@@ -53,6 +53,7 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:    true,
 				TickerFetching:    true,
 				TradeFetching:     true,
 				OrderbookFetching: true,
@@ -239,8 +240,33 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %s", asset.ErrNotSupported, a)
+	}
+	ticks, err := e.AllCurrencyPairTickers(ctx)
+	if err != nil {
+		return err
+	}
+	for _, tick := range ticks {
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         tick.Last.Float64(),
+			High:         tick.High.Float64(),
+			Low:          tick.Low.Float64(),
+			Bid:          tick.Bid.Float64(),
+			Ask:          tick.Ask.Float64(),
+			Volume:       tick.Volume.Float64(),
+			Open:         tick.Open.Float64(),
+			Pair:         tick.Pair,
+			LastUpdated:  tick.Timestamp.Time(),
+			ExchangeName: e.Name,
+			AssetType:    a,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -256,13 +282,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 
 	err = ticker.ProcessTicker(&ticker.Price{
-		Last:         tick.Last,
-		High:         tick.High,
-		Low:          tick.Low,
-		Bid:          tick.Bid,
-		Ask:          tick.Ask,
-		Volume:       tick.Volume,
-		Open:         tick.Open,
+		Last:         tick.Last.Float64(),
+		High:         tick.High.Float64(),
+		Low:          tick.Low.Float64(),
+		Bid:          tick.Bid.Float64(),
+		Ask:          tick.Ask.Float64(),
+		Volume:       tick.Volume.Float64(),
+		Open:         tick.Open.Float64(),
 		Pair:         fPair,
 		LastUpdated:  tick.Timestamp.Time(),
 		ExchangeName: e.Name,

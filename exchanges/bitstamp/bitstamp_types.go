@@ -23,18 +23,19 @@ const (
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last            float64    `json:"last,string"`
-	High            float64    `json:"high,string"`
-	Low             float64    `json:"low,string"`
-	Vwap            float64    `json:"vwap,string"`
-	Volume          float64    `json:"volume,string"`
-	Bid             float64    `json:"bid,string"`
-	Ask             float64    `json:"ask,string"`
-	Timestamp       types.Time `json:"timestamp"`
-	Open            float64    `json:"open,string"`
-	Open24          float64    `json:"open_24,string"`
-	Side            orderSide  `json:"side,string"`
-	PercentChange24 float64    `json:"percent_change_24,string"`
+	Bid             types.Number  `json:"bid"`
+	Ask             types.Number  `json:"ask"`
+	High            types.Number  `json:"high"`
+	Last            types.Number  `json:"last"`
+	Low             types.Number  `json:"low"`
+	Open            types.Number  `json:"open"`
+	Open24          types.Number  `json:"open_24"`
+	Vwap            types.Number  `json:"vwap"`
+	PercentChange24 types.Number  `json:"percent_change_24"`
+	Volume          types.Number  `json:"volume"`
+	Pair            currency.Pair `json:"pair"`
+	Side            orderSide     `json:"side,string"`
+	Timestamp       types.Time    `json:"timestamp"`
 }
 
 // OrderbookBase holds singular price information
