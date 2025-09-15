@@ -20,19 +20,20 @@ import (
 func TestProcessOrderbookUpdate(t *testing.T) {
 	t.Parallel()
 
-	m := newWsOBUpdateManager(0, 0)
+	m := newWsOBUpdateManager(0, time.Second)
 	err := m.ProcessOrderbookUpdate(t.Context(), e, 1337, &orderbook.Update{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	pair := currency.NewPair(currency.BABY, currency.BABYDOGE)
+	pair := currency.NewPair(currency.BABY, currency.USDT)
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Exchange:     e.Name,
-		Pair:         pair,
-		Asset:        asset.USDTMarginedFutures,
-		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
-		Asks:         []orderbook.Level{{Price: 1, Amount: 1}},
-		LastUpdated:  time.Now(),
-		LastPushed:   time.Now(),
+		Exchange:    e.Name,
+		Pair:        pair,
+		Asset:       asset.USDTMarginedFutures,
+		Bids:        []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:        []orderbook.Level{{Price: 1, Amount: 1}},
+		LastUpdated: time.Now(),
+		LastPushed:  time.Now(),
+
 		LastUpdateID: 1336,
 	})
 	require.NoError(t, err)
@@ -61,7 +62,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 
 	cache.mtx.Lock()
 	assert.Len(t, cache.updates, 1)
-	assert.True(t, cache.updating)
+	assert.Equal(t, cache.state, queuingUpdates)
 	cache.mtx.Unlock()
 
 	// Test orderbook snapshot is behind update
@@ -76,14 +77,14 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 
 	cache.mtx.Lock()
 	assert.Len(t, cache.updates, 2)
-	assert.True(t, cache.updating)
+	assert.Equal(t, queuingUpdates, cache.state)
 	cache.mtx.Unlock()
 
 	time.Sleep(time.Millisecond * 2) // Allow sync delay to pass
 
 	cache.mtx.Lock()
 	assert.Empty(t, cache.updates)
-	assert.False(t, cache.updating)
+	assert.Equal(t, synchronised, cache.state)
 	cache.mtx.Unlock()
 }
 
@@ -254,9 +255,9 @@ func TestApplyPendingUpdates(t *testing.T) {
 	err = cache.applyPendingUpdates(e)
 	require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 
+	cache.state = queuingUpdates
 	err = e.Websocket.Orderbook.LoadSnapshot(dummy)
 	require.NoError(t, err)
-
 	cache.updates[0].update.AllowEmpty = true
 	cache.updates[0].update.UpdateTime = time.Now()
 	err = cache.applyPendingUpdates(e)
@@ -274,18 +275,16 @@ func TestApplyPendingUpdates(t *testing.T) {
 
 func TestClearWithLock(t *testing.T) {
 	t.Parallel()
-	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearWithLock()
 	require.Empty(t, cache.updates)
-	require.False(t, cache.updating)
 }
 
 func TestClearWithNoLock(t *testing.T) {
 	t.Parallel()
-	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}, updating: true}
+	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
-	require.False(t, cache.updating)
 }
 
 func TestApplyOrderbookUpdate(t *testing.T) {
