@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -192,8 +193,14 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 type Exchange struct {
 	exchange.Base
 
-	messageIDSeq  common.Counter
-	wsOBUpdateMgr *wsOBUpdateManager
+	messageIDSeq      common.Counter
+	wsOBUpdateMgr     *wsOBUpdateManager
+	wsOrderbookLimits wsOrderbookLimits
+}
+
+type wsOrderbookLimits struct {
+	l map[asset.Item]uint64
+	m sync.Mutex
 }
 
 // ***************************************** SubAccounts ********************************

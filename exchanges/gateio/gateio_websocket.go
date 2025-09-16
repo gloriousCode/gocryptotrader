@@ -684,6 +684,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
 		}
 	}
+	
 	return errs
 }
 

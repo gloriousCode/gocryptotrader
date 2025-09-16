@@ -38,7 +38,17 @@ func TestProcessOrderbookUpdateStates(t *testing.T) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Gateio Setup error: %s", err)
 	}
-
+	e.wsOrderbookLimits = wsOrderbookLimits{
+		l: map[asset.Item]uint64{
+			asset.Spot:                20,
+			asset.Margin:              20,
+			asset.CrossMargin:         20,
+			asset.USDTMarginedFutures: 20,
+			asset.CoinMarginedFutures: 20,
+			asset.DeliveryFutures:     20,
+			asset.Options:             20,
+		},
+	}
 	pair := currency.NewPair(currency.DOGE, currency.BABYDOGE)
 	require.NoError(t, e.Base.SetPairs([]currency.Pair{pair}, asset.USDTMarginedFutures, true))
 

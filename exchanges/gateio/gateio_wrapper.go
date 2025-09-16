@@ -288,7 +288,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Options
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   optionsWebsocketURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -299,7 +299,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.WsOptionsConnect,
 		MessageFilter:         asset.Options,
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
-	})
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
