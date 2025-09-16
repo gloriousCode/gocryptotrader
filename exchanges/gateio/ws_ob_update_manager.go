@@ -34,11 +34,11 @@ type wsOBUpdateManager struct {
 }
 
 type updateCache struct {
-	updates      []pendingUpdate
-	mtx          sync.Mutex
-	state        state
-	ch           chan int64 // receives newest pending update IDs while syncing snapshot
-	lastUpdateID int64
+	updates              []pendingUpdate
+	mtx                  sync.Mutex
+	state                state
+	ch                   chan int64 // receives newest pending update IDs while syncing snapshot
+	snapshotLastUpdateID int64
 }
 
 // state determines how orderbook updates are handled
@@ -65,14 +65,11 @@ func (m *wsOBUpdateManager) ProcessOrderbookUpdate(ctx context.Context, e *Excha
 	if err != nil {
 		return err
 	}
-	if err := e.setWSOrderbookLimits(); err != nil {
-		return err
-	}
 	cache.mtx.Lock()
 	defer cache.mtx.Unlock()
 	switch cache.state {
 	case synchronised: // prioritised hot path
-		return m.synchroniseOrderbook(ctx, e, update, firstUpdateID, cache)
+		return m.updateSynchronisedOrderbook(ctx, e, update, firstUpdateID, cache)
 	case initialised:
 		return m.initialiseOrderbook(ctx, e, firstUpdateID, update, cache)
 	case queuingUpdates:
@@ -100,39 +97,39 @@ func (m *wsOBUpdateManager) desynchroniseOrderbook(ctx context.Context, cache *u
 }
 
 func (m *wsOBUpdateManager) initialiseOrderbook(ctx context.Context, e *Exchange, firstUpdateID int64, update *orderbook.Update, cache *updateCache) error {
-	go m.asyncSetupOrderbook(e, update, ctx, cache)
+	go func() {
+		if err := m.setupOrderbookSnapshot(e, update, ctx, cache); err != nil {
+			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to set orderbook limits: %v", e.Name, err)
+		}
+	}()
 	cache.state = queuingUpdates
 	cache.enqueueUpdate(update, firstUpdateID)
 	return nil
 }
 
-func (m *wsOBUpdateManager) asyncSetupOrderbook(e *Exchange, update *orderbook.Update, ctx context.Context, cache *updateCache) {
+func (m *wsOBUpdateManager) setupOrderbookSnapshot(e *Exchange, update *orderbook.Update, ctx context.Context, cache *updateCache) error {
 	var lim uint64
 	lim = e.wsOrderbookLimits.get(update.Asset)
 	if lim == 0 {
 		if err := e.setWSOrderbookLimits(); err != nil {
-			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to set orderbook limits: %v", e.Name, err)
-			return
+			return err
 		}
 	}
 	b, err := e.fetchOrderbook(ctx, update.Pair, update.Asset, lim)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to fetch orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		return
+		return err
 	}
-	cache.lastUpdateID = b.LastUpdateID
-	if err := cache.SyncOrderbook(ctx, e, b, m.delay, m.deadline); err != nil {
-		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", e.Name, update.Pair, update.Asset, err)
-		return
-	}
+	cache.snapshotLastUpdateID = b.LastUpdateID
+	return cache.SyncOrderbookSnapshotToUpdates(ctx, e, b, m.delay, m.deadline)
 }
 
-func (m *wsOBUpdateManager) synchroniseOrderbook(ctx context.Context, e *Exchange, update *orderbook.Update, firstUpdateID int64, cache *updateCache) error {
-	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
+func (m *wsOBUpdateManager) updateSynchronisedOrderbook(ctx context.Context, e *Exchange, update *orderbook.Update, firstUpdateID int64, cache *updateCache) error {
+	var err error
+	cache.snapshotLastUpdateID, err = e.Websocket.Orderbook.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
 		return err
 	}
-	if lastUpdateID+1 != firstUpdateID {
+	if cache.snapshotLastUpdateID+1 != firstUpdateID {
 		cache.state = desynchronised
 		return m.desynchroniseOrderbook(ctx, cache, e, update, firstUpdateID)
 	}
@@ -140,8 +137,6 @@ func (m *wsOBUpdateManager) synchroniseOrderbook(ctx context.Context, e *Exchang
 		cache.state = desynchronised
 		return m.desynchroniseOrderbook(ctx, cache, e, update, firstUpdateID)
 	}
-	// Successful application while already in synchronised path keeps us synchronised
-	cache.state = synchronised
 	return nil
 }
 

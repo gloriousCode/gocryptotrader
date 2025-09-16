@@ -21,9 +21,9 @@ func (cache *updateCache) notifyLatest(id int64) {
 	}
 }
 
-// SyncOrderbook fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
+// SyncOrderbookSnapshotToUpdates fetches and synchronises an orderbook snapshot to the limit size so that pending updates can be
 // applied to the orderbook.
-func (cache *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, b *orderbook.Book, delay, deadline time.Duration) error {
+func (cache *updateCache) SyncOrderbookSnapshotToUpdates(ctx context.Context, e *Exchange, b *orderbook.Book, delay, deadline time.Duration) error {
 	// REST requests can be behind websocket updates by a large margin, so we wait here to allow the cache to fill with
 	// updates before we fetch the orderbook snapshot.
 	select {
@@ -36,8 +36,7 @@ func (cache *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, b *ord
 	// pending updates.
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(deadline))
 	defer cancel()
-
-	if err := cache.waitForUpdate(ctx, cache.lastUpdateID+1); err != nil {
+	if err := cache.waitForUpdate(ctx, cache.snapshotLastUpdateID+1); err != nil {
 		return err
 	}
 	cache.mtx.Lock() // Lock here to prevent ws handle data interference with REST request above.

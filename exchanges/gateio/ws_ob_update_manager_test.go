@@ -115,7 +115,7 @@ func TestLoadCache(t *testing.T) {
 
 		cache := &updateCache{}
 		pair := currency.NewPair(currency.ETH, currency.USDT)
-		err := cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
+		err := cache.SyncOrderbookSnapshotToUpdates(t.Context(), e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
 		require.ErrorIs(t, err, subscription.ErrNotFound)
 
 		// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
@@ -124,27 +124,27 @@ func TestLoadCache(t *testing.T) {
 
 		ctxCancel, cancel := context.WithCancel(t.Context())
 		cancel()
-		err = cache.SyncOrderbook(ctxCancel, e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
+		err = cache.SyncOrderbookSnapshotToUpdates(ctxCancel, e, pair, asset.Spot, 0, defaultWSOrderbookUpdateDeadline)
 		require.ErrorIs(t, err, context.Canceled)
 
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
-		err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, 0)
+		err = cache.SyncOrderbookSnapshotToUpdates(t.Context(), e, pair, asset.Spot, 0, 0)
 		require.ErrorIs(t, err, context.DeadlineExceeded)
 
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
-		err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
+		err = cache.SyncOrderbookSnapshotToUpdates(t.Context(), e, pair, asset.Spot, 0, time.Second)
 		require.ErrorContains(t, err, context.DeadlineExceeded.Error())
 
 		err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
 		require.NoError(t, err)
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: math.MaxInt64}}}
-		err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
+		err = cache.SyncOrderbookSnapshotToUpdates(t.Context(), e, pair, asset.Spot, 0, time.Second)
 		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 
 		err = e.Base.SetPairs([]currency.Pair{pair}, asset.USDTMarginedFutures, true)
 		require.NoError(t, err)
 		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: math.MaxInt64}}}
-		err = cache.SyncOrderbook(t.Context(), e, pair, asset.USDTMarginedFutures, 0, time.Second)
+		err = cache.SyncOrderbookSnapshotToUpdates(t.Context(), e, pair, asset.USDTMarginedFutures, 0, time.Second)
 		require.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 	}
 func TestExtractOrderbookLimit(t *testing.T) {
