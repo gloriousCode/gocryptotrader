@@ -262,7 +262,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -275,12 +275,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.DialContext(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil)
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
 
-	ws.connectionManager[0].setup.Handler = func(context.Context, []byte) error {
+	ws.connectionManager[0].setup.Handler = func(context.Context, Connection, []byte) error {
 		return errDastardlyReason
 	}
 	err = ws.Connect()
@@ -308,7 +308,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err)
 
-	err = ws.connectionManager[0].connection.SendRawMessage(context.Background(), request.Unset, gws.TextMessage, []byte("test"))
+	err = ws.connectionManager[0].connection.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("test"))
 	require.NoError(t, err)
 
 	require.NoError(t, err)
@@ -469,7 +469,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -521,16 +521,16 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(&gws.Dialer{}, http.Header{})
+		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
 			}
 			t.Fatal(err)
 		}
-		err = testCases[x].WC.SendJSONMessage(context.Background(), request.Unset, Ping)
+		err = testCases[x].WC.SendJSONMessage(t.Context(), request.Unset, Ping)
 		require.NoError(t, err)
-		err = testCases[x].WC.SendRawMessage(context.Background(), request.Unset, gws.TextMessage, []byte(Ping))
+		err = testCases[x].WC.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte(Ping))
 		require.NoError(t, err)
 	}
 }
@@ -551,7 +551,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -567,22 +567,22 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		RequestID: wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
 	if err != nil {
 		t.Error(err)
 	}
 
-	cancelledCtx, fn := context.WithDeadline(context.Background(), time.Now())
+	cancelledCtx, fn := context.WithDeadline(t.Context(), time.Now())
 	fn()
 	_, err = wc.SendMessageReturnResponse(cancelledCtx, request.Unset, "123", req)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	// with timeout
 	wc.ResponseMaxLimit = 1
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, "123", req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, "123", req)
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 
-	_, err = wc.SendMessageReturnResponsesWithInspector(context.Background(), request.Unset, "123", req, 1, inspection{})
+	_, err = wc.SendMessageReturnResponsesWithInspector(t.Context(), request.Unset, "123", req, 1, inspection{})
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
@@ -592,11 +592,11 @@ func TestWaitForResponses(t *testing.T) {
 		ResponseMaxLimit: time.Nanosecond,
 		Match:            NewMatch(),
 	}
-	_, err := dummy.waitForResponses(context.Background(), "silly", nil, 1, inspection{})
+	_, err := dummy.waitForResponses(t.Context(), "silly", nil, 1, inspection{})
 	require.ErrorIs(t, err, ErrSignatureTimeout)
 
 	dummy.ResponseMaxLimit = time.Second
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	_, err = dummy.waitForResponses(ctx, "silly", nil, 1, inspection{})
 	require.ErrorIs(t, err, context.Canceled)
@@ -604,7 +604,7 @@ func TestWaitForResponses(t *testing.T) {
 	// test break early and hit verbose path
 	ch := make(chan []byte, 1)
 	ch <- []byte("hello")
-	ctx = request.WithVerbose(context.Background())
+	ctx = request.WithVerbose(t.Context())
 
 	got, err := dummy.waitForResponses(ctx, "silly", ch, 2, inspection{breakEarly: true})
 	require.NoError(t, err)
@@ -676,7 +676,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 	wc.shutdown = make(chan struct{})
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = wc.Dial(&gws.Dialer{}, http.Header{})
+	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -769,7 +769,7 @@ func TestGenerateMessageID(t *testing.T) {
 		ids[i] = id
 	}
 
-	wc.bespokeGenerateMessageID = func(bool) int64 { return 42 }
+	wc.requestIDGenerator = func() int64 { return 42 }
 	assert.EqualValues(t, 42, wc.GenerateMessageID(true), "GenerateMessageID should use bespokeGenerateMessageID")
 }
 
@@ -861,7 +861,7 @@ func TestFlushChannels(t *testing.T) {
 
 	newgen := GenSubs{EnabledPairs: []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD),
-		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewBTCUSDT(),
 	}}
 
 	w := NewManager()
@@ -953,12 +953,12 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.DialContext(ctx, gws.DefaultDialer, nil)
+			return conn.Dial(ctx, gws.DefaultDialer, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
 		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
-		Handler:               func(context.Context, []byte) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
 	}
 	require.NoError(t, w.SetupNewConnection(amazingCandidate))
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "Must error when no subscriptions are added to the subscription store")
@@ -1001,7 +1001,7 @@ func TestEnable(t *testing.T) {
 	w.Unsubscriber = func(subscription.List) error { return nil }
 	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	assert.ErrorIs(t, w.Enable(), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {
@@ -1066,7 +1066,7 @@ func TestSetupNewConnection(t *testing.T) {
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errWebsocketDataHandlerUnset)
 
-	connSetup.Handler = func(context.Context, []byte) error { return nil }
+	connSetup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
 	require.ErrorIs(t, err, errMessageFilterNotComparable)
@@ -1090,7 +1090,7 @@ func TestConnectionShutdown(t *testing.T) {
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
@@ -1098,7 +1098,7 @@ func TestConnectionShutdown(t *testing.T) {
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(&gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1126,7 +1126,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(&gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
@@ -1138,7 +1138,7 @@ func TestLatency(t *testing.T) {
 		RequestID:    wc.GenerateMessageID(false),
 	}
 
-	_, err = wc.SendMessageReturnResponse(context.Background(), request.Unset, req.RequestID, req)
+	_, err = wc.SendMessageReturnResponse(t.Context(), request.Unset, req.RequestID, req)
 	require.NoError(t, err)
 	require.NotEmpty(t, r.t, "Latency must have a duration")
 	require.Equal(t, exch, r.name, "Latency must have the correct exchange name")
@@ -1154,23 +1154,23 @@ func TestRemoveURLQueryString(t *testing.T) {
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
 	wc := connection{}
-	require.ErrorIs(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
+	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
 	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
-	ctx, cancel := context.WithTimeout(context.Background(), 0) // deadline exceeded
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
+	ctx, cancel := context.WithTimeout(t.Context(), 0) // deadline exceeded
 	cancel()
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
 	}
-	require.NoError(t, wc.writeToConn(context.Background(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// match with global rate limit
-	require.NoError(t, wc.writeToConn(context.Background(), request.Auth, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Auth, func() error { return nil }))
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)

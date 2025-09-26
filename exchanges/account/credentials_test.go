@@ -2,6 +2,9 @@ package account
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestIsEmpty(t *testing.T) {
@@ -18,6 +21,103 @@ func TestIsEmpty(t *testing.T) {
 	c.SubAccount = "woow"
 	if c.IsEmpty() {
 		t.Fatalf("expected: %v but received: %v", false, c.IsEmpty())
+	}
+}
+
+func TestParseCredentialsMetadata(t *testing.T) {
+	t.Parallel()
+	_, err := ParseCredentialsMetadata(t.Context(), nil)
+	require.ErrorIs(t, err, errMetaDataIsNil)
+
+	_, err = ParseCredentialsMetadata(t.Context(), metadata.MD{})
+	require.NoError(t, err)
+
+	ctx := metadata.AppendToOutgoingContext(t.Context(),
+		string(ContextCredentialsFlag), "wow", string(ContextCredentialsFlag), "wow2")
+	nortyMD, _ := metadata.FromOutgoingContext(ctx)
+
+	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
+	require.ErrorIs(t, err, errInvalidCredentialMetaDataLength)
+
+	ctx = metadata.AppendToOutgoingContext(t.Context(),
+		string(ContextCredentialsFlag), "brokenstring")
+	nortyMD, _ = metadata.FromOutgoingContext(ctx)
+
+	_, err = ParseCredentialsMetadata(t.Context(), nortyMD)
+	require.ErrorIs(t, err, errMissingInfo)
+
+	beforeCreds := Credentials{
+		Key:             "superkey",
+		Secret:          "supersecret",
+		SubAccount:      "supersub",
+		ClientID:        "superclient",
+		PEMKey:          "superpem",
+		OneTimePassword: "superOneTimePasssssss",
+	}
+
+	flag, outGoing := beforeCreds.GetMetaData()
+	ctx = metadata.AppendToOutgoingContext(t.Context(), flag, outGoing)
+	lovelyMD, _ := metadata.FromOutgoingContext(ctx)
+
+	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
+	require.NoError(t, err)
+
+	store, ok := ctx.Value(ContextCredentialsFlag).(*ContextCredentialsStore)
+	if !ok {
+		t.Fatal("should have processed")
+	}
+
+	afterCreds := store.Get()
+
+	if afterCreds.Key != "superkey" &&
+		afterCreds.Secret != "supersecret" &&
+		afterCreds.SubAccount != "supersub" &&
+		afterCreds.ClientID != "superclient" &&
+		afterCreds.PEMKey != "superpem" &&
+		afterCreds.OneTimePassword != "superOneTimePasssssss" {
+		t.Fatal("unexpected values")
+	}
+
+	// subaccount override
+	subaccount := Credentials{
+		SubAccount: "supersub",
+	}
+
+	flag, outGoing = subaccount.GetMetaData()
+	ctx = metadata.AppendToOutgoingContext(t.Context(), flag, outGoing)
+	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
+
+	ctx, err = ParseCredentialsMetadata(t.Context(), lovelyMD)
+	require.NoError(t, err)
+
+	sa, ok := ctx.Value(ContextSubAccountFlag).(string)
+	if !ok {
+		t.Fatal("should have processed")
+	}
+
+	if sa != "supersub" {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetInternal(t *testing.T) {
+	t.Parallel()
+	flag, store := (&Credentials{}).getInternal()
+	if flag != "" {
+		t.Fatal("unexpected value")
+	}
+	if store != nil {
+		t.Fatal("unexpected value")
+	}
+	flag, store = (&Credentials{Key: "wow"}).getInternal()
+	if flag != ContextCredentialsFlag {
+		t.Fatal("unexpected value")
+	}
+	if store == nil {
+		t.Fatal("unexpected value")
+	}
+	if store.Get().Key != "wow" {
+		t.Fatal("unexpected value")
 	}
 }
 

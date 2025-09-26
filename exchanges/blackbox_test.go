@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	shared "github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -14,7 +15,7 @@ type mockEx struct {
 	flow chan int
 }
 
-func (m *mockEx) UpdateTradablePairs(_ context.Context, _ bool) error {
+func (m *mockEx) UpdateTradablePairs(context.Context) error {
 	m.flow <- 42
 	return nil
 }
@@ -25,7 +26,8 @@ func TestBootstrap(t *testing.T) {
 		make(chan int, 1),
 	}
 	m.Features.Enabled.AutoPairUpdates = true
-	err := exchange.Bootstrap(context.TODO(), m)
-	assert.NoError(t, err, "Bootstrap should not error")
+	err := exchange.Bootstrap(t.Context(), m)
+	require.NoError(t, err, "Bootstrap must not error")
+	require.Len(t, m.flow, 1)
 	assert.Equal(t, 42, <-m.flow, "UpdateTradablePairs should be called on the exchange")
 }

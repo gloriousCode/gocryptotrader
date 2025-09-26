@@ -1,7 +1,6 @@
 package account
 
 import (
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -59,9 +58,7 @@ func TestCollectBalances(t *testing.T) {
 	}
 
 	_, err = CollectBalances(map[string][]Balance{}, asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetHoldings(t *testing.T) {
@@ -71,7 +68,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = Process(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	holdings := Holdings{Exchange: "Test"}
 
@@ -114,7 +111,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = GetHoldings("", nil, asset.Spot)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = GetHoldings("bla", nil, asset.Spot)
 	assert.ErrorIs(t, err, errCredentialsAreNil)
@@ -144,7 +141,7 @@ func TestGetHoldings(t *testing.T) {
 	assert.Equal(t, 20.0, u.Accounts[0].Currencies[0].Hold)
 
 	_, err = SubscribeToExchangeAccount("nonsense")
-	assert.ErrorIs(t, err, errExchangeAccountsNotFound)
+	require.NoError(t, err)
 
 	p, err := SubscribeToExchangeAccount("Test")
 	require.NoError(t, err)
@@ -185,7 +182,7 @@ func TestGetBalance(t *testing.T) {
 	t.Parallel()
 
 	_, err := GetBalance("", "", nil, asset.Empty, currency.Code{})
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	_, err = GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -250,23 +247,18 @@ func TestBalanceInternalWait(t *testing.T) {
 	t.Parallel()
 	var bi *ProtectedBalance
 	_, _, err := bi.Wait(0)
-	if !errors.Is(err, errBalanceIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errBalanceIsNil)
-	}
+	require.ErrorIs(t, err, errBalanceIsNil)
 
 	bi = &ProtectedBalance{}
 	waiter, _, err := bi.Wait(time.Nanosecond)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
+
 	if !<-waiter {
 		t.Fatal("should been alerted by timeout")
 	}
 
 	waiter, _, err = bi.Wait(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	require.NoError(t, err)
 
 	go bi.notice.Alert()
 	if <-waiter {
@@ -298,8 +290,11 @@ func TestBalanceInternalLoad(t *testing.T) {
 
 	assert.Equal(t, 3.0, bi.GetFree())
 
+	err = bi.load(&Balance{UpdatedAt: now.Add(-time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
+	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with old update trying to store")
+
 	err = bi.load(&Balance{UpdatedAt: now, Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
-	assert.ErrorIs(t, err, errOutOfSequence, "should error correctly with same UpdatedAt")
+	assert.NoError(t, err, "should not error when timestamps are the same")
 
 	err = bi.load(&Balance{UpdatedAt: now.Add(time.Second), Total: 2, Hold: 3, Free: 4, AvailableWithoutBorrow: 5, Borrowed: 6})
 	assert.NoError(t, err)
@@ -325,7 +320,7 @@ func TestSave(t *testing.T) {
 	assert.ErrorIs(t, err, errHoldingsIsNil)
 
 	err = s.Save(&Holdings{}, nil)
-	assert.ErrorIs(t, err, errExchangeNameUnset)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
 	err = s.Save(&Holdings{
 		Exchange: "TeSt",
@@ -411,55 +406,104 @@ func TestSave(t *testing.T) {
 	assert.Equal(t, 20.0, e.hold)
 }
 
-func TestProtectedString(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	t.Parallel()
-	p := Protected{}
-	if s := p.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
-		t.Fatal("unexpected value")
-	}
+	s := &Service{exchangeAccounts: make(map[string]*Accounts), mux: dispatch.GetNewMux(nil)}
+	err := s.Update("", nil, nil)
+	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	p.creds.Key = "12345678910111234"
-	p.creds.SubAccount = "sub"
-	p.creds.ClientID = "client"
+	err = s.Update("test", nil, nil)
+	assert.ErrorIs(t, err, errCredentialsAreNil)
 
-	if s := p.creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
-		t.Fatal("unexpected value")
-	}
+	err = s.Update("test", []Change{
+		{
+			AssetType: 6969,
+			Balance: &Balance{
+				Currency: currency.BTC,
+				Free:     100,
+			},
+		},
+	}, happyCredentials)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	now := time.Now()
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      80,
+				UpdatedAt: now,
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	acc, ok := s.exchangeAccounts["test"]
+	require.True(t, ok, "Update must add the exchange")
+
+	assets, ok := acc.subAccounts[*happyCredentials][key.SubAccountAsset{
+		SubAccount: "1337",
+		Asset:      asset.Spot,
+	}]
+	require.True(t, ok, "Update must add subAccount for the credentials")
+
+	b, ok := assets[currency.BTC.Item]
+	require.True(t, ok, "Update must add currency to the subAccount")
+
+	assert.Equal(t, 100.0, b.total, "Update should set total correctly")
+	assert.Equal(t, 80.0, b.free, "Update should set free correctly")
+	assert.Equal(t, now, b.updatedAt, "Update should set updatedAt correctly")
+
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      100,
+				UpdatedAt: now.Add(-1 * time.Second),
+			},
+		},
+	}, happyCredentials)
+	assert.ErrorIs(t, err, errOutOfSequence)
+
+	err = s.Update("test", []Change{
+		{
+			AssetType: asset.Spot,
+			Account:   "1337",
+			Balance: &Balance{
+				Currency:  currency.BTC,
+				Total:     100,
+				Free:      100,
+				UpdatedAt: now.Add(1 * time.Second),
+			},
+		},
+	}, happyCredentials)
+	require.NoError(t, err)
+
+	assert.Equal(t, 100.0, b.total)
+	assert.Equal(t, 100.0, b.free)
+	assert.Equal(t, now.Add(1*time.Second), b.updatedAt)
 }
 
-func TestProtectedCredentialsEqual(t *testing.T) {
+func TestTrackNewAccounts(t *testing.T) {
 	t.Parallel()
-	var this Protected
-	var that *Credentials
-	if this.Equal(that) {
-		t.Fatal("unexpected value")
+	s := &Service{
+		exchangeAccounts: make(map[string]*Accounts),
+		mux:              dispatch.GetNewMux(nil),
 	}
-	this.creds = Credentials{}
-	if this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	that = &Credentials{Key: "1337"}
-	if this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	this.creds.Key = "1337"
-	if !this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	this.creds.ClientID = "1337"
-	if this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	that.ClientID = "1337"
-	if !this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	this.creds.SubAccount = "someSub"
-	if this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
-	that.SubAccount = "someSub"
-	if !this.Equal(that) {
-		t.Fatal("unexpected value")
-	}
+
+	s.mu.Lock()
+	_, err := s.initAccounts("binance")
+	s.mu.Unlock()
+	require.NoError(t, err)
+
+	s.mu.Lock()
+	_, err = s.initAccounts("binance")
+	s.mu.Unlock()
+	assert.ErrorIs(t, err, errExchangeAlreadyExists)
 }

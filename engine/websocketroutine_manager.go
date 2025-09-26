@@ -125,19 +125,15 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 			continue
 		}
 
-		//wg.Add(1)
-		//go func() {
-		//	defer wg.Done()
-		//	err = m.websocketDataReceiver(ws)
-		//	if err != nil {
-		//		log.Errorf(log.WebsocketMgr, "%v", err)
-		//	}
-		//
-		//	err = ws.Connect()
-		//	if err != nil {
-		//		log.Errorf(log.WebsocketMgr, "%v", err)
-		//	}
-		//}()
+		wg.Go(func() {
+			if err := m.websocketDataReceiver(ws); err != nil {
+				log.Errorf(log.WebsocketMgr, "%v", err)
+			}
+
+			if err := ws.Connect(); err != nil {
+				log.Errorf(log.WebsocketMgr, "%v", err)
+			}
+		})
 	}
 	wg.Wait()
 }
@@ -157,9 +153,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		for {
 			select {
 			case <-m.shutdown:
@@ -178,7 +172,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				m.mu.RUnlock()
 			}
 		}
-	}()
+	})
 	return nil
 }
 
@@ -311,15 +305,15 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
-		log.Warnln(log.WebsocketMgr, d.Message)
+		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case account.Change:
 		if m.verbose {
-			m.printAccountHoldingsChangeSummary(d)
+			m.printAccountHoldingsChangeSummary(exchName, d)
 		}
 	case []account.Change:
 		if m.verbose {
 			for x := range d {
-				m.printAccountHoldingsChangeSummary(d[x])
+				m.printAccountHoldingsChangeSummary(exchName, d[x])
 			}
 		}
 	case []trade.Data, trade.Data:
@@ -381,16 +375,16 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 
 // printAccountHoldingsChangeSummary this function will be deprecated when a
 // account holdings update is done.
-func (m *WebsocketRoutineManager) printAccountHoldingsChangeSummary(o account.Change) {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
+func (m *WebsocketRoutineManager) printAccountHoldingsChangeSummary(exch string, o account.Change) {
+	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o.Balance == nil {
 		return
 	}
 	log.Debugf(log.WebsocketMgr,
 		"Account Holdings Balance Changed: %s %s %s has changed balance by %f for account: %s",
-		o.Exchange,
-		o.Asset,
-		o.Currency,
-		o.Amount,
+		exch,
+		o.AssetType,
+		o.Balance.Currency,
+		o.Balance.Total,
 		o.Account)
 }
 

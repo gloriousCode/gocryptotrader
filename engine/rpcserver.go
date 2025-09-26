@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -20,7 +21,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -64,7 +64,6 @@ var (
 	errExchangeNotEnabled      = errors.New("exchange is not enabled")
 	errExchangeBaseNotFound    = errors.New("cannot get exchange base")
 	errInvalidArguments        = errors.New("invalid arguments received")
-	errExchangeNameUnset       = errors.New("exchange name unset")
 	errCurrencyPairUnset       = errors.New("currency pair unset")
 	errInvalidTimes            = errors.New("invalid start and end times")
 	errAssetTypeUnset          = errors.New("asset type unset")
@@ -102,7 +101,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		return ctx, errors.New("basic not found in authorization header")
 	}
 
-	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
+	decoded, err := base64.StdEncoding.DecodeString(strings.Split(authStr[0], " ")[1])
 	if err != nil {
 		return ctx, errors.New("unable to base64 decode authorization header")
 	}
@@ -134,7 +133,7 @@ func StartRPCServer(engine *Engine) {
 		return
 	}
 	log.Debugf(log.GRPCSys, "gRPC server support enabled. Starting gRPC server on https://%v.\n", engine.Config.RemoteControl.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress)
+	lis, err := net.Listen("tcp", engine.Config.RemoteControl.GRPC.ListenAddress) //nolint:noctx // TODO: #2006 Replace net.Listen with (*net.ListenConfig).Listen
 	if err != nil {
 		log.Errorf(log.GRPCSys, "gRPC server failed to bind to port: %s", err)
 		return
@@ -1359,13 +1358,12 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 	err = s.OrderManager.Cancel(ctx,
 		&order.Cancel{
-			Exchange:      r.Exchange,
-			AccountID:     r.AccountId,
-			OrderID:       r.OrderId,
-			Side:          side,
-			WalletAddress: r.WalletAddress,
-			Pair:          p,
-			AssetType:     a,
+			Exchange:  r.Exchange,
+			AccountID: r.AccountId,
+			OrderID:   r.OrderId,
+			Side:      side,
+			Pair:      p,
+			AssetType: a,
 		})
 	if err != nil {
 		return nil, err
@@ -1408,12 +1406,11 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 		orderID := orders[x]
 		status[orderID] = order.Cancelled.String()
 		req[x] = order.Cancel{
-			AccountID:     r.AccountId,
-			OrderID:       orderID,
-			Side:          side,
-			WalletAddress: r.WalletAddress,
-			Pair:          pair,
-			AssetType:     assetType,
+			AccountID: r.AccountId,
+			OrderID:   orderID,
+			Side:      side,
+			Pair:      pair,
+			AssetType: assetType,
 		}
 	}
 
@@ -1920,7 +1917,7 @@ func (s *RPCServer) GetExchangePairs(_ context.Context, r *gctrpc.GetExchangePai
 			return nil, err
 		}
 		if !assetTypes.Contains(a) {
-			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+			return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 		}
 	}
 
@@ -2104,7 +2101,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 // GetExchangeOrderbookStream streams all orderbooks associated with an exchange
 func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeOrderbookStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2174,7 +2171,7 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 // GetTickerStream streams the requested updated ticker
 func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2246,7 +2243,7 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 // GetExchangeTickerStream streams all tickers associated with an exchange
 func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamRequest, stream gctrpc.GoCryptoTraderService_GetExchangeTickerStreamServer) error {
 	if r.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameNotSet
 	}
 
 	if _, err := s.GetExchangeByName(r.Exchange); err != nil {
@@ -2928,8 +2925,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 			errors.New("cannot auto pair update for exchange, a manual update is needed")
 	}
 
-	err = exch.UpdateTradablePairs(ctx, false)
-	if err != nil {
+	if err := exch.UpdateTradablePairs(ctx); err != nil {
 		return nil, err
 	}
 
@@ -5147,7 +5143,7 @@ func (s *RPCServer) GetTechnicalAnalysis(ctx context.Context, r *gctrpc.GetTechn
 		}
 		signals["RSI"] = &gctrpc.ListOfSignals{Signals: prices}
 	default:
-		return nil, fmt.Errorf("%w '%s'", errInvalidStrategy, r.AlgorithmType)
+		return nil, fmt.Errorf("%w %q", errInvalidStrategy, r.AlgorithmType)
 	}
 
 	return &gctrpc.GetTechnicalAnalysisResponse{Signals: signals}, nil

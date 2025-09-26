@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -29,6 +29,11 @@ const (
 	textPlain             = "text/plain"
 )
 
+// error declarations
+var (
+	errJSONMockFilePathRequired = errors.New("no path to json mock file found")
+)
+
 // VCRMock defines the main mock JSON file and attributes
 type VCRMock struct {
 	Routes map[string]map[string][]HTTPResponse `json:"routes"`
@@ -38,7 +43,7 @@ type VCRMock struct {
 // purposes and returns the server connection details
 func NewVCRServer(path string) (string, *http.Client, error) {
 	if path == "" {
-		return "", nil, errors.New("no path to json mock file found")
+		return "", nil, errJSONMockFilePathRequired
 	}
 
 	var mockFile VCRMock
@@ -162,7 +167,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 
 				reqVals, err := DeriveURLValsFromJSONMap(readBody)
 				if err != nil {
-					log.Fatalf("Mock Test Failure - %v", err)
+					log.Fatalf("DeriveURLValsFromJSONMap Mock Test Failure - %v", err)
 				}
 
 				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
@@ -179,9 +184,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 					log.Fatal("Mock Test Failure - Cannot find header in request")
 				}
 
-				base64data := strings.Join(headerData, "")
-
-				jsonThings, err := crypto.Base64Decode(base64data)
+				jsonThings, err := base64.StdEncoding.DecodeString(strings.Join(headerData, ""))
 				if err != nil {
 					log.Fatal("Mock Test Failure - ", err)
 				}

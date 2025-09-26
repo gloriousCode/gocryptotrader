@@ -1,7 +1,6 @@
 package simulator
 
 import (
-	"context"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestSimulate(t *testing.T) {
-	b := bitstamp.Bitstamp{}
+	b := bitstamp.Exchange{}
 	b.SetDefaults()
 	b.Verbose = false
 	b.CurrencyPairs = currency.PairsManager{
@@ -24,8 +23,8 @@ func TestSimulate(t *testing.T) {
 			},
 		},
 	}
-	o, err := b.UpdateOrderbook(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	o, err := b.UpdateOrderbook(t.Context(),
+		currency.NewBTCUSD(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}

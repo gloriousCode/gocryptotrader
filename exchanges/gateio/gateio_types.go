@@ -26,8 +26,6 @@ const (
 	sideBorrow = "borrow"
 )
 
-var settlementCurrencies = []currency.Code{currency.BTC, currency.USDT}
-
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change
 var WithdrawalFees = map[currency.Code]float64{
@@ -527,28 +525,25 @@ type OrderbookData struct {
 	Bids    [][2]types.Number `json:"bids"`
 }
 
-// MakeOrderbook parse Orderbook asks/bids Price and Amount and create an Orderbook Instance with asks and bids data in []OrderbookItem.
-func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
-	ob := &Orderbook{
-		ID:      a.ID,
-		Current: a.Current,
-		Update:  a.Update,
-	}
-	ob.Asks = make([]OrderbookItem, len(a.Asks))
-	ob.Bids = make([]OrderbookItem, len(a.Bids))
+// MakeOrderbook converts OrderbookData into an Orderbook
+func (a *OrderbookData) MakeOrderbook() *Orderbook {
+	asks := make([]OrderbookItem, len(a.Asks))
 	for x := range a.Asks {
-		ob.Asks[x] = OrderbookItem{
-			Price:  a.Asks[x][0],
-			Amount: a.Asks[x][1],
-		}
+		asks[x].Price = a.Asks[x][0]
+		asks[x].Amount = a.Asks[x][1]
 	}
+	bids := make([]OrderbookItem, len(a.Bids))
 	for x := range a.Bids {
-		ob.Bids[x] = OrderbookItem{
-			Price:  a.Bids[x][0],
-			Amount: a.Bids[x][1],
-		}
+		bids[x].Price = a.Bids[x][0]
+		bids[x].Amount = a.Bids[x][1]
 	}
-	return ob, nil
+	return &Orderbook{ID: a.ID, Current: a.Current, Update: a.Update, Asks: asks, Bids: bids}
+}
+
+// OrderbookItem stores an orderbook item
+type OrderbookItem struct {
+	Price  types.Number `json:"p"`
+	Amount types.Number `json:"s"`
 }
 
 // Orderbook stores the orderbook data
@@ -583,13 +578,25 @@ type Trade struct {
 
 // Candlestick represents candlestick data point detail.
 type Candlestick struct {
-	Timestamp      time.Time
-	QuoteCcyVolume float64
-	ClosePrice     float64
-	HighestPrice   float64
-	LowestPrice    float64
-	OpenPrice      float64
-	BaseCcyAmount  float64
+	Timestamp      types.Time
+	QuoteCcyVolume types.Number
+	ClosePrice     types.Number
+	HighestPrice   types.Number
+	LowestPrice    types.Number
+	OpenPrice      types.Number
+	BaseCcyAmount  types.Number
+	WindowClosed   bool
+}
+
+// UnmarshalJSON parses kline data from a JSON array into Candlestick fields.
+func (c *Candlestick) UnmarshalJSON(data []byte) error {
+	var windowClosed string
+	err := json.Unmarshal(data, &[8]any{&c.Timestamp, &c.QuoteCcyVolume, &c.ClosePrice, &c.HighestPrice, &c.LowestPrice, &c.OpenPrice, &c.BaseCcyAmount, &windowClosed})
+	if err != nil {
+		return err
+	}
+	c.WindowClosed, err = strconv.ParseBool(windowClosed)
+	return err
 }
 
 // CurrencyChain currency chain detail.
@@ -639,7 +646,7 @@ type FuturesContract struct {
 	InDelisting           bool         `json:"in_delisting"`
 	RiskLimitBase         string       `json:"risk_limit_base"`
 	InterestRate          string       `json:"interest_rate"`
-	OrderPriceRound       string       `json:"order_price_round"`
+	OrderPriceRound       types.Number `json:"order_price_round"`
 	OrderSizeMin          int64        `json:"order_size_min"`
 	RefRebateRate         string       `json:"ref_rebate_rate"`
 	FundingInterval       int64        `json:"funding_interval"`
@@ -843,7 +850,7 @@ type OptionContract struct {
 	Underlying        string       `json:"underlying"`
 	UnderlyingPrice   types.Number `json:"underlying_price"`
 	Multiplier        string       `json:"multiplier"`
-	OrderPriceRound   string       `json:"order_price_round"`
+	OrderPriceRound   types.Number `json:"order_price_round"`
 	MarkPriceRound    string       `json:"mark_price_round"`
 	MakerFeeRate      string       `json:"maker_fee_rate"`
 	TakerFeeRate      string       `json:"taker_fee_rate"`
@@ -1791,12 +1798,19 @@ type DualModeResponse struct {
 	} `json:"history"`
 }
 
+// number represents a number type for JSON marshaling with zero value as "0"
+type number float64
+
+func (n number) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + strconv.FormatFloat(float64(n), 'f', -1, 64) + `"`), nil
+}
+
 // ContractOrderCreateParams represents future order creation parameters
 type ContractOrderCreateParams struct {
 	Contract                  currency.Pair `json:"contract"`
 	Size                      float64       `json:"size"`    // positive long, negative short
 	Iceberg                   int64         `json:"iceberg"` // required; can be zero
-	Price                     string        `json:"price"`   // NOTE: Market orders require string "0"
+	Price                     number        `json:"price"`   // NOTE: Market orders require string "0"
 	TimeInForce               string        `json:"tif"`
 	Text                      string        `json:"text,omitempty"`  // errors when empty; Either populated or omitted
 	ClosePosition             bool          `json:"close,omitempty"` // Size needs to be zero if true
@@ -2035,7 +2049,7 @@ type WsCandlesticks struct {
 type WsOrderbookTickerData struct {
 	UpdateTime    types.Time    `json:"t"`
 	UpdateOrderID int64         `json:"u"`
-	CurrencyPair  currency.Pair `json:"s"`
+	Pair          currency.Pair `json:"s"`
 	BestBidPrice  types.Number  `json:"b"`
 	BestBidAmount types.Number  `json:"B"`
 	BestAskPrice  types.Number  `json:"a"`
@@ -2044,12 +2058,12 @@ type WsOrderbookTickerData struct {
 
 // WsOrderbookUpdate represents websocket orderbook update push data
 type WsOrderbookUpdate struct {
-	UpdateTime              types.Time        `json:"t"`
-	CurrencyPair            currency.Pair     `json:"s"`
-	FirstOrderbookUpdatedID int64             `json:"U"` // First update order book id in this event since last update
-	LastOrderbookUpdatedID  int64             `json:"u"`
-	Bids                    [][2]types.Number `json:"b"`
-	Asks                    [][2]types.Number `json:"a"`
+	UpdateTime    types.Time        `json:"t"`
+	Pair          currency.Pair     `json:"s"`
+	FirstUpdateID int64             `json:"U"` // First update order book id in this event since last update
+	LastUpdateID  int64             `json:"u"`
+	Bids          [][2]types.Number `json:"b"`
+	Asks          [][2]types.Number `json:"a"`
 }
 
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
@@ -2110,12 +2124,15 @@ type WsUserPersonalTrade struct {
 
 // WsSpotBalance represents a spot balance.
 type WsSpotBalance struct {
-	Timestamp types.Time   `json:"timestamp_ms"`
-	User      string       `json:"user"`
-	Currency  string       `json:"currency"`
-	Change    types.Number `json:"change"`
-	Total     types.Number `json:"total"`
-	Available types.Number `json:"available"`
+	Timestamp    types.Time    `json:"timestamp_ms"`
+	User         string        `json:"user"`
+	Currency     currency.Code `json:"currency"`
+	Change       types.Number  `json:"change"`
+	Total        types.Number  `json:"total"`
+	Available    types.Number  `json:"available"`
+	Freeze       types.Number  `json:"freeze"`
+	FreezeChange types.Number  `json:"freeze_change"`
+	ChangeType   string        `json:"change_type"` // e.g. "order-create", "order-match"
 }
 
 // WsMarginBalance represents margin account balance push data
@@ -2210,14 +2227,14 @@ type WsFuturesAndOptionsOrderbookUpdate struct {
 	ContractName   currency.Pair `json:"s"`
 	FirstUpdatedID int64         `json:"U"`
 	LastUpdatedID  int64         `json:"u"`
-	Bids           []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"b"`
-	Asks []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"a"`
+	Bids           []Level       `json:"b"`
+	Asks           []Level       `json:"a"`
+}
+
+// Level represents a level of orderbook data
+type Level struct {
+	Price types.Number `json:"p"`
+	Size  float64      `json:"s"`
 }
 
 // WsFuturesOrderbookSnapshot represents a futures orderbook snapshot push data
@@ -2225,14 +2242,8 @@ type WsFuturesOrderbookSnapshot struct {
 	Timestamp   types.Time    `json:"t"`
 	Contract    currency.Pair `json:"contract"`
 	OrderbookID int64         `json:"id"`
-	Asks        []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"asks"`
-	Bids []struct {
-		Price types.Number `json:"p"`
-		Size  float64      `json:"s"`
-	} `json:"bids"`
+	Asks        []Level       `json:"asks"`
+	Bids        []Level       `json:"bids"`
 }
 
 // WsFuturesOrderbookUpdateEvent represents futures orderbook push data with the event 'update'
@@ -2326,12 +2337,13 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance float64    `json:"balance"`
-	Change  float64    `json:"change"`
-	Text    string     `json:"text"`
-	Time    types.Time `json:"time_ms"`
-	Type    string     `json:"type"`
-	User    string     `json:"user"`
+	Balance  float64       `json:"balance"`
+	Change   float64       `json:"change"`
+	Currency currency.Code `json:"currency"`
+	Text     string        `json:"text"`
+	Time     types.Time    `json:"time_ms"`
+	Type     string        `json:"type"`
+	User     string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data
@@ -2672,4 +2684,26 @@ type UnifiedUserAccount struct {
 	SpotHedge                      bool                             `json:"spot_hedge"`
 	UseFunding                     bool                             `json:"use_funding"`
 	RefreshTime                    types.Time                       `json:"refresh_time"`
+}
+
+// AccountDetails represents account detail information
+type AccountDetails struct {
+	IPWhitelist       []string  `json:"ip_whitelist"`
+	CurrencyPairs     []string  `json:"currency_pairs"`
+	UserID            int64     `json:"user_id"`
+	VIPTier           int64     `json:"tier"`
+	VIPTierExpireTime time.Time `json:"tier_expire_time"`
+	Key               struct {
+		Mode int64 `json:"mode"` // mode: 1 - classic account 2 - portfolio margin account
+	} `json:"key"`
+	CopyTradingRole int64 `json:"copy_trading_role"` // User role: 0 - Ordinary user 1 - Order leader 2 - Follower 3 - Order leader and follower
+}
+
+// UserTransactionRateLimitInfo represents user transaction rate limit information
+type UserTransactionRateLimitInfo struct {
+	Type      string       `json:"type"`
+	Tier      types.Number `json:"tier"`
+	Ratio     types.Number `json:"ratio"`
+	MainRatio types.Number `json:"main_ratio"`
+	UpdatedAt types.Time   `json:"updated_at"`
 }

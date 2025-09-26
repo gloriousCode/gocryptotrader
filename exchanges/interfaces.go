@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -39,16 +40,14 @@ type IBotExchange interface {
 
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
-	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
-
 	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
-	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error)
-	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
+	GetCachedOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book, error)
+	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(ctx context.Context) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
@@ -84,12 +83,13 @@ type IBotExchange interface {
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
+	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
+	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
+	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
-	GetCredentials(ctx context.Context) (*account.Credentials, error)
 	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
@@ -134,6 +134,9 @@ type OrderManagement interface {
 	GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error)
 	WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error)
+	WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) (responses []*order.SubmitResponse, err error)
+	WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error)
+	WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error
 }
 
 // CurrencyStateManagement defines functionality for currency state management
