@@ -1780,21 +1780,20 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            start,
-				EndDate:              end,
-				SettlementType:       futures.Inverse,
-				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
-				Status:               inverseContracts.List[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
-				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Exchange:                  e.Name,
+				Name:                      cp.Format(format),
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 start,
+				EndDate:                   end,
+				SettlementType:            futures.Inverse,
+				IsActive:                  strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:                    inverseContracts.List[i].Status,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
+				MaxLeverage:               inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 				ContractValueDenomination: futures.BaseDenomination,
 				Multiplier:                inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
-
 			})
 		}
 		return resp, nil
@@ -1861,19 +1860,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp.Format(format),
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            instruments[i].LaunchTime.Time(),
-				EndDate:              instruments[i].DeliveryTime.Time(),
-				SettlementType:       futures.Linear,
-				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
-				Status:               instruments[i].Status,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USDC},
-				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
-				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+				Exchange:                  e.Name,
+				Name:                      cp.Format(format),
+				Underlying:                underlying,
+				Asset:                     item,
+				StartDate:                 instruments[i].LaunchTime.Time(),
+				EndDate:                   instruments[i].DeliveryTime.Time(),
+				SettlementType:            futures.Linear,
+				IsActive:                  strings.EqualFold(instruments[i].Status, "trading"),
+				Status:                    instruments[i].Status,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{currency.USDC},
+				MaxLeverage:               instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:                instruments[i].LeverageFilter.LeverageStep.Float64(),
 				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
@@ -2024,11 +2023,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				continue
 			}
 			var fundingInterval time.Duration
-			for j := range instrumentInfo {
-				if instrumentInfo[j].Symbol != ticks.List[i].Symbol {
+			for j := range instrumentInfo.List {
+				if instrumentInfo.List[j].Symbol != ticks.List[i].Symbol {
 					continue
 				}
-				fundingInterval = time.Duration(instrumentInfo[j].FundingInterval) * time.Minute
+				fundingInterval = time.Duration(instrumentInfo.List[j].FundingInterval) * time.Minute
 				break
 			}
 			var lrt time.Time
@@ -2123,8 +2122,8 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	return resp, nil
 }
 
-func (by *Bybit) getCachedInstrumentInfo(symbol string, a asset.Item) ([]InstrumentInfo, error) {
-	ii, err := by.cacheInstrumentInfo(context.Background(), a)
+func (e *Exchange) getCachedInstrumentInfo(symbol string, a asset.Item) ([]InstrumentInfo, error) {
+	ii, err := e.cacheInstrumentInfo(context.Background(), a)
 	if err != nil {
 		return nil, err
 	}
@@ -2139,19 +2138,19 @@ func (by *Bybit) getCachedInstrumentInfo(symbol string, a asset.Item) ([]Instrum
 	return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, symbol)
 }
 
-func (by *Bybit) cacheInstrumentInfo(ctx context.Context, a asset.Item) (*InstrumentsInfo, error) {
-	by.instrumentInfoMutex.Lock()
-	defer by.instrumentInfoMutex.Unlock()
-	if by.instrumentInfoCache == nil {
-		by.instrumentInfoCache = make(map[asset.Item]*IICH)
+func (e *Exchange) cacheInstrumentInfo(ctx context.Context, a asset.Item) (*InstrumentsInfo, error) {
+	e.instrumentInfoMutex.Lock()
+	defer e.instrumentInfoMutex.Unlock()
+	if e.instrumentInfoCache == nil {
+		e.instrumentInfoCache = make(map[asset.Item]*IICH)
 	}
-	if res, ok := by.instrumentInfoCache[a]; ok && time.Since(res.TimeLoaded) < time.Minute {
+	if res, ok := e.instrumentInfoCache[a]; ok && time.Since(res.TimeLoaded) < time.Minute {
 		return res.InstrumentsInfo, nil
 	}
 	var instrumentsInfo InstrumentsInfo
 	NPCT := ""
 	for {
-		instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(a), "", "Trading", "", NPCT, 1000)
+		instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "Trading", "", NPCT, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -2161,7 +2160,7 @@ func (by *Bybit) cacheInstrumentInfo(ctx context.Context, a asset.Item) (*Instru
 			break
 		}
 	}
-	by.instrumentInfoCache[a] = &IICH{
+	e.instrumentInfoCache[a] = &IICH{
 		InstrumentsInfo: &instrumentsInfo,
 		TimeLoaded:      time.Now(),
 	}
@@ -2203,7 +2202,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 			return "", fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, cp)
 		}
 		var length futures.ContractType
-		length, err = getContractLength(io[0].DeliveryTime.Time().Sub(io[0].LaunchTime.Time()))
+		length, err = getContractLength(io.List[0].DeliveryTime.Time().Sub(io.List[0].LaunchTime.Time()))
 		if err != nil {
 			return "", err
 		}

@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -556,10 +557,6 @@ type Orderbook struct {
 }
 
 // OrderbookItem stores an orderbook item
-type OrderbookItem struct {
-	Price  types.Number `json:"p"`
-	Amount types.Number `json:"s"`
-}
 
 // Trade represents market trade.
 type Trade struct {

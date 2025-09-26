@@ -233,29 +233,19 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		for i := range result {
 			oSide, err := order.StringToOrderSide(result[i].Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			var oType order.Type
 			oType, err = stringToOrderType(result[i].OrderType)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
+				return err
+
 			}
 			var oStatus order.Status
 			oStatus, err = stringToOrderStatus(result[i].Type)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  result[i].OrderID,
-					Err:      err,
-				}
+				return err
+
 			}
 
 			enabledPairs, err := e.GetAvailablePairs(asset.Spot)
@@ -318,10 +308,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 
 			tSide, err := order.StringToOrderSide(result.Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 
 			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
@@ -339,24 +326,21 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			g.Websocket.DataHandler <- &ticker.Price{
+			e.Websocket.DataHandler <- &ticker.Price{
 				Last:         result.Price,
 				Pair:         pair,
-				ExchangeName: g.Name,
+				ExchangeName: e.Name,
 				AssetType:    asset.Spot,
-				LastUpdated:  time.UnixMilli(result.Timestamp),
+				LastUpdated:  result.Timestamp.Time(),
 			}
 
-			if !g.IsSaveTradeDataEnabled() {
+			if !e.IsSaveTradeDataEnabled() {
 				return nil
 			}
 
-			tSide, err := order.StringToOrderSide(result.Side)
+			tSide, err = order.StringToOrderSide(result.Side)
 			if err != nil {
-				g.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: g.Name,
-					Err:      err,
-				}
+				return err
 			}
 			tradeEvent := trade.Data{
 				Timestamp:    result.Timestamp.Time(),
@@ -580,10 +564,7 @@ func (e *Exchange) wsProcessUpdate(result *wsL2MarketData) error {
 	for x := range result.Trades {
 		tSide, err := order.StringToOrderSide(result.Trades[x].Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 		trades[x] = trade.Data{
 			Timestamp:    result.Trades[x].Timestamp.Time(),

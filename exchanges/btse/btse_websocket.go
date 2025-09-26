@@ -190,27 +190,15 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			var oStatus order.Status
 			oType, err = order.StringToOrderType(notification.Data[i].Type)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			oSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			oStatus, err = stringToOrderStatus(notification.Data[i].Status)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  notification.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
 
 			var p currency.Pair
@@ -264,14 +252,14 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				return err
 			}
 
-			b.Websocket.DataHandler <- &ticker.Price{
+			e.Websocket.DataHandler <- &ticker.Price{
 				Last:         tradeHistory.Data[x].Price,
 				Pair:         p,
-				ExchangeName: b.Name,
+				ExchangeName: e.Name,
 				AssetType:    a,
 				LastUpdated:  tradeHistory.Data[x].Timestamp.Time(),
 			}
-			if !b.IsSaveTradeDataEnabled() {
+			if !e.IsSaveTradeDataEnabled() {
 				continue
 			}
 			trades = append(trades, trade.Data{

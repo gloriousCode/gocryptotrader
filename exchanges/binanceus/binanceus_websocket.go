@@ -230,11 +230,8 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				orderID := strconv.FormatInt(data.Data.OrderID, 10)
 				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				clientOrderID := data.Data.ClientOrderID
 				if orderStatus == order.Cancelled {
@@ -242,19 +239,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				orderType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				orderSide, err := order.StringToOrderSide(data.Data.Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:                data.Data.Price,
@@ -814,14 +805,14 @@ func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBo
 	}
 	for i := range orderbookNew.Bids {
 		newOrderBook.Bids[i] = orderbook.Level{
-			Amount: orderbookNew.Bids[i].Quantity,
-			Price:  orderbookNew.Bids[i].Price,
+			Amount: orderbookNew.Bids[i].Quantity.Float64(),
+			Price:  orderbookNew.Bids[i].Price.Float64(),
 		}
 	}
 	for i := range orderbookNew.Asks {
 		newOrderBook.Asks[i] = orderbook.Level{
-			Amount: orderbookNew.Asks[i].Quantity,
-			Price:  orderbookNew.Asks[i].Price,
+			Amount: orderbookNew.Asks[i].Quantity.Float64(),
+			Price:  orderbookNew.Asks[i].Price.Float64(),
 		}
 	}
 	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)

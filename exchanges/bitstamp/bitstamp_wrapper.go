@@ -241,7 +241,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
+func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	result, err := e.AllCurrencyPairTickers(ctx)
 	if err != nil {
 		return err
@@ -766,9 +766,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		var quoteCurrency, baseCurrency currency.Code
 
 		switch {
-		case resp[i].BTC > 0:
+		case resp[i].BTC.Float64() > 0:
 			baseCurrency = currency.BTC
-		case resp[i].XRP > 0:
+		case resp[i].XRP.Float64() > 0:
 			baseCurrency = currency.XRP
 		default:
 			log.Warnf(log.ExchangeSys,
@@ -778,9 +778,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		switch {
-		case resp[i].USD > 0:
+		case resp[i].USD.Float64() > 0:
 			quoteCurrency = currency.USD
-		case resp[i].EUR > 0:
+		case resp[i].EUR.Float64() > 0:
 			quoteCurrency = currency.EUR
 		default:
 			log.Warnf(log.ExchangeSys,

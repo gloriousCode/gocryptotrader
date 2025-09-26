@@ -1886,19 +1886,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			default:
 			}
 			resp[i] = futures.Contract{
-				Exchange:             e.Name,
-				Name:                 name,
-				Underlying:           underlying,
-				Asset:                a,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				SettlementType:       futures.Linear,
-				IsActive:             !contracts[i].InDelisting,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{settle},
-				MarginCurrency:       currency.Code{},
-				Multiplier:           contracts[i].QuantoMultiplier.Float64(),
-				MaxLeverage:          contracts[i].LeverageMax.Float64(),
+				Exchange:                  e.Name,
+				Name:                      name,
+				Underlying:                underlying,
+				Asset:                     a,
+				StartDate:                 startTime,
+				EndDate:                   endTime,
+				SettlementType:            futures.Linear,
+				IsActive:                  !contracts[i].InDelisting,
+				Type:                      ct,
+				SettlementCurrencies:      currency.Currencies{settle},
+				MarginCurrency:            currency.Code{},
+				Multiplier:                contracts[i].QuantoMultiplier.Float64(),
+				MaxLeverage:               contracts[i].LeverageMax.Float64(),
 				ContractValueDenomination: cd,
 			}
 		}
@@ -2055,80 +2055,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				continue
 			}
 			p := strings.ToUpper(btcContracts[x].Name)
-			if !g.IsValidPairString(p) {
-				continue
-			}
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
 				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
 				MarketStepIncrementSize: 1,
 				AmountStepIncrementSize: 1,
 			})
-		}
-	case asset.DeliveryFutures:
-		btcContracts, err := e.GetAllDeliveryContracts(ctx, currency.BTC)
-		if err != nil {
-			return err
-		}
-		usdtContracts, err := e.GetAllDeliveryContracts(ctx, currency.USDT)
-		if err != nil {
-			return err
-		}
-		btcContracts = append(btcContracts, usdtContracts...)
-		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
-		for x := range btcContracts {
-			if btcContracts[x].InDelisting {
-				continue
-			}
-			p := strings.ToUpper(btcContracts[x].Name)
-			if !e.IsValidPairString(p) {
-				continue
-			}
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return err
-			}
-			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
-				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
-				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
-				MarketStepIncrementSize: 1,
-				AmountStepIncrementSize: 1,
-			})
-		}
-	case asset.Options:
-		underlyings, err := e.GetAllOptionsUnderlyings(ctx)
-		if err != nil {
-			return err
-		}
-		for x := range underlyings {
-			contracts, err := e.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
-			if err != nil {
-				return err
-			}
-			l = make([]limits.MinMaxLevel, 0, len(contracts))
-			for c := range contracts {
-				if !g.IsValidPairString(contracts[c].Name) {
-					continue
-				}
-				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
-				if err != nil {
-					return err
-				}
-				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
-				l = append(l, limits.MinMaxLevel{
-					Key:                     key.NewExchangePairAssetKey(g.Name, a, cp),
-					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
-					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
-					MarketStepIncrementSize: 1,
-					AmountStepIncrementSize: 1,
-				})
-			}
 		}
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
@@ -2736,8 +2673,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Side:         s.Side.Lower(),
 		Type:         s.Type.Lower(),
 		Account:      e.assetTypeToString(s.AssetType),
-		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),
-		Price:        types.Number(s.Price),
+		Amount:       types.NumberFromFloat64(s.GetTradeAmount(e.GetTradingRequirements())),
+		Price:        types.NumberFromFloat64(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
@@ -2808,7 +2745,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	}
 }
 
-func (g *Gateio) GetContractFromCurrencyAndDate(pair currency.Pair, date time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
+func (e *Exchange) GetContractFromCurrencyAndDate(pair currency.Pair, date time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
 loopdiloop:
 	for {
 		switch ct {
@@ -2838,19 +2775,19 @@ loopdiloop:
 	return cp, date, nil
 }
 
-func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractDenomination) ([]futures.Contract, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractDenomination) ([]futures.Contract, error) {
 	var resp []futures.Contract
 	tt := startDate
 	for tt.Before(time.Now()) {
-		contract, expiry, err := g.GetContractFromCurrencyAndDate(underlyingPair, tt, contractType)
+		contract, expiry, err := e.GetContractFromCurrencyAndDate(underlyingPair, tt, contractType)
 		if err != nil {
 			return nil, err
 		}
-		settle, err := getSettlementFromCurrency(contract)
+		settle, err := getSettlementCurrency(contract, item)
 		if err != nil {
 			return nil, err
 		}
-		sc, err := g.GetDeliveryContract(ctx, settle, contract)
+		sc, err := e.GetDeliveryContract(ctx, settle, contract)
 		if err != nil {
 			return nil, err
 		}
@@ -2864,17 +2801,17 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 			return nil, err
 		}
 		var ct futures.ContractType
-		var s, e time.Time
-		e = expiry
+		var s, end time.Time
+		end = expiry
 		switch sc.Type {
 		case "WEEKLY":
-			s = e.Add(-kline.OneWeek.Duration())
+			s = end.Add(-kline.OneWeek.Duration())
 		case "BI-WEEKLY":
-			s = e.Add(-kline.TwoWeek.Duration())
+			s = end.Add(-kline.TwoWeek.Duration())
 		case "QUARTERLY":
-			s = e.Add(-kline.ThreeMonth.Duration())
+			s = end.Add(-kline.ThreeMonth.Duration())
 		case "BI-QUARTERLY":
-			s = e.Add(-kline.SixMonth.Duration())
+			s = end.Add(-kline.SixMonth.Duration())
 		default:
 			ct = futures.LongDated
 		}
@@ -2886,12 +2823,12 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 			panic("woah")
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:                  g.Name,
+			Exchange:                  e.Name,
 			Name:                      name,
 			Underlying:                underlying,
 			Asset:                     item,
 			StartDate:                 s,
-			EndDate:                   e,
+			EndDate:                   end,
 			IsActive:                  !sc.InDelisting,
 			Type:                      ct,
 			SettlementType:            futures.Linear,
@@ -2907,14 +2844,14 @@ func (g *Gateio) GetLongDatedContractsFromDate(ctx context.Context, item asset.I
 
 // GetHistoricalContractKlineData gets each contract's data in a range
 // then grabs spot data for comparisons
-func (g *Gateio) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := g.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.ContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.ContractDenomination)
 	if err != nil {
 		return nil, err
 	}
@@ -2924,13 +2861,13 @@ func (g *Gateio) GetHistoricalContractKlineData(ctx context.Context, req *future
 		if contracts[i].StartDate.After(time.Now()) {
 			continue
 		}
-		klineReq, err := g.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		klineReq, err := e.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
 		var klinesForContract []kline.Candle
 		for j := range klineReq.RangeHolder.Ranges {
-			candles, err := g.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			candles, err := e.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
 			if err != nil {
 				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
 					continue
@@ -2955,7 +2892,7 @@ func (g *Gateio) GetHistoricalContractKlineData(ctx context.Context, req *future
 			continue
 		}
 
-		spotUnderlyingReq, err := g.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -2963,12 +2900,12 @@ func (g *Gateio) GetHistoricalContractKlineData(ctx context.Context, req *future
 			req.UnderlyingPair.Quote = currency.USDT
 		}
 		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
-		up, err := g.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+		up, err := e.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		for i := range spotUnderlyingReq.RangeHolder.Ranges {
-			candles, err := g.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+			candles, err := e.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
 			if err != nil {
 				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
 					continue

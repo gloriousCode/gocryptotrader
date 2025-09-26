@@ -1,9 +1,6 @@
 package key
 
 import (
-	"errors"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -75,15 +72,15 @@ type SubAccountAsset struct {
 }
 
 type ExchangePairAssetUnderlyingContractExpiry struct {
-Exchange         string
-Base             *currency.Item
-Quote            *currency.Item
-Asset            asset.Item
-Contract         string
-ContractDecimals float64
-Expiry           time.Time `json:"Expiry,omitempty"`
-UnderlyingBase   *currency.Item
-UnderlyingQuote  *currency.Item
+	Exchange         string
+	Base             *currency.Item
+	Quote            *currency.Item
+	Asset            asset.Item
+	Contract         string
+	ContractDecimals float64
+	Expiry           time.Time `json:"Expiry,omitempty"`
+	UnderlyingBase   *currency.Item
+	UnderlyingQuote  *currency.Item
 }
 
 type OrderKey struct {

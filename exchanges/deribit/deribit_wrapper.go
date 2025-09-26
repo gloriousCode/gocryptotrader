@@ -1096,7 +1096,7 @@ func appendCandles(tradingViewData *TVChartData, start time.Time) ([]kline.Candl
 	return listCandles, nil
 }
 
-func (d *Deribit) GetContractFromCurrencyAndDate(code currency.Code, date time.Time) (string, time.Time, error) {
+func (e *Exchange) GetContractFromCurrencyAndDate(code currency.Code, date time.Time) (string, time.Time, error) {
 	for {
 		if date.Weekday() == time.Friday {
 			break
@@ -1195,18 +1195,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
-				Asset:                item,
-				SettlementCurrencies: []currency.Code{currency.NewCode(inst.SettlementCurrency)},
-				StartDate:            inst.CreationTimestamp.Time(),
-				EndDate:              inst.ExpirationTimestamp.Time(),
-				Type:                 ct,
-				SettlementType:       contractSettlementType,
-				IsActive:             inst.IsActive,
-				MaxLeverage:          inst.MaxLeverage,
-				Multiplier:           inst.ContractSize,
+				Exchange:                  e.Name,
+				Name:                      cp,
+				Underlying:                currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
+				Asset:                     item,
+				SettlementCurrencies:      []currency.Code{currency.NewCode(inst.SettlementCurrency)},
+				StartDate:                 inst.CreationTimestamp.Time(),
+				EndDate:                   inst.ExpirationTimestamp.Time(),
+				Type:                      ct,
+				SettlementType:            contractSettlementType,
+				IsActive:                  inst.IsActive,
+				MaxLeverage:               inst.MaxLeverage,
+				Multiplier:                inst.ContractSize,
 				ContractValueDenomination: futures.QuoteDenomination,
 			})
 		}
@@ -1565,7 +1565,7 @@ func formatPairString(assetType asset.Item, pair currency.Pair) string {
 	return pair.String()
 }
 
-func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
 	if item != asset.Futures {
 		return nil, futures.ErrNotFuturesAsset
 	}
@@ -1573,14 +1573,14 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 	var marketSummary *InstrumentData
 	tt := t
 	for tt.Before(time.Now()) {
-		contract, _, err := d.GetContractFromCurrencyAndDate(underlyingPair.Base, tt)
+		contract, _, err := e.GetContractFromCurrencyAndDate(underlyingPair.Base, tt)
 		if err != nil {
 			return nil, err
 		}
-		if d.Websocket.IsConnected() {
-			marketSummary, err = d.WSRetrieveInstrumentData(contract)
+		if e.Websocket.IsConnected() {
+			marketSummary, err = e.WSRetrieveInstrumentData(ctx, contract)
 		} else {
-			marketSummary, err = d.GetInstrument(ctx, contract)
+			marketSummary, err = e.GetInstrument(ctx, contract)
 		}
 		if err != nil {
 			// likely no data for this date, keep going
@@ -1629,7 +1629,7 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 			denomination = futures.QuoteDenomination
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:                  d.Name,
+			Exchange:                  e.Name,
 			Name:                      cp,
 			Underlying:                underlying,
 			Asset:                     item,
@@ -1651,14 +1651,14 @@ func (d *Deribit) GetLongDatedContractsFromDate(ctx context.Context, item asset.
 
 // GetHistoricalContractKlineData gets each contract's data in a range
 // then grabs spot data for comparisons
-func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := d.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
 	if err != nil {
 		return nil, err
 	}
@@ -1668,13 +1668,13 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 		if contracts[i].StartDate.After(time.Now()) {
 			continue
 		}
-		klineReq, err := d.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		klineReq, err := e.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
 		var klinesForContract []kline.Candle
 		for j := range klineReq.RangeHolder.Ranges {
-			candles, err := d.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			candles, err := e.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
 			if err != nil {
 				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
 					continue
@@ -1699,7 +1699,7 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 			continue
 		}
 
-		spotUnderlyingReq, err := d.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
 		if err != nil {
 			return nil, err
 		}
@@ -1707,12 +1707,12 @@ func (d *Deribit) GetHistoricalContractKlineData(ctx context.Context, req *futur
 			req.UnderlyingPair.Quote = currency.USDT
 		}
 		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
-		up, err := d.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+		up, err := e.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		for i := range spotUnderlyingReq.RangeHolder.Ranges {
-			candles, err := d.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+			candles, err := e.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
 			if err != nil {
 				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
 					continue

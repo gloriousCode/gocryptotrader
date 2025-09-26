@@ -192,9 +192,6 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 	}
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
-	if since > 0 {
-		values.Set("since", strconv.FormatInt(since, 10))
-	}
 	type Response struct {
 		Error []interface{}          `json:"error"`
 		Data  map[string]interface{} `json:"result"`
@@ -204,7 +201,6 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
-	result := make(map[string]any)
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 	if err != nil {
 		return nil, err
@@ -1020,7 +1016,7 @@ func (a *assetTranslatorStore) Seeded() bool {
 	return isSeeded
 }
 
-func (k *Kraken) CalculateContractDates(start, end time.Time) ([]string, error) {
+func (e *Exchange) CalculateContractDates(start, end time.Time) ([]string, error) {
 	var resp []string
 	err := common.StartEndTimeCheck(start, end)
 	if err != nil {

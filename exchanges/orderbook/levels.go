@@ -269,7 +269,7 @@ func (l Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Mov
 	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
 	for x := range l {
 		levelValue := l[x].Amount * l[x].Price
-		leftover := (quote * l[x].Price) - trancheValue
+		leftover := (quote * l[x].Price) - levelValue
 		if leftover < 0 {
 			existingTradeQuote := quote
 			for i := range m.Trades {

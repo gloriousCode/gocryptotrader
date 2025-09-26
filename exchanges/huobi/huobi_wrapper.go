@@ -477,7 +477,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		var lastPrice float64
-		last, err := h.GetLastSpotTrade(ctx, p)
+		last, err := e.GetLastSpotTrade(ctx, p)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
 		} else {
@@ -505,7 +505,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		var lastPrice float64
-		last, err := h.GetLastTrade(ctx, p)
+		last, err := e.GetLastTrade(ctx, p)
 		if err != nil {
 			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
 		} else {
@@ -522,6 +522,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
 			Volume:       marketData.Tick.Amount,
+			Last:         lastPrice,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
@@ -540,7 +541,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		var lastPrice float64
-		last, err := h.FLastTradeData(ctx, p)
+		last, err := e.FLastTradeData(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -1318,39 +1319,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		typeDetails := strings.Split(respData.Type, "-")
 		orderSide, err := order.StringToOrderSide(typeDetails[0])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderType, err := order.StringToOrderType(typeDetails[1])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderStatus, err := order.StringToOrderStatus(respData.State)
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		var p currency.Pair
 		var a asset.Item
@@ -2429,7 +2406,7 @@ var validContractShortTypes = []string{
 	"cw", "nw", "cq", "nq",
 }
 
-func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
 	loc, err := time.LoadLocation("Asia/Singapore")
 	if err != nil {
 		return currency.EMPTYPAIR, err
@@ -2467,8 +2444,8 @@ func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair, tt time.Tim
 	return pair, nil
 }
 
-// GetExpiredContracts returns previous expired contracts for a given pair
-func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
+// GetExpiredContractCandles returns previous expired contracts for a given pair
+func (e *Exchange) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
 	if k.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}
@@ -2479,7 +2456,7 @@ func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, 
 	var contractNames []currency.Pair
 	prevCon := k.Pair()
 	for latestExpiry.Before(time.Now()) {
-		cont, err := h.convertContractShortHandToExpiry(k.Pair(), latestExpiry)
+		cont, err := e.convertContractShortHandToExpiry(k.Pair(), latestExpiry)
 		if err != nil {
 			return nil, err
 		}
@@ -2492,7 +2469,7 @@ func (h *HUOBI) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, 
 	}
 	resp := make([]currency.Pair, 0, len(contractNames))
 	for i := range contractNames {
-		_, err := h.FGetKlineData(ctx, contractNames[i], "60min", 1, time.Time{}, time.Time{})
+		_, err := e.FGetKlineData(ctx, contractNames[i], "60min", 1, time.Time{}, time.Time{})
 		if err != nil {
 			// given that the contract is expired, there is no proper way to verify
 			// when it was initially listed. If there is an error retrieving the contract

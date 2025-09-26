@@ -338,12 +338,12 @@ func (e *Exchange) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRequ
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		ob.Bids[x].Price = resp.Bids[x][0].Float64()
-		ob.Bids[x].Quantity = resp.Bids[x][1].Float64()
+		ob.Bids[x].Price = resp.Bids[x][0]
+		ob.Bids[x].Quantity = resp.Bids[x][1]
 	}
 	for x := range resp.Asks {
-		ob.Asks[x].Price = resp.Asks[x][0].Float64()
-		ob.Asks[x].Quantity = resp.Asks[x][1].Float64()
+		ob.Asks[x].Price = resp.Asks[x][0]
+		ob.Asks[x].Quantity = resp.Asks[x][1]
 	}
 	return ob, nil
 }

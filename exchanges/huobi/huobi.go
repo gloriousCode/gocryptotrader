@@ -1027,10 +1027,10 @@ func calculateTradingFee(c currency.Pair, price, amount float64) float64 {
 	return 0.002 * price * amount
 }
 
-// GetLastTrade gets the last trade for a given perpetual contract
-func (h *HUOBI) GetLastSpotTrade(ctx context.Context, code currency.Pair) (BatchTicker, error) {
+// GetLastSpotTrade gets the last trade for a given perpetual contract
+func (e *Exchange) GetLastSpotTrade(ctx context.Context, code currency.Pair) (BatchTicker, error) {
 	var resp BatchTicker
-	codeValue, err := h.FormatSymbol(code, asset.Spot)
+	codeValue, err := e.FormatSymbol(code, asset.Spot)
 	if err != nil {
 		return resp, err
 	}
@@ -1038,5 +1038,5 @@ func (h *HUOBI) GetLastSpotTrade(ctx context.Context, code currency.Pair) (Batch
 
 	params.Set("symbol", codeValue)
 	path := common.EncodeURLValues(fLastTradeContract, params)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }

@@ -77,7 +77,7 @@ type iBot interface {
 type ICurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
-	PrintOrderbookSummary(*orderbook.Base, string, error)
+	PrintOrderbookSummary(*orderbook.Book, string, error)
 	WebsocketUpdate(string, currency.Pair, asset.Item, SyncItemType, error) error
 	WebsocketUpdateTicker(price *ticker.Price) error
 }

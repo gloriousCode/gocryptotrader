@@ -334,15 +334,15 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	book.Bids = make([]orderbook.Level, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
+			Amount: orderbookNew.Bids[x].Quantity.Float64(),
+			Price:  orderbookNew.Bids[x].Price.Float64(),
 		}
 	}
 	book.Asks = make([]orderbook.Level, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
+			Amount: orderbookNew.Asks[x].Quantity.Float64(),
+			Price:  orderbookNew.Asks[x].Price.Float64(),
 		}
 	}
 	err = book.Process()

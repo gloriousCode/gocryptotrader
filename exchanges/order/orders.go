@@ -600,22 +600,20 @@ func (s *SubmitResponse) DeriveSubmit() (*Submit, error) {
 		return nil, errOrderSubmitResponseIsNil
 	}
 	return &Submit{
-		Exchange:          s.Exchange,
-		Type:              s.Type,
-		Side:              s.Side,
-		Pair:              s.Pair,
-		AssetType:         s.AssetType,
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
+		Exchange:      s.Exchange,
+		Type:          s.Type,
+		Side:          s.Side,
+		Pair:          s.Pair,
+		AssetType:     s.AssetType,
+		TimeInForce:   s.TimeInForce,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
 	}, nil
 }
 
@@ -1218,18 +1216,6 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
-}
-
-func (o *ClassificationError) Error() string {
-	if o.OrderID != "" {
-		return fmt.Sprintf("Exchange %s: OrderID: %s classification error: %v",
-			o.Exchange,
-			o.OrderID,
-			o.Err)
-	}
-	return fmt.Sprintf("Exchange %s: classification error: %v",
-		o.Exchange,
-		o.Err)
 }
 
 // StandardCancel defines an option in the validator to make sure an ID is set

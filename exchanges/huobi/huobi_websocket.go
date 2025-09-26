@@ -377,30 +377,18 @@ func (e *Exchange) wsHandleMyOrdersMsg(s *subscription.Subscription, respRaw []b
 		d.LastUpdated = o.TradeTime.Time()
 	}
 	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+		return err
 	}
 	if o.Side == order.UnknownSide {
 		d.Side, err = stringToOrderSide(o.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	if o.OrderType != "" {
 		d.Type, err = stringToOrderType(o.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	e.Websocket.DataHandler <- d
@@ -433,30 +421,18 @@ func (e *Exchange) wsHandleMyTradesMsg(s *subscription.Subscription, respRaw []b
 		OrderID:       strconv.FormatInt(t.OrderID, 10),
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+		return err
 	}
 	if t.Side == order.UnknownSide {
 		d.Side, err = stringToOrderSide(t.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	if t.OrderType != "" {
 		d.Type, err = stringToOrderType(t.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	d.Trades = []order.TradeHistory{

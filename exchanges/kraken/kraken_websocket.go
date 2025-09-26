@@ -300,19 +300,11 @@ func (e *Exchange) wsProcessOwnTrades(ownOrdersRaw json.RawMessage) error {
 	for key, val := range result[0] {
 		oSide, err := order.StringToOrderSide(val.Type)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
+			return err
 		}
 		oType, err := order.StringToOrderType(val.OrderType)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  key,
-				Err:      err,
-			}
+			return err
 		}
 		e.Websocket.DataHandler <- &order.Detail{
 			Exchange: e.Name,
@@ -357,11 +349,7 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 
 			if val.Status != "" {
 				if s, err := order.StringToOrderStatus(val.Status); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Status = s
 				}
@@ -372,40 +360,24 @@ func (e *Exchange) wsProcessOpenOrders(ownOrdersResp json.RawMessage) error {
 					d.Side = order.Sell
 				} else {
 					if oSide, err := order.StringToOrderSide(val.Description.Type); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
+						return err
 					} else {
 						d.Side = oSide
 					}
 				}
 
 				if oType, err := order.StringToOrderType(val.Description.OrderType); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Type = oType
 				}
 
 				if p, err := currency.NewPairFromString(val.Description.Pair); err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  key,
-						Err:      err,
-					}
+					return err
 				} else {
 					d.Pair = p
 					if d.AssetType, err = e.GetPairAssetType(p); err != nil {
-						e.Websocket.DataHandler <- order.ClassificationError{
-							Exchange: e.Name,
-							OrderID:  key,
-							Err:      err,
-						}
+						return err
 					}
 				}
 			}

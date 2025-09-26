@@ -274,7 +274,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
 		}
 		return nil
-		case asset.Futures:
+	case asset.Futures:
 		symbols, err := e.GetInstruments(ctx)
 		if err != nil {
 			return err
@@ -289,17 +289,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				return err
 			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                    key.NewExchangeAssetPair(k.Name, a, pair),
+				Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
 				PriceStepIncrementSize: symbols.Instruments[x].TickSize,
 				MinimumBaseAmount:      symbols.Instruments[x].ContractSize,
 			})
 		}
-			if err := limits.Load(l); err != nil {
-				return fmt.Errorf("%s Error loading %s exchange limits: %w", k.Name, a, err)
-			}
-			return nil
+		if err := limits.Load(l); err != nil {
+			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
+		}
+		return nil
 	}
- return asset.ErrNotSupported
+	return asset.ErrNotSupported
 }
 
 func (e *Exchange) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {
@@ -393,15 +393,15 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
-func (k *Kraken) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
-	cp, err := k.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
+func (e *Exchange) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
+	cp, err := e.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
 	if err != nil {
 		if errors.Is(err, currency.ErrPairNotFound) {
 			altName := assetTranslator.LookupAltName(symbol)
 			if altName == "" {
 				return currency.Pair{}, err
 			}
-			cp, err = k.CurrencyPairs.Match(altName, item)
+			cp, err = e.CurrencyPairs.Match(altName, item)
 			if err != nil {
 				return currency.Pair{}, err
 			}
@@ -1504,13 +1504,13 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	case asset.Futures:
-		fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(interval), "spot", pair, end, start)
+		fc, err := e.GetFuturesCharts(ctx, e.FormatExchangeKlineIntervalFutures(interval), "spot", pair, end, start)
 		if err != nil {
 			return nil, err
 		}
 		for j := range fc.Candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.UnixMilli(fc.Candles[j].Time),
+				Time:   fc.Candles[j].Time.Time(),
 				Open:   fc.Candles[j].Open,
 				High:   fc.Candles[j].High,
 				Low:    fc.Candles[j].Low,
@@ -1661,15 +1661,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
-			Exchange:       e.Name,
-			Name:           cp,
-			Underlying:     underlying,
-			Asset:          item,
-			StartDate:      startTime,
-			EndDate:        endTime,
-			SettlementType: contractSettlementType,
-			IsActive:       result.Instruments[i].Tradable,
-			Type:           ct,
+			Exchange:                  e.Name,
+			Name:                      cp,
+			Underlying:                underlying,
+			Asset:                     item,
+			StartDate:                 startTime,
+			EndDate:                   endTime,
+			SettlementType:            contractSettlementType,
+			IsActive:                  result.Instruments[i].Tradable,
+			Type:                      ct,
 			ContractValueDenomination: cvd,
 			Multiplier:                result.Instruments[i].ContractSize,
 		}
@@ -1775,7 +1775,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 	return resp, nil
 }
 
-func (k *Kraken) calculateContractExpiryPair(pair currency.Pair, tt time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
+func (e *Exchange) calculateContractExpiryPair(pair currency.Pair, tt time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
 	loc, err := time.LoadLocation("Europe/London")
 	if err != nil {
 		return currency.EMPTYPAIR, time.Time{}, err
@@ -1822,7 +1822,7 @@ type ContractAndExpiry struct {
 }
 
 // GetLongDatedContractsFromDate returns previous expired contracts for a given pair
-func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractDenomination) ([]ContractAndExpiry, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractDenomination) ([]ContractAndExpiry, error) {
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
@@ -1851,7 +1851,7 @@ func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Ite
 		if tnc > 1 {
 			break
 		}
-		pair, expiration, err := k.calculateContractExpiryPair(cp, tt, ct)
+		pair, expiration, err := e.calculateContractExpiryPair(cp, tt, ct)
 		if err != nil {
 			return nil, err
 		}
@@ -1865,38 +1865,38 @@ func (k *Kraken) GetLongDatedContractsFromDate(_ context.Context, item asset.Ite
 	return resp, nil
 }
 
-func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
 	}
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := k.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.ContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.ContractDenomination)
 	if err != nil {
 		return nil, err
 	}
 	var resp futures.HistoricalContractKline
 
-	fc, err := k.GetFuturesCharts(ctx, k.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[len(contracts)-1].Contract, contracts[len(contracts)-1].Expiry, contracts[0].Expiry.Add(-req.Contract.Duration()))
+	fc, err := e.GetFuturesCharts(ctx, e.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[len(contracts)-1].Contract, contracts[len(contracts)-1].Expiry, contracts[0].Expiry.Add(-req.Contract.Duration()))
 	if err != nil {
 		return nil, err
 	}
 	for i := range contracts {
 		contractKline := kline.Item{
-			Exchange:       k.Name,
+			Exchange:       e.Name,
 			Pair:           contracts[i].Contract,
 			UnderlyingPair: req.UnderlyingPair,
 			Asset:          req.Asset,
 			Interval:       req.Interval,
 		}
 		for j := range fc.Candles {
-			tt := time.UnixMilli(fc.Candles[j].Time)
+			tt := fc.Candles[j].Time.Time()
 			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
 				continue
 			}
 			contractKline.Candles = append(contractKline.Candles, kline.Candle{
-				Time:   time.UnixMilli(fc.Candles[j].Time),
+				Time:   fc.Candles[j].Time.Time(),
 				Open:   fc.Candles[j].Open,
 				High:   fc.Candles[j].High,
 				Low:    fc.Candles[j].Low,
@@ -1905,12 +1905,12 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 			})
 		}
 		spotKline := kline.Item{
-			Exchange: k.Name,
+			Exchange: e.Name,
 			Pair:     req.UnderlyingPair,
 			Asset:    req.Asset,
 			Interval: req.Interval,
 		}
-		sc, err := k.GetOHLC(ctx, req.UnderlyingPair, k.FormatExchangeKlineInterval(req.Interval), contracts[i].Expiry.Add(-req.Contract.Duration()).Unix())
+		sc, err := e.GetOHLC(ctx, req.UnderlyingPair, e.FormatExchangeKlineInterval(req.Interval))
 		if err != nil {
 			return nil, err
 		}
@@ -1929,7 +1929,7 @@ func (k *Kraken) GetHistoricalContractKlineData(ctx context.Context, req *future
 		}
 		resp.Data = append(resp.Data, futures.ContractKline{
 			PremiumContract: &futures.Contract{
-				Exchange:   k.Name,
+				Exchange:   e.Name,
 				Name:       contracts[i].Contract,
 				Underlying: req.UnderlyingPair,
 				Asset:      req.Asset,

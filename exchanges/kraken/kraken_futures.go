@@ -43,11 +43,11 @@ func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType st
 		return nil, err
 	}
 	params := url.Values{}
-	if !end.IsZero() && end.Before(time.Now()) {
-		params.Set("to", strconv.FormatInt(end.Unix(), 10))
+	if !to.IsZero() && to.Before(time.Now()) {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if !start.IsZero() && start.Before(time.Now()) {
-		params.Set("from", strconv.FormatInt(start.Unix(), 10))
+	if !from.IsZero() && from.Before(time.Now()) {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution
 	if len(params) > 0 {
@@ -91,10 +91,10 @@ type Butts struct {
 }
 
 // GetInstrumentStatus gets status of futures market and it's data
-func (k *Kraken) GetInstrumentStatus(ctx context.Context, instrument string) (Butts, error) {
+func (e *Exchange) GetInstrumentStatus(ctx context.Context, instrument string) (Butts, error) {
 	var resp Butts
 	butts := futuresInstruments + "/" + instrument + "/status"
-	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, butts, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, butts, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data

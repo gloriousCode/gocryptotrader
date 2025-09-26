@@ -223,19 +223,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			}
 			oStatus, err := order.StringToOrderStatus(response.Data[i].OrdStatus)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
+
 			}
 			oSide, err := order.StringToOrderSide(response.Data[i].Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
+
 			}
 			e.Websocket.DataHandler <- &order.Detail{
 				Exchange:  e.Name,
@@ -271,27 +265,18 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				oSide, err := order.StringToOrderSide(response.Data[x].Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				oType, err := order.StringToOrderType(response.Data[x].OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				oStatus, err := order.StringToOrderStatus(response.Data[x].OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:     response.Data[x].Price,
@@ -316,29 +301,20 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(response.Data[x].Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				var oType order.Type
 				oType, err = order.StringToOrderType(response.Data[x].OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				var oStatus order.Status
 				oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:     response.Data[x].Price,
@@ -489,10 +465,10 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- &ticker.Price{
+		e.Websocket.DataHandler <- &ticker.Price{
 			Last:         t.Price,
 			Pair:         p,
-			ExchangeName: b.Name,
+			ExchangeName: e.Name,
 			AssetType:    a,
 			LastUpdated:  t.Timestamp,
 		}
@@ -502,7 +478,7 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 			return err
 		}
 
-		if !b.IsSaveTradeDataEnabled() {
+		if !e.IsSaveTradeDataEnabled() {
 			continue
 		}
 

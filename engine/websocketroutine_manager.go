@@ -302,8 +302,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				m.printOrderSummary(od, true)
 			}
 		}
-	case order.ClassificationError:
-		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case account.Change:

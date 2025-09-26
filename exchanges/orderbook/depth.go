@@ -644,7 +644,7 @@ func (d *Depth) GetLevels(count int) (ask, bid []Level, err error) {
 	return d.askLevels.retrieve(count), d.bidLevels.retrieve(count), nil
 }
 
-func (d *Depth) GetTranche(count int, isBid bool) ([]Tranche, error) {
+func (d *Depth) GetTranche(count int, isBid bool) ([]Level, error) {
 	if count < 0 {
 		return nil, errInvalidBookDepth
 	}
@@ -654,9 +654,9 @@ func (d *Depth) GetTranche(count int, isBid bool) ([]Tranche, error) {
 		return nil, d.validationError
 	}
 	if isBid {
-		return d.bidTranches.retrieve(count), nil
+		return d.bidLevels.retrieve(count), nil
 	}
-	return d.askTranches.retrieve(count), nil
+	return d.askLevels.retrieve(count), nil
 }
 
 // Pair returns the pair associated with the depth

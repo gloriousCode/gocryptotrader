@@ -102,15 +102,6 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	return nil
 }
 
-func (b *Base) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error) {
-	return order.GetOrderExecutionLimits(key.ExchangePairAsset{
-		Exchange: b.Name,
-		Base:     cp.Base.Item,
-		Quote:    cp.Quote.Item,
-		Asset:    a,
-	})
-}
-
 // SetFeatureDefaults sets the exchanges default feature support set
 func (b *Base) SetFeatureDefaults() {
 	if b.Config.Features == nil {

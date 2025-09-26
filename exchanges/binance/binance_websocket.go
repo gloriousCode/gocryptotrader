@@ -37,13 +37,6 @@ const (
 	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
-type BinanceWebsocket struct {
-	streamURL            string
-	orderbookPartialFunc func(ctx context.Context, symbol currency.Pair, limit int64) (*Orderbook, error)
-	authTokenURL         string
-	ws                   *websocket.Manager
-}
-
 var listenKey string
 
 var (
@@ -242,11 +235,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			var orderStatus order.Status
 			orderStatus, err = stringToOrderStatus(data.OrderStatus)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
+				return err
 			}
 			clientOrderID := data.ClientOrderID
 			if orderStatus == order.Cancelled {
@@ -255,20 +244,12 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			var orderType order.Type
 			orderType, err = order.StringToOrderType(data.OrderType)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
+				return err
 			}
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(data.Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
+				return err
 			}
 			e.Websocket.DataHandler <- &order.Detail{
 				Price:                data.Price,
@@ -322,7 +303,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		// there should be a symbol returned for all data types below
 		return err
 	}
-	pair, isEnabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	pair, _, err := e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
@@ -499,7 +480,7 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	}
 	err = e.obm.stageWsUpdate(wsdp, pair, asset.Spot)
 	if err != nil {
-		init, err2 := e.obm.checkIsInitialSync(pair)
+		init, err2 := e.obm.checkIsInitialSync(pair, asset.Spot)
 		if err2 != nil {
 			return false, err2
 		}
@@ -649,7 +630,7 @@ func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *We
 // applyBufferUpdate applies the buffer to the orderbook or initiates a new
 // orderbook sync by the REST protocol which is off handed to go routine.
 func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
-	fetching, needsFetching, err := e.obm.handleFetchingBook(pair)
+	fetching, needsFetching, err := e.obm.handleFetchingBook(pair, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -660,7 +641,7 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 		if e.Verbose {
 			log.Debugf(log.WebsocketMgr, "%s Orderbook: Fetching via REST\n", e.Name)
 		}
-		return e.obm.fetchBookViaREST(pair)
+		return e.obm.fetchBookViaREST(pair, asset.Spot)
 	}
 
 	recent, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
@@ -680,7 +661,7 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				e.Name,
 				err)
-			err = e.obm.setNeedsFetchingBook(pair)
+			err = e.obm.setNeedsFetchingBook(pair, asset.Spot)
 			if err != nil {
 				return err
 			}
@@ -735,7 +716,7 @@ func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
 			p, asset.Spot, err)
 	}
 
-	err = e.obm.stopFetchingBook(p)
+	err = e.obm.stopFetchingBook(p, asset.Spot)
 	if err != nil {
 		return err
 	}
@@ -755,7 +736,7 @@ func (e *Exchange) invalidateAndCleanupOrderbook(p currency.Pair) {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(p, asset.Spot); err != nil {
 		log.Errorf(log.WebsocketMgr, "%s error invalidating websocket orderbook: %v", e.Name, err)
 	}
-	if err := e.obm.cleanup(p); err != nil {
+	if err := e.obm.cleanup(p, asset.Spot); err != nil {
 		log.Errorf(log.WebsocketMgr, "%s error during websocket orderbook cleanup: %v", e.Name, err)
 	}
 }
@@ -917,10 +898,10 @@ func (o *orderbookManager) fetchBookViaREST(pair currency.Pair, item asset.Item)
 func (o *orderbookManager) checkAndProcessOrderbookUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Book) error {
 	o.Lock()
 	defer o.Unlock()
-	state, ok := o.state[pair.Base][pair.Quote][item]
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
 	if !ok {
 		return fmt.Errorf("could not match pair [%s] asset type [%s] in hash table to process websocket orderbook update",
-			pair, item)
+			pair, asset.Spot)
 	}
 
 	// This will continuously remove updates from the buffered channel and
@@ -934,10 +915,10 @@ buffer:
 				return err
 			}
 			if process {
-				err := processor(pair, item, d)
+				err := processor(pair, asset.Spot, d)
 				if err != nil {
 					return fmt.Errorf("%s %s processing update error: %w",
-						pair, item, err)
+						pair, asset.Spot, err)
 				}
 			}
 		default:

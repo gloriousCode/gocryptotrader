@@ -254,7 +254,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				}
 				pairs = append(pairs, pair)
 			}
-			pairs = append(pairs, cp)
 		case asset.Index:
 			// TODO: This can be expanded into individual assets later.
 			if marketInfo[x].Typ == bitMEXBasketIndexID ||
@@ -1040,7 +1039,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
 					if len(settlement) != 2 {
 						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
-							b.Name,
+							e.Name,
 							marketInfo[x].Symbol,
 							item)
 						break
@@ -1073,7 +1072,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					contractSettlementType = futures.Inverse
 				}
 				resp = append(resp, futures.Contract{
-					Exchange:             b.Name,
+					Exchange:             e.Name,
 					Name:                 cp,
 					Underlying:           underlying,
 					Asset:                item,
@@ -1101,7 +1100,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				var cp, underlying currency.Pair
 				splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
 				if len(splitter) < 2 {
-					log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", b.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
+					log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", e.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
 					continue
 				}
 				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, strings.Join(splitter[1:], ""))
@@ -1112,7 +1111,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				if err != nil {
 					return nil, err
 				}
-				var s, e time.Time
+				var s, end time.Time
 				if marketInfo[x].Front != "" {
 					s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
 					if err != nil {
@@ -1120,13 +1119,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					}
 				}
 				if marketInfo[x].Expiry != "" {
-					e, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
+					end, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
 					if err != nil {
 						return nil, err
 					}
 				}
 				var ct futures.ContractType
-				contractDuration := e.Sub(s)
+				contractDuration := end.Sub(s)
 				switch {
 				case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
 					ct = futures.Weekly
@@ -1151,12 +1150,12 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					contractSettlementType = futures.Quanto
 				}
 				resp = append(resp, futures.Contract{
-					Exchange:             b.Name,
+					Exchange:             e.Name,
 					Name:                 cp,
 					Underlying:           underlying,
 					Asset:                item,
 					StartDate:            s,
-					EndDate:              e,
+					EndDate:              end,
 					IsActive:             marketInfo[x].State == "Open",
 					Status:               marketInfo[x].State,
 					Type:                 ct,
@@ -1175,7 +1174,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if isPerp, _ := b.IsPerpetualFutureCurrency(r.Asset, r.Pair); !isPerp {
+	if isPerp, _ := e.IsPerpetualFutureCurrency(r.Asset, r.Pair); !isPerp {
 		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 	}
 	if r.IncludePredictedRate {
