@@ -2294,12 +2294,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		Time: fr.FundingTime.Time().Add(-fri),
 		Rate: fr.FundingRate.Decimal(),
 	}
-	if r.IncludePredictedRate {
-		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-fri),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time().Add(-fri),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
@@ -2373,11 +2371,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		Rate: fr.FundingRate.Decimal(),
 	}
 	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-	if r.IncludePredictedRate {
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time(),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	if r.IncludePayments {
 		pairRate.PaymentCurrency = r.Pair.Base

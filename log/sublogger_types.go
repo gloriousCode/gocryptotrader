@@ -19,20 +19,17 @@ var (
 	WebsocketMgr     *SubLogger
 	EventMgr         *SubLogger
 	DispatchMgr      *SubLogger
-
-	RequestSys  *SubLogger
-	ExchangeSys *SubLogger
-	GRPCSys     *SubLogger
-	RESTSys     *SubLogger
-
-	Ticker    *SubLogger
-	OrderBook *SubLogger
-	Trade     *SubLogger
-	Fill      *SubLogger
-	Currency  *SubLogger
-
+	RequestSys       *SubLogger
+	ExchangeSys      *SubLogger
+	GRPCSys          *SubLogger
+	RESTSys          *SubLogger
+	Ticker           *SubLogger
+	OrderBook        *SubLogger
+	Trade            *SubLogger
+	Fill             *SubLogger
+	Currency         *SubLogger
+	QuickData        *SubLogger
 	LinkSys  *SubLogger
-	QuickSpy *SubLogger
 	SpyVsSpy *SubLogger
 )
 

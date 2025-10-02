@@ -172,3 +172,66 @@ func TestCredentialsEqual(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 }
+
+func TestProtectedString(t *testing.T) {
+	t.Parallel()
+	p := Protected{}
+	if s := p.String(); s != "Key:[...] SubAccount:[] ClientID:[]" {
+		t.Fatal("unexpected value")
+	}
+
+	p.creds.Key = "12345678910111234"
+	p.creds.SubAccount = "sub"
+	p.creds.ClientID = "client"
+
+	if s := p.creds.String(); s != "Key:[1234567891011123...] SubAccount:[sub] ClientID:[client]" {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestProtectedCredentialsEqual(t *testing.T) {
+	t.Parallel()
+	var this Protected
+	var that *Credentials
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds = Credentials{}
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that = &Credentials{Key: "1337"}
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.Key = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.ClientID = "1337"
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that.ClientID = "1337"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	this.creds.SubAccount = "someSub"
+	if this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+	that.SubAccount = "someSub"
+	if !this.Equal(that) {
+		t.Fatal("unexpected value")
+	}
+}
+
+func TestGetCredentialsFromContext(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	require.Nil(t, GetCredentialsFromContext(ctx))
+
+	creds := &Credentials{Key: "1337"}
+	ctx = DeployCredentialsToContext(ctx, creds)
+	require.Equal(t, creds, GetCredentialsFromContext(ctx))
+}

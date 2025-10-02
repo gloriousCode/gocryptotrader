@@ -1174,12 +1174,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if isPerp, _ := e.IsPerpetualFutureCurrency(r.Asset, r.Pair); !isPerp {
-		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
-	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	}
 
 	count := "1"
 	if r.Pair.IsEmpty() {
