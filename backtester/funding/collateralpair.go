@@ -25,7 +25,7 @@ func (c *CollateralPair) CanPlaceOrder(_ gctorder.Side) bool {
 }
 
 // TakeProfit handles both the reduction of contracts and the change in collateral
-func (c *CollateralPair) TakeProfit(contracts, positionReturns decimal.Decimal) error {
+func (c *CollateralPair) TakeProfit(contracts, positionReturns udecimal.Decimal) error {
 	err := c.contract.ReduceContracts(contracts)
 	if err != nil {
 		return err
@@ -44,17 +44,17 @@ func (c *CollateralPair) CollateralCurrency() currency.Code {
 }
 
 // InitialFunds returns initial funds of collateral
-func (c *CollateralPair) InitialFunds() decimal.Decimal {
+func (c *CollateralPair) InitialFunds() udecimal.Decimal {
 	return c.collateral.initialFunds
 }
 
 // AvailableFunds returns available funds of collateral
-func (c *CollateralPair) AvailableFunds() decimal.Decimal {
+func (c *CollateralPair) AvailableFunds() udecimal.Decimal {
 	return c.collateral.available
 }
 
 // UpdateContracts adds or subtracts contracts based on order direction
-func (c *CollateralPair) UpdateContracts(s gctorder.Side, amount decimal.Decimal) error {
+func (c *CollateralPair) UpdateContracts(s gctorder.Side, amount udecimal.Decimal) error {
 	switch {
 	case c.currentDirection == nil:
 		c.currentDirection = &s
@@ -69,8 +69,8 @@ func (c *CollateralPair) UpdateContracts(s gctorder.Side, amount decimal.Decimal
 }
 
 // ReleaseContracts lowers the amount of available contracts
-func (c *CollateralPair) ReleaseContracts(amount decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
+func (c *CollateralPair) ReleaseContracts(amount udecimal.Decimal) error {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return fmt.Errorf("release %w", errPositiveOnly)
 	}
 	if c.contract.available.LessThan(amount) {
@@ -81,7 +81,7 @@ func (c *CollateralPair) ReleaseContracts(amount decimal.Decimal) error {
 }
 
 // Reserve reserves or releases collateral based on order side
-func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) error {
+func (c *CollateralPair) Reserve(amount udecimal.Decimal, side gctorder.Side) error {
 	switch side {
 	case gctorder.Long, gctorder.Short, gctorder.ClosePosition:
 		return c.collateral.Reserve(amount)
@@ -98,15 +98,15 @@ func (c *CollateralPair) Reserve(amount decimal.Decimal, side gctorder.Side) err
 // Liquidate kills your funds and future
 // all value storage are reduced to zero when triggered
 func (c *CollateralPair) Liquidate() {
-	c.collateral.available = decimal.Zero
-	c.collateral.reserved = decimal.Zero
-	c.contract.available = decimal.Zero
-	c.contract.reserved = decimal.Zero
+	c.collateral.available = udecimal.Zero
+	c.collateral.reserved = udecimal.Zero
+	c.contract.available = udecimal.Zero
+	c.contract.reserved = udecimal.Zero
 	c.currentDirection = nil
 }
 
 // CurrentHoldings returns available contract holdings
-func (c *CollateralPair) CurrentHoldings() decimal.Decimal {
+func (c *CollateralPair) CurrentHoldings() udecimal.Decimal {
 	return c.contract.available
 }
 

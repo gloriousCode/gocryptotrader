@@ -42,7 +42,7 @@ var (
 // Portfolio stores all holdings and rules to assess orders, allowing the portfolio manager to
 // modify, accept or reject strategy signals
 type Portfolio struct {
-	riskFreeRate                       decimal.Decimal
+	riskFreeRate                       udecimal.Decimal
 	sizeManager                        SizeHandler
 	riskManager                        risk.Handler
 	exchangeAssetPairPortfolioSettings map[key.ExchangeAssetPair]*Settings
@@ -59,7 +59,7 @@ type Handler interface {
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
 	GetPositions(common.Event) ([]futures.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
-	UpdatePNL(common.Event, decimal.Decimal) error
+	UpdatePNL(common.Event, udecimal.Decimal) error
 	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
 	CheckLiquidationStatus(data.Event, funding.ICollateralReader, *PNLSummary) error
 	CreateLiquidationOrdersForExchange(data.Event, funding.IFundingManager) ([]order.Event, error)
@@ -71,7 +71,7 @@ type Handler interface {
 
 // SizeHandler is the interface to help size orders
 type SizeHandler interface {
-	SizeOrder(order.Event, decimal.Decimal, *exchange.Settings) (*order.Order, decimal.Decimal, error)
+	SizeOrder(order.Event, udecimal.Decimal, *exchange.Settings) (*order.Order, udecimal.Decimal, error)
 }
 
 // Settings holds all important information for the portfolio manager
@@ -116,5 +116,5 @@ type IPNL interface {
 type BasicPNLResult struct {
 	Currency currency.Code
 	Time     time.Time
-	PNL      decimal.Decimal
+	PNL      udecimal.Decimal
 }

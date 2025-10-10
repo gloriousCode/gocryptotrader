@@ -36,17 +36,17 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 			return nil, errLeverageNotAllowed
 		}
 		ratio := existingLeverageRatio(s)
-		if ratio.GreaterThan(lookup.MaximumOrdersWithLeverageRatio) && lookup.MaximumOrdersWithLeverageRatio.GreaterThan(decimal.Zero) {
+		if ratio.GreaterThan(lookup.MaximumOrdersWithLeverageRatio) && lookup.MaximumOrdersWithLeverageRatio.GreaterThan(udecimal.Zero) {
 			return nil, fmt.Errorf("proceeding with the order would put maximum orders using leverage ratio beyond its limit of %v to %v and %w", lookup.MaximumOrdersWithLeverageRatio, ratio, errCannotPlaceLeverageOrder)
 		}
 		lr := lookup.MaxLeverageRate
-		if retOrder.GetLeverage().GreaterThan(lr) && lr.GreaterThan(decimal.Zero) {
+		if retOrder.GetLeverage().GreaterThan(lr) && lr.GreaterThan(udecimal.Zero) {
 			return nil, fmt.Errorf("proceeding with the order would put leverage rate beyond its limit of %v to %v and %w", lookup.MaxLeverageRate, retOrder.GetLeverage(), errCannotPlaceLeverageOrder)
 		}
 	}
 	if len(latestHoldings) > 1 {
 		ratio := assessHoldingsRatio(o.Pair(), latestHoldings)
-		if lookup.MaximumHoldingRatio.GreaterThan(decimal.Zero) && !ratio.Equal(decimal.NewFromInt(1)) && ratio.GreaterThan(lookup.MaximumHoldingRatio) {
+		if lookup.MaximumHoldingRatio.GreaterThan(udecimal.Zero) && !ratio.Equal(decimal.NewFromInt(1)) && ratio.GreaterThan(lookup.MaximumHoldingRatio) {
 			return nil, fmt.Errorf("order would exceed maximum holding ratio of %v to %v for %v %v %v. %w", lookup.MaximumHoldingRatio, ratio, e, a, p, errCannotPlaceLeverageOrder)
 		}
 	}
@@ -56,11 +56,11 @@ func (r *Risk) EvaluateOrder(o order.Event, latestHoldings []holdings.Holding, s
 // existingLeverageRatio compares orders with leverage to the total number of orders
 // a proof of concept to demonstrate risk manager's ability to prevent an order from being placed
 // when an order exceeds a config setting
-func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
+func existingLeverageRatio(s compliance.Snapshot) udecimal.Decimal {
 	if len(s.Orders) == 0 {
-		return decimal.Zero
+		return udecimal.Zero
 	}
-	var ordersWithLeverage decimal.Decimal
+	var ordersWithLeverage udecimal.Decimal
 	for o := range s.Orders {
 		if s.Orders[o].Order.Leverage != 0 {
 			ordersWithLeverage = ordersWithLeverage.Add(decimal.NewFromInt(1))
@@ -69,16 +69,16 @@ func existingLeverageRatio(s compliance.Snapshot) decimal.Decimal {
 	return ordersWithLeverage.Div(decimal.NewFromInt(int64(len(s.Orders))))
 }
 
-func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) decimal.Decimal {
-	resp := make(map[currency.Pair]decimal.Decimal)
-	totalPosition := decimal.Zero
+func assessHoldingsRatio(c currency.Pair, h []holdings.Holding) udecimal.Decimal {
+	resp := make(map[currency.Pair]udecimal.Decimal)
+	totalPosition := udecimal.Zero
 	for i := range h {
 		resp[h[i].Pair] = resp[h[i].Pair].Add(h[i].BaseValue)
 		totalPosition = totalPosition.Add(h[i].BaseValue)
 	}
 
 	if totalPosition.IsZero() {
-		return decimal.Zero
+		return udecimal.Zero
 	}
 	ratio := resp[c].Div(totalPosition)
 

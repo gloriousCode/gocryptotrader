@@ -15,18 +15,18 @@ type Event interface {
 	common.Event
 	common.Directioner
 	ToKline() kline.Event
-	GetClosePrice() decimal.Decimal
-	GetHighPrice() decimal.Decimal
-	GetOpenPrice() decimal.Decimal
-	GetLowPrice() decimal.Decimal
-	GetVolume() decimal.Decimal
+	GetClosePrice() udecimal.Decimal
+	GetHighPrice() udecimal.Decimal
+	GetOpenPrice() udecimal.Decimal
+	GetLowPrice() udecimal.Decimal
+	GetVolume() udecimal.Decimal
 	IsSignal() bool
-	GetSellLimit() decimal.Decimal
-	GetBuyLimit() decimal.Decimal
-	GetAmount() decimal.Decimal
+	GetSellLimit() udecimal.Decimal
+	GetBuyLimit() udecimal.Decimal
+	GetAmount() udecimal.Decimal
 	GetFillDependentEvent() Event
 	GetCollateralCurrency() currency.Code
-	SetAmount(decimal.Decimal)
+	SetAmount(udecimal.Decimal)
 	MatchOrderAmount() bool
 	IsNil() bool
 }
@@ -34,24 +34,24 @@ type Event interface {
 // Signal contains everything needed for a strategy to raise a signal event
 type Signal struct {
 	*event.Base
-	OpenPrice  decimal.Decimal
-	HighPrice  decimal.Decimal
-	LowPrice   decimal.Decimal
-	ClosePrice decimal.Decimal
-	Volume     decimal.Decimal
+	OpenPrice  udecimal.Decimal
+	HighPrice  udecimal.Decimal
+	LowPrice   udecimal.Decimal
+	ClosePrice udecimal.Decimal
+	Volume     udecimal.Decimal
 	// BuyLimit sets a maximum buy from the strategy
 	// it differs from amount as it is more a suggestion
 	// use Amount if you wish to have a fillOrKill style amount
-	BuyLimit decimal.Decimal
+	BuyLimit udecimal.Decimal
 	// SellLimit sets a maximum sell from the strategy
 	// it differs from amount as it is more a suggestion
 	// use Amount if you wish to have a fillOrKill style amount
-	SellLimit decimal.Decimal
+	SellLimit udecimal.Decimal
 	// Amount set the amount when you wish to allow
 	// a strategy to dictate order quantities
 	// if the amount is not allowed by the portfolio manager
 	// the order will not be placed
-	Amount    decimal.Decimal
+	Amount    udecimal.Decimal
 	Direction order.Side
 	// FillDependentEvent ensures that an order can only be placed
 	// if there is corresponding collateral in the selected currency

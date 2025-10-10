@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 )
 
 // FloatFromString format
@@ -79,9 +79,9 @@ func FloatToHumanFriendlyString(number float64, decimals uint, decPoint, thousan
 
 // DecimalToHumanFriendlyString converts a decimal number to a comma separated string at the thousand point
 // eg 1000 becomes 1,000
-func DecimalToHumanFriendlyString(number decimal.Decimal, rounding uint, decPoint, thousandsSep string) string {
+func DecimalToHumanFriendlyString(number udecimal.Decimal, rounding uint, decPoint, thousandsSep string) string {
 	neg := false
-	if number.LessThan(decimal.Zero) {
+	if number.LessThan(udecimal.Zero) {
 		number = number.Abs()
 		neg = true
 	}
@@ -96,7 +96,7 @@ func DecimalToHumanFriendlyString(number decimal.Decimal, rounding uint, decPoin
 		rounding = math.MaxInt32 // Not feasible to test due to the size of the number
 	}
 
-	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg) //nolint:gosec // Checked above
+	return numberToHumanFriendlyString(number.StringFixed(uint8(rounding)), rounding, decPoint, thousandsSep, neg) //nolint:gosec // Checked above
 }
 
 func numberToHumanFriendlyString(str string, dec uint, decPoint, thousandsSep string, neg bool) string {

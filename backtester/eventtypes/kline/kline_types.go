@@ -10,11 +10,11 @@ import (
 // a common.Event type
 type Kline struct {
 	*event.Base
-	Open             decimal.Decimal
-	Close            decimal.Decimal
-	Low              decimal.Decimal
-	High             decimal.Decimal
-	Volume           decimal.Decimal
+	Open             udecimal.Decimal
+	Close            udecimal.Decimal
+	Low              udecimal.Decimal
+	High             udecimal.Decimal
+	Volume           udecimal.Decimal
 	ValidationIssues string
 }
 

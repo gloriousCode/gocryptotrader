@@ -2211,14 +2211,14 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:     cp,
 			LatestRate: fundingrate.Rate{
 				Time: ft,
-				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+				Rate: udecimal.MustFromFloat64(rates[i].FundingRate),
 			},
 			TimeOfNextRate: nft,
 			TimeChecked:    time.Now(),
 		}
 		rate.PredictedUpcomingRate = fundingrate.Rate{
 			Time: rate.TimeOfNextRate,
-			Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
+			Rate: udecimal.MustFromFloat64(rates[i].EstimatedRate),
 		}
 		resp = append(resp, rate)
 	}

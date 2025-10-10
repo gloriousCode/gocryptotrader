@@ -159,7 +159,7 @@ func parseStatisticsSettings(cfg *config.Config, reader *bufio.Reader) error {
 	if err != nil {
 		return err
 	}
-	cfg.StatisticSettings.RiskFreeRate = decimal.NewFromFloat(rfr)
+	cfg.StatisticSettings.RiskFreeRate = udecimal.MustFromFloat64(rfr)
 	return nil
 }
 
@@ -602,7 +602,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 			fmt.Println("Enter the initial base funds. eg 0")
 			parseNum := quickParse(reader)
 			if parseNum != "" {
-				var d decimal.Decimal
+				var d udecimal.Decimal
 				d, err = decimal.NewFromString(parseNum)
 				if err != nil {
 					return nil, err
@@ -620,7 +620,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the initial quote funds. eg 10000")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
-			var d decimal.Decimal
+			var d udecimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
@@ -641,7 +641,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the maker-fee. eg 0.001")
 		parseNum := quickParse(reader)
 		if parseNum != "" {
-			var d decimal.Decimal
+			var d udecimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
@@ -651,7 +651,7 @@ func addCurrencySetting(reader *bufio.Reader, usingExchangeLevelFunding bool) (*
 		fmt.Println("Enter the taker-fee. eg 0.01")
 		parseNum = quickParse(reader)
 		if parseNum != "" {
-			var d decimal.Decimal
+			var d udecimal.Decimal
 			d, err = decimal.NewFromString(parseNum)
 			if err != nil {
 				return nil, err
@@ -720,7 +720,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MaximumSize = decimal.NewFromFloat(f)
+		resp.MaximumSize = udecimal.MustFromFloat64(f)
 	}
 	fmt.Printf("What is the minimum %s size? eg 0.1\n", buySell)
 	parseNum = quickParse(reader)
@@ -729,7 +729,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MinimumSize = decimal.NewFromFloat(f)
+		resp.MinimumSize = udecimal.MustFromFloat64(f)
 	}
 	fmt.Printf("What is the maximum spend %s buy? eg 12000\n", buySell)
 	parseNum = quickParse(reader)
@@ -738,7 +738,7 @@ func minMaxParse(buySell string, reader *bufio.Reader) (config.MinMax, error) {
 		if err != nil {
 			return resp, err
 		}
-		resp.MaximumTotal = decimal.NewFromFloat(f)
+		resp.MaximumTotal = udecimal.MustFromFloat64(f)
 	}
 
 	return resp, nil

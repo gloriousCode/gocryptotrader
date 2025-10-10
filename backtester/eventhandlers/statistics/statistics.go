@@ -32,7 +32,7 @@ func (s *Statistic) Reset() error {
 	s.StartDate = time.Time{}
 	s.EndDate = time.Time{}
 	s.CandleInterval = 0
-	s.RiskFreeRate = decimal.Zero
+	s.RiskFreeRate = udecimal.Zero
 	s.ExchangeAssetPairStatistics = make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
 	s.CurrencyStatistics = nil
 	s.TotalBuyOrders = 0

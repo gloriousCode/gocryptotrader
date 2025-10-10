@@ -21,25 +21,25 @@ import (
 
 func TestCalculateFundingStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := CalculateFundingStatistics(nil, nil, decimal.Zero, gctkline.OneHour)
+	_, err := CalculateFundingStatistics(nil, nil, udecimal.Zero, gctkline.OneHour)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
 	assert.NoError(t, err)
 
-	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
+	item, err := funding.CreateItem("binance", asset.Spot, currency.BTC, decimal.NewFromInt(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(item)
 	assert.NoError(t, err)
 
-	item2, err := funding.CreateItem("binance", asset.Spot, currency.USD, decimal.NewFromInt(1337), decimal.Zero)
+	item2, err := funding.CreateItem("binance", asset.Spot, currency.USD, decimal.NewFromInt(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(item2)
 	assert.NoError(t, err)
 
-	_, err = CalculateFundingStatistics(f, nil, decimal.Zero, gctkline.OneHour)
+	_, err = CalculateFundingStatistics(f, nil, udecimal.Zero, gctkline.OneHour)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	usdKline := gctkline.Item{
@@ -67,7 +67,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	assert.ErrorIs(t, err, funding.ErrUSDTrackingDisabled)
 
 	cs := make(map[key.ExchangeAssetPair]*CurrencyPairStatistic)
-	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
+	_, err = CalculateFundingStatistics(f, cs, udecimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 
 	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
@@ -83,7 +83,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	require.NoError(t, err, "AddUSDTrackingData must not error")
 
 	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
-	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
+	_, err = CalculateFundingStatistics(f, cs, udecimal.Zero, gctkline.OneHour)
 	assert.ErrorIs(t, err, errMissingSnapshots)
 
 	err = f.CreateSnapshot(usdKline.Candles[0].Time)
@@ -93,7 +93,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	require.NoError(t, err, "CreateSnapshot must not error")
 
 	cs[key.NewExchangeAssetPair("binance", asset.Spot, currency.NewPair(currency.LTC, currency.USD))] = &CurrencyPairStatistic{}
-	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
+	_, err = CalculateFundingStatistics(f, cs, udecimal.Zero, gctkline.OneHour)
 	assert.NoError(t, err)
 }
 
@@ -178,10 +178,10 @@ func TestFundingStatisticsPrintResults(t *testing.T) {
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, true, true, false)
 	assert.NoError(t, err)
 
-	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
+	item1, err := funding.CreateItem("test", asset.Spot, currency.BTC, decimal.NewFromInt(1337), udecimal.MustFromFloat64(0.04))
 	assert.NoError(t, err)
 
-	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), decimal.NewFromFloat(0.04))
+	item2, err := funding.CreateItem("test", asset.Spot, currency.LTC, decimal.NewFromInt(1337), udecimal.MustFromFloat64(0.04))
 	assert.NoError(t, err)
 
 	p, err := funding.CreatePair(item1, item2)

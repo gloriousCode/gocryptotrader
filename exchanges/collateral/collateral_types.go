@@ -46,12 +46,12 @@ var supportedCollateralModes = SingleMode | MultiMode | PortfolioMode | SpotFutu
 // from positions
 type ByPosition struct {
 	PositionCurrency currency.Pair
-	Size             decimal.Decimal
-	OpenOrderSize    decimal.Decimal
-	PositionSize     decimal.Decimal
-	MarkPrice        decimal.Decimal
-	RequiredMargin   decimal.Decimal
-	CollateralUsed   decimal.Decimal
+	Size             udecimal.Decimal
+	OpenOrderSize    udecimal.Decimal
+	PositionSize     udecimal.Decimal
+	MarkPrice        udecimal.Decimal
+	RequiredMargin   udecimal.Decimal
+	CollateralUsed   udecimal.Decimal
 }
 
 // ByCurrency individual collateral contribution
@@ -61,15 +61,15 @@ type ByPosition struct {
 type ByCurrency struct {
 	Currency                    currency.Code
 	SkipContribution            bool
-	TotalFunds                  decimal.Decimal
-	AvailableForUseAsCollateral decimal.Decimal
-	CollateralContribution      decimal.Decimal
-	AdditionalCollateralUsed    decimal.Decimal
-	FairMarketValue             decimal.Decimal
-	Weighting                   decimal.Decimal
+	TotalFunds                  udecimal.Decimal
+	AvailableForUseAsCollateral udecimal.Decimal
+	CollateralContribution      udecimal.Decimal
+	AdditionalCollateralUsed    udecimal.Decimal
+	FairMarketValue             udecimal.Decimal
+	Weighting                   udecimal.Decimal
 	ScaledCurrency              currency.Code
-	UnrealisedPNL               decimal.Decimal
-	ScaledUsed                  decimal.Decimal
+	UnrealisedPNL               udecimal.Decimal
+	ScaledUsed                  udecimal.Decimal
 	ScaledUsedBreakdown         *UsedBreakdown
 	Error                       error
 }
@@ -77,12 +77,12 @@ type ByCurrency struct {
 // UsedBreakdown provides a detailed
 // breakdown of where collateral is currently being allocated
 type UsedBreakdown struct {
-	LockedInStakes                  decimal.Decimal
-	LockedInNFTBids                 decimal.Decimal
-	LockedInFeeVoucher              decimal.Decimal
-	LockedInSpotMarginFundingOffers decimal.Decimal
-	LockedInSpotOrders              decimal.Decimal
-	LockedAsCollateral              decimal.Decimal
-	UsedInPositions                 decimal.Decimal
-	UsedInSpotMarginBorrows         decimal.Decimal
+	LockedInStakes                  udecimal.Decimal
+	LockedInNFTBids                 udecimal.Decimal
+	LockedInFeeVoucher              udecimal.Decimal
+	LockedInSpotMarginFundingOffers udecimal.Decimal
+	LockedInSpotOrders              udecimal.Decimal
+	LockedAsCollateral              udecimal.Decimal
+	UsedInPositions                 udecimal.Decimal
+	UsedInSpotMarginBorrows         udecimal.Decimal
 }

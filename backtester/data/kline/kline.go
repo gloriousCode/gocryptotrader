@@ -63,11 +63,11 @@ func (d *DataFromKline) Load() error {
 				AssetType:      d.Item.Asset,
 				UnderlyingPair: d.Item.UnderlyingPair,
 			},
-			Open:             decimal.NewFromFloat(d.Item.Candles[i].Open),
-			High:             decimal.NewFromFloat(d.Item.Candles[i].High),
-			Low:              decimal.NewFromFloat(d.Item.Candles[i].Low),
-			Close:            decimal.NewFromFloat(d.Item.Candles[i].Close),
-			Volume:           decimal.NewFromFloat(d.Item.Candles[i].Volume),
+			Open:             udecimal.MustFromFloat64(d.Item.Candles[i].Open),
+			High:             udecimal.MustFromFloat64(d.Item.Candles[i].High),
+			Low:              udecimal.MustFromFloat64(d.Item.Candles[i].Low),
+			Close:            udecimal.MustFromFloat64(d.Item.Candles[i].Close),
+			Volume:           udecimal.MustFromFloat64(d.Item.Candles[i].Volume),
 			ValidationIssues: d.Item.Candles[i].ValidationIssues,
 		}
 		klineData[i] = newKline
@@ -114,11 +114,11 @@ candleLoop:
 				UnderlyingPair: d.Item.UnderlyingPair,
 				Time:           gctCandles[i].Time.UTC(),
 			},
-			Open:   decimal.NewFromFloat(gctCandles[i].Open),
-			High:   decimal.NewFromFloat(gctCandles[i].High),
-			Low:    decimal.NewFromFloat(gctCandles[i].Low),
-			Close:  decimal.NewFromFloat(gctCandles[i].Close),
-			Volume: decimal.NewFromFloat(gctCandles[i].Volume),
+			Open:   udecimal.MustFromFloat64(gctCandles[i].Open),
+			High:   udecimal.MustFromFloat64(gctCandles[i].High),
+			Low:    udecimal.MustFromFloat64(gctCandles[i].Low),
+			Close:  udecimal.MustFromFloat64(gctCandles[i].Close),
+			Volume: udecimal.MustFromFloat64(gctCandles[i].Volume),
 		}
 		klineData[i] = newKline
 	}
@@ -142,13 +142,13 @@ candleLoop:
 }
 
 // StreamOpen returns all Open prices from the beginning until the current iteration
-func (d *DataFromKline) StreamOpen() ([]decimal.Decimal, error) {
+func (d *DataFromKline) StreamOpen() ([]udecimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]decimal.Decimal, len(s))
+	ret := make([]udecimal.Decimal, len(s))
 	for x := range s {
 		ret[x] = s[x].GetOpenPrice()
 	}
@@ -156,13 +156,13 @@ func (d *DataFromKline) StreamOpen() ([]decimal.Decimal, error) {
 }
 
 // StreamHigh returns all High prices from the beginning until the current iteration
-func (d *DataFromKline) StreamHigh() ([]decimal.Decimal, error) {
+func (d *DataFromKline) StreamHigh() ([]udecimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]decimal.Decimal, len(s))
+	ret := make([]udecimal.Decimal, len(s))
 	for x := range s {
 		ret[x] = s[x].GetHighPrice()
 	}
@@ -170,13 +170,13 @@ func (d *DataFromKline) StreamHigh() ([]decimal.Decimal, error) {
 }
 
 // StreamLow returns all Low prices from the beginning until the current iteration
-func (d *DataFromKline) StreamLow() ([]decimal.Decimal, error) {
+func (d *DataFromKline) StreamLow() ([]udecimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]decimal.Decimal, len(s))
+	ret := make([]udecimal.Decimal, len(s))
 	for x := range s {
 		ret[x] = s[x].GetLowPrice()
 	}
@@ -184,13 +184,13 @@ func (d *DataFromKline) StreamLow() ([]decimal.Decimal, error) {
 }
 
 // StreamClose returns all Close prices from the beginning until the current iteration
-func (d *DataFromKline) StreamClose() ([]decimal.Decimal, error) {
+func (d *DataFromKline) StreamClose() ([]udecimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]decimal.Decimal, len(s))
+	ret := make([]udecimal.Decimal, len(s))
 	for x := range s {
 		ret[x] = s[x].GetClosePrice()
 	}
@@ -198,13 +198,13 @@ func (d *DataFromKline) StreamClose() ([]decimal.Decimal, error) {
 }
 
 // StreamVol returns all Volume prices from the beginning until the current iteration
-func (d *DataFromKline) StreamVol() ([]decimal.Decimal, error) {
+func (d *DataFromKline) StreamVol() ([]udecimal.Decimal, error) {
 	s, err := d.History()
 	if err != nil {
 		return nil, err
 	}
 
-	ret := make([]decimal.Decimal, len(s))
+	ret := make([]udecimal.Decimal, len(s))
 	for x := range s {
 		ret[x] = s[x].GetVolume()
 	}

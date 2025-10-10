@@ -678,10 +678,10 @@ func TestCalculateTheResults(t *testing.T) {
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false, false)
 	assert.NoError(t, err)
 
-	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
+	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
-	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
+	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(pBase, pQuote)
@@ -690,10 +690,10 @@ func TestCalculateTheResults(t *testing.T) {
 	err = funds.AddPair(pair)
 	assert.NoError(t, err)
 
-	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
+	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
-	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair2, err := funding.CreatePair(pBase2, pQuote2)

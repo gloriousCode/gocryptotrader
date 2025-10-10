@@ -168,20 +168,20 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
+	_, err := s.createSignals(nil, nil, nil, udecimal.Zero, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	spotSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Spot},
 	}
-	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
+	_, err = s.createSignals(nil, spotSignal, nil, udecimal.Zero, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	// targeting first case
 	futuresSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Futures},
 	}
-	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
+	resp, err := s.createSignals(nil, spotSignal, futuresSignal, udecimal.Zero, false)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 1, "createSignals must return one signal")
 	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
@@ -192,7 +192,7 @@ func TestCreateSignals(t *testing.T) {
 			Status: gctorder.Open,
 		},
 	}
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, false)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.Zero, false)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 2, "createSignals must return two signals")
 	caseTested := false
@@ -206,7 +206,7 @@ func TestCreateSignals(t *testing.T) {
 	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting third case
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.Zero, true)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 2, "createSignals must return two signals")
 

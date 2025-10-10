@@ -79,8 +79,8 @@ func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 		if err != nil {
 			return Swing{}, fmt.Errorf("cannot close out max drawdown calculation: %w", err)
 		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
+		drawdownPercent := udecimal.Zero
+		if highestPrice.GreaterThan(udecimal.Zero) {
 			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
 		}
 		if lowestTime.Equal(highestTime) {
@@ -171,8 +171,8 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		if err != nil {
 			log.Errorln(common.CurrencyStatistics, err)
 		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
+		drawdownPercent := udecimal.Zero
+		if highestPrice.GreaterThan(udecimal.Zero) {
 			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
 		}
 		if lowestTime.Equal(highestTime) {
@@ -207,8 +207,8 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 }
 
 // CalculateRatios creates arithmetic and geometric ratios from funding or currency pair data
-func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFreeRatePerCandle decimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
+func CalculateRatios(benchmarkRates, returnsPerCandle []udecimal.Decimal, riskFreeRatePerCandle udecimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage udecimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
 	if err != nil {
 		return nil, nil, err
@@ -221,7 +221,7 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar udecimal.Decimal
 
 	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
 	if err != nil {

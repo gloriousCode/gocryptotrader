@@ -79,17 +79,17 @@ type StrategySettings struct {
 // It also is required to use SimultaneousSignalProcessing, otherwise the first currency processed
 // will have dibs
 type ExchangeLevelFunding struct {
-	ExchangeName string          `json:"exchange-name"`
-	Asset        asset.Item      `json:"asset"`
-	Currency     currency.Code   `json:"currency"`
-	InitialFunds decimal.Decimal `json:"initial-funds"`
-	TransferFee  decimal.Decimal `json:"transfer-fee"`
+	ExchangeName string           `json:"exchange-name"`
+	Asset        asset.Item       `json:"asset"`
+	Currency     currency.Code    `json:"currency"`
+	InitialFunds udecimal.Decimal `json:"initial-funds"`
+	TransferFee  udecimal.Decimal `json:"transfer-fee"`
 }
 
 // StatisticSettings adjusts ratios where
 // proper data is currently lacking
 type StatisticSettings struct {
-	RiskFreeRate decimal.Decimal `json:"risk-free-rate"`
+	RiskFreeRate udecimal.Decimal `json:"risk-free-rate"`
 }
 
 // PortfolioSettings act as a global protector for strategies
@@ -104,21 +104,21 @@ type PortfolioSettings struct {
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
-	CanUseLeverage                 bool            `json:"can-use-leverage"`
-	MaximumOrdersWithLeverageRatio decimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
+	CanUseLeverage                 bool             `json:"can-use-leverage"`
+	MaximumOrdersWithLeverageRatio udecimal.Decimal `json:"maximum-orders-with-leverage-ratio"`
 	// MaximumOrderLeverageRate allows for orders to be placed with higher leverage rate. eg have $100 in collateral,
 	// but place an order for $200 using 2x leverage
-	MaximumOrderLeverageRate decimal.Decimal `json:"maximum-leverage-rate"`
+	MaximumOrderLeverageRate udecimal.Decimal `json:"maximum-leverage-rate"`
 	// MaximumCollateralLeverageRate allows for orders to be placed at `1x leverage, but utilise collateral as leverage to place more.
 	// eg if this is 2x, and collateral is $100 I can place two long/shorts of $100
-	MaximumCollateralLeverageRate decimal.Decimal `json:"maximum-collateral-leverage-rate"`
+	MaximumCollateralLeverageRate udecimal.Decimal `json:"maximum-collateral-leverage-rate"`
 }
 
 // MinMax are the rules which limit the placement of orders.
 type MinMax struct {
-	MinimumSize  decimal.Decimal `json:"minimum-size"` // will not place an order if under this amount
-	MaximumSize  decimal.Decimal `json:"maximum-size"` // can only place an order up to this amount
-	MaximumTotal decimal.Decimal `json:"maximum-total"`
+	MinimumSize  udecimal.Decimal `json:"minimum-size"` // will not place an order if under this amount
+	MaximumSize  udecimal.Decimal `json:"maximum-size"` // can only place an order up to this amount
+	MaximumTotal udecimal.Decimal `json:"maximum-total"`
 }
 
 // CurrencySettings stores pair based variables
@@ -139,16 +139,16 @@ type CurrencySettings struct {
 	BuySide  MinMax `json:"buy-side"`
 	SellSide MinMax `json:"sell-side"`
 
-	MinimumSlippagePercent decimal.Decimal `json:"min-slippage-percent"`
-	MaximumSlippagePercent decimal.Decimal `json:"max-slippage-percent"`
+	MinimumSlippagePercent udecimal.Decimal `json:"min-slippage-percent"`
+	MaximumSlippagePercent udecimal.Decimal `json:"max-slippage-percent"`
 
-	UsingExchangeMakerFee bool             `json:"-"`
-	MakerFee              *decimal.Decimal `json:"maker-fee-override,omitempty"`
-	UsingExchangeTakerFee bool             `json:"-"`
-	TakerFee              *decimal.Decimal `json:"taker-fee-override,omitempty"`
+	UsingExchangeMakerFee bool              `json:"-"`
+	MakerFee              *udecimal.Decimal `json:"maker-fee-override,omitempty"`
+	UsingExchangeTakerFee bool              `json:"-"`
+	TakerFee              *udecimal.Decimal `json:"taker-fee-override,omitempty"`
 
-	MaximumHoldingsRatio    decimal.Decimal `json:"maximum-holdings-ratio"`
-	SkipCandleVolumeFitting bool            `json:"skip-candle-volume-fitting"`
+	MaximumHoldingsRatio    udecimal.Decimal `json:"maximum-holdings-ratio"`
+	SkipCandleVolumeFitting bool             `json:"skip-candle-volume-fitting"`
 
 	CanUseExchangeLimits          bool `json:"use-exchange-order-limits"`
 	ShowExchangeOrderLimitWarning bool `json:"-"`
@@ -158,8 +158,8 @@ type CurrencySettings struct {
 // SpotDetails contains funding information that cannot be shared with another
 // pair during the backtesting run. Use exchange level funding to share funds
 type SpotDetails struct {
-	InitialBaseFunds  *decimal.Decimal `json:"initial-base-funds,omitempty"`
-	InitialQuoteFunds *decimal.Decimal `json:"initial-quote-funds,omitempty"`
+	InitialBaseFunds  *udecimal.Decimal `json:"initial-base-funds,omitempty"`
+	InitialQuoteFunds *udecimal.Decimal `json:"initial-quote-funds,omitempty"`
 }
 
 // FuturesDetails contains data relevant to futures currency pairs

@@ -331,7 +331,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 
 	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
 	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
-		var initialFunds, transferFee decimal.Decimal
+		var initialFunds, transferFee udecimal.Decimal
 		var a asset.Item
 		initialFunds, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
 		if err != nil {
@@ -365,7 +365,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		var currencySettingBuySideMinimumSize, currencySettingBuySideMaximumSize,
 			currencySettingBuySideMaximumTotal, currencySettingSellSideMinimumSize,
 			currencySettingSellSideMaximumSize, currencySettingSellSideMaximumTotal,
-			minimumSlippagePercent, maximumSlippagePercent, maximumHoldingsRatio decimal.Decimal
+			minimumSlippagePercent, maximumSlippagePercent, maximumHoldingsRatio udecimal.Decimal
 		var a asset.Item
 		currencySettingBuySideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MinimumSize)
 		if err != nil {
@@ -411,10 +411,10 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if err != nil {
 			return nil, err
 		}
-		var maker, taker *decimal.Decimal
+		var maker, taker *udecimal.Decimal
 		if request.Config.CurrencySettings[i].MakerFeeOverride != "" {
 			// nil is a valid option
-			var m decimal.Decimal
+			var m udecimal.Decimal
 			m, err = decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
 			if err != nil {
 				return nil, fmt.Errorf("%v %v %v-%v maker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
@@ -423,7 +423,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		}
 		if request.Config.CurrencySettings[i].TakerFeeOverride != "" {
 			// nil is a valid option
-			var t decimal.Decimal
+			var t udecimal.Decimal
 			t, err = decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
 			if err != nil {
 				return nil, fmt.Errorf("%v %v %v-%v taker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
@@ -435,7 +435,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if request.Config.CurrencySettings[i].SpotDetails != nil {
 			spotDetails = &config.SpotDetails{}
 			if request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds != "" {
-				var ibf decimal.Decimal
+				var ibf udecimal.Decimal
 				ibf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds)
 				if err != nil {
 					return nil, err
@@ -443,7 +443,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 				spotDetails.InitialBaseFunds = &ibf
 			}
 			if request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds != "" {
-				var iqf decimal.Decimal
+				var iqf udecimal.Decimal
 				iqf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds)
 				if err != nil {
 					return nil, err
@@ -456,7 +456,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if request.Config.CurrencySettings[i].FuturesDetails != nil &&
 			request.Config.CurrencySettings[i].FuturesDetails.Leverage != nil {
 			futuresDetails = &config.FuturesDetails{}
-			var mowlr, mlr, mclr decimal.Decimal
+			var mowlr, mlr, mclr udecimal.Decimal
 			mowlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
 			if err != nil {
 				return nil, err

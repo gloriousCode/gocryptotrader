@@ -10,7 +10,7 @@ import (
 
 // EstimateSlippagePercentage takes in an int range of numbers
 // turns it into a percentage
-func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal.Decimal) decimal.Decimal {
+func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate udecimal.Decimal) udecimal.Decimal {
 	if minimumSlippageRate.LessThan(decimal.NewFromInt(1)) || minimumSlippageRate.GreaterThan(decimal.NewFromInt(100)) {
 		return decimal.NewFromInt(1)
 	}
@@ -30,14 +30,14 @@ func EstimateSlippagePercentage(maximumSlippageRate, minimumSlippageRate decimal
 }
 
 // CalculateSlippageByOrderbook returns the price slippage for an order
-func CalculateSlippageByOrderbook(ob *orderbook.Book, side gctorder.Side, allocatedFunds, feeRate decimal.Decimal) (price, amount decimal.Decimal, err error) {
+func CalculateSlippageByOrderbook(ob *orderbook.Book, side gctorder.Side, allocatedFunds, feeRate udecimal.Decimal) (price, amount udecimal.Decimal, err error) {
 	var result *orderbook.WhaleBombResult
 	result, err = ob.SimulateOrder(allocatedFunds.InexactFloat64(), side == gctorder.Buy)
 	if err != nil {
 		return
 	}
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
-	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
-	amount = decimal.NewFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
+	price = udecimal.MustFromFloat64(result.MinimumPrice * (rate + 1))
+	amount = udecimal.MustFromFloat64(result.Amount * (1 - feeRate.InexactFloat64()))
 	return
 }

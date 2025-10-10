@@ -238,11 +238,11 @@ func TestUpdate(t *testing.T) {
 	err = p.UpdateHoldings(&kline.Kline{}, nil)
 	assert.ErrorIs(t, err, funding.ErrFundsNotFound)
 
-	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,11 +357,11 @@ func TestOnFill(t *testing.T) {
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewBTCUSDT()})
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,11 +404,11 @@ func TestOnSignal(t *testing.T) {
 	_, err = p.OnSignal(s, &exchange.Settings{}, nil)
 	assert.ErrorIs(t, err, funding.ErrFundsNotFound)
 
-	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, decimal.Zero)
+	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, decimal.Zero)
+	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -487,11 +487,11 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected an amount to be sized")
 	}
 
-	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, decimal.Zero)
+	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, decimal.Zero)
+	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -678,7 +678,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev := &kline.Kline{
 		Base: &event.Base{},
 	}
-	err := p.UpdatePNL(ev, decimal.Zero)
+	err := p.UpdatePNL(ev, udecimal.Zero)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
 	exch := &binance.Exchange{}
@@ -702,7 +702,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev.CurrencyPair = pair
 	ev.Time = tt0
 
-	err = p.UpdatePNL(ev, decimal.Zero)
+	err = p.UpdatePNL(ev, udecimal.Zero)
 	assert.ErrorIs(t, err, errNoPortfolioSettings)
 
 	od := &gctorder.Detail{
@@ -812,10 +812,10 @@ func TestTrackFuturesOrder(t *testing.T) {
 	od.Price = 0
 	od.OrderID = od.Exchange
 	od.Date = time.Now()
-	contract, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(9999), decimal.Zero)
+	contract, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(9999), udecimal.Zero)
 	assert.NoError(t, err)
 
-	collateral, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(9999), decimal.Zero)
+	collateral, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(9999), udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = collateral.IncreaseAvailable(decimal.NewFromInt(9999))
@@ -1263,7 +1263,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	// spot order
-	item, err := funding.CreateItem(ff.Name, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	item, err := funding.CreateItem(ff.Name, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err)
 
 	err = funds.AddItem(item)
@@ -1307,10 +1307,10 @@ func TestCheckLiquidationStatus(t *testing.T) {
 
 	item := asset.Futures
 	pair := currency.NewBTCUSDT()
-	contract, err := funding.CreateItem(testExchange, item, pair.Base, decimal.NewFromInt(100), decimal.Zero)
+	contract, err := funding.CreateItem(testExchange, item, pair.Base, decimal.NewFromInt(100), udecimal.Zero)
 	assert.NoError(t, err)
 
-	collateral, err := funding.CreateItem(testExchange, item, pair.Quote, decimal.NewFromInt(100), decimal.Zero)
+	collateral, err := funding.CreateItem(testExchange, item, pair.Quote, decimal.NewFromInt(100), udecimal.Zero)
 	assert.NoError(t, err)
 
 	collat, err := funding.CreateCollateral(contract, collateral)
@@ -1374,7 +1374,7 @@ func TestSetHoldingsForEvent(t *testing.T) {
 	err := p.SetHoldingsForEvent(nil, nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
 	cp, err := funding.CreatePair(item, item)

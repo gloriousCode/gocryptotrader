@@ -130,7 +130,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 
 	// misc
 	_ = captureOutput(func() { renderOpenInterest(123.45) })
-	fr := &fundingrate.LatestRateResponse{LatestRate: fundingrate.Rate{Rate: decimal.NewFromFloat(0.0001)}, PredictedUpcomingRate: fundingrate.Rate{Rate: decimal.NewFromFloat(0.0002)}, TimeOfNextRate: time.Now().Add(time.Hour), TimeChecked: time.Now()}
+	fr := &fundingrate.LatestRateResponse{LatestRate: fundingrate.Rate{Rate: udecimal.MustFromFloat64(0.0001)}, PredictedUpcomingRate: fundingrate.Rate{Rate: udecimal.MustFromFloat64(0.0002)}, TimeOfNextRate: time.Now().Add(time.Hour), TimeChecked: time.Now()}
 	_ = captureOutput(func() { renderFundingRate(fr) })
 	_ = captureOutput(func() { renderFundingRate(nil) })
 

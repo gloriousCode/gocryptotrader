@@ -4155,7 +4155,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 		OrderCount:       int64(len(position.Orders)),
 	}
 	if getFundingPayments {
-		var sum decimal.Decimal
+		var sum udecimal.Decimal
 		fundingData := &gctrpc.FundingData{}
 		for i := range position.FundingRates.FundingRates {
 			if includeFundingRates {
@@ -4806,8 +4806,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	calculators := make([]futures.CollateralCalculator, 0, len(acc.Currencies))
 	for i := range acc.Currencies {
-		total := decimal.NewFromFloat(acc.Currencies[i].Total)
-		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
+		total := udecimal.MustFromFloat64(acc.Currencies[i].Total)
+		free := udecimal.MustFromFloat64(acc.Currencies[i].AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].Currency,
@@ -4831,7 +4831,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.USDPrice = udecimal.MustFromFloat64(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}
@@ -5214,7 +5214,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			return nil, err
 		}
 
-		if req.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
+		if req.TakeFeeRate.LessThanOrEqual(udecimal.Zero) {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		if len(r.Rates) == 0 {

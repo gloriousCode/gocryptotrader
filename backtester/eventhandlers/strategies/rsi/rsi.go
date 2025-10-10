@@ -28,9 +28,9 @@ const (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	rsiPeriod decimal.Decimal
-	rsiLow    decimal.Decimal
-	rsiHigh   decimal.Decimal
+	rsiPeriod udecimal.Decimal
+	rsiLow    udecimal.Decimal
+	rsiHigh   udecimal.Decimal
 }
 
 // Name returns the name of the strategy
@@ -78,7 +78,7 @@ func (s *Strategy) OnSignal(d data.Handler, _ funding.IFundingTransferer, _ port
 		return nil, err
 	}
 	rsi := indicators.RSI(backfilledData, int(s.rsiPeriod.IntPart()))
-	latestRSIValue := decimal.NewFromFloat(rsi[len(rsi)-1])
+	latestRSIValue := udecimal.MustFromFloat64(rsi[len(rsi)-1])
 	hasDataAtTime, err := d.HasDataAtTime(latest.GetTime())
 	if err != nil {
 		return nil, err
@@ -142,19 +142,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || rsiHigh <= 0 {
 				return fmt.Errorf("%w provided rsi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiHigh = decimal.NewFromFloat(rsiHigh)
+			s.rsiHigh = udecimal.MustFromFloat64(rsiHigh)
 		case rsiLowKey:
 			rsiLow, ok := v.(float64)
 			if !ok || rsiLow <= 0 {
 				return fmt.Errorf("%w provided rsi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiLow = decimal.NewFromFloat(rsiLow)
+			s.rsiLow = udecimal.MustFromFloat64(rsiLow)
 		case rsiPeriodKey:
 			rsiPeriod, ok := v.(float64)
 			if !ok || rsiPeriod <= 0 {
 				return fmt.Errorf("%w provided rsi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.rsiPeriod = decimal.NewFromFloat(rsiPeriod)
+			s.rsiPeriod = udecimal.MustFromFloat64(rsiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -174,7 +174,7 @@ func (s *Strategy) SetDefaults() {
 // this will ensure that RSI can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) backfillMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
+func (s *Strategy) backfillMissingData(d []udecimal.Decimal, t time.Time) ([]float64, error) {
 	resp := make([]float64, len(d))
 	var missingDataStreak int64
 	for i := range d {

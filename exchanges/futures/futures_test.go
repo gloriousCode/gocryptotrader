@@ -152,7 +152,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if c.latestDirection != order.Short {
 		t.Error("expected recognition that its short")
 	}
-	if !c.exposure.Equal(decimal.NewFromFloat(0.2)) {
+	if !c.exposure.Equal(udecimal.MustFromFloat64(0.2)) {
 		t.Errorf("expected %v received %v", 0.2, c.exposure)
 	}
 
@@ -897,7 +897,7 @@ func TestMPTLiquidate(t *testing.T) {
 		orderPositions:         make(map[string]*PositionTracker),
 	}
 
-	err = e.Liquidate(decimal.Zero, time.Time{})
+	err = e.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
 	setup := &PositionTrackerSetup{
@@ -924,10 +924,10 @@ func TestMPTLiquidate(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = e.Liquidate(decimal.Zero, time.Time{})
+	err = e.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, order.ErrCannotLiquidate)
 
-	err = e.Liquidate(decimal.Zero, tt)
+	err = e.Liquidate(udecimal.Zero, tt)
 	assert.NoError(t, err)
 
 	if e.positions[0].status != order.Liquidated {
@@ -938,7 +938,7 @@ func TestMPTLiquidate(t *testing.T) {
 	}
 
 	e = nil
-	err = e.Liquidate(decimal.Zero, tt)
+	err = e.Liquidate(udecimal.Zero, tt)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
@@ -970,10 +970,10 @@ func TestPositionLiquidate(t *testing.T) {
 	}, false)
 	assert.NoError(t, err)
 
-	err = p.Liquidate(decimal.Zero, time.Time{})
+	err = p.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, order.ErrCannotLiquidate)
 
-	err = p.Liquidate(decimal.Zero, tt)
+	err = p.Liquidate(udecimal.Zero, tt)
 	assert.NoError(t, err)
 
 	if p.status != order.Liquidated {
@@ -984,7 +984,7 @@ func TestPositionLiquidate(t *testing.T) {
 	}
 
 	p = nil
-	err = p.Liquidate(decimal.Zero, tt)
+	err = p.Liquidate(udecimal.Zero, tt)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 

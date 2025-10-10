@@ -225,12 +225,3 @@ func GetCredentialsFromContext(ctx context.Context) *Credentials {
 	return ctxCredStore.Get()
 }
 
-// String strings the credentials in a protected way.
-func (p *Protected) String() string {
-	return p.creds.String()
-}
-
-// Equal determines if the keys are the same
-func (p *Protected) Equal(other *Credentials) bool {
-	return p.creds.Equal(other)
-}

@@ -15,7 +15,7 @@ import (
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key.ExchangeAssetPair]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key.ExchangeAssetPair]*CurrencyPairStatistic, riskFreeRate udecimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, gctcommon.ErrNilPointer
 	}
@@ -92,9 +92,9 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key
 
 	usdStats.HoldingValueDifference = report.FinalFunds.Sub(report.InitialFunds).Div(report.InitialFunds).Mul(decimal.NewFromInt(100))
 
-	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(decimal.NewFromFloat(interval.IntervalsPerYear()))
-	returnsPerCandle := make([]decimal.Decimal, len(usdStats.HoldingValues))
-	benchmarkRates := make([]decimal.Decimal, len(usdStats.HoldingValues))
+	riskFreeRatePerCandle := usdStats.RiskFreeRate.Div(udecimal.MustFromFloat64(interval.IntervalsPerYear()))
+	returnsPerCandle := make([]udecimal.Decimal, len(usdStats.HoldingValues))
+	benchmarkRates := make([]udecimal.Decimal, len(usdStats.HoldingValues))
 	benchmarkMovement := usdStats.HoldingValues[0].Value
 	benchmarkRates[0] = usdStats.HoldingValues[0].Value
 	for j := range usdStats.HoldingValues {
@@ -120,7 +120,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key
 		return nil, err
 	}
 
-	var cagr decimal.Decimal
+	var cagr udecimal.Decimal
 	for i := range response.Items {
 		if response.Items[i].ReportItem.InitialFunds.IsZero() {
 			continue
@@ -128,7 +128,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			response.Items[i].ReportItem.InitialFunds,
 			response.Items[i].ReportItem.FinalFunds,
-			decimal.NewFromFloat(interval.IntervalsPerYear()),
+			udecimal.MustFromFloat64(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
@@ -140,7 +140,7 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			usdStats.HoldingValues[0].Value,
 			usdStats.HoldingValues[len(usdStats.HoldingValues)-1].Value,
-			decimal.NewFromFloat(interval.IntervalsPerYear()),
+			udecimal.MustFromFloat64(interval.IntervalsPerYear()),
 			decimal.NewFromInt(int64(len(usdStats.HoldingValues))),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {

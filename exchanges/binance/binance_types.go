@@ -464,9 +464,9 @@ type QueryOrderData struct {
 
 // Balance holds query order data
 type Balance struct {
-	Asset  string          `json:"asset"`
-	Free   decimal.Decimal `json:"free"`
-	Locked decimal.Decimal `json:"locked"`
+	Asset  string           `json:"asset"`
+	Free   udecimal.Decimal `json:"free"`
+	Locked udecimal.Decimal `json:"locked"`
 }
 
 // Account holds the account data

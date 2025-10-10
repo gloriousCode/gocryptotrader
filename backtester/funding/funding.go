@@ -48,7 +48,7 @@ func CreateFuturesCurrencyCode(b, q currency.Code) currency.Code {
 }
 
 // CreateItem creates a new funding item
-func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee decimal.Decimal) (*Item, error) {
+func CreateItem(exch string, a asset.Item, ci currency.Code, initialFunds, transferFee udecimal.Decimal) (*Item, error) {
 	if initialFunds.IsNegative() {
 		return nil, fmt.Errorf("%v %v %v %w initial funds: %v", exch, a, ci, errNegativeAmountReceived, initialFunds)
 	}
@@ -125,7 +125,7 @@ func (f *FundManager) CreateSnapshot(t time.Time) error {
 			if f.items[i].trackingCandles == nil {
 				continue
 			}
-			var usdClosePrice decimal.Decimal
+			var usdClosePrice udecimal.Decimal
 			usdCandles, err := f.items[i].trackingCandles.GetStream()
 			if err != nil {
 				return err
@@ -395,11 +395,11 @@ func (f *FundManager) GenerateReport() (*Report, error) {
 }
 
 // Transfer allows transferring funds from one pretend exchange to another
-func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
+func (f *FundManager) Transfer(amount udecimal.Decimal, sender, receiver *Item, inclusiveFee bool) error {
 	if sender == nil || receiver == nil {
 		return gctcommon.ErrNilPointer
 	}
-	if amount.LessThanOrEqual(decimal.Zero) {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return errZeroAmountReceived
 	}
 	if inclusiveFee {
@@ -436,7 +436,7 @@ func (f *FundManager) Transfer(amount decimal.Decimal, sender, receiver *Item, i
 	if err != nil {
 		return err
 	}
-	return sender.Release(sendAmount, decimal.Zero)
+	return sender.Release(sendAmount, udecimal.Zero)
 }
 
 // AddItem appends a new funding item. Will reject if exists by exchange asset currency
@@ -522,8 +522,8 @@ func (f *FundManager) Liquidate(ev common.Event) error {
 	}
 	for i := range f.items {
 		if f.items[i].exchange == ev.GetExchange() {
-			f.items[i].reserved = decimal.Zero
-			f.items[i].available = decimal.Zero
+			f.items[i].reserved = udecimal.Zero
+			f.items[i].available = udecimal.Zero
 			f.items[i].isLiquidated = true
 		}
 	}
@@ -535,7 +535,7 @@ func (f *FundManager) Liquidate(ev common.Event) error {
 func (f *FundManager) GetAllFunding() ([]BasicItem, error) {
 	result := make([]BasicItem, len(f.items))
 	for i := range f.items {
-		var usd decimal.Decimal
+		var usd udecimal.Decimal
 		if f.items[i].trackingCandles != nil {
 			latest, err := f.items[i].trackingCandles.Latest()
 			if err != nil {
@@ -619,7 +619,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 				// futures positions aren't collateral, they utilise it
 				continue
 			}
-			var usd decimal.Decimal
+			var usd udecimal.Decimal
 			if f.items[y].trackingCandles != nil {
 				var latest data.Event
 				latest, err = f.items[y].trackingCandles.Latest()
@@ -634,7 +634,7 @@ func (f *FundManager) UpdateAllCollateral(isLive, initialFundsSet bool) error {
 				continue
 			}
 			side := gctorder.Buy
-			if !f.items[y].available.GreaterThan(decimal.Zero) {
+			if !f.items[y].available.GreaterThan(udecimal.Zero) {
 				side = gctorder.Sell
 			}
 
@@ -684,7 +684,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 	}
 
 	exchMap := make(map[string]exchange.IBotExchange)
-	var collateralAmount decimal.Decimal
+	var collateralAmount udecimal.Decimal
 	var err error
 	calculator := futures.TotalCollateralCalculator{
 		CalculateOffline: !isLive,
@@ -704,7 +704,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 			}
 			exchMap[f.items[i].exchange] = exch
 		}
-		var usd decimal.Decimal
+		var usd udecimal.Decimal
 		if f.items[i].trackingCandles != nil {
 			var latest data.Event
 			latest, err = f.items[i].trackingCandles.Latest()
@@ -719,7 +719,7 @@ func (f *FundManager) UpdateCollateralForEvent(ev common.Event, isLive bool) err
 			continue
 		}
 		side := gctorder.Buy
-		if !f.items[i].available.GreaterThan(decimal.Zero) {
+		if !f.items[i].available.GreaterThan(udecimal.Zero) {
 			side = gctorder.Sell
 		}
 
@@ -772,7 +772,7 @@ func (f *FundManager) HasFutures() bool {
 }
 
 // RealisePNL adds the realised PNL to a receiving exchange asset pair
-func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error {
+func (f *FundManager) RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL udecimal.Decimal) error {
 	for i := range f.items {
 		if f.items[i].exchange == receivingExchange &&
 			f.items[i].asset == receivingAsset &&
@@ -814,7 +814,7 @@ func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *acco
 	}
 
 	exchName = strings.ToLower(exchName)
-	amount := decimal.NewFromFloat(balance.Total)
+	amount := udecimal.MustFromFloat64(balance.Total)
 	for i := range f.items {
 		if f.items[i].asset.IsFutures() {
 			continue

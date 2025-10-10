@@ -13,7 +13,7 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) error {
+func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate udecimal.Decimal) error {
 	first := c.Events[0]
 	if first.DataEvent == nil {
 		// you can call stop while a backtester run is running
@@ -61,8 +61,8 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	if err != nil {
 		return err
 	}
-	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
-	benchmarkRates := make([]decimal.Decimal, len(c.Events))
+	returnsPerCandle := make([]udecimal.Decimal, len(c.Events))
+	benchmarkRates := make([]udecimal.Decimal, len(c.Events))
 
 	allDataEvents := make([]data.Event, len(c.Events))
 	for i := range c.Events {
@@ -98,18 +98,18 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
-	riskFreeRatePerCandle := riskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRatePerCandle := riskFreeRate.Div(udecimal.MustFromFloat64(intervalsPerYear))
 	c.ArithmeticRatios, c.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &c.MaxDrawdown, sep)
 	if err != nil {
 		return err
 	}
 
 	if !last.Holdings.QuoteInitialFunds.IsZero() {
-		var cagr decimal.Decimal
+		var cagr udecimal.Decimal
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			last.Holdings.QuoteInitialFunds,
 			last.Holdings.TotalValue,
-			decimal.NewFromFloat(intervalsPerYear),
+			udecimal.MustFromFloat64(intervalsPerYear),
 			decimal.NewFromInt(int64(len(c.Events))),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
