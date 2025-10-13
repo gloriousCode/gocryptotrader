@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -529,11 +530,15 @@ func TestRun(t *testing.T) {
 	qs := mustQuickData(t, TickerFocusType)
 	require.ErrorIs(t, qs.Run(context.Background()), ErrContextMustBeAbleToFinish)
 
-	ctx, cancel := context.WithCancel(t.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	require.NoError(t, qs.Run(ctx))
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		wg.Done()
 		cancel()
 	}()
+	wg.Wait()
 	qs.wg.Wait()
 }
 
@@ -551,4 +556,12 @@ func TestHandleWS(t *testing.T) {
 		return errors.Is(qs.handleWS(ctx), context.Canceled)
 	}
 	assert.Eventually(t, ts, time.Second*2, time.Millisecond*100, "expected cancellation within 2 seconds")
+}
+
+func TestExchange(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickData(t, TickerFocusType)
+	e := qs.Exchange()
+	assert.Equal(t, exchangeName, strings.ToLower(e.GetName()))
+	assert.Equal(t, qs.exch, e)
 }

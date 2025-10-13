@@ -73,7 +73,6 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Scripting support. See [gctscript](/gctscript/README.md).
 + Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
 + Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
-+ WebGUI (discontinued).
 + Exchange HTTP mock testing. See [mock](/exchanges/mock/README.md).
 + Exchange multichain deposits and withdrawals for specific exchanges. See [multichain transfer support](/docs/MULTICHAIN_TRANSFER_SUPPORT.md).
 
@@ -134,7 +133,7 @@ go build -tags=sonic_on
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
@@ -150,9 +149,9 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 736 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 407 |
-| [shazbert](https://github.com/shazbert) | 383 |
+| [thrasher-](https://github.com/thrasher-) | 737 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 409 |
+| [shazbert](https://github.com/shazbert) | 388 |
 | [gloriousCode](https://github.com/gloriousCode) | 239 |
 | [gbjk](https://github.com/gbjk) | 138 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
@@ -186,31 +185,30 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Asalei](https://github.com/Asalei) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
-| [azhang](https://github.com/azhang) | 2 |
-| [andreygrehov](https://github.com/andreygrehov) | 2 |
-| [bretep](https://github.com/bretep) | 2 |
-| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
-| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
-| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
-| [cavapoo2](https://github.com/cavapoo2) | 1 |
-| [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
-| [tonywangcn](https://github.com/tonywangcn) | 1 |
-| [varunbhat](https://github.com/varunbhat) | 1 |
-| [idealhack](https://github.com/idealhack) | 1 |
-| [hannut91](https://github.com/hannut91) | 1 |
-| [vyloy](https://github.com/vyloy) | 1 |
-| [arttobe](https://github.com/arttobe) | 1 |
-| [shoman4eg](https://github.com/shoman4eg) | 1 |
-| [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
-| [gcmutator](https://github.com/gcmutator) | 1 |
+| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [andreygrehov](https://github.com/andreygrehov) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
+| [bretep](https://github.com/bretep) | 2 |
 | [gopherorg](https://github.com/gopherorg) | 1 |
+| [gcmutator](https://github.com/gcmutator) | 1 |
+| [cangqiaoyuzhuo](https://github.com/cangqiaoyuzhuo) | 1 |
+| [shoman4eg](https://github.com/shoman4eg) | 1 |
+| [arttobe](https://github.com/arttobe) | 1 |
+| [vyloy](https://github.com/vyloy) | 1 |
+| [hannut91](https://github.com/hannut91) | 1 |
+| [idealhack](https://github.com/idealhack) | 1 |
+| [varunbhat](https://github.com/varunbhat) | 1 |
+| [tonywangcn](https://github.com/tonywangcn) | 1 |
+| [tongxiaofeng](https://github.com/tongxiaofeng) | 1 |
+| [cavapoo2](https://github.com/cavapoo2) | 1 |
 | [whilei](https://github.com/whilei) | 1 |
-| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
 | [keeghcet](https://github.com/keeghcet) | 1 |
+| [mickychang9](https://github.com/mickychang9) | 1 |
 | [phieudu241](https://github.com/phieudu241) | 1 |
 | [quantpoet](https://github.com/quantpoet) | 1 |
 | [snipesjr](https://github.com/snipesjr) | 1 |
@@ -219,6 +217,8 @@ Binaries will be published once the codebase reaches a stable condition.
 | [threehonor](https://github.com/threehonor) | 1 |
 | [xiiiew](https://github.com/xiiiew) | 1 |
 | [youzichuan](https://github.com/youzichuan) | 1 |
+| [yuhangcangqian](https://github.com/yuhangcangqian) | 1 |
+| [aidan-bailey](https://github.com/aidan-bailey) | 1 |
 | [antonzhukov](https://github.com/antonzhukov) | 1 |
 | [blombard](https://github.com/blombard) | 1 |
 | [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
