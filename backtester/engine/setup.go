@@ -279,16 +279,16 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				baseItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
 					b,
-					udecimal.Zero,
-					udecimal.Zero)
+					decimal.Zero,
+					decimal.Zero)
 				if err != nil {
 					return err
 				}
 				quoteItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
 					q,
-					udecimal.Zero,
-					udecimal.Zero)
+					decimal.Zero,
+					decimal.Zero)
 				if err != nil {
 					return err
 				}
@@ -306,8 +306,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				futureItem, err = funding.CreateItem(cfg.CurrencySettings[i].ExchangeName,
 					a,
 					c,
-					udecimal.Zero,
-					udecimal.Zero)
+					decimal.Zero,
+					decimal.Zero)
 				if err != nil {
 					return err
 				}
@@ -330,7 +330,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 			}
 		default:
-			var bFunds, qFunds udecimal.Decimal
+			var bFunds, qFunds decimal.Decimal
 			if cfg.CurrencySettings[i].SpotDetails != nil {
 				if cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 					bFunds = *cfg.CurrencySettings[i].SpotDetails.InitialBaseFunds
@@ -344,7 +344,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				a,
 				curr.Base,
 				bFunds,
-				udecimal.Zero)
+				decimal.Zero)
 			if err != nil {
 				return err
 			}
@@ -353,7 +353,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				a,
 				curr.Quote,
 				qFunds,
-				udecimal.Zero)
+				decimal.Zero)
 			if err != nil {
 				return err
 			}
@@ -513,15 +513,15 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 				return nil, err
 			}
 		}
-		var makerFee, takerFee udecimal.Decimal
-		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(udecimal.Zero) {
+		var makerFee, takerFee decimal.Decimal
+		if cfg.CurrencySettings[i].MakerFee != nil && cfg.CurrencySettings[i].MakerFee.GreaterThan(decimal.Zero) {
 			makerFee = *cfg.CurrencySettings[i].MakerFee
 		}
-		if cfg.CurrencySettings[i].TakerFee != nil && cfg.CurrencySettings[i].TakerFee.GreaterThan(udecimal.Zero) {
+		if cfg.CurrencySettings[i].TakerFee != nil && cfg.CurrencySettings[i].TakerFee.GreaterThan(decimal.Zero) {
 			takerFee = *cfg.CurrencySettings[i].TakerFee
 		}
 		if cfg.CurrencySettings[i].TakerFee == nil || cfg.CurrencySettings[i].MakerFee == nil {
-			var apiMakerFee, apiTakerFee udecimal.Decimal
+			var apiMakerFee, apiTakerFee decimal.Decimal
 			apiMakerFee, apiTakerFee, err = getFees(context.TODO(), exch, pair)
 			if err != nil {
 				log.Errorf(common.Setup, "Could not retrieve fees for %v. %v", exch.GetName(), err)
@@ -538,7 +538,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 			}
 		}
 
-		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(udecimal.Zero) {
+		if cfg.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) {
 			log.Warnf(common.Setup, "Invalid maximum slippage percent '%v'. Slippage percent is defined as a number, eg '100.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MaximumSlippagePercent,
 				slippage.DefaultMaximumSlippagePercent)
@@ -547,7 +547,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		if cfg.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
 			cfg.CurrencySettings[i].MaximumSlippagePercent = slippage.DefaultMaximumSlippagePercent
 		}
-		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(udecimal.Zero) {
+		if cfg.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) {
 			log.Warnf(common.Setup, "Invalid minimum slippage percent '%v'. Slippage percent is defined as a number, eg '80.00', defaulting to '%v'",
 				cfg.CurrencySettings[i].MinimumSlippagePercent,
 				slippage.DefaultMinimumSlippagePercent)
@@ -649,12 +649,12 @@ func (bt *BackTest) loadExchangePairAssetBase(exchName string, baseCode, quoteCo
 }
 
 // getFees will return an exchange's fee rate from GCT's wrapper function
-func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee udecimal.Decimal, err error) {
+func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.Pair) (makerFee, takerFee decimal.Decimal, err error) {
 	if exch == nil {
-		return udecimal.Zero, udecimal.Zero, fmt.Errorf("exchange %w", gctcommon.ErrNilPointer)
+		return decimal.Zero, decimal.Zero, fmt.Errorf("exchange %w", gctcommon.ErrNilPointer)
 	}
 	if fPair.IsEmpty() {
-		return udecimal.Zero, udecimal.Zero, currency.ErrCurrencyPairEmpty
+		return decimal.Zero, decimal.Zero, currency.ErrCurrencyPairEmpty
 	}
 	fTakerFee, err := exch.GetFeeByType(ctx,
 		&gctexchange.FeeBuilder{
@@ -665,7 +665,7 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		return udecimal.Zero, udecimal.Zero, err
+		return decimal.Zero, decimal.Zero, err
 	}
 
 	fMakerFee, err := exch.GetFeeByType(ctx,
@@ -677,10 +677,10 @@ func getFees(ctx context.Context, exch gctexchange.IBotExchange, fPair currency.
 			Amount:        1,
 		})
 	if err != nil {
-		return udecimal.Zero, udecimal.Zero, err
+		return decimal.Zero, decimal.Zero, err
 	}
 
-	return udecimal.MustFromFloat64(fMakerFee), udecimal.MustFromFloat64(fTakerFee), nil
+	return decimal.NewFromFloat(fMakerFee), decimal.NewFromFloat(fTakerFee), nil
 }
 
 // loadData will create kline data from the sources defined in start config files. It can exist from databases, csv or API endpoints

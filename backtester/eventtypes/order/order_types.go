@@ -14,13 +14,13 @@ type Order struct {
 	ID                  string
 	Direction           order.Side
 	Status              order.Status
-	ClosePrice          udecimal.Decimal
-	Amount              udecimal.Decimal
+	ClosePrice          decimal.Decimal
+	Amount              decimal.Decimal
 	OrderType           order.Type
-	Leverage            udecimal.Decimal
-	AllocatedFunds      udecimal.Decimal
-	BuyLimit            udecimal.Decimal
-	SellLimit           udecimal.Decimal
+	Leverage            decimal.Decimal
+	AllocatedFunds      decimal.Decimal
+	BuyLimit            decimal.Decimal
+	SellLimit           decimal.Decimal
 	FillDependentEvent  signal.Event
 	ClosingPosition     bool
 	LiquidatingPosition bool
@@ -30,17 +30,17 @@ type Order struct {
 type Event interface {
 	common.Event
 	common.Directioner
-	GetClosePrice() udecimal.Decimal
-	GetBuyLimit() udecimal.Decimal
-	GetSellLimit() udecimal.Decimal
-	SetAmount(udecimal.Decimal)
-	GetAmount() udecimal.Decimal
+	GetClosePrice() decimal.Decimal
+	GetBuyLimit() decimal.Decimal
+	GetSellLimit() decimal.Decimal
+	SetAmount(decimal.Decimal)
+	GetAmount() decimal.Decimal
 	IsOrder() bool
 	GetStatus() order.Status
 	SetID(id string)
 	GetID() string
 	IsLeveraged() bool
-	GetAllocatedFunds() udecimal.Decimal
+	GetAllocatedFunds() decimal.Decimal
 	GetFillDependentEvent() signal.Event
 	IsClosingPosition() bool
 	IsLiquidating() bool

@@ -17,42 +17,42 @@ func (f *Fill) GetDirection() order.Side {
 }
 
 // SetAmount sets the amount
-func (f *Fill) SetAmount(i udecimal.Decimal) {
+func (f *Fill) SetAmount(i decimal.Decimal) {
 	f.Amount = i
 }
 
 // GetAmount returns the amount
-func (f *Fill) GetAmount() udecimal.Decimal {
+func (f *Fill) GetAmount() decimal.Decimal {
 	return f.Amount
 }
 
 // GetClosePrice returns the closing price
-func (f *Fill) GetClosePrice() udecimal.Decimal {
+func (f *Fill) GetClosePrice() decimal.Decimal {
 	return f.ClosePrice
 }
 
 // GetVolumeAdjustedPrice returns the volume adjusted price
-func (f *Fill) GetVolumeAdjustedPrice() udecimal.Decimal {
+func (f *Fill) GetVolumeAdjustedPrice() decimal.Decimal {
 	return f.VolumeAdjustedPrice
 }
 
 // GetPurchasePrice returns the purchase price
-func (f *Fill) GetPurchasePrice() udecimal.Decimal {
+func (f *Fill) GetPurchasePrice() decimal.Decimal {
 	return f.PurchasePrice
 }
 
 // GetTotal returns the total cost
-func (f *Fill) GetTotal() udecimal.Decimal {
+func (f *Fill) GetTotal() decimal.Decimal {
 	return f.Total
 }
 
 // GetExchangeFee returns the exchange fee
-func (f *Fill) GetExchangeFee() udecimal.Decimal {
+func (f *Fill) GetExchangeFee() decimal.Decimal {
 	return f.ExchangeFee
 }
 
 // SetExchangeFee sets the exchange fee
-func (f *Fill) SetExchangeFee(fee udecimal.Decimal) {
+func (f *Fill) SetExchangeFee(fee decimal.Decimal) {
 	f.ExchangeFee = fee
 }
 
@@ -62,7 +62,7 @@ func (f *Fill) GetOrder() *order.Detail {
 }
 
 // GetSlippageRate returns the slippage rate
-func (f *Fill) GetSlippageRate() udecimal.Decimal {
+func (f *Fill) GetSlippageRate() decimal.Decimal {
 	return f.Slippage
 }
 

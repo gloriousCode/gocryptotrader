@@ -2100,7 +2100,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 
 		fundingRates = append(fundingRates, fundingrate.Rate{
-			Rate: udecimal.MustFromFloat64(records[i].Rate.Float64()),
+			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
 			Time: records[i].Timestamp.Time(),
 		})
 	}

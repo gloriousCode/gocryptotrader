@@ -168,7 +168,7 @@ func (s *Strategy) CloseAllPositions(h []holdings.Holding, prices []data.Event) 
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
-func (s *Strategy) createSignals(pos []futures.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot udecimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+func (s *Strategy) createSignals(pos []futures.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", gctcommon.ErrNilPointer)
 	}
@@ -286,13 +286,13 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || osdp <= 0 {
 				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.openShortDistancePercentage = udecimal.MustFromFloat64(osdp)
+			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
 		case closeShortDistancePercentageString:
 			csdp, ok := v.(float64)
 			if !ok || csdp <= 0 {
 				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.closeShortDistancePercentage = udecimal.MustFromFloat64(csdp)
+			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -303,6 +303,6 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 
 // SetDefaults sets default values for overridable custom settings
 func (s *Strategy) SetDefaults() {
-	s.openShortDistancePercentage = udecimal.Zero
-	s.closeShortDistancePercentage = udecimal.Zero
+	s.openShortDistancePercentage = decimal.Zero
+	s.closeShortDistancePercentage = decimal.Zero
 }

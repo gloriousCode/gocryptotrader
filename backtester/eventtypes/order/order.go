@@ -23,22 +23,22 @@ func (o *Order) GetDirection() order.Side {
 }
 
 // SetAmount sets the amount
-func (o *Order) SetAmount(i udecimal.Decimal) {
+func (o *Order) SetAmount(i decimal.Decimal) {
 	o.Amount = i
 }
 
 // GetAmount returns the amount
-func (o *Order) GetAmount() udecimal.Decimal {
+func (o *Order) GetAmount() decimal.Decimal {
 	return o.Amount
 }
 
 // GetBuyLimit returns the buy limit
-func (o *Order) GetBuyLimit() udecimal.Decimal {
+func (o *Order) GetBuyLimit() decimal.Decimal {
 	return o.BuyLimit
 }
 
 // GetSellLimit returns the sell limit
-func (o *Order) GetSellLimit() udecimal.Decimal {
+func (o *Order) GetSellLimit() decimal.Decimal {
 	return o.SellLimit
 }
 
@@ -64,22 +64,22 @@ func (o *Order) GetID() string {
 
 // IsLeveraged returns if it is leveraged
 func (o *Order) IsLeveraged() bool {
-	return o.Leverage.GreaterThan(udecimal.MustFromFloat64(1))
+	return o.Leverage.GreaterThan(decimal.NewFromFloat(1))
 }
 
 // GetLeverage returns leverage rate
-func (o *Order) GetLeverage() udecimal.Decimal {
+func (o *Order) GetLeverage() decimal.Decimal {
 	return o.Leverage
 }
 
 // SetLeverage sets leverage
-func (o *Order) SetLeverage(l udecimal.Decimal) {
+func (o *Order) SetLeverage(l decimal.Decimal) {
 	o.Leverage = l
 }
 
 // GetAllocatedFunds returns the amount of funds the portfolio manager
 // has allocated to this potential position
-func (o *Order) GetAllocatedFunds() udecimal.Decimal {
+func (o *Order) GetAllocatedFunds() decimal.Decimal {
 	return o.AllocatedFunds
 }
 
@@ -100,6 +100,6 @@ func (o *Order) IsLiquidating() bool {
 }
 
 // GetClosePrice returns the close price
-func (o *Order) GetClosePrice() udecimal.Decimal {
+func (o *Order) GetClosePrice() decimal.Decimal {
 	return o.ClosePrice
 }

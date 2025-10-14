@@ -13,32 +13,32 @@ var ErrNotCollateral = errors.New("not a collateral pair")
 
 // BaseInitialFunds returns the initial funds
 // from the base in a currency pair
-func (p *SpotPair) BaseInitialFunds() udecimal.Decimal {
+func (p *SpotPair) BaseInitialFunds() decimal.Decimal {
 	return p.base.initialFunds
 }
 
 // QuoteInitialFunds returns the initial funds
 // from the quote in a currency pair
-func (p *SpotPair) QuoteInitialFunds() udecimal.Decimal {
+func (p *SpotPair) QuoteInitialFunds() decimal.Decimal {
 	return p.quote.initialFunds
 }
 
 // BaseAvailable returns the available funds
 // from the base in a currency pair
-func (p *SpotPair) BaseAvailable() udecimal.Decimal {
+func (p *SpotPair) BaseAvailable() decimal.Decimal {
 	return p.base.available
 }
 
 // QuoteAvailable returns the available funds
 // from the quote in a currency pair
-func (p *SpotPair) QuoteAvailable() udecimal.Decimal {
+func (p *SpotPair) QuoteAvailable() decimal.Decimal {
 	return p.quote.available
 }
 
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
 // changes which currency to affect based on the order side
-func (p *SpotPair) Reserve(amount udecimal.Decimal, side order.Side) error {
+func (p *SpotPair) Reserve(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.Reserve(amount)
@@ -57,7 +57,7 @@ func (p *SpotPair) Reserve(amount udecimal.Decimal, side order.Side) error {
 // Release reduces the amount of funding reserved and adds any difference
 // back to the available amount
 // changes which currency to affect based on the order side
-func (p *SpotPair) Release(amount, diff udecimal.Decimal, side order.Side) error {
+func (p *SpotPair) Release(amount, diff decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy, order.Bid:
 		return p.quote.Release(amount, diff)
@@ -74,7 +74,7 @@ func (p *SpotPair) Release(amount, diff udecimal.Decimal, side order.Side) error
 
 // IncreaseAvailable adds funding to the available amount
 // changes which currency to affect based on the order side
-func (p *SpotPair) IncreaseAvailable(amount udecimal.Decimal, side order.Side) error {
+func (p *SpotPair) IncreaseAvailable(amount decimal.Decimal, side order.Side) error {
 	switch side {
 	case order.Buy, order.Bid:
 		return p.base.IncreaseAvailable(amount)
@@ -105,10 +105,10 @@ func (p *SpotPair) CanPlaceOrder(side order.Side) bool {
 // Liquidate basic liquidation response to remove
 // all asset value
 func (p *SpotPair) Liquidate() {
-	p.base.available = udecimal.Zero
-	p.base.reserved = udecimal.Zero
-	p.quote.available = udecimal.Zero
-	p.quote.reserved = udecimal.Zero
+	p.base.available = decimal.Zero
+	p.base.reserved = decimal.Zero
+	p.quote.available = decimal.Zero
+	p.quote.reserved = decimal.Zero
 }
 
 // FundReserver returns a fund reserver interface of the pair

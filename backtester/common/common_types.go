@@ -50,7 +50,7 @@ type Event interface {
 	GetAssetType() asset.Item
 	GetConcatReasons() string
 	GetReasons() []string
-	GetClosePrice() udecimal.Decimal
+	GetClosePrice() decimal.Decimal
 	AppendReason(string)
 	AppendReasonf(string, ...any)
 }

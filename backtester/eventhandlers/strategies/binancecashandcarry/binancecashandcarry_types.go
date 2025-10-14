@@ -24,6 +24,6 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	openShortDistancePercentage  udecimal.Decimal
-	closeShortDistancePercentage udecimal.Decimal
+	openShortDistancePercentage  decimal.Decimal
+	closeShortDistancePercentage decimal.Decimal
 }

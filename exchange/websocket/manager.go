@@ -416,7 +416,7 @@ func (m *Manager) Connect() error {
 
 func (m *Manager) EnableAndConnectNoSubs() error {
 	if !m.IsEnabled() {
-		_ = m.EnableAndConnect()
+		_ = m.Enable()
 	}
 	if m.IsConnecting() {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)

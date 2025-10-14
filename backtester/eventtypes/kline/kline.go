@@ -6,27 +6,27 @@ import (
 )
 
 // GetClosePrice returns the closing price of a kline
-func (k *Kline) GetClosePrice() udecimal.Decimal {
+func (k *Kline) GetClosePrice() decimal.Decimal {
 	return k.Close
 }
 
 // GetHighPrice returns the high price of a kline
-func (k *Kline) GetHighPrice() udecimal.Decimal {
+func (k *Kline) GetHighPrice() decimal.Decimal {
 	return k.High
 }
 
 // GetLowPrice returns the low price of a kline
-func (k *Kline) GetLowPrice() udecimal.Decimal {
+func (k *Kline) GetLowPrice() decimal.Decimal {
 	return k.Low
 }
 
 // GetOpenPrice returns the open price of a kline
-func (k *Kline) GetOpenPrice() udecimal.Decimal {
+func (k *Kline) GetOpenPrice() decimal.Decimal {
 	return k.Open
 }
 
 // GetVolume returns the volume of a kline
-func (k *Kline) GetVolume() udecimal.Decimal {
+func (k *Kline) GetVolume() decimal.Decimal {
 	return k.Volume
 }
 

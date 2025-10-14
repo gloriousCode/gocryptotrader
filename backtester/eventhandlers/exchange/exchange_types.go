@@ -46,16 +46,16 @@ type Settings struct {
 	Pair  currency.Pair
 	Asset asset.Item
 
-	MakerFee udecimal.Decimal
-	TakerFee udecimal.Decimal
+	MakerFee decimal.Decimal
+	TakerFee decimal.Decimal
 
 	BuySide  MinMax
 	SellSide MinMax
 
 	Leverage Leverage
 
-	MinimumSlippageRate udecimal.Decimal
-	MaximumSlippageRate udecimal.Decimal
+	MinimumSlippageRate decimal.Decimal
+	MaximumSlippageRate decimal.Decimal
 
 	CanUseExchangeLimits    bool
 	Limits                  limits.MinMaxLevel
@@ -66,15 +66,15 @@ type Settings struct {
 
 // MinMax are the rules which limit the placement of orders.
 type MinMax struct {
-	MinimumSize  udecimal.Decimal
-	MaximumSize  udecimal.Decimal
-	MaximumTotal udecimal.Decimal
+	MinimumSize  decimal.Decimal
+	MaximumSize  decimal.Decimal
+	MaximumTotal decimal.Decimal
 }
 
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
 	CanUseLeverage                 bool
-	MaximumOrdersWithLeverageRatio udecimal.Decimal
-	MaximumLeverageRate            udecimal.Decimal
+	MaximumOrdersWithLeverageRatio decimal.Decimal
+	MaximumLeverageRate            decimal.Decimal
 }

@@ -860,7 +860,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	for i := perpStart; i < len(products.Products); i++ {
 		funRate := fundingrate.Rate{
 			Time: products.Products[i].FutureProductDetails.PerpetualDetails.FundingTime,
-			Rate: udecimal.MustFromFloat64(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
+			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 		funding[i] = fundingrate.LatestRateResponse{
 			Exchange:    e.Name,
@@ -889,7 +889,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	for i := range products.Products {
 		funRate := fundingrate.Rate{
 			Time: products.Products[i].FutureProductDetails.PerpetualDetails.FundingTime,
-			Rate: udecimal.MustFromFloat64(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
+			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 		contracts[i] = futures.Contract{
 			Exchange:             e.Name,

@@ -83,19 +83,19 @@ func (f *fakeFund) PairReleaser() (funding.IPairReleaser, error) {
 }
 
 func (f *fakeFund) CollateralReleaser() (funding.ICollateralReleaser, error) {
-	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, udecimal.Zero, udecimal.Zero)
+	i, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
 		return nil, err
 	}
-	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, udecimal.Zero, udecimal.Zero)
+	j, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.Zero, decimal.Zero)
 	if err != nil {
 		return nil, err
 	}
 	return funding.CreateCollateral(i, j)
 }
 
-func (f *fakeFund) IncreaseAvailable(udecimal.Decimal, gctorder.Side) {}
-func (f *fakeFund) Release(udecimal.Decimal, udecimal.Decimal, gctorder.Side) error {
+func (f *fakeFund) IncreaseAvailable(decimal.Decimal, gctorder.Side) {}
+func (f *fakeFund) Release(decimal.Decimal, decimal.Decimal, gctorder.Side) error {
 	return nil
 }
 
@@ -156,9 +156,9 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 		t.Error("expected 100")
 	}
 
-	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), udecimal.MustFromFloat64(0.8))
-	if !adjustedAmount.Equal(udecimal.MustFromFloat64(0.799999992)) {
-		t.Errorf("received: %v, expected: %v", adjustedAmount, udecimal.MustFromFloat64(0.799999992))
+	adjustedPrice, adjustedAmount = ensureOrderFitsWithinHLV(decimal.NewFromInt(123), decimal.NewFromInt(1), decimal.NewFromInt(100), decimal.NewFromInt(99), decimal.NewFromFloat(0.8))
+	if !adjustedAmount.Equal(decimal.NewFromFloat(0.799999992)) {
+		t.Errorf("received: %v, expected: %v", adjustedAmount, decimal.NewFromFloat(0.799999992))
 	}
 	if !adjustedPrice.Equal(decimal.NewFromInt(100)) {
 		t.Error("expected 100")
@@ -167,12 +167,12 @@ func TestEnsureOrderFitsWithinHLV(t *testing.T) {
 
 func TestCalculateExchangeFee(t *testing.T) {
 	t.Parallel()
-	fee := calculateExchangeFee(decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.MustFromFloat64(0.1))
-	if !fee.Equal(udecimal.MustFromFloat64(0.1)) {
+	fee := calculateExchangeFee(decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.NewFromFloat(0.1))
+	if !fee.Equal(decimal.NewFromFloat(0.1)) {
 		t.Error("expected 0.1")
 	}
-	fee = calculateExchangeFee(decimal.NewFromInt(2), udecimal.MustFromFloat64(1), udecimal.MustFromFloat64(0.005))
-	if !fee.Equal(udecimal.MustFromFloat64(0.01)) {
+	fee = calculateExchangeFee(decimal.NewFromInt(2), decimal.NewFromFloat(1), decimal.NewFromFloat(0.005))
+	if !fee.Equal(decimal.NewFromFloat(0.01)) {
 		t.Error("expected 0.01")
 	}
 }
@@ -196,26 +196,26 @@ func TestPlaceOrder(t *testing.T) {
 	require.NoError(t, err, "Start must not error")
 
 	e := Exchange{}
-	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.Zero, false, true, nil, nil)
+	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, nil, nil)
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 	f := &fill.Fill{
 		Base: &event.Base{},
 	}
-	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.Zero, false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, gctcommon.ErrExchangeNameNotSet)
 
 	f.Exchange = testExchange
 	require.NoError(t, exch.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
 
-	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.Zero, false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, gctorder.ErrPairIsEmpty)
 
 	f.CurrencyPair = currency.NewBTCUSDT()
 	f.AssetType = asset.Spot
 	f.Direction = gctorder.Buy
-	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.Zero, false, true, f, bot.OrderManager)
+	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, false, true, f, bot.OrderManager)
 	assert.NoError(t, err, "placeOrder should not error")
-	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), udecimal.Zero, true, true, f, bot.OrderManager)
+	_, err = e.placeOrder(t.Context(), decimal.NewFromInt(1), decimal.NewFromInt(1), decimal.Zero, true, true, f, bot.OrderManager)
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 }
 
@@ -249,8 +249,8 @@ func TestExecuteOrder(t *testing.T) {
 		UseRealOrders:       false,
 		Pair:                p,
 		Asset:               a,
-		MakerFee:            udecimal.MustFromFloat64(0.01),
-		TakerFee:            udecimal.MustFromFloat64(0.01),
+		MakerFee:            decimal.NewFromFloat(0.01),
+		TakerFee:            decimal.NewFromFloat(0.01),
 		MaximumSlippageRate: decimal.NewFromInt(1),
 	}
 	e := Exchange{}
@@ -313,7 +313,7 @@ func TestExecuteOrder(t *testing.T) {
 	assert.NoError(t, err)
 
 	o.LiquidatingPosition = false
-	o.Amount = udecimal.Zero
+	o.Amount = decimal.Zero
 	o.AssetType = asset.Spot
 	e.CurrencySettings[0].Asset = asset.Spot
 	e.CurrencySettings[0].UseRealOrders = false
@@ -368,13 +368,13 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		UseRealOrders: false,
 		Pair:          p,
 		Asset:         a,
-		MakerFee:      udecimal.MustFromFloat64(0.01),
-		TakerFee:      udecimal.MustFromFloat64(0.01),
+		MakerFee:      decimal.NewFromFloat(0.01),
+		TakerFee:      decimal.NewFromFloat(0.01),
 		BuySide: MinMax{
-			MaximumSize: udecimal.MustFromFloat64(0.01),
+			MaximumSize: decimal.NewFromFloat(0.01),
 		},
 		SellSide: MinMax{
-			MaximumSize: udecimal.MustFromFloat64(0.1),
+			MaximumSize: decimal.NewFromFloat(0.1),
 		},
 		MaximumSlippageRate: decimal.NewFromInt(1),
 		Limits:              l,
@@ -429,8 +429,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.BuySide.MaximumSize = udecimal.Zero
-	cs.BuySide.MinimumSize = udecimal.MustFromFloat64(0.01)
+	cs.BuySide.MaximumSize = decimal.Zero
+	cs.BuySide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction BUY {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
@@ -441,8 +441,8 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 		Amount:         decimal.NewFromInt(10),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.SellSide.MaximumSize = udecimal.Zero
-	cs.SellSide.MinimumSize = udecimal.MustFromFloat64(0.01)
+	cs.SellSide.MaximumSize = decimal.Zero
+	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
 	assert.NoError(t, err, "ExecuteOrder should not error when limitReducedAmount adjusted to 0.99999999, direction SELL {MinimumSize:0.01 MaximumSize:0 MaximumTotal:0}")
@@ -450,10 +450,10 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         udecimal.MustFromFloat64(0.5),
+		Amount:         decimal.NewFromFloat(0.5),
 		AllocatedFunds: decimal.NewFromInt(1337),
 	}
-	cs.SellSide.MaximumSize = udecimal.Zero
+	cs.SellSide.MaximumSize = decimal.Zero
 	cs.SellSide.MinimumSize = decimal.NewFromInt(1)
 	e.CurrencySettings = []Settings{cs}
 	_, err = e.ExecuteOrder(o, d, bot.OrderManager, &fakeFund{})
@@ -462,12 +462,12 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	o = &order.Order{
 		Base:           ev,
 		Direction:      gctorder.Sell,
-		Amount:         udecimal.MustFromFloat64(0.02),
-		AllocatedFunds: udecimal.MustFromFloat64(0.01337),
-		ClosePrice:     udecimal.MustFromFloat64(1337),
+		Amount:         decimal.NewFromFloat(0.02),
+		AllocatedFunds: decimal.NewFromFloat(0.01337),
+		ClosePrice:     decimal.NewFromFloat(1337),
 	}
-	cs.SellSide.MaximumSize = udecimal.Zero
-	cs.SellSide.MinimumSize = udecimal.MustFromFloat64(0.01)
+	cs.SellSide.MaximumSize = decimal.Zero
+	cs.SellSide.MinimumSize = decimal.NewFromFloat(0.01)
 
 	cs.UseRealOrders = true
 	cs.CanUseExchangeLimits = true
@@ -480,28 +480,28 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 
 func TestApplySlippageToPrice(t *testing.T) {
 	t.Parallel()
-	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), udecimal.MustFromFloat64(0.9))
+	resp, err := applySlippageToPrice(gctorder.Buy, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
 	assert.NoError(t, err)
 
-	if !resp.Equal(udecimal.MustFromFloat64(1.1)) {
-		t.Errorf("received: %v, expected: %v", resp, udecimal.MustFromFloat64(1.1))
+	if !resp.Equal(decimal.NewFromFloat(1.1)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1.1))
 	}
 
-	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), udecimal.MustFromFloat64(0.9))
+	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
 	assert.NoError(t, err)
 
-	if !resp.Equal(udecimal.MustFromFloat64(0.9)) {
-		t.Errorf("received: %v, expected: %v", resp, udecimal.MustFromFloat64(0.9))
+	if !resp.Equal(decimal.NewFromFloat(0.9)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(0.9))
 	}
 
-	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), udecimal.Zero)
+	resp, err = applySlippageToPrice(gctorder.Sell, decimal.NewFromInt(1), decimal.Zero)
 	assert.NoError(t, err)
 
-	if !resp.Equal(udecimal.MustFromFloat64(1)) {
-		t.Errorf("received: %v, expected: %v", resp, udecimal.MustFromFloat64(1))
+	if !resp.Equal(decimal.NewFromFloat(1)) {
+		t.Errorf("received: %v, expected: %v", resp, decimal.NewFromFloat(1))
 	}
 
-	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), udecimal.MustFromFloat64(0.9))
+	_, err = applySlippageToPrice(gctorder.UnknownSide, decimal.NewFromInt(1), decimal.NewFromFloat(0.9))
 	assert.ErrorIs(t, err, gctorder.ErrSideIsInvalid)
 }
 
@@ -528,19 +528,19 @@ func TestReduceAmountToFitPortfolioLimit(t *testing.T) {
 
 func TestVerifyOrderWithinLimits(t *testing.T) {
 	t.Parallel()
-	err := verifyOrderWithinLimits(nil, udecimal.Zero, nil)
+	err := verifyOrderWithinLimits(nil, decimal.Zero, nil)
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 
-	err = verifyOrderWithinLimits(&fill.Fill{}, udecimal.Zero, nil)
+	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, nil)
 	assert.ErrorIs(t, err, errNilCurrencySettings)
 
-	err = verifyOrderWithinLimits(&fill.Fill{}, udecimal.Zero, &Settings{})
+	err = verifyOrderWithinLimits(&fill.Fill{}, decimal.Zero, &Settings{})
 	assert.ErrorIs(t, err, errInvalidDirection)
 
 	f := &fill.Fill{
 		Direction: gctorder.Buy,
 	}
-	err = verifyOrderWithinLimits(f, udecimal.Zero, &Settings{})
+	err = verifyOrderWithinLimits(f, decimal.Zero, &Settings{})
 	assert.NoError(t, err)
 
 	s := &Settings{
@@ -550,7 +550,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		},
 	}
 	f.Base = &event.Base{}
-	err = verifyOrderWithinLimits(f, udecimal.MustFromFloat64(0.5), s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
 	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 
 	f.Direction = gctorder.Buy
@@ -562,7 +562,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 		MinimumSize: decimal.NewFromInt(1),
 		MaximumSize: decimal.NewFromInt(1),
 	}
-	err = verifyOrderWithinLimits(f, udecimal.MustFromFloat64(0.5), s)
+	err = verifyOrderWithinLimits(f, decimal.NewFromFloat(0.5), s)
 	assert.ErrorIs(t, err, errExceededPortfolioLimit)
 
 	f.Direction = gctorder.Sell
@@ -572,7 +572,7 @@ func TestVerifyOrderWithinLimits(t *testing.T) {
 
 func TestAllocateFundsPostOrder(t *testing.T) {
 	t.Parallel()
-	err := allocateFundsPostOrder(nil, nil, nil, udecimal.Zero, udecimal.Zero, udecimal.Zero, udecimal.Zero, udecimal.Zero)
+	err := allocateFundsPostOrder(nil, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
 	assert.ErrorIs(t, err, common.ErrNilEvent)
 
 	f := &fill.Fill{
@@ -581,14 +581,14 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 		},
 		Direction: gctorder.Buy,
 	}
-	err = allocateFundsPostOrder(f, nil, nil, udecimal.Zero, udecimal.Zero, udecimal.Zero, udecimal.Zero, udecimal.Zero)
+	err = allocateFundsPostOrder(f, nil, nil, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero, decimal.Zero)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	one := decimal.NewFromInt(1)
-	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), udecimal.Zero)
+	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), udecimal.Zero)
+	item2, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	err = item.Reserve(one)
@@ -601,22 +601,22 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	require.NoError(t, err, "CreatePair must not error")
 
 	f.Order = &gctorder.Detail{}
-	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
 	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
 	f.SetDirection(gctorder.Sell)
-	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, fundPair, nil, one, one, one, one, decimal.Zero)
 	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
-	err = allocateFundsPostOrder(f, fundPair, gctorder.ErrSubmissionIsNil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, fundPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
 	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
 	f.AssetType = asset.Futures
 	f.SetDirection(gctorder.Short)
-	item3, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(1337), udecimal.Zero)
+	item3, err := funding.CreateItem(testExchange, asset.Futures, currency.BTC, decimal.NewFromInt(1337), decimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), udecimal.Zero)
+	item4, err := funding.CreateItem(testExchange, asset.Futures, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	err = item3.Reserve(one)
@@ -628,20 +628,20 @@ func TestAllocateFundsPostOrder(t *testing.T) {
 	collateralPair, err := funding.CreateCollateral(item, item2)
 	require.NoError(t, err, "CreateCollateral must not error")
 
-	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
 	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	require.NoError(t, err, "allocateFundsPostOrder must not error")
 
 	f.SetDirection(gctorder.Long)
-	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, collateralPair, gctorder.ErrSubmissionIsNil, one, one, one, one, decimal.Zero)
 	assert.ErrorIs(t, err, gctorder.ErrSubmissionIsNil)
 
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	assert.NoError(t, err, "allocateFundsPostOrder should not error")
 
 	f.AssetType = asset.Margin
-	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, udecimal.Zero)
+	err = allocateFundsPostOrder(f, collateralPair, nil, one, one, one, one, decimal.Zero)
 	assert.ErrorIs(t, err, common.ErrInvalidDataType)
 }

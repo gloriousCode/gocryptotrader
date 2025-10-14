@@ -34,9 +34,9 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	mfiPeriod udecimal.Decimal
-	mfiLow    udecimal.Decimal
-	mfiHigh   udecimal.Decimal
+	mfiPeriod decimal.Decimal
+	mfiLow    decimal.Decimal
+	mfiHigh   decimal.Decimal
 }
 
 // Name returns the name of the strategy
@@ -65,7 +65,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 
 type mfiFundEvent struct {
 	event signal.Event
-	mfi   udecimal.Decimal
+	mfi   decimal.Decimal
 	funds funding.IFundReader
 }
 
@@ -120,10 +120,10 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			return nil, err
 		}
 		var (
-			closeData  = make([]udecimal.Decimal, len(history))
-			volumeData = make([]udecimal.Decimal, len(history))
-			highData   = make([]udecimal.Decimal, len(history))
-			lowData    = make([]udecimal.Decimal, len(history))
+			closeData  = make([]decimal.Decimal, len(history))
+			volumeData = make([]decimal.Decimal, len(history))
+			highData   = make([]decimal.Decimal, len(history))
+			lowData    = make([]decimal.Decimal, len(history))
 		)
 		for i := range history {
 			closeData[i] = history[i].GetClosePrice()
@@ -148,7 +148,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			return nil, err
 		}
 		mfi := indicators.MFI(backfilledHighData, backfilledLowData, backfilledCloseData, backfilledVolumeData, int(s.mfiPeriod.IntPart()))
-		latestMFI := udecimal.MustFromFloat64(mfi[len(mfi)-1])
+		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
 		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
 		if err != nil {
 			return nil, err
@@ -218,19 +218,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || mfiHigh <= 0 {
 				return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiHigh = udecimal.MustFromFloat64(mfiHigh)
+			s.mfiHigh = decimal.NewFromFloat(mfiHigh)
 		case mfiLowKey:
 			mfiLow, ok := v.(float64)
 			if !ok || mfiLow <= 0 {
 				return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiLow = udecimal.MustFromFloat64(mfiLow)
+			s.mfiLow = decimal.NewFromFloat(mfiLow)
 		case mfiPeriodKey:
 			mfiPeriod, ok := v.(float64)
 			if !ok || mfiPeriod <= 0 {
 				return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiPeriod = udecimal.MustFromFloat64(mfiPeriod)
+			s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -250,7 +250,7 @@ func (s *Strategy) SetDefaults() {
 // this will ensure that mfi can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) backfillMissingData(d []udecimal.Decimal, t time.Time) ([]float64, error) {
+func (s *Strategy) backfillMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
 	resp := make([]float64, len(d))
 	var missingDataStreak int64
 	for i := range d {

@@ -63,7 +63,7 @@ func TestReset(t *testing.T) {
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	assert.NoError(t, err)
 
-	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(baseItem)
@@ -96,13 +96,13 @@ func TestTransfer(t *testing.T) {
 		usingExchangeLevelFunding: false,
 		items:                     nil,
 	}
-	err := f.Transfer(udecimal.Zero, nil, nil, false)
+	err := f.Transfer(decimal.Zero, nil, nil, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	err = f.Transfer(udecimal.Zero, &Item{}, nil, false)
+	err = f.Transfer(decimal.Zero, &Item{}, nil, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	err = f.Transfer(udecimal.Zero, &Item{}, &Item{}, false)
+	err = f.Transfer(decimal.Zero, &Item{}, &Item{}, false)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = f.Transfer(elite, &Item{}, &Item{}, false)
@@ -125,7 +125,7 @@ func TestTransfer(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite)
 	}
 	if !item1.available.IsZero() {
-		t.Errorf("received '%v' expected '%v'", item1.available, udecimal.Zero)
+		t.Errorf("received '%v' expected '%v'", item1.available, decimal.Zero)
 	}
 
 	item2.transferFee = one
@@ -143,7 +143,7 @@ func TestAddItem(t *testing.T) {
 	err := f.AddItem(nil)
 	assert.NoError(t, err)
 
-	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(baseItem)
@@ -159,7 +159,7 @@ func TestExists(t *testing.T) {
 	if f.Exists(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	conflictingSingleItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
+	conflictingSingleItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(conflictingSingleItem)
@@ -168,10 +168,10 @@ func TestExists(t *testing.T) {
 	if !f.Exists(conflictingSingleItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
-	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -207,10 +207,10 @@ func TestExists(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -236,10 +236,10 @@ func TestGetFundingForEvent(t *testing.T) {
 	_, err := f.GetFundingForEvent(e)
 	assert.ErrorIs(t, err, ErrFundsNotFound)
 
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -258,10 +258,10 @@ func TestGetFundingForEAP(t *testing.T) {
 	_, err := f.getFundingForEAP(exchName, a, pair)
 	assert.ErrorIs(t, err, ErrFundsNotFound)
 
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -425,7 +425,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	err = dfk.Load()
 	assert.ErrorIs(t, err, data.ErrInvalidEventSupplied)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(quoteItem)
@@ -459,7 +459,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	err = f.AddUSDTrackingData(dfk)
 	assert.NoError(t, err)
 
-	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, udecimal.Zero)
+	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(usdtItem)
@@ -740,7 +740,7 @@ func TestSetFunding(t *testing.T) {
 	err = f.SetFunding(exchName, asset.Spot, bal, true)
 	assert.NoError(t, err)
 
-	if !f.items[0].available.Equal(udecimal.MustFromFloat64(bal.Total)) {
+	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
 	}
 	if !f.items[0].initialFunds.Equal(leet) {
@@ -843,10 +843,10 @@ var leet = decimal.NewFromInt(1337)
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
-func (f *fakeEvent) GetHighPrice() udecimal.Decimal   { return leet }
-func (f *fakeEvent) GetLowPrice() udecimal.Decimal    { return leet }
-func (f *fakeEvent) GetOpenPrice() udecimal.Decimal   { return leet }
-func (f *fakeEvent) GetVolume() udecimal.Decimal      { return leet }
+func (f *fakeEvent) GetHighPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetLowPrice() decimal.Decimal     { return leet }
+func (f *fakeEvent) GetOpenPrice() decimal.Decimal    { return leet }
+func (f *fakeEvent) GetVolume() decimal.Decimal       { return leet }
 func (f *fakeEvent) GetOffset() int64                 { return 0 }
 func (f *fakeEvent) SetOffset(int64)                  {}
 func (f *fakeEvent) IsEvent() bool                    { return true }
@@ -856,7 +856,7 @@ func (f *fakeEvent) GetExchange() string              { return exchName }
 func (f *fakeEvent) GetInterval() gctkline.Interval   { return gctkline.OneMin }
 func (f *fakeEvent) GetAssetType() asset.Item         { return asset.Spot }
 func (f *fakeEvent) AppendReason(string)              {}
-func (f *fakeEvent) GetClosePrice() udecimal.Decimal  { return elite }
+func (f *fakeEvent) GetClosePrice() decimal.Decimal   { return elite }
 func (f *fakeEvent) AppendReasonf(_ string, _ ...any) {}
 func (f *fakeEvent) GetBase() *event.Base             { return &event.Base{} }
 func (f *fakeEvent) GetUnderlyingPair() currency.Pair { return pair }

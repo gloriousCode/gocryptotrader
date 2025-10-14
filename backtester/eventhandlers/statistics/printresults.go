@@ -343,7 +343,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 			} else {
 				log.Infof(common.FundingStatistics, "%s Difference: %s%%", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.Difference, 8, ".", ","))
 			}
-			if spotResults[i].ReportItem.TransferFee.GreaterThan(udecimal.Zero) {
+			if spotResults[i].ReportItem.TransferFee.GreaterThan(decimal.Zero) {
 				log.Infof(common.FundingStatistics, "%s Transfer fee: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.TransferFee, 8, ".", ","))
 			}
 			if i != len(spotResults)-1 {

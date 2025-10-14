@@ -2038,7 +2038,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: lrt,
-					Rate: udecimal.MustFromFloat64(ticks.List[i].FundingRate.Float64()),
+					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
 			})

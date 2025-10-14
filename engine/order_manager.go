@@ -299,15 +299,15 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 // UpdateOpenPositionUnrealisedPNL finds an open position from
 // an exchange asset pair, then calculates the unrealisedPNL
 // using the latest ticker data
-func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (udecimal.Decimal, error) {
+func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
 	if m == nil {
-		return udecimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return decimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return udecimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return decimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
-		return udecimal.Zero, fmt.Errorf("%v %w", item, futures.ErrNotFuturesAsset)
+		return decimal.Zero, fmt.Errorf("%v %w", item, futures.ErrNotFuturesAsset)
 	}
 
 	return m.orderStore.futuresPositionController.UpdateOpenPositionUnrealisedPNL(e, item, pair, last, updated)

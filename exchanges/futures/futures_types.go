@@ -69,13 +69,13 @@ type PNLCalculation interface {
 // TotalCollateralResponse holds all collateral
 type TotalCollateralResponse struct {
 	CollateralCurrency                          currency.Code
-	TotalValueOfPositiveSpotBalances            udecimal.Decimal
-	CollateralContributedByPositiveSpotBalances udecimal.Decimal
-	UsedCollateral                              udecimal.Decimal
+	TotalValueOfPositiveSpotBalances            decimal.Decimal
+	CollateralContributedByPositiveSpotBalances decimal.Decimal
+	UsedCollateral                              decimal.Decimal
 	UsedBreakdown                               *collateral.UsedBreakdown
-	AvailableCollateral                         udecimal.Decimal
-	AvailableMaintenanceCollateral              udecimal.Decimal
-	UnrealisedPNL                               udecimal.Decimal
+	AvailableCollateral                         decimal.Decimal
+	AvailableMaintenanceCollateral              decimal.Decimal
+	UnrealisedPNL                               decimal.Decimal
 	BreakdownByCurrency                         []collateral.ByCurrency
 	BreakdownOfPositions                        []collateral.ByPosition
 }
@@ -141,18 +141,18 @@ type PositionTracker struct {
 	asset              asset.Item
 	contractPair       currency.Pair
 	underlying         currency.Code
-	exposure           udecimal.Decimal
+	exposure           decimal.Decimal
 	openingDirection   order.Side
-	openingPrice       udecimal.Decimal
-	openingSize        udecimal.Decimal
+	openingPrice       decimal.Decimal
+	openingSize        decimal.Decimal
 	openingDate        time.Time
 	latestDirection    order.Side
-	latestPrice        udecimal.Decimal
+	latestPrice        decimal.Decimal
 	lastUpdated        time.Time
-	unrealisedPNL      udecimal.Decimal
-	realisedPNL        udecimal.Decimal
+	unrealisedPNL      decimal.Decimal
+	realisedPNL        decimal.Decimal
 	status             order.Status
-	closingPrice       udecimal.Decimal
+	closingPrice       decimal.Decimal
 	closingDate        time.Time
 	shortPositions     []order.Detail
 	longPositions      []order.Detail
@@ -166,7 +166,7 @@ type PositionTrackerSetup struct {
 	Exchange                  string
 	Asset                     asset.Item
 	Pair                      currency.Pair
-	EntryPrice                udecimal.Decimal
+	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
 	CollateralCurrency        currency.Code
 	Side                      order.Side
@@ -192,12 +192,12 @@ type CollateralCalculator struct {
 	CollateralCurrency currency.Code
 	Asset              asset.Item
 	Side               order.Side
-	USDPrice           udecimal.Decimal
+	USDPrice           decimal.Decimal
 	IsLiquidating      bool
 	IsForNewPosition   bool
-	FreeCollateral     udecimal.Decimal
-	LockedCollateral   udecimal.Decimal
-	UnrealisedPNL      udecimal.Decimal
+	FreeCollateral     decimal.Decimal
+	LockedCollateral   decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
 }
 
 // OpenInterest holds open interest data for an exchange pair asset
@@ -219,17 +219,17 @@ type PNLCalculatorRequest struct {
 	CalculateOffline bool
 	Underlying       currency.Code
 	Asset            asset.Item
-	Leverage         udecimal.Decimal
-	EntryPrice       udecimal.Decimal
-	EntryAmount      udecimal.Decimal
-	Amount           udecimal.Decimal
-	CurrentPrice     udecimal.Decimal
-	PreviousPrice    udecimal.Decimal
+	Leverage         decimal.Decimal
+	EntryPrice       decimal.Decimal
+	EntryAmount      decimal.Decimal
+	Amount           decimal.Decimal
+	CurrentPrice     decimal.Decimal
+	PreviousPrice    decimal.Decimal
 	Time             time.Time
 	OrderID          string
-	Fee              udecimal.Decimal
+	Fee              decimal.Decimal
 	PNLHistory       []PNLResult
-	Exposure         udecimal.Decimal
+	Exposure         decimal.Decimal
 	OrderDirection   order.Side
 	OpeningDirection order.Side
 	CurrentDirection order.Side
@@ -239,13 +239,13 @@ type PNLCalculatorRequest struct {
 type PNLResult struct {
 	Status                order.Status
 	Time                  time.Time
-	UnrealisedPNL         udecimal.Decimal
-	RealisedPNLBeforeFees udecimal.Decimal
-	RealisedPNL           udecimal.Decimal
-	Price                 udecimal.Decimal
-	Exposure              udecimal.Decimal
+	UnrealisedPNL         decimal.Decimal
+	RealisedPNLBeforeFees decimal.Decimal
+	RealisedPNL           decimal.Decimal
+	Price                 decimal.Decimal
+	Exposure              decimal.Decimal
 	Direction             order.Side
-	Fee                   udecimal.Decimal
+	Fee                   decimal.Decimal
 	IsLiquidated          bool
 	// Is event is supposed to show that something has happened and it isn't just tracking in time
 	IsOrder bool
@@ -258,15 +258,15 @@ type Position struct {
 	Pair               currency.Pair
 	Underlying         currency.Code
 	CollateralCurrency currency.Code
-	RealisedPNL        udecimal.Decimal
-	UnrealisedPNL      udecimal.Decimal
+	RealisedPNL        decimal.Decimal
+	UnrealisedPNL      decimal.Decimal
 	Status             order.Status
 	OpeningDate        time.Time
-	OpeningPrice       udecimal.Decimal
-	OpeningSize        udecimal.Decimal
+	OpeningPrice       decimal.Decimal
+	OpeningSize        decimal.Decimal
 	OpeningDirection   order.Side
-	LatestPrice        udecimal.Decimal
-	LatestSize         udecimal.Decimal
+	LatestPrice        decimal.Decimal
+	LatestSize         decimal.Decimal
 	LatestDirection    order.Side
 	LastUpdated        time.Time
 	CloseDate          time.Time
@@ -285,21 +285,21 @@ type PositionSummaryRequest struct {
 	// offline calculation requirements below
 	CalculateOffline          bool
 	Direction                 order.Side
-	FreeCollateral            udecimal.Decimal
-	TotalCollateral           udecimal.Decimal
-	CurrentPrice              udecimal.Decimal
-	CurrentSize               udecimal.Decimal
-	CollateralUsed            udecimal.Decimal
-	NotionalPrice             udecimal.Decimal
-	MaxLeverageForAccount     udecimal.Decimal
-	TotalOpenPositionNotional udecimal.Decimal
+	FreeCollateral            decimal.Decimal
+	TotalCollateral           decimal.Decimal
+	CurrentPrice              decimal.Decimal
+	CurrentSize               decimal.Decimal
+	CollateralUsed            decimal.Decimal
+	NotionalPrice             decimal.Decimal
+	MaxLeverageForAccount     decimal.Decimal
+	TotalOpenPositionNotional decimal.Decimal
 	// EstimatePosition if enabled, can be used to calculate a new position
 	EstimatePosition bool
 	// These fields are also used for offline calculation
-	OpeningPrice      udecimal.Decimal
-	OpeningSize       udecimal.Decimal
-	Leverage          udecimal.Decimal
-	TotalAccountValue udecimal.Decimal
+	OpeningPrice      decimal.Decimal
+	OpeningSize       decimal.Decimal
+	Leverage          decimal.Decimal
+	TotalAccountValue decimal.Decimal
 }
 
 // PositionDetails are used to track open positions
@@ -344,36 +344,36 @@ type PositionSummary struct {
 	Currency  currency.Code
 	StartDate time.Time
 
-	AvailableEquity     udecimal.Decimal
-	CashBalance         udecimal.Decimal
-	DiscountEquity      udecimal.Decimal
-	EquityUSD           udecimal.Decimal
-	IsolatedEquity      udecimal.Decimal
-	IsolatedLiabilities udecimal.Decimal
-	IsolatedUPL         udecimal.Decimal
-	NotionalLeverage    udecimal.Decimal
-	TotalEquity         udecimal.Decimal
-	StrategyEquity      udecimal.Decimal
-	MarginBalance       udecimal.Decimal
+	AvailableEquity     decimal.Decimal
+	CashBalance         decimal.Decimal
+	DiscountEquity      decimal.Decimal
+	EquityUSD           decimal.Decimal
+	IsolatedEquity      decimal.Decimal
+	IsolatedLiabilities decimal.Decimal
+	IsolatedUPL         decimal.Decimal
+	NotionalLeverage    decimal.Decimal
+	TotalEquity         decimal.Decimal
+	StrategyEquity      decimal.Decimal
+	MarginBalance       decimal.Decimal
 
-	IsolatedMargin               udecimal.Decimal
-	NotionalSize                 udecimal.Decimal
-	Leverage                     udecimal.Decimal
-	MaintenanceMarginRequirement udecimal.Decimal
-	InitialMarginRequirement     udecimal.Decimal
-	EstimatedLiquidationPrice    udecimal.Decimal
-	CollateralUsed               udecimal.Decimal
-	MarkPrice                    udecimal.Decimal
-	CurrentSize                  udecimal.Decimal
-	ContractSize                 udecimal.Decimal
-	ContractMultiplier           udecimal.Decimal
+	IsolatedMargin               decimal.Decimal
+	NotionalSize                 decimal.Decimal
+	Leverage                     decimal.Decimal
+	MaintenanceMarginRequirement decimal.Decimal
+	InitialMarginRequirement     decimal.Decimal
+	EstimatedLiquidationPrice    decimal.Decimal
+	CollateralUsed               decimal.Decimal
+	MarkPrice                    decimal.Decimal
+	CurrentSize                  decimal.Decimal
+	ContractSize                 decimal.Decimal
+	ContractMultiplier           decimal.Decimal
 	ContractSettlementType       ContractSettlementType
-	AverageOpenPrice             udecimal.Decimal
-	UnrealisedPNL                udecimal.Decimal
-	RealisedPNL                  udecimal.Decimal
-	MaintenanceMarginFraction    udecimal.Decimal
-	FreeCollateral               udecimal.Decimal
-	TotalCollateral              udecimal.Decimal
-	FrozenBalance                udecimal.Decimal
-	EquityOfCurrency             udecimal.Decimal
+	AverageOpenPrice             decimal.Decimal
+	UnrealisedPNL                decimal.Decimal
+	RealisedPNL                  decimal.Decimal
+	MaintenanceMarginFraction    decimal.Decimal
+	FreeCollateral               decimal.Decimal
+	TotalCollateral              decimal.Decimal
+	FrozenBalance                decimal.Decimal
+	EquityOfCurrency             decimal.Decimal
 }

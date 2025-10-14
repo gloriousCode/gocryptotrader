@@ -168,11 +168,11 @@ func (c *Config) validateCurrencySettings() error {
 		if c.CurrencySettings[i].SpotDetails != nil {
 			if c.FundingSettings.UseExchangeLevelFunding {
 				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(udecimal.Zero) {
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
 					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(udecimal.Zero) {
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
 					return fmt.Errorf("non-nil base %w", errBadInitialFunds)
 				}
 			} else {
@@ -187,10 +187,10 @@ func (c *Config) validateCurrencySettings() error {
 					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &udecimal.Zero
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &udecimal.Zero
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
 				}
 			}
 		}
@@ -207,8 +207,8 @@ func (c *Config) validateCurrencySettings() error {
 			!c.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
 			hasSlippage = true
 		}
-		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(udecimal.Zero) ||
-			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(udecimal.Zero) ||
+		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
+			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
 			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
 			return errBadSlippageRates
 		}

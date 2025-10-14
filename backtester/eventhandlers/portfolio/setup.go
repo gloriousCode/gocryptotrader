@@ -14,7 +14,7 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate udecimal.Decimal) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
@@ -38,7 +38,7 @@ func (p *Portfolio) Reset() error {
 		return gctcommon.ErrNilPointer
 	}
 	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
-	p.riskFreeRate = udecimal.Zero
+	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
 	return nil

@@ -39,7 +39,7 @@ func Create(ev ClosePriceReader, fundReader funding.IFundReader) (*Holding, erro
 		if err != nil {
 			return nil, err
 		}
-		if funds.QuoteInitialFunds().LessThan(udecimal.Zero) {
+		if funds.QuoteInitialFunds().LessThan(decimal.Zero) {
 			return nil, ErrInitialFundsZero
 		}
 
@@ -86,9 +86,9 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 		h.scaleValuesToCurrentPrice(e.GetClosePrice())
 		return nil
 	}
-	amount := udecimal.MustFromFloat64(o.Amount)
-	fee := udecimal.MustFromFloat64(o.Fee)
-	price := udecimal.MustFromFloat64(o.Price)
+	amount := decimal.NewFromFloat(o.Amount)
+	fee := decimal.NewFromFloat(o.Fee)
+	price := decimal.NewFromFloat(o.Price)
 	a := e.GetAssetType()
 	switch {
 	case a == asset.Spot:
@@ -135,7 +135,7 @@ func (h *Holding) update(e fill.Event, f funding.IFundReader) error {
 	return nil
 }
 
-func (h *Holding) scaleValuesToCurrentPrice(currentPrice udecimal.Decimal) {
+func (h *Holding) scaleValuesToCurrentPrice(currentPrice decimal.Decimal) {
 	origPosValue := h.BaseValue
 	origTotalValue := h.TotalValue
 	h.BaseValue = h.BaseSize.Mul(currentPrice)

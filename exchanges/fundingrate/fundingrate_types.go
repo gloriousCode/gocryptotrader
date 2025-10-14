@@ -45,7 +45,7 @@ type HistoricalRates struct {
 	LatestRate            Rate
 	PredictedUpcomingRate Rate
 	FundingRates          []Rate
-	PaymentSum            udecimal.Decimal
+	PaymentSum            decimal.Decimal
 	PaymentCurrency       currency.Code
 	TimeOfNextRate        time.Time
 }
@@ -70,6 +70,6 @@ type LatestRateResponse struct {
 // Rate holds details for an individual funding rate
 type Rate struct {
 	Time    time.Time
-	Rate    udecimal.Decimal
-	Payment udecimal.Decimal
+	Rate    decimal.Decimal
+	Payment decimal.Decimal
 }

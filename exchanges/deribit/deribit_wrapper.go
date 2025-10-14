@@ -1314,19 +1314,19 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, r *futures.Pos
 		Pair:                      r.Pair,
 		Asset:                     r.Asset,
 		Currency:                  fPair.Base,
-		NotionalSize:              udecimal.MustFromFloat64(pos[index].MarkPrice),
-		Leverage:                  udecimal.MustFromFloat64(pos[index].Leverage),
-		InitialMarginRequirement:  udecimal.MustFromFloat64(pos[index].InitialMargin),
-		EstimatedLiquidationPrice: udecimal.MustFromFloat64(pos[index].EstimatedLiquidationPrice),
-		MarkPrice:                 udecimal.MustFromFloat64(pos[index].MarkPrice),
-		CurrentSize:               udecimal.MustFromFloat64(baseSize),
-		ContractSize:              udecimal.MustFromFloat64(contractSize),
-		ContractMultiplier:        udecimal.MustFromFloat64(multiplier),
+		NotionalSize:              decimal.NewFromFloat(pos[index].MarkPrice),
+		Leverage:                  decimal.NewFromFloat(pos[index].Leverage),
+		InitialMarginRequirement:  decimal.NewFromFloat(pos[index].InitialMargin),
+		EstimatedLiquidationPrice: decimal.NewFromFloat(pos[index].EstimatedLiquidationPrice),
+		MarkPrice:                 decimal.NewFromFloat(pos[index].MarkPrice),
+		CurrentSize:               decimal.NewFromFloat(baseSize),
+		ContractSize:              decimal.NewFromFloat(contractSize),
+		ContractMultiplier:        decimal.NewFromFloat(multiplier),
 		ContractSettlementType:    settlementType,
-		AverageOpenPrice:          udecimal.MustFromFloat64(pos[index].AveragePrice),
-		UnrealisedPNL:             udecimal.MustFromFloat64(pos[index].TotalProfitLoss - pos[index].RealizedProfitLoss),
-		RealisedPNL:               udecimal.MustFromFloat64(pos[index].RealizedProfitLoss),
-		MaintenanceMarginFraction: udecimal.MustFromFloat64(pos[index].MaintenanceMargin),
+		AverageOpenPrice:          decimal.NewFromFloat(pos[index].AveragePrice),
+		UnrealisedPNL:             decimal.NewFromFloat(pos[index].TotalProfitLoss - pos[index].RealizedProfitLoss),
+		RealisedPNL:               decimal.NewFromFloat(pos[index].RealizedProfitLoss),
+		MaintenanceMarginFraction: decimal.NewFromFloat(pos[index].MaintenanceMargin),
 	}, nil
 }
 
@@ -1462,7 +1462,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Pair:        r.Pair,
 			LatestRate: fundingrate.Rate{
 				Time: fri[i].Timestamp.Time(),
-				Rate: udecimal.MustFromFloat64(fri[i].Interest8H),
+				Rate: decimal.NewFromFloat(fri[i].Interest8H),
 			},
 		}
 		latestTime = fri[i].Timestamp.Time()
@@ -1526,7 +1526,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				continue
 			}
 			fundingRates = append(fundingRates, fundingrate.Rate{
-				Rate: udecimal.MustFromFloat64(records[i].Interest1H),
+				Rate: decimal.NewFromFloat(records[i].Interest1H),
 				Time: rt,
 			})
 			mfr[rt.UnixMilli()] = struct{}{}

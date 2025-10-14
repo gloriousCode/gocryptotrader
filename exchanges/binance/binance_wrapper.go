@@ -2006,7 +2006,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: cft,
-					Rate: udecimal.MustFromFloat64(mp[i].LastFundingRate),
+					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
 			}
 			if nft.Year() == rate.TimeChecked.Year() {
@@ -2127,7 +2127,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 					Time: frh[j].FundingTime.Time(),
-					Rate: udecimal.MustFromFloat64(frh[j].FundingRate),
+					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
@@ -2142,7 +2142,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 		pairRate.LatestRate = fundingrate.Rate{
 			Time: mp[len(mp)-1].Time.Time().Truncate(time.Duration(fundingRateFrequency) * time.Hour),
-			Rate: udecimal.MustFromFloat64(mp[len(mp)-1].LastFundingRate),
+			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
 		}
 		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
@@ -2160,7 +2160,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 					if pairRate.PaymentCurrency.IsEmpty() {
 						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
 					}
-					pairRate.FundingRates[x].Payment = udecimal.MustFromFloat64(income[j].Income)
+					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
 					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
 					break
 				}
@@ -2192,7 +2192,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
 					Time: frh[j].FundingTime.Time(),
-					Rate: udecimal.MustFromFloat64(frh[j].FundingRate),
+					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
@@ -2225,7 +2225,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 					if pairRate.PaymentCurrency.IsEmpty() {
 						pairRate.PaymentCurrency = currency.NewCode(income[j].Asset)
 					}
-					pairRate.FundingRates[x].Payment = udecimal.MustFromFloat64(income[j].Income)
+					pairRate.FundingRates[x].Payment = decimal.NewFromFloat(income[j].Income)
 					pairRate.PaymentSum = pairRate.PaymentSum.Add(pairRate.FundingRates[x].Payment)
 					break
 				}
@@ -2468,9 +2468,9 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			unrealisedPNL = accountPosition.UnrealisedProfit
 		}
 
-		var maintenanceMarginFraction udecimal.Decimal
+		var maintenanceMarginFraction decimal.Decimal
 		if collateralTotal != 0 {
-			maintenanceMarginFraction = udecimal.MustFromFloat64(maintenanceMargin).Div(udecimal.MustFromFloat64(collateralTotal)).Mul(decimal.NewFromInt32(100))
+			maintenanceMarginFraction = decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100))
 		}
 
 		// binance so fun, some prices exclusively here
@@ -2497,20 +2497,20 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			CollateralMode:               collateralMode,
 			Currency:                     c,
 			ContractSettlementType:       contractSettlementType,
-			IsolatedMargin:               udecimal.MustFromFloat64(isolatedMargin),
-			Leverage:                     udecimal.MustFromFloat64(leverage),
-			MaintenanceMarginRequirement: udecimal.MustFromFloat64(maintenanceMargin),
-			InitialMarginRequirement:     udecimal.MustFromFloat64(initialMargin),
-			EstimatedLiquidationPrice:    udecimal.MustFromFloat64(liquidationPrice),
-			CollateralUsed:               udecimal.MustFromFloat64(collateralUsed),
-			MarkPrice:                    udecimal.MustFromFloat64(markPrice),
-			CurrentSize:                  udecimal.MustFromFloat64(positionSize),
-			AverageOpenPrice:             udecimal.MustFromFloat64(openPrice),
-			UnrealisedPNL:                udecimal.MustFromFloat64(unrealisedPNL),
+			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			Leverage:                     decimal.NewFromFloat(leverage),
+			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
+			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(liquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(collateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(markPrice),
+			CurrentSize:                  decimal.NewFromFloat(positionSize),
+			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
+			UnrealisedPNL:                decimal.NewFromFloat(unrealisedPNL),
 			MaintenanceMarginFraction:    maintenanceMarginFraction,
-			FreeCollateral:               udecimal.MustFromFloat64(collateralAvailable),
-			TotalCollateral:              udecimal.MustFromFloat64(collateralTotal),
-			NotionalSize:                 udecimal.MustFromFloat64(positionSize).Mul(udecimal.MustFromFloat64(markPrice)),
+			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
+			TotalCollateral:              decimal.NewFromFloat(collateralTotal),
+			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
 		}, nil
 	case asset.CoinMarginedFutures:
 		ai, err := e.GetFuturesAccountInfo(ctx)
@@ -2558,7 +2558,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			marginType = margin.Isolated
 		}
 		collateralTotal = accountAsset.WalletBalance
-		frozenBalance := udecimal.MustFromFloat64(accountAsset.WalletBalance).Sub(udecimal.MustFromFloat64(accountAsset.AvailableBalance))
+		frozenBalance := decimal.NewFromFloat(accountAsset.WalletBalance).Sub(decimal.NewFromFloat(accountAsset.AvailableBalance))
 		collateralAvailable = accountAsset.AvailableBalance
 		pnl = accountAsset.UnrealizedProfit
 		if marginType == margin.Multi {
@@ -2590,10 +2590,10 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		liquidationPrice = relevantPosition.LiquidationPrice
 		markPrice = relevantPosition.MarkPrice
 		positionSize = relevantPosition.PositionAmount
-		var mmf, tc udecimal.Decimal
+		var mmf, tc decimal.Decimal
 		if collateralTotal != 0 {
-			tc = udecimal.MustFromFloat64(collateralTotal)
-			mmf = udecimal.MustFromFloat64(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
+			tc = decimal.NewFromFloat(collateralTotal)
+			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
 		}
 
 		var contracts []futures.Contract
@@ -2617,19 +2617,19 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			CollateralMode:               collateralMode,
 			ContractSettlementType:       contractSettlementType,
 			Currency:                     currency.NewCode(accountAsset.Asset),
-			IsolatedMargin:               udecimal.MustFromFloat64(isolatedMargin),
-			NotionalSize:                 udecimal.MustFromFloat64(positionSize).Mul(udecimal.MustFromFloat64(markPrice)),
-			Leverage:                     udecimal.MustFromFloat64(leverage),
-			MaintenanceMarginRequirement: udecimal.MustFromFloat64(maintenanceMargin),
-			InitialMarginRequirement:     udecimal.MustFromFloat64(initialMargin),
-			EstimatedLiquidationPrice:    udecimal.MustFromFloat64(liquidationPrice),
-			CollateralUsed:               udecimal.MustFromFloat64(collateralUsed),
-			MarkPrice:                    udecimal.MustFromFloat64(markPrice),
-			CurrentSize:                  udecimal.MustFromFloat64(positionSize),
-			AverageOpenPrice:             udecimal.MustFromFloat64(openPrice),
-			UnrealisedPNL:                udecimal.MustFromFloat64(pnl),
+			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
+			Leverage:                     decimal.NewFromFloat(leverage),
+			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
+			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(liquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(collateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(markPrice),
+			CurrentSize:                  decimal.NewFromFloat(positionSize),
+			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
+			UnrealisedPNL:                decimal.NewFromFloat(pnl),
 			MaintenanceMarginFraction:    mmf,
-			FreeCollateral:               udecimal.MustFromFloat64(collateralAvailable),
+			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
 			TotalCollateral:              tc,
 			FrozenBalance:                frozenBalance,
 		}, nil
@@ -2868,7 +2868,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
-			var fundingRateFloor, fundingRateCeil udecimal.Decimal
+			var fundingRateFloor, fundingRateCeil decimal.Decimal
 			for j := range fri {
 				if fri[j].Symbol != ei.Symbols[i].Symbol {
 					continue
@@ -2933,7 +2933,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 
 		resp := make([]futures.Contract, 0, len(ei.Symbols))
 		for i := range ei.Symbols {
-			var fundingRateFloor, fundingRateCeil udecimal.Decimal
+			var fundingRateFloor, fundingRateCeil decimal.Decimal
 			for j := range fri {
 				if fri[j].Symbol != ei.Symbols[i].Symbol {
 					continue

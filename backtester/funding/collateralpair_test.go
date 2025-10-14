@@ -119,8 +119,8 @@ func TestCollateralUpdateContracts(t *testing.T) {
 	err = c.UpdateContracts(gctorder.Buy, leet)
 	assert.NoError(t, err, "UpdateContracts should not error")
 
-	if !c.contract.available.Equal(udecimal.Zero) {
-		t.Errorf("received '%v' expected '%v'", c.contract.available, udecimal.Zero)
+	if !c.contract.available.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", c.contract.available, decimal.Zero)
 	}
 
 	c.currentDirection = nil
@@ -144,7 +144,7 @@ func TestCollateralReleaseContracts(t *testing.T) {
 		currentDirection: &b,
 	}
 
-	err := c.ReleaseContracts(udecimal.Zero)
+	err := c.ReleaseContracts(decimal.Zero)
 	assert.ErrorIs(t, err, errPositiveOnly)
 
 	err = c.ReleaseContracts(decimal.NewFromInt(1337))
@@ -247,11 +247,11 @@ func TestCollateralLiquidate(t *testing.T) {
 		},
 	}
 	c.Liquidate()
-	if !c.collateral.available.Equal(udecimal.Zero) {
-		t.Errorf("received '%v' expected '%v'", c.collateral.available, udecimal.Zero)
+	if !c.collateral.available.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", c.collateral.available, decimal.Zero)
 	}
-	if !c.contract.available.Equal(udecimal.Zero) {
-		t.Errorf("received '%v' expected '%v'", c.contract.available, udecimal.Zero)
+	if !c.contract.available.Equal(decimal.Zero) {
+		t.Errorf("received '%v' expected '%v'", c.contract.available, decimal.Zero)
 	}
 }
 

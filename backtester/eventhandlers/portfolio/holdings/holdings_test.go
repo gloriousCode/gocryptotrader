@@ -22,11 +22,11 @@ const testExchange = "binance"
 
 func pair(t *testing.T) *funding.SpotPair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), udecimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,11 +39,11 @@ func pair(t *testing.T) *funding.SpotPair {
 
 func collateral(t *testing.T) *funding.CollateralPair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), udecimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,11 +115,11 @@ func TestUpdateValue(t *testing.T) {
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), udecimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), udecimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              udecimal.MustFromFloat64(0.5),
+		Amount:              decimal.NewFromFloat(0.5),
 		ClosePrice:          decimal.NewFromInt(500),
 		VolumeAdjustedPrice: decimal.NewFromInt(500),
 		PurchasePrice:       decimal.NewFromInt(500),
@@ -218,24 +218,24 @@ func TestUpdateBuyStats(t *testing.T) {
 	}, p)
 	assert.NoError(t, err)
 
-	if !h.BoughtAmount.Equal(udecimal.MustFromFloat64(1.5)) {
+	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(udecimal.MustFromFloat64(1.5)) {
+	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1.5, h.TotalFees)
 	}
 }
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), udecimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), udecimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}

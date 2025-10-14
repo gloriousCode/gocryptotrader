@@ -31,8 +31,8 @@ type Contract struct {
 	ContractValueInSettlement      float64
 	MaxLeverage                    float64
 	LatestRate                     fundingrate.Rate
-	FundingRateFloor               udecimal.Decimal
-	FundingRateCeiling             udecimal.Decimal
+	FundingRateFloor               decimal.Decimal
+	FundingRateCeiling             decimal.Decimal
 	ContractValueDenomination      ContractDenomination
 	ContractSettlementDenomination ContractDenomination
 }

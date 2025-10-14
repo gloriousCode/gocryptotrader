@@ -11,10 +11,10 @@ import (
 
 func TestBaseInitialFunds(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
@@ -28,10 +28,10 @@ func TestBaseInitialFunds(t *testing.T) {
 
 func TestQuoteInitialFunds(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
@@ -45,10 +45,10 @@ func TestQuoteInitialFunds(t *testing.T) {
 
 func TestBaseAvailable(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
@@ -62,10 +62,10 @@ func TestBaseAvailable(t *testing.T) {
 
 func TestQuoteAvailable(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
@@ -79,22 +79,22 @@ func TestQuoteAvailable(t *testing.T) {
 
 func TestReservePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	err = pairItems.Reserve(udecimal.Zero, gctorder.Buy)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	assert.NoError(t, err)
 
-	err = pairItems.Reserve(udecimal.Zero, gctorder.Sell)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = pairItems.Reserve(elite, gctorder.Sell)
@@ -106,68 +106,68 @@ func TestReservePair(t *testing.T) {
 
 func TestReleasePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	err = pairItems.Reserve(udecimal.Zero, gctorder.Buy)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Buy)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = pairItems.Reserve(elite, gctorder.Buy)
 	assert.NoError(t, err)
 
-	err = pairItems.Reserve(udecimal.Zero, gctorder.Sell)
+	err = pairItems.Reserve(decimal.Zero, gctorder.Sell)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = pairItems.Reserve(elite, gctorder.Sell)
 	assert.ErrorIs(t, err, errCannotAllocate)
 
-	err = pairItems.Release(udecimal.Zero, udecimal.Zero, gctorder.Buy)
+	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Buy)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
-	err = pairItems.Release(elite, udecimal.Zero, gctorder.Buy)
+	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
 	assert.NoError(t, err)
 
-	err = pairItems.Release(elite, udecimal.Zero, gctorder.Buy)
+	err = pairItems.Release(elite, decimal.Zero, gctorder.Buy)
 	assert.ErrorIs(t, err, errCannotAllocate)
 
-	err = pairItems.Release(elite, udecimal.Zero, gctorder.DoNothing)
+	err = pairItems.Release(elite, decimal.Zero, gctorder.DoNothing)
 	assert.ErrorIs(t, err, errCannotAllocate)
 
-	err = pairItems.Release(elite, udecimal.Zero, gctorder.Sell)
+	err = pairItems.Release(elite, decimal.Zero, gctorder.Sell)
 	assert.ErrorIs(t, err, errCannotAllocate)
 
-	err = pairItems.Release(udecimal.Zero, udecimal.Zero, gctorder.Sell)
+	err = pairItems.Release(decimal.Zero, decimal.Zero, gctorder.Sell)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 }
 
 func TestIncreaseAvailablePair(t *testing.T) {
 	t.Parallel()
-	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
 	assert.NoError(t, err)
 
 	baseItem.pairedWith = quoteItem
 	quoteItem.pairedWith = baseItem
 	pairItems := SpotPair{base: baseItem, quote: quoteItem}
-	err = pairItems.IncreaseAvailable(udecimal.Zero, gctorder.Buy)
+	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Buy)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	if !pairItems.quote.available.Equal(elite) {
 		t.Errorf("received '%v' expected '%v'", elite, pairItems.quote.available)
 	}
-	err = pairItems.IncreaseAvailable(udecimal.Zero, gctorder.Sell)
+	err = pairItems.IncreaseAvailable(decimal.Zero, gctorder.Sell)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	if !pairItems.base.available.IsZero() {
-		t.Errorf("received '%v' expected '%v'", udecimal.Zero, pairItems.base.available)
+		t.Errorf("received '%v' expected '%v'", decimal.Zero, pairItems.base.available)
 	}
 
 	err = pairItems.IncreaseAvailable(elite.Neg(), gctorder.Sell)

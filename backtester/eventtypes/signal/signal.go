@@ -23,22 +23,22 @@ func (s *Signal) GetDirection() order.Side {
 }
 
 // SetBuyLimit sets the buy limit
-func (s *Signal) SetBuyLimit(f udecimal.Decimal) {
+func (s *Signal) SetBuyLimit(f decimal.Decimal) {
 	s.BuyLimit = f
 }
 
 // GetBuyLimit returns the buy limit
-func (s *Signal) GetBuyLimit() udecimal.Decimal {
+func (s *Signal) GetBuyLimit() decimal.Decimal {
 	return s.BuyLimit
 }
 
 // SetSellLimit sets the sell limit
-func (s *Signal) SetSellLimit(f udecimal.Decimal) {
+func (s *Signal) SetSellLimit(f decimal.Decimal) {
 	s.SellLimit = f
 }
 
 // GetSellLimit returns the sell limit
-func (s *Signal) GetSellLimit() udecimal.Decimal {
+func (s *Signal) GetSellLimit() decimal.Decimal {
 	return s.SellLimit
 }
 
@@ -48,42 +48,42 @@ func (s *Signal) Pair() currency.Pair {
 }
 
 // GetClosePrice returns the price
-func (s *Signal) GetClosePrice() udecimal.Decimal {
+func (s *Signal) GetClosePrice() decimal.Decimal {
 	return s.ClosePrice
 }
 
 // GetHighPrice returns the high price of a signal
-func (s *Signal) GetHighPrice() udecimal.Decimal {
+func (s *Signal) GetHighPrice() decimal.Decimal {
 	return s.HighPrice
 }
 
 // GetLowPrice returns the low price of a signal
-func (s *Signal) GetLowPrice() udecimal.Decimal {
+func (s *Signal) GetLowPrice() decimal.Decimal {
 	return s.LowPrice
 }
 
 // GetOpenPrice returns the open price of a signal
-func (s *Signal) GetOpenPrice() udecimal.Decimal {
+func (s *Signal) GetOpenPrice() decimal.Decimal {
 	return s.OpenPrice
 }
 
 // GetVolume returns the volume of a signal
-func (s *Signal) GetVolume() udecimal.Decimal {
+func (s *Signal) GetVolume() decimal.Decimal {
 	return s.Volume
 }
 
 // SetPrice sets the price
-func (s *Signal) SetPrice(f udecimal.Decimal) {
+func (s *Signal) SetPrice(f decimal.Decimal) {
 	s.ClosePrice = f
 }
 
 // GetAmount retrieves the order amount
-func (s *Signal) GetAmount() udecimal.Decimal {
+func (s *Signal) GetAmount() decimal.Decimal {
 	return s.Amount
 }
 
 // SetAmount sets the order amount
-func (s *Signal) SetAmount(d udecimal.Decimal) {
+func (s *Signal) SetAmount(d decimal.Decimal) {
 	s.Amount = d
 }
 

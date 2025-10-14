@@ -38,7 +38,7 @@ type RateHistoryRequest struct {
 	// and borrow costs to be calculated offline. It requires the takerfeerate
 	// and existing rates
 	CalculateOffline bool
-	TakeFeeRate      udecimal.Decimal
+	TakeFeeRate      decimal.Decimal
 	// Rates is used when calculating offline and determiningPayments
 	// Each Rate must have the Rate and Size fields populated
 	Rates []Rate
@@ -102,35 +102,35 @@ const (
 // RateHistoryResponse has the funding rate details
 type RateHistoryResponse struct {
 	Rates              []Rate
-	SumBorrowCosts     udecimal.Decimal
-	AverageBorrowSize  udecimal.Decimal
-	SumLendingPayments udecimal.Decimal
-	AverageLendingSize udecimal.Decimal
+	SumBorrowCosts     decimal.Decimal
+	AverageBorrowSize  decimal.Decimal
+	SumLendingPayments decimal.Decimal
+	AverageLendingSize decimal.Decimal
 	PredictedRate      Rate
-	TakerFeeRate       udecimal.Decimal
+	TakerFeeRate       decimal.Decimal
 }
 
 // Rate has the funding rate details
 // and optionally the borrow rate
 type Rate struct {
 	Time             time.Time
-	MarketBorrowSize udecimal.Decimal
-	HourlyRate       udecimal.Decimal
-	YearlyRate       udecimal.Decimal
-	HourlyBorrowRate udecimal.Decimal
-	YearlyBorrowRate udecimal.Decimal
+	MarketBorrowSize decimal.Decimal
+	HourlyRate       decimal.Decimal
+	YearlyRate       decimal.Decimal
+	HourlyBorrowRate decimal.Decimal
+	YearlyBorrowRate decimal.Decimal
 	LendingPayment   LendingPayment
 	BorrowCost       BorrowCost
 }
 
 // LendingPayment contains a lending rate payment
 type LendingPayment struct {
-	Payment udecimal.Decimal
-	Size    udecimal.Decimal
+	Payment decimal.Decimal
+	Size    decimal.Decimal
 }
 
 // BorrowCost contains the borrow rate costs
 type BorrowCost struct {
-	Cost udecimal.Decimal
-	Size udecimal.Decimal
+	Cost decimal.Decimal
+	Size decimal.Decimal
 }

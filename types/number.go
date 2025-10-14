@@ -86,7 +86,7 @@ func (f Number) Int64() int64 {
 	return int64(f.f)
 }
 
-// Decimal returns a udecimal.Decimal
+// Decimal returns a decimal.Decimal
 
 func (f Number) Decimal() udecimal.Decimal {
 	if f.d.IsZero() {

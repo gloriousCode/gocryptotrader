@@ -11,15 +11,15 @@ import (
 // Fill is an event that details the events from placing an order
 type Fill struct {
 	*event.Base
-	Direction           order.Side       `json:"side"`
-	Amount              udecimal.Decimal `json:"amount"`
-	ClosePrice          udecimal.Decimal `json:"close-price"`
-	VolumeAdjustedPrice udecimal.Decimal `json:"volume-adjusted-price"`
-	PurchasePrice       udecimal.Decimal `json:"purchase-price"`
-	Total               udecimal.Decimal `json:"total"`
-	ExchangeFee         udecimal.Decimal `json:"exchange-fee"`
-	Slippage            udecimal.Decimal `json:"slippage"`
-	Order               *order.Detail    `json:"-"`
+	Direction           order.Side      `json:"side"`
+	Amount              decimal.Decimal `json:"amount"`
+	ClosePrice          decimal.Decimal `json:"close-price"`
+	VolumeAdjustedPrice decimal.Decimal `json:"volume-adjusted-price"`
+	PurchasePrice       decimal.Decimal `json:"purchase-price"`
+	Total               decimal.Decimal `json:"total"`
+	ExchangeFee         decimal.Decimal `json:"exchange-fee"`
+	Slippage            decimal.Decimal `json:"slippage"`
+	Order               *order.Detail   `json:"-"`
 	FillDependentEvent  signal.Event
 	Liquidated          bool
 }
@@ -29,15 +29,15 @@ type Event interface {
 	common.Event
 	common.Directioner
 
-	SetAmount(udecimal.Decimal)
-	GetAmount() udecimal.Decimal
-	GetClosePrice() udecimal.Decimal
-	GetVolumeAdjustedPrice() udecimal.Decimal
-	GetSlippageRate() udecimal.Decimal
-	GetPurchasePrice() udecimal.Decimal
-	GetTotal() udecimal.Decimal
-	GetExchangeFee() udecimal.Decimal
-	SetExchangeFee(udecimal.Decimal)
+	SetAmount(decimal.Decimal)
+	GetAmount() decimal.Decimal
+	GetClosePrice() decimal.Decimal
+	GetVolumeAdjustedPrice() decimal.Decimal
+	GetSlippageRate() decimal.Decimal
+	GetPurchasePrice() decimal.Decimal
+	GetTotal() decimal.Decimal
+	GetExchangeFee() decimal.Decimal
+	SetExchangeFee(decimal.Decimal)
 	GetOrder() *order.Detail
 	GetFillDependentEvent() signal.Event
 	IsLiquidated() bool
