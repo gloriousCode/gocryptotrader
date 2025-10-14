@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,10 +52,10 @@ func TestNumberFloat64(t *testing.T) {
 	assert.Equal(t, 0.04200064, Number(0.04200064).Float64(), "Float64() should return the correct value")
 }
 
-// TestNumberDecimal asserts Decimal() returns a valid decimal.Decimal
+// TestNumberDecimal asserts Decimal() returns a valid udecimal.Decimal
 func TestNumberDecimal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, decimal.NewFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
+	assert.Equal(t, udecimal.MustFromFloat64(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
 }
 
 // TestNumberInt64 asserts Int64() returns a valid truncated int64

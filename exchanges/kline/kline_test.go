@@ -324,7 +324,7 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	assert.Equal(t, 5, len(v.Ranges[0].Intervals))
 	lenRanges := len(v.Ranges) - 1
 	lenIntervals := len(v.Ranges[lenRanges].Intervals) - 1
-	assert.True(t, v.Ranges[lenRanges].Intervals[lenIntervals].End.Equal(ft.Round(OneWeek.Duration())))
+	assert.True(t, v.Ranges[lenRanges].Intervals[lenIntervals].End.Equal(ft.RoundBank(OneWeek.Duration())))
 
 	start := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
@@ -569,7 +569,7 @@ func TestLoadCSV(t *testing.T) {
 
 func TestVerifyResultsHaveData(t *testing.T) {
 	t.Parallel()
-	tt1 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().RoundBank(OneDay.Duration())
 	tt2 := tt1.Add(OneDay.Duration())
 	tt3 := tt2.Add(OneDay.Duration()) // end date no longer inclusive
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt3, OneDay, 0)
@@ -610,9 +610,9 @@ func TestVerifyResultsHaveData(t *testing.T) {
 
 func TestDataSummary(t *testing.T) {
 	t.Parallel()
-	tt1 := time.Now().Add(-time.Hour * 24).Round(OneDay.Duration())
-	tt2 := time.Now().Round(OneDay.Duration())
-	tt3 := time.Now().Add(time.Hour * 24).Round(OneDay.Duration())
+	tt1 := time.Now().Add(-time.Hour * 24).RoundBank(OneDay.Duration())
+	tt2 := time.Now().RoundBank(OneDay.Duration())
+	tt3 := time.Now().Add(time.Hour * 24).RoundBank(OneDay.Duration())
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt2, OneDay, 0)
 	assert.NoError(t, err)
 
@@ -636,7 +636,7 @@ func TestDataSummary(t *testing.T) {
 
 func TestHasDataAtDate(t *testing.T) {
 	t.Parallel()
-	tt1 := time.Now().Round(OneDay.Duration())
+	tt1 := time.Now().RoundBank(OneDay.Duration())
 	tt2 := tt1.Add(OneDay.Duration())
 	tt3 := tt2.Add(OneDay.Duration()) // end date no longer inclusive
 	dateRanges, err := CalculateCandleDateRanges(tt1, tt3, OneDay, 0)

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -46,7 +46,7 @@ type HistoricalRates struct {
 	LatestRate            Rate
 	PredictedUpcomingRate Rate
 	FundingRates          []Rate
-	PaymentSum            decimal.Decimal
+	PaymentSum            udecimal.Decimal
 	PaymentCurrency       currency.Code
 	TimeOfNextRate        time.Time
 }
@@ -72,6 +72,6 @@ type LatestRateResponse struct {
 // Rate holds details for an individual funding rate
 type Rate struct {
 	Time    time.Time
-	Rate    decimal.Decimal
-	Payment decimal.Decimal
+	Rate    udecimal.Decimal
+	Payment udecimal.Decimal
 }

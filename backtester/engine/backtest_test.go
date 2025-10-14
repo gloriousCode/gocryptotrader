@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -50,7 +50,7 @@ import (
 
 const testExchange = "binanceus"
 
-var leet = decimal.NewFromInt(1337)
+var leet = udecimal.MustFromFloat64(1337)
 
 func TestSetupFromConfig(t *testing.T) {
 	t.Parallel()
@@ -98,8 +98,8 @@ func TestSetupFromConfig(t *testing.T) {
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 
 	cfg.DataSettings.Interval = gctkline.OneMin
-	cfg.CurrencySettings[0].MakerFee = &decimal.Zero
-	cfg.CurrencySettings[0].TakerFee = &decimal.Zero
+	cfg.CurrencySettings[0].MakerFee = &udecimal.Zero
+	cfg.CurrencySettings[0].TakerFee = &udecimal.Zero
 	err = bt.SetupFromConfig(cfg, "", "", false)
 	assert.ErrorIs(t, err, gctcommon.ErrDateUnset)
 
@@ -194,8 +194,8 @@ func TestLoadDataCSV(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				MakerFee: &decimal.Zero,
-				TakerFee: &decimal.Zero,
+				MakerFee: &udecimal.Zero,
+				TakerFee: &udecimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -252,8 +252,8 @@ func TestLoadDataDatabase(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				MakerFee: &decimal.Zero,
-				TakerFee: &decimal.Zero,
+				MakerFee: &udecimal.Zero,
+				TakerFee: &udecimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -326,8 +326,8 @@ func TestLoadDataLive(t *testing.T) {
 				SpotDetails: &config.SpotDetails{
 					InitialQuoteFunds: &leet,
 				},
-				MakerFee: &decimal.Zero,
-				TakerFee: &decimal.Zero,
+				MakerFee: &udecimal.Zero,
+				TakerFee: &udecimal.Zero,
 			},
 		},
 		DataSettings: config.DataSettings{
@@ -428,7 +428,7 @@ func TestFullCycle(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
-	}, &risk.Risk{}, decimal.Zero)
+	}, &risk.Risk{}, udecimal.Zero)
 	assert.NoError(t, err)
 
 	fx := &binance.Exchange{}
@@ -439,10 +439,10 @@ func TestFullCycle(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -547,7 +547,7 @@ func TestFullCycleMulti(t *testing.T) {
 	port, err := portfolio.Setup(&size.Size{
 		BuySide:  exchange.MinMax{},
 		SellSide: exchange.MinMax{},
-	}, &risk.Risk{}, decimal.Zero)
+	}, &risk.Risk{}, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = port.SetCurrencySettingsMap(&exchange.Settings{Exchange: &binance.Exchange{}, Asset: a, Pair: cp})
@@ -556,10 +556,10 @@ func TestFullCycleMulti(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(e, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(e, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(e, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(e, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(b, quote)
@@ -752,10 +752,10 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	require.NoError(t, err, "SetupFundingManager must not error")
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
@@ -768,12 +768,12 @@ func TestUpdateStatsForDataEvent(t *testing.T) {
 	fl := &fill.Fill{
 		Base:                ev.Base,
 		Direction:           gctorder.Short,
-		Amount:              decimal.NewFromInt(1),
-		ClosePrice:          decimal.NewFromInt(1),
-		VolumeAdjustedPrice: decimal.NewFromInt(1),
-		PurchasePrice:       decimal.NewFromInt(1),
-		Total:               decimal.NewFromInt(1),
-		Slippage:            decimal.NewFromInt(1),
+		Amount:              udecimal.MustFromFloat64(1),
+		ClosePrice:          udecimal.MustFromFloat64(1),
+		VolumeAdjustedPrice: udecimal.MustFromFloat64(1),
+		PurchasePrice:       udecimal.MustFromFloat64(1),
+		Total:               udecimal.MustFromFloat64(1),
+		Slippage:            udecimal.MustFromFloat64(1),
 		Order: &gctorder.Detail{
 			Exchange:  testExchange,
 			AssetType: ev.AssetType,
@@ -821,10 +821,10 @@ func TestProcessSignalEvent(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	require.NoError(t, err, "SetupFundingManager must not error")
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
@@ -848,7 +848,7 @@ func TestProcessSignalEvent(t *testing.T) {
 
 func TestProcessOrderEvent(t *testing.T) {
 	t.Parallel()
-	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, decimal.Zero)
+	pt, err := portfolio.Setup(&size.Size{}, &risk.Risk{}, udecimal.Zero)
 	require.NoError(t, err, "Setup must not error")
 
 	bt := &BackTest{
@@ -879,10 +879,10 @@ func TestProcessOrderEvent(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	require.NoError(t, err, "SetupFundingManager must not error")
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
@@ -994,10 +994,10 @@ func TestProcessFillEvent(t *testing.T) {
 	err = em.Add(exch)
 	require.NoError(t, err)
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreateCollateral(b, quote)
@@ -1090,10 +1090,10 @@ func TestProcessFuturesFillEvent(t *testing.T) {
 	err = em.Add(exch)
 	require.NoError(t, err)
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	require.NoError(t, err, "CreateItem must not error")
 
 	pair, err := funding.CreateCollateral(b, quote)
@@ -1714,10 +1714,10 @@ func TestProcessSingleDataEvent(t *testing.T) {
 	f, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, true, false)
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(testExchange, a, cp.Base, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, a, cp.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quote, err := funding.CreateItem(testExchange, a, cp.Quote, decimal.NewFromInt(1337), decimal.Zero)
+	quote, err := funding.CreateItem(testExchange, a, cp.Quote, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	assert.NoError(t, err)
 
 	collateral, err := funding.CreateCollateral(b, quote)

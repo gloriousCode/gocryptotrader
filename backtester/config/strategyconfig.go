@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -55,13 +55,13 @@ func (c *Config) Validate() error {
 
 // validate ensures no one sets bad config values on purpose
 func (m *MinMax) validate() error {
-	if m.MaximumSize.IsNegative() {
+	if m.MaximumSize.IsNeg() {
 		return fmt.Errorf("invalid maximum size %w", errSizeLessThanZero)
 	}
-	if m.MinimumSize.IsNegative() {
+	if m.MinimumSize.IsNeg() {
 		return fmt.Errorf("invalid minimum size %w", errSizeLessThanZero)
 	}
-	if m.MaximumTotal.IsNegative() {
+	if m.MaximumTotal.IsNeg() {
 		return fmt.Errorf("invalid maximum total set to %w", errSizeLessThanZero)
 	}
 	if m.MaximumSize.LessThan(m.MinimumSize) && !m.MinimumSize.IsZero() && !m.MaximumSize.IsZero() {
@@ -113,7 +113,7 @@ func (c *Config) validateStrategySettings() error {
 	}
 	if c.FundingSettings.UseExchangeLevelFunding {
 		for i := range c.FundingSettings.ExchangeLevelFunding {
-			if c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.IsNegative() {
+			if c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.IsNeg() {
 				return fmt.Errorf("%w for %v %v %v",
 					errBadInitialFunds,
 					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
@@ -168,11 +168,11 @@ func (c *Config) validateCurrencySettings() error {
 		if c.CurrencySettings[i].SpotDetails != nil {
 			if c.FundingSettings.UseExchangeLevelFunding {
 				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(decimal.Zero) {
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.GreaterThan(udecimal.Zero) {
 					return fmt.Errorf("non-nil quote %w", errBadInitialFunds)
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil &&
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(decimal.Zero) {
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.GreaterThan(udecimal.Zero) {
 					return fmt.Errorf("non-nil base %w", errBadInitialFunds)
 				}
 			} else {
@@ -187,10 +187,10 @@ func (c *Config) validateCurrencySettings() error {
 					return fmt.Errorf("base or quote funds set to zero %w", errBadInitialFunds)
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &decimal.Zero
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds = &udecimal.Zero
 				}
 				if c.CurrencySettings[i].SpotDetails.InitialBaseFunds == nil {
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &decimal.Zero
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds = &udecimal.Zero
 				}
 			}
 		}
@@ -207,8 +207,8 @@ func (c *Config) validateCurrencySettings() error {
 			!c.CurrencySettings[i].MaximumSlippagePercent.IsZero() {
 			hasSlippage = true
 		}
-		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(decimal.Zero) ||
-			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(decimal.Zero) ||
+		if c.CurrencySettings[i].MinimumSlippagePercent.LessThan(udecimal.Zero) ||
+			c.CurrencySettings[i].MaximumSlippagePercent.LessThan(udecimal.Zero) ||
 			c.CurrencySettings[i].MinimumSlippagePercent.GreaterThan(c.CurrencySettings[i].MaximumSlippagePercent) {
 			return errBadSlippageRates
 		}
@@ -247,7 +247,7 @@ func (c *Config) PrintSetting() {
 					c.FundingSettings.ExchangeLevelFunding[i].ExchangeName,
 					c.FundingSettings.ExchangeLevelFunding[i].Asset,
 					c.FundingSettings.ExchangeLevelFunding[i].Currency,
-					c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.Round(8))
+					c.FundingSettings.ExchangeLevelFunding[i].InitialFunds.RoundBank(8))
 			}
 		}
 	}
@@ -265,31 +265,31 @@ func (c *Config) PrintSetting() {
 		case !c.FundingSettings.UseExchangeLevelFunding && c.CurrencySettings[i].SpotDetails != nil:
 			if c.CurrencySettings[i].SpotDetails.InitialBaseFunds != nil {
 				log.Infof(common.Config, "Initial base funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.Round(8),
+					c.CurrencySettings[i].SpotDetails.InitialBaseFunds.RoundBank(8),
 					c.CurrencySettings[i].Base)
 			}
 			if c.CurrencySettings[i].SpotDetails.InitialQuoteFunds != nil {
 				log.Infof(common.Config, "Initial quote funds: %v %v",
-					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.Round(8),
+					c.CurrencySettings[i].SpotDetails.InitialQuoteFunds.RoundBank(8),
 					c.CurrencySettings[i].Quote)
 			}
 		}
 		if c.CurrencySettings[i].TakerFee != nil {
 			if c.CurrencySettings[i].UsingExchangeTakerFee {
-				log.Infof(common.Config, "Taker fee: Using Exchange's API default taker rate: %v", c.CurrencySettings[i].TakerFee.Round(8))
+				log.Infof(common.Config, "Taker fee: Using Exchange's API default taker rate: %v", c.CurrencySettings[i].TakerFee.RoundBank(8))
 			} else {
-				log.Infof(common.Config, "Taker fee: %v", c.CurrencySettings[i].TakerFee.Round(8))
+				log.Infof(common.Config, "Taker fee: %v", c.CurrencySettings[i].TakerFee.RoundBank(8))
 			}
 		}
 		if c.CurrencySettings[i].MakerFee != nil {
 			if c.CurrencySettings[i].UsingExchangeMakerFee {
-				log.Infof(common.Config, "Maker fee: Using Exchange's API default maker rate: %v", c.CurrencySettings[i].MakerFee.Round(8))
+				log.Infof(common.Config, "Maker fee: Using Exchange's API default maker rate: %v", c.CurrencySettings[i].MakerFee.RoundBank(8))
 			} else {
-				log.Infof(common.Config, "Maker fee: %v", c.CurrencySettings[i].MakerFee.Round(8))
+				log.Infof(common.Config, "Maker fee: %v", c.CurrencySettings[i].MakerFee.RoundBank(8))
 			}
 		}
-		log.Infof(common.Config, "Minimum slippage percent: %v", c.CurrencySettings[i].MinimumSlippagePercent.Round(8))
-		log.Infof(common.Config, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.Round(8))
+		log.Infof(common.Config, "Minimum slippage percent: %v", c.CurrencySettings[i].MinimumSlippagePercent.RoundBank(8))
+		log.Infof(common.Config, "Maximum slippage percent: %v", c.CurrencySettings[i].MaximumSlippagePercent.RoundBank(8))
 		log.Infof(common.Config, "Buy rules: %+v", c.CurrencySettings[i].BuySide)
 		log.Infof(common.Config, "Sell rules: %+v", c.CurrencySettings[i].SellSide)
 		if c.CurrencySettings[i].FuturesDetails != nil && c.CurrencySettings[i].Asset == asset.Futures {

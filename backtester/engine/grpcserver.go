@@ -15,7 +15,7 @@ import (
 	"github.com/gofrs/uuid"
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/btrpc"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
@@ -286,62 +286,24 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		return nil, fmt.Errorf("%w cannot manage a task with both dnr and dns", errCannotHandleRequest)
 	}
 
-	rfr, err := decimal.NewFromString(request.Config.StatisticSettings.RiskFreeRate)
-	if err != nil {
-		return nil, err
-	}
-	maximumOrdersWithLeverageRatio, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio)
-	if err != nil {
-		return nil, err
-	}
-	maximumOrderLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumLeverageRate)
-	if err != nil {
-		return nil, err
-	}
-	maximumCollateralLeverageRate, err := decimal.NewFromString(request.Config.PortfolioSettings.Leverage.MaximumCollateralLeverageRate)
-	if err != nil {
-		return nil, err
-	}
+	rfr := udecimal.MustParse(request.Config.StatisticSettings.RiskFreeRate)
+	maximumOrdersWithLeverageRatio := udecimal.MustParse(request.Config.PortfolioSettings.Leverage.MaximumOrdersWithLeverageRatio)
+	maximumOrderLeverageRate := udecimal.MustParse(request.Config.PortfolioSettings.Leverage.MaximumLeverageRate)
+	maximumCollateralLeverageRate := udecimal.MustParse(request.Config.PortfolioSettings.Leverage.MaximumCollateralLeverageRate)
 
-	buySideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MinimumSize)
-	if err != nil {
-		return nil, err
-	}
-	buySideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumSize)
-	if err != nil {
-		return nil, err
-	}
-	buySideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.BuySide.MaximumTotal)
-	if err != nil {
-		return nil, err
-	}
+	buySideMinimumSize := udecimal.MustParse(request.Config.PortfolioSettings.BuySide.MinimumSize)
+	buySideMaximumSize := udecimal.MustParse(request.Config.PortfolioSettings.BuySide.MaximumSize)
+	buySideMaximumTotal := udecimal.MustParse(request.Config.PortfolioSettings.BuySide.MaximumTotal)
 
-	sellSideMinimumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MinimumSize)
-	if err != nil {
-		return nil, err
-	}
-	sellSideMaximumSize, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumSize)
-	if err != nil {
-		return nil, err
-	}
-	sellSideMaximumTotal, err := decimal.NewFromString(request.Config.PortfolioSettings.SellSide.MaximumTotal)
-	if err != nil {
-		return nil, err
-	}
+	sellSideMinimumSize := udecimal.MustParse(request.Config.PortfolioSettings.SellSide.MinimumSize)
+	sellSideMaximumSize := udecimal.MustParse(request.Config.PortfolioSettings.SellSide.MaximumSize)
+	sellSideMaximumTotal := udecimal.MustParse(request.Config.PortfolioSettings.SellSide.MaximumTotal)
 
 	fundingSettings := make([]config.ExchangeLevelFunding, len(request.Config.FundingSettings.ExchangeLevelFunding))
 	for i := range request.Config.FundingSettings.ExchangeLevelFunding {
-		var initialFunds, transferFee decimal.Decimal
-		var a asset.Item
-		initialFunds, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
-		if err != nil {
-			return nil, err
-		}
-		transferFee, err = decimal.NewFromString(request.Config.FundingSettings.ExchangeLevelFunding[i].TransferFee)
-		if err != nil {
-			return nil, err
-		}
-		a, err = asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
+		initialFunds := udecimal.MustParse(request.Config.FundingSettings.ExchangeLevelFunding[i].InitialFunds)
+		transferFee := udecimal.MustParse(request.Config.FundingSettings.ExchangeLevelFunding[i].TransferFee)
+		a, err := asset.New(request.Config.FundingSettings.ExchangeLevelFunding[i].Asset)
 		if err != nil {
 			return nil, err
 		}
@@ -365,69 +327,37 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		var currencySettingBuySideMinimumSize, currencySettingBuySideMaximumSize,
 			currencySettingBuySideMaximumTotal, currencySettingSellSideMinimumSize,
 			currencySettingSellSideMaximumSize, currencySettingSellSideMaximumTotal,
-			minimumSlippagePercent, maximumSlippagePercent, maximumHoldingsRatio decimal.Decimal
+			minimumSlippagePercent, maximumSlippagePercent, maximumHoldingsRatio udecimal.Decimal
 		var a asset.Item
-		currencySettingBuySideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MinimumSize)
-		if err != nil {
-			return nil, err
-		}
-		currencySettingBuySideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumSize)
-		if err != nil {
-			return nil, err
-		}
-		currencySettingBuySideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].BuySide.MaximumTotal)
-		if err != nil {
-			return nil, err
-		}
+		var err error
+		currencySettingBuySideMinimumSize = udecimal.MustParse(request.Config.CurrencySettings[i].BuySide.MinimumSize)
+		currencySettingBuySideMaximumSize = udecimal.MustParse(request.Config.CurrencySettings[i].BuySide.MaximumSize)
+		currencySettingBuySideMaximumTotal = udecimal.MustParse(request.Config.CurrencySettings[i].BuySide.MaximumTotal)
 
-		currencySettingSellSideMinimumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MinimumSize)
-		if err != nil {
-			return nil, err
-		}
-		currencySettingSellSideMaximumSize, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumSize)
-		if err != nil {
-			return nil, err
-		}
-		currencySettingSellSideMaximumTotal, err = decimal.NewFromString(request.Config.CurrencySettings[i].SellSide.MaximumTotal)
-		if err != nil {
-			return nil, err
-		}
+		currencySettingSellSideMinimumSize = udecimal.MustParse(request.Config.CurrencySettings[i].SellSide.MinimumSize)
+		currencySettingSellSideMaximumSize = udecimal.MustParse(request.Config.CurrencySettings[i].SellSide.MaximumSize)
+		currencySettingSellSideMaximumTotal = udecimal.MustParse(request.Config.CurrencySettings[i].SellSide.MaximumTotal)
 
-		minimumSlippagePercent, err = decimal.NewFromString(request.Config.CurrencySettings[i].MinSlippagePercent)
-		if err != nil {
-			return nil, err
-		}
+		minimumSlippagePercent = udecimal.MustParse(request.Config.CurrencySettings[i].MinSlippagePercent)
 
-		maximumSlippagePercent, err = decimal.NewFromString(request.Config.CurrencySettings[i].MaxSlippagePercent)
-		if err != nil {
-			return nil, err
-		}
+		maximumSlippagePercent = udecimal.MustParse(request.Config.CurrencySettings[i].MaxSlippagePercent)
 
-		maximumHoldingsRatio, err = decimal.NewFromString(request.Config.CurrencySettings[i].MaximumHoldingsRatio)
-		if err != nil {
-			return nil, err
-		}
+		maximumHoldingsRatio = udecimal.MustParse(request.Config.CurrencySettings[i].MaximumHoldingsRatio)
 		a, err = asset.New(request.Config.CurrencySettings[i].Asset)
 		if err != nil {
 			return nil, err
 		}
-		var maker, taker *decimal.Decimal
+		var maker, taker *udecimal.Decimal
 		if request.Config.CurrencySettings[i].MakerFeeOverride != "" {
 			// nil is a valid option
-			var m decimal.Decimal
-			m, err = decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
-			if err != nil {
-				return nil, fmt.Errorf("%v %v %v-%v maker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
-			}
+			var m udecimal.Decimal
+			m = udecimal.MustParse(request.Config.CurrencySettings[i].MakerFeeOverride)
 			maker = &m
 		}
 		if request.Config.CurrencySettings[i].TakerFeeOverride != "" {
 			// nil is a valid option
-			var t decimal.Decimal
-			t, err = decimal.NewFromString(request.Config.CurrencySettings[i].MakerFeeOverride)
-			if err != nil {
-				return nil, fmt.Errorf("%v %v %v-%v taker fee %w", request.Config.CurrencySettings[i].ExchangeName, request.Config.CurrencySettings[i].Asset, request.Config.CurrencySettings[i].Base, request.Config.CurrencySettings[i].Quote, err)
-			}
+			var t udecimal.Decimal
+			t = udecimal.MustParse(request.Config.CurrencySettings[i].TakerFeeOverride)
 			taker = &t
 		}
 
@@ -435,19 +365,13 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if request.Config.CurrencySettings[i].SpotDetails != nil {
 			spotDetails = &config.SpotDetails{}
 			if request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds != "" {
-				var ibf decimal.Decimal
-				ibf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds)
-				if err != nil {
-					return nil, err
-				}
+				var ibf udecimal.Decimal
+				ibf = udecimal.MustParse(request.Config.CurrencySettings[i].SpotDetails.InitialBaseFunds)
 				spotDetails.InitialBaseFunds = &ibf
 			}
 			if request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds != "" {
-				var iqf decimal.Decimal
-				iqf, err = decimal.NewFromString(request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds)
-				if err != nil {
-					return nil, err
-				}
+				var iqf udecimal.Decimal
+				iqf = udecimal.MustParse(request.Config.CurrencySettings[i].SpotDetails.InitialQuoteFunds)
 				spotDetails.InitialQuoteFunds = &iqf
 			}
 		}
@@ -456,19 +380,10 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		if request.Config.CurrencySettings[i].FuturesDetails != nil &&
 			request.Config.CurrencySettings[i].FuturesDetails.Leverage != nil {
 			futuresDetails = &config.FuturesDetails{}
-			var mowlr, mlr, mclr decimal.Decimal
-			mowlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
-			if err != nil {
-				return nil, err
-			}
-			mlr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate)
-			if err != nil {
-				return nil, err
-			}
-			mclr, err = decimal.NewFromString(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate)
-			if err != nil {
-				return nil, err
-			}
+			var mowlr, mlr, mclr udecimal.Decimal
+			mowlr = udecimal.MustParse(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio)
+			mlr = udecimal.MustParse(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumLeverageRate)
+			mclr = udecimal.MustParse(request.Config.CurrencySettings[i].FuturesDetails.Leverage.MaximumCollateralLeverageRate)
 
 			futuresDetails.Leverage = config.Leverage{
 				CanUseLeverage:                 request.Config.CurrencySettings[i].FuturesDetails.Leverage.CanUseLeverage,

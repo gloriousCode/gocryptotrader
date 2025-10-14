@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2501,7 +2501,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		availableEquity, cashBalance, discountEquity,
 		equityUSD, totalEquity, isolatedEquity, isolatedLiabilities,
 		isolatedUnrealisedProfit, notionalLeverage,
-		strategyEquity decimal.Decimal
+		strategyEquity udecimal.Decimal
 
 	for i := range acc[0].Details {
 		if !acc[0].Details[i].Currency.Equal(positionSummary.Currency) {
@@ -2553,9 +2553,9 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
 		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(udecimal.MustFromFloat64(multiplier)),
 		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
-		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		ContractMultiplier:           udecimal.MustFromFloat64(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		UnrealisedPNL:                positionSummary.UPNL.Decimal(),

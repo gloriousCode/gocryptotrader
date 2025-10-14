@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -50,7 +50,7 @@ type Event interface {
 	GetAssetType() asset.Item
 	GetConcatReasons() string
 	GetReasons() []string
-	GetClosePrice() decimal.Decimal
+	GetClosePrice() udecimal.Decimal
 	AppendReason(string)
 	AppendReasonf(string, ...any)
 }

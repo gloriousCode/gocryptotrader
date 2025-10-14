@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -40,41 +40,41 @@ func TestCalculateResults(t *testing.T) {
 	ev := DataAtOffset{
 		Offset:     1,
 		Time:       tt1,
-		ClosePrice: decimal.NewFromInt(2000),
+		ClosePrice: udecimal.MustFromFloat64(2000),
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
+			ChangeInTotalValuePercent: udecimal.MustFromFloat64(0.1333),
 			Timestamp:                 tt1,
-			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			QuoteInitialFunds:         udecimal.MustFromFloat64(1337),
 		},
 		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          decimal.NewFromInt(1338),
-					VolumeAdjustedPrice: decimal.NewFromInt(1338),
-					SlippageRate:        decimal.NewFromInt(1338),
-					CostBasis:           decimal.NewFromInt(1338),
+					ClosePrice:          udecimal.MustFromFloat64(1338),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1338),
+					SlippageRate:        udecimal.MustFromFloat64(1338),
+					CostBasis:           udecimal.MustFromFloat64(1338),
 					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          decimal.NewFromInt(1337),
-					VolumeAdjustedPrice: decimal.NewFromInt(1337),
-					SlippageRate:        decimal.NewFromInt(1337),
-					CostBasis:           decimal.NewFromInt(1337),
+					ClosePrice:          udecimal.MustFromFloat64(1337),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+					SlippageRate:        udecimal.MustFromFloat64(1337),
+					CostBasis:           udecimal.MustFromFloat64(1337),
 					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even,
-			Open:   decimal.NewFromInt(2000),
-			Close:  decimal.NewFromInt(2000),
-			Low:    decimal.NewFromInt(2000),
-			High:   decimal.NewFromInt(2000),
-			Volume: decimal.NewFromInt(2000),
+			Open:   udecimal.MustFromFloat64(2000),
+			Close:  udecimal.MustFromFloat64(2000),
+			Low:    udecimal.MustFromFloat64(2000),
+			High:   udecimal.MustFromFloat64(2000),
+			Volume: udecimal.MustFromFloat64(2000),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even,
-			ClosePrice: decimal.NewFromInt(2000),
+			ClosePrice: udecimal.MustFromFloat64(2000),
 		},
 	}
 	even2 := even
@@ -83,72 +83,72 @@ func TestCalculateResults(t *testing.T) {
 	ev2 := DataAtOffset{
 		Offset:     2,
 		Time:       tt2,
-		ClosePrice: decimal.NewFromInt(1337),
+		ClosePrice: udecimal.MustFromFloat64(1337),
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
+			ChangeInTotalValuePercent: udecimal.MustFromFloat64(0.1337),
 			Timestamp:                 tt2,
-			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			QuoteInitialFunds:         udecimal.MustFromFloat64(1337),
 		},
 		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          decimal.NewFromInt(1338),
-					VolumeAdjustedPrice: decimal.NewFromInt(1338),
-					SlippageRate:        decimal.NewFromInt(1338),
-					CostBasis:           decimal.NewFromInt(1338),
+					ClosePrice:          udecimal.MustFromFloat64(1338),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1338),
+					SlippageRate:        udecimal.MustFromFloat64(1338),
+					CostBasis:           udecimal.MustFromFloat64(1338),
 					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          decimal.NewFromInt(1337),
-					VolumeAdjustedPrice: decimal.NewFromInt(1337),
-					SlippageRate:        decimal.NewFromInt(1337),
-					CostBasis:           decimal.NewFromInt(1337),
+					ClosePrice:          udecimal.MustFromFloat64(1337),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+					SlippageRate:        udecimal.MustFromFloat64(1337),
+					CostBasis:           udecimal.MustFromFloat64(1337),
 					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even2,
-			Open:   decimal.NewFromInt(1337),
-			Close:  decimal.NewFromInt(1337),
-			Low:    decimal.NewFromInt(1337),
-			High:   decimal.NewFromInt(1337),
-			Volume: decimal.NewFromInt(1337),
+			Open:   udecimal.MustFromFloat64(1337),
+			Close:  udecimal.MustFromFloat64(1337),
+			Low:    udecimal.MustFromFloat64(1337),
+			High:   udecimal.MustFromFloat64(1337),
+			Volume: udecimal.MustFromFloat64(1337),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even2,
-			ClosePrice: decimal.NewFromInt(1337),
+			ClosePrice: udecimal.MustFromFloat64(1337),
 			Direction:  order.MissingData,
 		},
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	err := cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err := cs.CalculateResults(udecimal.MustFromFloat64(0.03))
 	assert.NoError(t, err)
 
-	if !cs.MarketMovement.Equal(decimal.NewFromFloat(-33.15)) {
+	if !cs.MarketMovement.Equal(udecimal.MustFromFloat64(-33.15)) {
 		t.Errorf("expected -33.15 received '%v'", cs.MarketMovement)
 	}
 	ev3 := ev2
 	ev3.DataEvent = &kline.Kline{
 		Base:   even2,
-		Open:   decimal.NewFromInt(1339),
-		Close:  decimal.NewFromInt(1339),
-		Low:    decimal.NewFromInt(1339),
-		High:   decimal.NewFromInt(1339),
-		Volume: decimal.NewFromInt(1339),
+		Open:   udecimal.MustFromFloat64(1339),
+		Close:  udecimal.MustFromFloat64(1339),
+		Low:    udecimal.MustFromFloat64(1339),
+		High:   udecimal.MustFromFloat64(1339),
+		Volume: udecimal.MustFromFloat64(1339),
 	}
 	cs.Events = append(cs.Events, ev, ev3)
 	cs.Events[0].DataEvent = &kline.Kline{
 		Base: even2,
 	}
-	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err = cs.CalculateResults(udecimal.MustFromFloat64(0.03))
 	assert.NoError(t, err)
 
 	cs.Events[1].DataEvent = &kline.Kline{
 		Base: even2,
 	}
-	err = cs.CalculateResults(decimal.NewFromFloat(0.03))
+	err = cs.CalculateResults(udecimal.MustFromFloat64(0.03))
 	assert.NoError(t, err)
 }
 
@@ -168,78 +168,78 @@ func TestPrintResults(t *testing.T) {
 	}
 	ev := DataAtOffset{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1333),
+			ChangeInTotalValuePercent: udecimal.MustFromFloat64(0.1333),
 			Timestamp:                 tt1,
-			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			QuoteInitialFunds:         udecimal.MustFromFloat64(1337),
 		},
 		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          decimal.NewFromInt(1338),
-					VolumeAdjustedPrice: decimal.NewFromInt(1338),
-					SlippageRate:        decimal.NewFromInt(1338),
-					CostBasis:           decimal.NewFromInt(1338),
+					ClosePrice:          udecimal.MustFromFloat64(1338),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1338),
+					SlippageRate:        udecimal.MustFromFloat64(1338),
+					CostBasis:           udecimal.MustFromFloat64(1338),
 					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          decimal.NewFromInt(1337),
-					VolumeAdjustedPrice: decimal.NewFromInt(1337),
-					SlippageRate:        decimal.NewFromInt(1337),
-					CostBasis:           decimal.NewFromInt(1337),
+					ClosePrice:          udecimal.MustFromFloat64(1337),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+					SlippageRate:        udecimal.MustFromFloat64(1337),
+					CostBasis:           udecimal.MustFromFloat64(1337),
 					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even,
-			Open:   decimal.NewFromInt(2000),
-			Close:  decimal.NewFromInt(2000),
-			Low:    decimal.NewFromInt(2000),
-			High:   decimal.NewFromInt(2000),
-			Volume: decimal.NewFromInt(2000),
+			Open:   udecimal.MustFromFloat64(2000),
+			Close:  udecimal.MustFromFloat64(2000),
+			Low:    udecimal.MustFromFloat64(2000),
+			High:   udecimal.MustFromFloat64(2000),
+			Volume: udecimal.MustFromFloat64(2000),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even,
-			ClosePrice: decimal.NewFromInt(2000),
+			ClosePrice: udecimal.MustFromFloat64(2000),
 		},
 	}
 	even2 := even
 	even2.Time = tt2
 	ev2 := DataAtOffset{
 		Holdings: holdings.Holding{
-			ChangeInTotalValuePercent: decimal.NewFromFloat(0.1337),
+			ChangeInTotalValuePercent: udecimal.MustFromFloat64(0.1337),
 			Timestamp:                 tt2,
-			QuoteInitialFunds:         decimal.NewFromInt(1337),
+			QuoteInitialFunds:         udecimal.MustFromFloat64(1337),
 		},
 		ComplianceSnapshot: &compliance.Snapshot{
 			Orders: []compliance.SnapshotOrder{
 				{
-					ClosePrice:          decimal.NewFromInt(1338),
-					VolumeAdjustedPrice: decimal.NewFromInt(1338),
-					SlippageRate:        decimal.NewFromInt(1338),
-					CostBasis:           decimal.NewFromInt(1338),
+					ClosePrice:          udecimal.MustFromFloat64(1338),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1338),
+					SlippageRate:        udecimal.MustFromFloat64(1338),
+					CostBasis:           udecimal.MustFromFloat64(1338),
 					Order:               &order.Detail{Side: order.Buy},
 				},
 				{
-					ClosePrice:          decimal.NewFromInt(1337),
-					VolumeAdjustedPrice: decimal.NewFromInt(1337),
-					SlippageRate:        decimal.NewFromInt(1337),
-					CostBasis:           decimal.NewFromInt(1337),
+					ClosePrice:          udecimal.MustFromFloat64(1337),
+					VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+					SlippageRate:        udecimal.MustFromFloat64(1337),
+					CostBasis:           udecimal.MustFromFloat64(1337),
 					Order:               &order.Detail{Side: order.Sell},
 				},
 			},
 		},
 		DataEvent: &kline.Kline{
 			Base:   even2,
-			Open:   decimal.NewFromInt(1337),
-			Close:  decimal.NewFromInt(1337),
-			Low:    decimal.NewFromInt(1337),
-			High:   decimal.NewFromInt(1337),
-			Volume: decimal.NewFromInt(1337),
+			Open:   udecimal.MustFromFloat64(1337),
+			Close:  udecimal.MustFromFloat64(1337),
+			Low:    udecimal.MustFromFloat64(1337),
+			High:   udecimal.MustFromFloat64(1337),
+			Volume: udecimal.MustFromFloat64(1337),
 		},
 		SignalEvent: &signal.Signal{
 			Base:       even2,
-			ClosePrice: decimal.NewFromInt(1337),
+			ClosePrice: udecimal.MustFromFloat64(1337),
 		},
 	}
 
@@ -265,9 +265,9 @@ func TestCalculateHighestCommittedFunds(t *testing.T) {
 	tt2 := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	tt3 := time.Date(2021, 3, 1, 0, 0, 0, 0, time.UTC)
 	c.Events = append(c.Events,
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1337)}, Time: tt1, Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: decimal.NewFromInt(10), BaseSize: decimal.NewFromInt(10)}},
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1338)}, Time: tt2, Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: decimal.NewFromInt(1337), BaseSize: decimal.NewFromInt(1337)}},
-		DataAtOffset{DataEvent: &kline.Kline{Close: decimal.NewFromInt(1339)}, Time: tt3, Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: decimal.NewFromInt(11), BaseSize: decimal.NewFromInt(11)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: udecimal.MustFromFloat64(1337)}, Time: tt1, Holdings: holdings.Holding{Timestamp: tt1, CommittedFunds: udecimal.MustFromFloat64(10), BaseSize: udecimal.MustFromFloat64(10)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: udecimal.MustFromFloat64(1338)}, Time: tt2, Holdings: holdings.Holding{Timestamp: tt2, CommittedFunds: udecimal.MustFromFloat64(1337), BaseSize: udecimal.MustFromFloat64(1337)}},
+		DataAtOffset{DataEvent: &kline.Kline{Close: udecimal.MustFromFloat64(1339)}, Time: tt3, Holdings: holdings.Holding{Timestamp: tt3, CommittedFunds: udecimal.MustFromFloat64(11), BaseSize: udecimal.MustFromFloat64(11)}},
 	)
 	err = c.calculateHighestCommittedFunds()
 	assert.NoError(t, err)
@@ -308,17 +308,17 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Pair:     p,
 			Result: futures.PNLResult{
 				Time:          time.Now(),
-				UnrealisedPNL: decimal.NewFromInt(1),
-				RealisedPNL:   decimal.NewFromInt(2),
+				UnrealisedPNL: udecimal.MustFromFloat64(1),
+				RealisedPNL:   udecimal.MustFromFloat64(2),
 			},
 		}},
 	)
 
 	c.analysePNLGrowth()
-	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+	if !c.HighestRealisedPNL.Value.Equal(udecimal.MustFromFloat64(2)) {
 		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
 	}
-	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromInt(1)) {
+	if !c.LowestUnrealisedPNL.Value.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("received %v expected 1", c.LowestUnrealisedPNL.Value)
 	}
 
@@ -329,17 +329,17 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Pair:     p,
 			Result: futures.PNLResult{
 				Time:          time.Now(),
-				UnrealisedPNL: decimal.NewFromFloat(0.5),
-				RealisedPNL:   decimal.NewFromInt(1),
+				UnrealisedPNL: udecimal.MustFromFloat64(0.5),
+				RealisedPNL:   udecimal.MustFromFloat64(1),
 			},
 		}},
 	)
 
 	c.analysePNLGrowth()
-	if !c.HighestRealisedPNL.Value.Equal(decimal.NewFromInt(2)) {
+	if !c.HighestRealisedPNL.Value.Equal(udecimal.MustFromFloat64(2)) {
 		t.Errorf("received %v expected 2", c.HighestRealisedPNL.Value)
 	}
-	if !c.LowestUnrealisedPNL.Value.Equal(decimal.NewFromFloat(0.5)) {
+	if !c.LowestUnrealisedPNL.Value.Equal(udecimal.MustFromFloat64(0.5)) {
 		t.Errorf("received %v expected 0.5", c.LowestUnrealisedPNL.Value)
 	}
 }

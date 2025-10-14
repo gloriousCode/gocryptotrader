@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -29,7 +29,7 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 	items := []statistics.ValueAtTime{
 		{
 			Time:  tt,
-			Value: decimal.NewFromInt(1337),
+			Value: udecimal.MustFromFloat64(1337),
 			Set:   true,
 		},
 	}
@@ -42,7 +42,7 @@ func TestCreateUSDTotalsChart(t *testing.T) {
 				Snapshots: []funding.ItemSnapshot{
 					{
 						Time:     tt,
-						USDValue: decimal.NewFromInt(1337),
+						USDValue: udecimal.MustFromFloat64(1337),
 					},
 				},
 			},
@@ -77,7 +77,7 @@ func TestCreateHoldingsOverTimeChart(t *testing.T) {
 				Snapshots: []funding.ItemSnapshot{
 					{
 						Time:      tt,
-						Available: decimal.NewFromInt(1337),
+						Available: udecimal.MustFromFloat64(1337),
 					},
 					{
 						Time: tt,
@@ -109,11 +109,11 @@ func TestCreatePNLCharts(t *testing.T) {
 				PNL: &portfolio.PNLSummary{
 					Result: futures.PNLResult{
 						Time:                  tt,
-						UnrealisedPNL:         decimal.NewFromInt(1337),
-						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
-						RealisedPNL:           decimal.NewFromInt(1337),
-						Price:                 decimal.NewFromInt(1337),
-						Exposure:              decimal.NewFromInt(1337),
+						UnrealisedPNL:         udecimal.MustFromFloat64(1337),
+						RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
+						RealisedPNL:           udecimal.MustFromFloat64(1337),
+						Price:                 udecimal.MustFromFloat64(1337),
+						Exposure:              udecimal.MustFromFloat64(1337),
 						Direction:             gctorder.Short,
 					},
 				},
@@ -162,15 +162,15 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 		Events: []statistics.DataAtOffset{
 			{
 				Time:      tt,
-				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
+				DataEvent: &evkline.Kline{Close: udecimal.MustFromFloat64(1337)},
 				PNL: &portfolio.PNLSummary{
 					Result: futures.PNLResult{
 						Time:                  tt,
-						UnrealisedPNL:         decimal.NewFromInt(1337),
-						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
-						RealisedPNL:           decimal.NewFromInt(1337),
-						Price:                 decimal.NewFromInt(1337),
-						Exposure:              decimal.NewFromInt(1337),
+						UnrealisedPNL:         udecimal.MustFromFloat64(1337),
+						RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
+						RealisedPNL:           udecimal.MustFromFloat64(1337),
+						Price:                 udecimal.MustFromFloat64(1337),
+						Exposure:              udecimal.MustFromFloat64(1337),
 						Direction:             gctorder.Buy,
 					},
 				},
@@ -183,15 +183,15 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 		Events: []statistics.DataAtOffset{
 			{
 				Time:      tt,
-				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
+				DataEvent: &evkline.Kline{Close: udecimal.MustFromFloat64(1337)},
 				PNL: &portfolio.PNLSummary{
 					Result: futures.PNLResult{
 						Time:                  tt,
-						UnrealisedPNL:         decimal.NewFromInt(1337),
-						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
-						RealisedPNL:           decimal.NewFromInt(1337),
-						Price:                 decimal.NewFromInt(1337),
-						Exposure:              decimal.NewFromInt(1337),
+						UnrealisedPNL:         udecimal.MustFromFloat64(1337),
+						RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
+						RealisedPNL:           udecimal.MustFromFloat64(1337),
+						Price:                 udecimal.MustFromFloat64(1337),
+						Exposure:              udecimal.MustFromFloat64(1337),
 						Direction:             gctorder.Short,
 					},
 				},

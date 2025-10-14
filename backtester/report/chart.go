@@ -3,7 +3,7 @@ package report
 import (
 	"fmt"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -176,7 +176,8 @@ func createFuturesSpotDiffChart(items map[key.ExchangeAssetPair]*statistics.Curr
 		for j := range currs[i].SpotEvents {
 			spotPrice := currs[i].SpotEvents[j].DataEvent.GetClosePrice()
 			futuresPrice := currs[i].FuturesEvents[j].DataEvent.GetClosePrice()
-			diff := futuresPrice.Sub(spotPrice).Div(spotPrice).Mul(decimal.NewFromInt(100))
+			diff, _ := futuresPrice.Sub(spotPrice).Div(spotPrice)
+			diff = diff.Mul(udecimal.MustFromInt64(100, 0))
 			line.LinePlots = append(line.LinePlots, LinePlot{
 				Value:     diff.InexactFloat64(),
 				UnixMilli: currs[i].SpotEvents[j].Time.UnixMilli(),

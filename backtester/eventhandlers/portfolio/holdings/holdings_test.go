@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -22,11 +22,11 @@ const testExchange = "binance"
 
 func pair(t *testing.T) *funding.SpotPair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,11 +39,11 @@ func pair(t *testing.T) *funding.SpotPair {
 
 func collateral(t *testing.T) *funding.CollateralPair {
 	t.Helper()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(1337), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(1337), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,25 +101,25 @@ func TestUpdateValue(t *testing.T) {
 	err = h.UpdateValue(nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	h.BaseSize = decimal.NewFromInt(1)
+	h.BaseSize = udecimal.MustFromFloat64(1)
 	err = h.UpdateValue(&kline.Kline{
 		Base:  b,
-		Close: decimal.NewFromInt(1337),
+		Close: udecimal.MustFromFloat64(1337),
 	})
 	assert.NoError(t, err)
 
-	if !h.BaseValue.Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("expected '%v' received '%v'", h.BaseSize, decimal.NewFromInt(1337))
+	if !h.BaseValue.Equal(udecimal.MustFromFloat64(1337)) {
+		t.Errorf("expected '%v' received '%v'", h.BaseSize, udecimal.MustFromFloat64(1337))
 	}
 }
 
 func TestUpdateBuyStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.MustFromFloat64(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,15 +141,15 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              decimal.NewFromInt(1),
-		ClosePrice:          decimal.NewFromInt(500),
-		VolumeAdjustedPrice: decimal.NewFromInt(500),
-		PurchasePrice:       decimal.NewFromInt(500),
+		Amount:              udecimal.MustFromFloat64(1),
+		ClosePrice:          udecimal.MustFromFloat64(500),
+		VolumeAdjustedPrice: udecimal.MustFromFloat64(500),
+		PurchasePrice:       udecimal.MustFromFloat64(500),
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			OrderID:     "decimal.NewFromInt(1337)",
+			OrderID:     "udecimal.MustFromFloat64(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -167,22 +167,22 @@ func TestUpdateBuyStats(t *testing.T) {
 	if !h.BaseSize.Equal(p.BaseAvailable()) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
-	if !h.BaseValue.Equal(p.BaseAvailable().Mul(decimal.NewFromInt(500))) {
+	if !h.BaseValue.Equal(p.BaseAvailable().Mul(udecimal.MustFromFloat64(500))) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
 	}
-	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
+	if !h.QuoteSize.Equal(udecimal.MustFromFloat64(100)) {
 		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
 	}
-	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
+	if !h.TotalValue.Equal(udecimal.MustFromFloat64(600)) {
 		t.Errorf("expected '%v' received '%v'", 999, h.TotalValue)
 	}
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
+	if !h.BoughtAmount.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
+	if !h.TotalFees.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
@@ -195,15 +195,15 @@ func TestUpdateBuyStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              decimal.NewFromFloat(0.5),
-		ClosePrice:          decimal.NewFromInt(500),
-		VolumeAdjustedPrice: decimal.NewFromInt(500),
-		PurchasePrice:       decimal.NewFromInt(500),
+		Amount:              udecimal.MustFromFloat64(0.5),
+		ClosePrice:          udecimal.MustFromFloat64(500),
+		VolumeAdjustedPrice: udecimal.MustFromFloat64(500),
+		PurchasePrice:       udecimal.MustFromFloat64(500),
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      0.5,
 			Exchange:    testExchange,
-			OrderID:     "decimal.NewFromInt(1337)",
+			OrderID:     "udecimal.MustFromFloat64(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -218,24 +218,24 @@ func TestUpdateBuyStats(t *testing.T) {
 	}, p)
 	assert.NoError(t, err)
 
-	if !h.BoughtAmount.Equal(decimal.NewFromFloat(1.5)) {
+	if !h.BoughtAmount.Equal(udecimal.MustFromFloat64(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(decimal.NewFromFloat(1.5)) {
+	if !h.TotalFees.Equal(udecimal.MustFromFloat64(1.5)) {
 		t.Errorf("expected '%v' received '%v'", 1.5, h.TotalFees)
 	}
 }
 
 func TestUpdateSellStats(t *testing.T) {
 	t.Parallel()
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.MustFromFloat64(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,15 +258,15 @@ func TestUpdateSellStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Buy,
-		Amount:              decimal.NewFromInt(1),
-		ClosePrice:          decimal.NewFromInt(500),
-		VolumeAdjustedPrice: decimal.NewFromInt(500),
-		PurchasePrice:       decimal.NewFromInt(500),
+		Amount:              udecimal.MustFromFloat64(1),
+		ClosePrice:          udecimal.MustFromFloat64(500),
+		VolumeAdjustedPrice: udecimal.MustFromFloat64(500),
+		PurchasePrice:       udecimal.MustFromFloat64(500),
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			OrderID:     "decimal.NewFromInt(1337)",
+			OrderID:     "udecimal.MustFromFloat64(1337)",
 			Type:        order.Limit,
 			Side:        order.Buy,
 			Status:      order.New,
@@ -280,28 +280,28 @@ func TestUpdateSellStats(t *testing.T) {
 	}, p)
 	assert.NoError(t, err)
 
-	if !h.BaseSize.Equal(decimal.NewFromInt(1)) {
+	if !h.BaseSize.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BaseSize)
 	}
-	if !h.BaseValue.Equal(decimal.NewFromInt(500)) {
+	if !h.BaseValue.Equal(udecimal.MustFromFloat64(500)) {
 		t.Errorf("expected '%v' received '%v'", 500, h.BaseValue)
 	}
-	if !h.QuoteInitialFunds.Equal(decimal.NewFromInt(100)) {
+	if !h.QuoteInitialFunds.Equal(udecimal.MustFromFloat64(100)) {
 		t.Errorf("expected '%v' received '%v'", 100, h.QuoteInitialFunds)
 	}
-	if !h.QuoteSize.Equal(decimal.NewFromInt(100)) {
+	if !h.QuoteSize.Equal(udecimal.MustFromFloat64(100)) {
 		t.Errorf("expected '%v' received '%v'", 100, h.QuoteSize)
 	}
-	if !h.TotalValue.Equal(decimal.NewFromInt(600)) {
+	if !h.TotalValue.Equal(udecimal.MustFromFloat64(600)) {
 		t.Errorf("expected '%v' received '%v'", 600, h.TotalValue)
 	}
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
+	if !h.BoughtAmount.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
 	if !h.SoldAmount.IsZero() {
 		t.Errorf("expected '%v' received '%v'", 0, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(1)) {
+	if !h.TotalFees.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.TotalFees)
 	}
 
@@ -314,15 +314,15 @@ func TestUpdateSellStats(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 		Direction:           order.Sell,
-		Amount:              decimal.NewFromInt(1),
-		ClosePrice:          decimal.NewFromInt(500),
-		VolumeAdjustedPrice: decimal.NewFromInt(500),
-		PurchasePrice:       decimal.NewFromInt(500),
+		Amount:              udecimal.MustFromFloat64(1),
+		ClosePrice:          udecimal.MustFromFloat64(500),
+		VolumeAdjustedPrice: udecimal.MustFromFloat64(500),
+		PurchasePrice:       udecimal.MustFromFloat64(500),
 		Order: &order.Detail{
 			Price:       500,
 			Amount:      1,
 			Exchange:    testExchange,
-			OrderID:     "decimal.NewFromInt(1337)",
+			OrderID:     "udecimal.MustFromFloat64(1337)",
 			Type:        order.Limit,
 			Side:        order.Sell,
 			Status:      order.New,
@@ -337,13 +337,13 @@ func TestUpdateSellStats(t *testing.T) {
 	}, p)
 	assert.NoError(t, err)
 
-	if !h.BoughtAmount.Equal(decimal.NewFromInt(1)) {
+	if !h.BoughtAmount.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.BoughtAmount)
 	}
-	if !h.SoldAmount.Equal(decimal.NewFromInt(1)) {
+	if !h.SoldAmount.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("expected '%v' received '%v'", 1, h.SoldAmount)
 	}
-	if !h.TotalFees.Equal(decimal.NewFromInt(2)) {
+	if !h.TotalFees.Equal(udecimal.MustFromFloat64(2)) {
 		t.Errorf("expected '%v' received '%v'", 2, h.TotalFees)
 	}
 }

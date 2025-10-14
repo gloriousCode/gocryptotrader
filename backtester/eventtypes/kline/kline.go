@@ -1,32 +1,32 @@
 package kline
 
 import (
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // GetClosePrice returns the closing price of a kline
-func (k *Kline) GetClosePrice() decimal.Decimal {
+func (k *Kline) GetClosePrice() udecimal.Decimal {
 	return k.Close
 }
 
 // GetHighPrice returns the high price of a kline
-func (k *Kline) GetHighPrice() decimal.Decimal {
+func (k *Kline) GetHighPrice() udecimal.Decimal {
 	return k.High
 }
 
 // GetLowPrice returns the low price of a kline
-func (k *Kline) GetLowPrice() decimal.Decimal {
+func (k *Kline) GetLowPrice() udecimal.Decimal {
 	return k.Low
 }
 
 // GetOpenPrice returns the open price of a kline
-func (k *Kline) GetOpenPrice() decimal.Decimal {
+func (k *Kline) GetOpenPrice() udecimal.Decimal {
 	return k.Open
 }
 
 // GetVolume returns the volume of a kline
-func (k *Kline) GetVolume() decimal.Decimal {
+func (k *Kline) GetVolume() udecimal.Decimal {
 	return k.Volume
 }
 

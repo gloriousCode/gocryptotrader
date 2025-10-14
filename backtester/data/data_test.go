@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -629,24 +629,24 @@ func (f fakeEvent) GetReason() string {
 func (f fakeEvent) AppendReason(string) {
 }
 
-func (f fakeEvent) GetClosePrice() decimal.Decimal {
-	return decimal.Zero
+func (f fakeEvent) GetClosePrice() udecimal.Decimal {
+	return udecimal.Zero
 }
 
-func (f fakeEvent) GetHighPrice() decimal.Decimal {
-	return decimal.Zero
+func (f fakeEvent) GetHighPrice() udecimal.Decimal {
+	return udecimal.Zero
 }
 
-func (f fakeEvent) GetLowPrice() decimal.Decimal {
-	return decimal.Zero
+func (f fakeEvent) GetLowPrice() udecimal.Decimal {
+	return udecimal.Zero
 }
 
-func (f fakeEvent) GetOpenPrice() decimal.Decimal {
-	return decimal.Zero
+func (f fakeEvent) GetOpenPrice() udecimal.Decimal {
+	return udecimal.Zero
 }
 
-func (f fakeEvent) GetVolume() decimal.Decimal {
-	return decimal.Zero
+func (f fakeEvent) GetVolume() udecimal.Decimal {
+	return udecimal.Zero
 }
 
 func (f fakeEvent) GetUnderlyingPair() currency.Pair {
@@ -707,23 +707,23 @@ func (f fakeHandler) Offset() (int64, error) {
 	return 0, nil
 }
 
-func (f fakeHandler) StreamOpen() ([]decimal.Decimal, error) {
+func (f fakeHandler) StreamOpen() ([]udecimal.Decimal, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) StreamHigh() ([]decimal.Decimal, error) {
+func (f fakeHandler) StreamHigh() ([]udecimal.Decimal, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) StreamLow() ([]decimal.Decimal, error) {
+func (f fakeHandler) StreamLow() ([]udecimal.Decimal, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) StreamClose() ([]decimal.Decimal, error) {
+func (f fakeHandler) StreamClose() ([]udecimal.Decimal, error) {
 	return nil, nil
 }
 
-func (f fakeHandler) StreamVol() ([]decimal.Decimal, error) {
+func (f fakeHandler) StreamVol() ([]udecimal.Decimal, error) {
 	return nil, nil
 }
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	elite    = decimal.NewFromInt(1337)
-	neg      = decimal.NewFromInt(-1)
-	one      = decimal.NewFromInt(1)
+	elite    = udecimal.MustFromFloat64(1337)
+	neg      = udecimal.MustFromFloat64(-1)
+	one      = udecimal.MustFromFloat64(1)
 	exchName = "binance"
 	a        = asset.Spot
 	base     = currency.DOGE
@@ -63,7 +63,7 @@ func TestReset(t *testing.T) {
 	f, err := SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
 	assert.NoError(t, err)
 
-	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(baseItem)
@@ -96,13 +96,13 @@ func TestTransfer(t *testing.T) {
 		usingExchangeLevelFunding: false,
 		items:                     nil,
 	}
-	err := f.Transfer(decimal.Zero, nil, nil, false)
+	err := f.Transfer(udecimal.Zero, nil, nil, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	err = f.Transfer(decimal.Zero, &Item{}, nil, false)
+	err = f.Transfer(udecimal.Zero, &Item{}, nil, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	err = f.Transfer(decimal.Zero, &Item{}, &Item{}, false)
+	err = f.Transfer(udecimal.Zero, &Item{}, &Item{}, false)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = f.Transfer(elite, &Item{}, &Item{}, false)
@@ -125,7 +125,7 @@ func TestTransfer(t *testing.T) {
 		t.Errorf("received '%v' expected '%v'", item2.available, elite)
 	}
 	if !item1.available.IsZero() {
-		t.Errorf("received '%v' expected '%v'", item1.available, decimal.Zero)
+		t.Errorf("received '%v' expected '%v'", item1.available, udecimal.Zero)
 	}
 
 	item2.transferFee = one
@@ -143,7 +143,7 @@ func TestAddItem(t *testing.T) {
 	err := f.AddItem(nil)
 	assert.NoError(t, err)
 
-	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(baseItem)
@@ -159,7 +159,7 @@ func TestExists(t *testing.T) {
 	if f.Exists(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	conflictingSingleItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
+	conflictingSingleItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(conflictingSingleItem)
@@ -168,10 +168,10 @@ func TestExists(t *testing.T) {
 	if !f.Exists(conflictingSingleItem) {
 		t.Errorf("received '%v' expected '%v'", false, true)
 	}
-	baseItem, err := CreateItem(exchName, a, base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -207,10 +207,10 @@ func TestExists(t *testing.T) {
 func TestAddPair(t *testing.T) {
 	t.Parallel()
 	f := FundManager{}
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -236,10 +236,10 @@ func TestGetFundingForEvent(t *testing.T) {
 	_, err := f.GetFundingForEvent(e)
 	assert.ErrorIs(t, err, ErrFundsNotFound)
 
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -258,10 +258,10 @@ func TestGetFundingForEAP(t *testing.T) {
 	_, err := f.getFundingForEAP(exchName, a, pair)
 	assert.ErrorIs(t, err, ErrFundsNotFound)
 
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	p, err := CreatePair(baseItem, quoteItem)
@@ -300,8 +300,8 @@ func TestGenerateReport(t *testing.T) {
 	}
 	item := &Item{
 		exchange:     exchName,
-		initialFunds: decimal.NewFromInt(100),
-		available:    decimal.NewFromInt(200),
+		initialFunds: udecimal.MustFromFloat64(100),
+		available:    udecimal.MustFromFloat64(200),
 		currency:     currency.BTC,
 		asset:        a,
 	}
@@ -322,8 +322,8 @@ func TestGenerateReport(t *testing.T) {
 	f.usingExchangeLevelFunding = true
 	err = f.AddItem(&Item{
 		exchange:     exchName,
-		initialFunds: decimal.NewFromInt(100),
-		available:    decimal.NewFromInt(200),
+		initialFunds: udecimal.MustFromFloat64(100),
+		available:    udecimal.MustFromFloat64(200),
 		currency:     currency.USDT,
 		asset:        a,
 	})
@@ -364,8 +364,8 @@ func TestGenerateReport(t *testing.T) {
 	if report.Items[0].Exchange != item.exchange {
 		t.Error("expected matching name")
 	}
-	if !report.Items[1].FinalFunds.Equal(decimal.NewFromInt(200)) {
-		t.Errorf("received %v expected %v", report.Items[1].FinalFunds, decimal.NewFromInt(200))
+	if !report.Items[1].FinalFunds.Equal(udecimal.MustFromFloat64(200)) {
+		t.Errorf("received %v expected %v", report.Items[1].FinalFunds, udecimal.MustFromFloat64(200))
 	}
 }
 
@@ -393,10 +393,10 @@ func TestCreateSnapshot(t *testing.T) {
 		exchange:        "test",
 		asset:           asset.Spot,
 		currency:        currency.BTC,
-		initialFunds:    decimal.NewFromInt(1337),
-		available:       decimal.NewFromInt(1337),
-		reserved:        decimal.NewFromInt(1337),
-		transferFee:     decimal.NewFromInt(1337),
+		initialFunds:    udecimal.MustFromFloat64(1337),
+		available:       udecimal.MustFromFloat64(1337),
+		reserved:        udecimal.MustFromFloat64(1337),
+		transferFee:     udecimal.MustFromFloat64(1337),
 		trackingCandles: dfk,
 	})
 	err = f.CreateSnapshot(dfk.Item.Candles[0].Time)
@@ -425,7 +425,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	err = dfk.Load()
 	assert.ErrorIs(t, err, data.ErrInvalidEventSupplied)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(quoteItem)
@@ -459,7 +459,7 @@ func TestAddUSDTrackingData(t *testing.T) {
 	err = f.AddUSDTrackingData(dfk)
 	assert.NoError(t, err)
 
-	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, decimal.Zero)
+	usdtItem, err := CreateItem(exchName, a, currency.USDT, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	err = f.AddItem(usdtItem)
@@ -491,7 +491,7 @@ func TestFundingLiquidate(t *testing.T) {
 		exchange:  "test",
 		asset:     asset.Spot,
 		currency:  currency.BTC,
-		available: decimal.NewFromInt(1337),
+		available: udecimal.MustFromFloat64(1337),
 	})
 
 	err = f.Liquidate(&signal.Signal{
@@ -518,7 +518,7 @@ func TestHasExchangeBeenLiquidated(t *testing.T) {
 		exchange:  "test",
 		asset:     asset.Spot,
 		currency:  currency.BTC,
-		available: decimal.NewFromInt(1337),
+		available: udecimal.MustFromFloat64(1337),
 	})
 	ev := &signal.Signal{
 		Base: &event.Base{
@@ -552,7 +552,7 @@ func TestGetAllFunding(t *testing.T) {
 		exchange:  "test",
 		asset:     asset.Spot,
 		currency:  currency.BTC,
-		available: decimal.NewFromInt(1337),
+		available: udecimal.MustFromFloat64(1337),
 	})
 
 	resp, err = f.GetAllFunding()
@@ -574,7 +574,7 @@ func TestHasFutures(t *testing.T) {
 		exchange:  "test",
 		asset:     asset.Futures,
 		currency:  currency.BTC,
-		available: decimal.NewFromInt(1337),
+		available: udecimal.MustFromFloat64(1337),
 	})
 	if has := f.HasFutures(); !has {
 		t.Errorf("received '%v' expected '%v'", has, true)
@@ -588,15 +588,15 @@ func TestRealisePNL(t *testing.T) {
 		exchange:     "test",
 		asset:        asset.Futures,
 		currency:     currency.BTC,
-		available:    decimal.NewFromInt(1336),
+		available:    udecimal.MustFromFloat64(1336),
 		isCollateral: true,
 	})
 
-	err := f.RealisePNL("test", asset.Futures, currency.BTC, decimal.NewFromInt(1))
+	err := f.RealisePNL("test", asset.Futures, currency.BTC, udecimal.MustFromFloat64(1))
 	require.NoError(t, err, "RealisePNL must not error")
-	assert.Equal(t, decimal.NewFromInt(1337), f.items[0].available)
+	assert.Equal(t, udecimal.MustFromFloat64(1337), f.items[0].available)
 
-	err = f.RealisePNL("test2", asset.Futures, currency.BTC, decimal.NewFromInt(1))
+	err = f.RealisePNL("test2", asset.Futures, currency.BTC, udecimal.MustFromFloat64(1))
 	assert.ErrorIs(t, err, ErrFundsNotFound)
 }
 
@@ -606,14 +606,14 @@ func TestCreateCollateral(t *testing.T) {
 		exchange:     "test",
 		asset:        asset.Futures,
 		currency:     currency.BTC,
-		available:    decimal.NewFromInt(1336),
+		available:    udecimal.MustFromFloat64(1336),
 		isCollateral: true,
 	}
 	contract := &Item{
 		exchange:  "test",
 		asset:     asset.Futures,
 		currency:  currency.DOGE,
-		available: decimal.NewFromInt(1336),
+		available: udecimal.MustFromFloat64(1336),
 	}
 
 	_, err := CreateCollateral(collat, contract)
@@ -643,7 +643,7 @@ func TestUpdateCollateral(t *testing.T) {
 		exchange:  exchName,
 		asset:     asset.Spot,
 		currency:  currency.BTC,
-		available: decimal.NewFromInt(1336),
+		available: udecimal.MustFromFloat64(1336),
 	})
 	em := engine.NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -661,7 +661,7 @@ func TestUpdateCollateral(t *testing.T) {
 		exchange:     exchName,
 		asset:        asset.Futures,
 		currency:     currency.USD,
-		available:    decimal.NewFromInt(1336),
+		available:    udecimal.MustFromFloat64(1336),
 		isCollateral: true,
 	})
 	err = f.UpdateCollateralForEvent(ev, false)
@@ -740,7 +740,7 @@ func TestSetFunding(t *testing.T) {
 	err = f.SetFunding(exchName, asset.Spot, bal, true)
 	assert.NoError(t, err)
 
-	if !f.items[0].available.Equal(decimal.NewFromFloat(bal.Total)) {
+	if !f.items[0].available.Equal(udecimal.MustFromFloat64(bal.Total)) {
 		t.Errorf("received '%v' expected '%v'", f.items[0].available, bal.Total)
 	}
 	if !f.items[0].initialFunds.Equal(leet) {
@@ -837,16 +837,16 @@ func TestUpdateAllCollateral(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-var leet = decimal.NewFromInt(1337)
+var leet = udecimal.MustFromFloat64(1337)
 
 // fakeEvent implements common.Event without
 // caring about the response, or dealing with import cycles
 type fakeEvent struct{}
 
-func (f *fakeEvent) GetHighPrice() decimal.Decimal    { return leet }
-func (f *fakeEvent) GetLowPrice() decimal.Decimal     { return leet }
-func (f *fakeEvent) GetOpenPrice() decimal.Decimal    { return leet }
-func (f *fakeEvent) GetVolume() decimal.Decimal       { return leet }
+func (f *fakeEvent) GetHighPrice() udecimal.Decimal   { return leet }
+func (f *fakeEvent) GetLowPrice() udecimal.Decimal    { return leet }
+func (f *fakeEvent) GetOpenPrice() udecimal.Decimal   { return leet }
+func (f *fakeEvent) GetVolume() udecimal.Decimal      { return leet }
 func (f *fakeEvent) GetOffset() int64                 { return 0 }
 func (f *fakeEvent) SetOffset(int64)                  {}
 func (f *fakeEvent) IsEvent() bool                    { return true }
@@ -856,7 +856,7 @@ func (f *fakeEvent) GetExchange() string              { return exchName }
 func (f *fakeEvent) GetInterval() gctkline.Interval   { return gctkline.OneMin }
 func (f *fakeEvent) GetAssetType() asset.Item         { return asset.Spot }
 func (f *fakeEvent) AppendReason(string)              {}
-func (f *fakeEvent) GetClosePrice() decimal.Decimal   { return elite }
+func (f *fakeEvent) GetClosePrice() udecimal.Decimal  { return elite }
 func (f *fakeEvent) AppendReasonf(_ string, _ ...any) {}
 func (f *fakeEvent) GetBase() *event.Base             { return &event.Base{} }
 func (f *fakeEvent) GetUnderlyingPair() currency.Pair { return pair }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
@@ -77,7 +77,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 	o.OrderType = gctorder.Market
 	o.BuyLimit = ev.GetBuyLimit()
 	o.SellLimit = ev.GetSellLimit()
-	var sizingFunds decimal.Decimal
+	var sizingFunds udecimal.Decimal
 	side := ev.GetDirection()
 	if ev.GetAssetType() == asset.Spot {
 		if side == gctorder.ClosePosition {
@@ -117,7 +117,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 			sizingFunds = collateralFunds.AvailableFunds()
 		}
 	}
-	if sizingFunds.LessThanOrEqual(decimal.Zero) {
+	if sizingFunds.LessThanOrEqual(udecimal.Zero) {
 		return cannotPurchase(ev, o)
 	}
 	sizedOrder, err := p.sizeOrder(ev, exchangeSettings, o, sizingFunds, funds)
@@ -187,7 +187,7 @@ func (p *Portfolio) evaluateOrder(d common.Directioner, originalOrderSignal, ev 
 	return evaluatedOrder, nil
 }
 
-func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds decimal.Decimal, funds funding.IFundReserver) (*order.Order, error) {
+func (p *Portfolio) sizeOrder(d common.Directioner, cs *exchange.Settings, originalOrderSignal *order.Order, sizingFunds udecimal.Decimal, funds funding.IFundReserver) (*order.Order, error) {
 	sizedOrder, estFee, err := p.sizeManager.SizeOrder(originalOrderSignal, sizingFunds, cs)
 	if err != nil || sizedOrder.Amount.IsZero() {
 		switch originalOrderSignal.Direction {
@@ -278,9 +278,9 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 	}
 	prevSnap := complianceManager.GetLatestSnapshot()
 	if filledOrder := fillEvent.GetOrder(); filledOrder != nil {
-		price := decimal.NewFromFloat(filledOrder.Price)
-		amount := decimal.NewFromFloat(filledOrder.Amount)
-		fee := decimal.NewFromFloat(filledOrder.Fee)
+		price := udecimal.MustFromFloat64(filledOrder.Price)
+		amount := udecimal.MustFromFloat64(filledOrder.Amount)
+		fee := udecimal.MustFromFloat64(filledOrder.Fee)
 		snapOrder := compliance.SnapshotOrder{
 			ClosePrice:          fillEvent.GetClosePrice(),
 			VolumeAdjustedPrice: fillEvent.GetVolumeAdjustedPrice(),
@@ -363,12 +363,12 @@ func (p *Portfolio) GetLatestPosition(e common.Event) (*futures.Position, error)
 
 // UpdatePNL will analyse any futures orders that have been placed over the backtesting run
 // that are not closed and calculate their PNL
-func (p *Portfolio) UpdatePNL(e common.Event, closePrice decimal.Decimal) error {
+func (p *Portfolio) UpdatePNL(e common.Event, closePrice udecimal.Decimal) error {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return err
 	}
-	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
+	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice, e.GetTime())
 	if err != nil && !errors.Is(err, futures.ErrPositionClosed) {
 		return err
 	}
@@ -411,7 +411,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 	if len(pos) == 0 {
 		return nil, fmt.Errorf("%w should not happen", errNoHoldings)
 	}
-	amount := decimal.NewFromFloat(detail.Amount)
+	amount := udecimal.MustFromFloat64(detail.Amount)
 	switch {
 	case ev.IsLiquidated():
 		collateralReleaser.Liquidate()
@@ -481,7 +481,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader fundi
 		return err
 	}
 	if !position.Status.IsInactive() &&
-		pnl.Result.UnrealisedPNL.IsNegative() &&
+		pnl.Result.UnrealisedPNL.LessThan(udecimal.Zero) &&
 		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
 		return futures.ErrPositionLiquidated
 	}
@@ -509,7 +509,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 				continue
 			}
 			pos := positions[len(positions)-1]
-			if !pos.LatestSize.IsPositive() {
+			if !pos.LatestSize.GreaterThan(udecimal.Zero) {
 				continue
 			}
 			direction := gctorder.Short
@@ -763,7 +763,7 @@ func (p *PNLSummary) GetRealisedPNL() BasicPNLResult {
 }
 
 // GetExposure returns the position exposure
-func (p *PNLSummary) GetExposure() decimal.Decimal {
+func (p *PNLSummary) GetExposure() udecimal.Decimal {
 	return p.Result.Exposure
 }
 

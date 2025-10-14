@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -19,36 +19,36 @@ type Holding struct {
 	Offset            int64
 	Item              currency.Code
 	Pair              currency.Pair
-	Asset             asset.Item      `json:"asset"`
-	Exchange          string          `json:"exchange"`
-	Timestamp         time.Time       `json:"timestamp"`
-	BaseInitialFunds  decimal.Decimal `json:"base-initial-funds"`
-	BaseSize          decimal.Decimal `json:"base-size"`
-	BaseValue         decimal.Decimal `json:"base-value"`
-	QuoteInitialFunds decimal.Decimal `json:"quote-initial-funds"`
-	TotalInitialValue decimal.Decimal `json:"total-initial-value"`
-	QuoteSize         decimal.Decimal `json:"quote-size"`
-	SoldAmount        decimal.Decimal `json:"sold-amount"`
-	SoldValue         decimal.Decimal `json:"sold-value"`
-	BoughtAmount      decimal.Decimal `json:"bought-amount"`
-	CommittedFunds    decimal.Decimal `json:"committed-funds"`
+	Asset             asset.Item       `json:"asset"`
+	Exchange          string           `json:"exchange"`
+	Timestamp         time.Time        `json:"timestamp"`
+	BaseInitialFunds  udecimal.Decimal `json:"base-initial-funds"`
+	BaseSize          udecimal.Decimal `json:"base-size"`
+	BaseValue         udecimal.Decimal `json:"base-value"`
+	QuoteInitialFunds udecimal.Decimal `json:"quote-initial-funds"`
+	TotalInitialValue udecimal.Decimal `json:"total-initial-value"`
+	QuoteSize         udecimal.Decimal `json:"quote-size"`
+	SoldAmount        udecimal.Decimal `json:"sold-amount"`
+	SoldValue         udecimal.Decimal `json:"sold-value"`
+	BoughtAmount      udecimal.Decimal `json:"bought-amount"`
+	CommittedFunds    udecimal.Decimal `json:"committed-funds"`
 
 	IsLiquidated bool
 
-	TotalValueDifference      decimal.Decimal
-	ChangeInTotalValuePercent decimal.Decimal
-	PositionsValueDifference  decimal.Decimal
+	TotalValueDifference      udecimal.Decimal
+	ChangeInTotalValuePercent udecimal.Decimal
+	PositionsValueDifference  udecimal.Decimal
 
-	TotalValue                   decimal.Decimal `json:"total-value"`
-	TotalFees                    decimal.Decimal `json:"total-fees"`
-	TotalValueLostToVolumeSizing decimal.Decimal `json:"total-value-lost-to-volume-sizing"`
-	TotalValueLostToSlippage     decimal.Decimal `json:"total-value-lost-to-slippage"`
-	TotalValueLost               decimal.Decimal `json:"total-value-lost"`
+	TotalValue                   udecimal.Decimal `json:"total-value"`
+	TotalFees                    udecimal.Decimal `json:"total-fees"`
+	TotalValueLostToVolumeSizing udecimal.Decimal `json:"total-value-lost-to-volume-sizing"`
+	TotalValueLostToSlippage     udecimal.Decimal `json:"total-value-lost-to-slippage"`
+	TotalValueLost               udecimal.Decimal `json:"total-value-lost"`
 }
 
 // ClosePriceReader is used for holdings calculations
 // without needing to consider event types
 type ClosePriceReader interface {
 	common.Event
-	GetClosePrice() decimal.Decimal
+	GetClosePrice() udecimal.Decimal
 }

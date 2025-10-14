@@ -3,7 +3,7 @@ package portfolio
 import (
 	"strings"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/risk"
@@ -14,11 +14,11 @@ import (
 )
 
 // Setup creates a portfolio manager instance and sets private fields
-func Setup(sh SizeHandler, r risk.Handler, riskFreeRate decimal.Decimal) (*Portfolio, error) {
+func Setup(sh SizeHandler, r risk.Handler, riskFreeRate udecimal.Decimal) (*Portfolio, error) {
 	if sh == nil {
 		return nil, errSizeManagerUnset
 	}
-	if riskFreeRate.IsNegative() {
+	if riskFreeRate.LessThan(udecimal.Zero) {
 		return nil, errNegativeRiskFreeRate
 	}
 	if r == nil {
@@ -38,7 +38,7 @@ func (p *Portfolio) Reset() error {
 		return gctcommon.ErrNilPointer
 	}
 	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangeAssetPair]*Settings)
-	p.riskFreeRate = decimal.Zero
+	p.riskFreeRate = udecimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
 	return nil

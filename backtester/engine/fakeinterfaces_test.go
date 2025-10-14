@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -80,7 +80,7 @@ func (f fakeFolio) TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*portfo
 	return &portfolio.PNLSummary{}, nil
 }
 
-func (f fakeFolio) UpdatePNL(common.Event, decimal.Decimal) error {
+func (f fakeFolio) UpdatePNL(common.Event, udecimal.Decimal) error {
 	return nil
 }
 
@@ -235,7 +235,7 @@ func (f fakeFunding) GetFundingForEvent(common.Event) (funding.IFundingPair, err
 	return &funding.SpotPair{}, nil
 }
 
-func (f fakeFunding) Transfer(decimal.Decimal, *funding.Item, *funding.Item, bool) error {
+func (f fakeFunding) Transfer(udecimal.Decimal, *funding.Item, *funding.Item, bool) error {
 	return nil
 }
 
@@ -275,7 +275,7 @@ func (f fakeFunding) HasExchangeBeenLiquidated(common.Event) bool {
 	return false
 }
 
-func (f fakeFunding) RealisePNL(string, asset.Item, currency.Code, decimal.Decimal) error {
+func (f fakeFunding) RealisePNL(string, asset.Item, currency.Code, udecimal.Decimal) error {
 	return nil
 }
 

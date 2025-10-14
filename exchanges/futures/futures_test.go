@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -57,7 +57,7 @@ func TestUpsertPNLEntry(t *testing.T) {
 	if len(results) != 1 {
 		t.Errorf("expected 1 received %v", len(results))
 	}
-	result.Fee = decimal.NewFromInt(1337)
+	result.Fee = udecimal.MustFromFloat64(1337)
 	results, err = upsertPNLEntry(results, result)
 	assert.NoError(t, err)
 
@@ -111,7 +111,7 @@ func TestTrackNewOrder(t *testing.T) {
 	err = c.TrackNewOrder(od, false)
 	assert.NoError(t, err)
 
-	if !c.openingPrice.Equal(decimal.NewFromInt(1337)) {
+	if !c.openingPrice.Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("expected 1337, received %v", c.openingPrice)
 	}
 	if len(c.longPositions) != 1 {
@@ -152,7 +152,7 @@ func TestTrackNewOrder(t *testing.T) {
 	if c.latestDirection != order.Short {
 		t.Error("expected recognition that its short")
 	}
-	if !c.exposure.Equal(decimal.NewFromFloat(0.2)) {
+	if !c.exposure.Equal(udecimal.MustFromFloat64(0.2)) {
 		t.Errorf("expected %v received %v", 0.2, c.exposure)
 	}
 
@@ -442,8 +442,8 @@ func TestGetLatestPNLSnapshot(t *testing.T) {
 
 	pnl := PNLResult{
 		Time:                  time.Now(),
-		UnrealisedPNL:         decimal.NewFromInt(1337),
-		RealisedPNLBeforeFees: decimal.NewFromInt(1337),
+		UnrealisedPNL:         udecimal.MustFromFloat64(1337),
+		RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
 	}
 	pt.pnlHistory = append(pt.pnlHistory, pnl)
 
@@ -621,26 +621,26 @@ func TestCalculateRealisedPNL(t *testing.T) {
 	result = calculateRealisedPNL([]PNLResult{
 		{
 			IsOrder:               true,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1337),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
 		},
 	})
-	if !result.Equal(decimal.NewFromInt(1337)) {
+	if !result.Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '1337'", result)
 	}
 
 	result = calculateRealisedPNL([]PNLResult{
 		{
 			IsOrder:               true,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1339),
-			Fee:                   decimal.NewFromInt(2),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1339),
+			Fee:                   udecimal.MustFromFloat64(2),
 		},
 		{
 			IsOrder:               true,
-			RealisedPNLBeforeFees: decimal.NewFromInt(2),
-			Fee:                   decimal.NewFromInt(2),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(2),
+			Fee:                   udecimal.MustFromFloat64(2),
 		},
 	})
-	if !result.Equal(decimal.NewFromInt(1337)) {
+	if !result.Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '1337'", result)
 	}
 }
@@ -739,17 +739,17 @@ func TestCalculatePNL(t *testing.T) {
 func TestTrackPNLByTime(t *testing.T) {
 	t.Parallel()
 	p := &PositionTracker{}
-	err := p.TrackPNLByTime(time.Now(), 1)
+	err := p.TrackPNLByTime(time.Now(), udecimal.MustFromFloat64(1))
 	assert.NoError(t, err)
 
-	err = p.TrackPNLByTime(time.Now(), 2)
+	err = p.TrackPNLByTime(time.Now(), udecimal.MustFromFloat64(2))
 	assert.NoError(t, err)
 
-	if !p.latestPrice.Equal(decimal.NewFromInt(2)) {
+	if !p.latestPrice.Equal(udecimal.MustFromFloat64(2)) {
 		t.Error("expected 2")
 	}
 	p = nil
-	err = p.TrackPNLByTime(time.Now(), 2)
+	err = p.TrackPNLByTime(time.Now(), udecimal.MustFromFloat64(2))
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
@@ -757,13 +757,13 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	t.Parallel()
 	pc := SetupPositionController()
 
-	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
+	_, err := pc.UpdateOpenPositionUnrealisedPNL("", asset.Futures, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Spot, currency.NewBTCUSDT(), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Spot, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, ErrNotFuturesAsset)
 
 	err = pc.TrackNewOrder(&order.Detail{
@@ -778,24 +778,24 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi2", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi2", asset.Futures, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.PerpetualSwap, currency.NewBTCUSDT(), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.PerpetualSwap, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
-	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.DOGE), 2, time.Now())
+	_, err = pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewPair(currency.BTC, currency.DOGE), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
-	pnl, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
+	pnl, err := pc.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.NoError(t, err)
 
-	if !pnl.Equal(decimal.NewFromInt(1)) {
+	if !pnl.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("received '%v' expected '%v", pnl, 1)
 	}
 
 	var nilPC *PositionController
-	_, err = nilPC.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), 2, time.Now())
+	_, err = nilPC.UpdateOpenPositionUnrealisedPNL("hi", asset.Futures, currency.NewBTCUSDT(), udecimal.MustFromFloat64(2), time.Now())
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
@@ -868,19 +868,19 @@ func TestMPTUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	require.NoError(t, err)
 
 	mapKey := key.NewExchangeAssetPair("hi", asset.Futures, p)
-	result, err := pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(1337, time.Now())
+	result, err := pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(udecimal.MustFromFloat64(1337), time.Now())
 	require.NoError(t, err)
 
-	if result.Equal(decimal.NewFromInt(1337)) {
+	if result.Equal(udecimal.MustFromFloat64(1337)) {
 		t.Error("")
 	}
 
 	pc.multiPositionTrackers[mapKey].positions[0].status = order.Closed
-	_, err = pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(1337, time.Now())
+	_, err = pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(udecimal.MustFromFloat64(1337), time.Now())
 	require.ErrorIs(t, err, ErrPositionClosed)
 
 	pc.multiPositionTrackers[mapKey].positions = nil
-	_, err = pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(1337, time.Now())
+	_, err = pc.multiPositionTrackers[mapKey].UpdateOpenPositionUnrealisedPNL(udecimal.MustFromFloat64(1337), time.Now())
 	require.ErrorIs(t, err, ErrPositionNotFound)
 }
 
@@ -897,7 +897,7 @@ func TestMPTLiquidate(t *testing.T) {
 		orderPositions:         make(map[string]*PositionTracker),
 	}
 
-	err = e.Liquidate(decimal.Zero, time.Time{})
+	err = e.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, ErrPositionNotFound)
 
 	setup := &PositionTrackerSetup{
@@ -924,10 +924,10 @@ func TestMPTLiquidate(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = e.Liquidate(decimal.Zero, time.Time{})
+	err = e.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, order.ErrCannotLiquidate)
 
-	err = e.Liquidate(decimal.Zero, tt)
+	err = e.Liquidate(udecimal.Zero, tt)
 	assert.NoError(t, err)
 
 	if e.positions[0].status != order.Liquidated {
@@ -938,7 +938,7 @@ func TestMPTLiquidate(t *testing.T) {
 	}
 
 	e = nil
-	err = e.Liquidate(decimal.Zero, tt)
+	err = e.Liquidate(udecimal.Zero, tt)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
@@ -970,10 +970,10 @@ func TestPositionLiquidate(t *testing.T) {
 	}, false)
 	assert.NoError(t, err)
 
-	err = p.Liquidate(decimal.Zero, time.Time{})
+	err = p.Liquidate(udecimal.Zero, time.Time{})
 	assert.ErrorIs(t, err, order.ErrCannotLiquidate)
 
-	err = p.Liquidate(decimal.Zero, tt)
+	err = p.Liquidate(udecimal.Zero, tt)
 	assert.NoError(t, err)
 
 	if p.status != order.Liquidated {
@@ -984,7 +984,7 @@ func TestPositionLiquidate(t *testing.T) {
 	}
 
 	p = nil
-	err = p.Liquidate(decimal.Zero, tt)
+	err = p.Liquidate(udecimal.Zero, tt)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 }
 
@@ -1077,8 +1077,8 @@ func TestPCTrackFundingDetails(t *testing.T) {
 	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    tn,
-			Rate:    decimal.NewFromInt(1337),
-			Payment: decimal.NewFromInt(1337),
+			Rate:    udecimal.MustFromFloat64(1337),
+			Payment: udecimal.MustFromFloat64(1337),
 		},
 	}
 
@@ -1138,8 +1138,8 @@ func TestMPTTrackFundingDetails(t *testing.T) {
 	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    tn,
-			Rate:    decimal.NewFromInt(1337),
-			Payment: decimal.NewFromInt(1337),
+			Rate:    udecimal.MustFromFloat64(1337),
+			Payment: udecimal.MustFromFloat64(1337),
 		},
 	}
 	mpt.orderPositions["lol"].openingDate = tn.Add(-time.Hour)
@@ -1178,11 +1178,11 @@ func TestPTTrackFundingDetails(t *testing.T) {
 
 	p.pnlHistory = append(p.pnlHistory, PNLResult{
 		Time:                  rates.EndDate,
-		UnrealisedPNL:         decimal.NewFromInt(1337),
-		RealisedPNLBeforeFees: decimal.NewFromInt(1337),
-		Price:                 decimal.NewFromInt(1337),
-		Exposure:              decimal.NewFromInt(1337),
-		Fee:                   decimal.NewFromInt(1337),
+		UnrealisedPNL:         udecimal.MustFromFloat64(1337),
+		RealisedPNLBeforeFees: udecimal.MustFromFloat64(1337),
+		Price:                 udecimal.MustFromFloat64(1337),
+		Exposure:              udecimal.MustFromFloat64(1337),
+		Fee:                   udecimal.MustFromFloat64(1337),
 	})
 	err = p.TrackFundingDetails(rates)
 	assert.NoError(t, err)
@@ -1190,8 +1190,8 @@ func TestPTTrackFundingDetails(t *testing.T) {
 	rates.FundingRates = []fundingrate.Rate{
 		{
 			Time:    rates.StartDate,
-			Rate:    decimal.NewFromInt(1337),
-			Payment: decimal.NewFromInt(1337),
+			Rate:    udecimal.MustFromFloat64(1337),
+			Payment: udecimal.MustFromFloat64(1337),
 		},
 	}
 	err = p.TrackFundingDetails(rates)

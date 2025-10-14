@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -38,7 +38,7 @@ type RateHistoryRequest struct {
 	// and borrow costs to be calculated offline. It requires the takerfeerate
 	// and existing rates
 	CalculateOffline bool
-	TakeFeeRate      decimal.Decimal
+	TakeFeeRate      udecimal.Decimal
 	// Rates is used when calculating offline and determiningPayments
 	// Each Rate must have the Rate and Size fields populated
 	Rates []Rate
@@ -102,35 +102,35 @@ const (
 // RateHistoryResponse has the funding rate details
 type RateHistoryResponse struct {
 	Rates              []Rate
-	SumBorrowCosts     decimal.Decimal
-	AverageBorrowSize  decimal.Decimal
-	SumLendingPayments decimal.Decimal
-	AverageLendingSize decimal.Decimal
+	SumBorrowCosts     udecimal.Decimal
+	AverageBorrowSize  udecimal.Decimal
+	SumLendingPayments udecimal.Decimal
+	AverageLendingSize udecimal.Decimal
 	PredictedRate      Rate
-	TakerFeeRate       decimal.Decimal
+	TakerFeeRate       udecimal.Decimal
 }
 
 // Rate has the funding rate details
 // and optionally the borrow rate
 type Rate struct {
 	Time             time.Time
-	MarketBorrowSize decimal.Decimal
-	HourlyRate       decimal.Decimal
-	YearlyRate       decimal.Decimal
-	HourlyBorrowRate decimal.Decimal
-	YearlyBorrowRate decimal.Decimal
+	MarketBorrowSize udecimal.Decimal
+	HourlyRate       udecimal.Decimal
+	YearlyRate       udecimal.Decimal
+	HourlyBorrowRate udecimal.Decimal
+	YearlyBorrowRate udecimal.Decimal
 	LendingPayment   LendingPayment
 	BorrowCost       BorrowCost
 }
 
 // LendingPayment contains a lending rate payment
 type LendingPayment struct {
-	Payment decimal.Decimal
-	Size    decimal.Decimal
+	Payment udecimal.Decimal
+	Size    udecimal.Decimal
 }
 
 // BorrowCost contains the borrow rate costs
 type BorrowCost struct {
-	Cost decimal.Decimal
-	Size decimal.Decimal
+	Cost udecimal.Decimal
+	Size udecimal.Decimal
 }

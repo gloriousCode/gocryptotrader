@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -137,7 +137,7 @@ func (d *Data) enhanceCandles() error {
 	if d.Statistics == nil {
 		return errStatisticsUnset
 	}
-	d.Statistics.RiskFreeRate = d.Statistics.RiskFreeRate.Mul(decimal.NewFromInt(100))
+	d.Statistics.RiskFreeRate = d.Statistics.RiskFreeRate.Mul(udecimal.MustFromInt64(100, 0))
 
 	for intVal := range d.OriginalCandles {
 		lookup := d.OriginalCandles[intVal]
@@ -197,7 +197,7 @@ func (d *Data) enhanceCandles() error {
 				}
 				// an order was placed here, can enhance chart!
 				enhancedCandle.MadeOrder = true
-				enhancedCandle.OrderAmount = decimal.NewFromFloat(statsForCandles.FinalOrders.Orders[k].Order.Amount)
+				enhancedCandle.OrderAmount = udecimal.MustFromFloat64(statsForCandles.FinalOrders.Orders[k].Order.Amount)
 				enhancedCandle.PurchasePrice = statsForCandles.FinalOrders.Orders[k].Order.Price
 				enhancedCandle.OrderDirection = statsForCandles.FinalOrders.Orders[k].Order.Side
 				switch enhancedCandle.OrderDirection {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1243,7 +1243,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	unrealised, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 2, time.Now())
 	assert.NoError(t, err)
 
-	if !unrealised.Equal(decimal.NewFromInt(1)) {
+	if !unrealised.Equal(udecimal.MustFromFloat64(1)) {
 		t.Errorf("received '%v', expected '%v'", unrealised, 1)
 	}
 

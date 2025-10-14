@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -29,10 +29,10 @@ import (
 const testExchange = "binance"
 
 var (
-	eleeg  = decimal.NewFromInt(1336)
-	eleet  = decimal.NewFromInt(1337)
-	eleeet = decimal.NewFromInt(13337)
-	eleeb  = decimal.NewFromInt(1338)
+	eleeg  = udecimal.MustFromFloat64(1336)
+	eleet  = udecimal.MustFromFloat64(1337)
+	eleeet = udecimal.MustFromFloat64(13337)
+	eleeb  = udecimal.MustFromFloat64(1338)
 )
 
 func TestReset(t *testing.T) {
@@ -678,10 +678,10 @@ func TestCalculateTheResults(t *testing.T) {
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false, false)
 	assert.NoError(t, err)
 
-	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, decimal.Zero)
+	pBase, err := funding.CreateItem(exch, a, p.Base, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
-	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, decimal.Zero)
+	pQuote, err := funding.CreateItem(exch, a, p.Quote, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair, err := funding.CreatePair(pBase, pQuote)
@@ -690,10 +690,10 @@ func TestCalculateTheResults(t *testing.T) {
 	err = funds.AddPair(pair)
 	assert.NoError(t, err)
 
-	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, decimal.Zero)
+	pBase2, err := funding.CreateItem(exch, a, p2.Base, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
-	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, decimal.Zero)
+	pQuote2, err := funding.CreateItem(exch, a, p2.Quote, eleeet, udecimal.Zero)
 	assert.NoError(t, err)
 
 	pair2, err := funding.CreatePair(pBase2, pQuote2)
@@ -727,7 +727,7 @@ func TestCalculateTheResults(t *testing.T) {
 }
 
 func TestCalculateBiggestEventDrawdown(t *testing.T) {
-	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).Round(gctkline.OneDay.Duration())
+	tt1 := time.Now().Add(-gctkline.OneDay.Duration() * 7).RoundBank(gctkline.OneDay.Duration())
 	exch := testExchange
 	a := asset.Spot
 	p := currency.NewBTCUSDT()
@@ -745,16 +745,16 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 			// throw in a wrench, a spike in price
 			events = append(events, &kline.Kline{
 				Base:  even,
-				Close: decimal.NewFromInt(1336),
-				High:  decimal.NewFromInt(1336),
-				Low:   decimal.NewFromInt(1336),
+				Close: udecimal.MustFromFloat64(1336),
+				High:  udecimal.MustFromFloat64(1336),
+				Low:   udecimal.MustFromFloat64(1336),
 			})
 		} else {
 			events = append(events, &kline.Kline{
 				Base:  even,
-				Close: decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
-				High:  decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
-				Low:   decimal.NewFromInt(1337).Sub(decimal.NewFromInt(i)),
+				Close: udecimal.MustFromFloat64(1337).Sub(udecimal.MustFromFloat64(i)),
+				High:  udecimal.MustFromFloat64(1337).Sub(udecimal.MustFromFloat64(i)),
+				Low:   udecimal.MustFromFloat64(1337).Sub(udecimal.MustFromFloat64(i)),
 			})
 		}
 	}
@@ -769,9 +769,9 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: decimal.NewFromInt(1338),
-		High:  decimal.NewFromInt(1338),
-		Low:   decimal.NewFromInt(1338),
+		Close: udecimal.MustFromFloat64(1338),
+		High:  udecimal.MustFromFloat64(1338),
+		Low:   udecimal.MustFromFloat64(1338),
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -784,9 +784,9 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: decimal.NewFromInt(1337),
-		High:  decimal.NewFromInt(1337),
-		Low:   decimal.NewFromInt(1337),
+		Close: udecimal.MustFromFloat64(1337),
+		High:  udecimal.MustFromFloat64(1337),
+		Low:   udecimal.MustFromFloat64(1337),
 	})
 
 	tt1 = tt1.Add(gctkline.OneDay.Duration())
@@ -799,9 +799,9 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	}
 	events = append(events, &kline.Kline{
 		Base:  even,
-		Close: decimal.NewFromInt(1339),
-		High:  decimal.NewFromInt(1339),
-		Low:   decimal.NewFromInt(1339),
+		Close: udecimal.MustFromFloat64(1339),
+		High:  udecimal.MustFromFloat64(1339),
+		Low:   udecimal.MustFromFloat64(1339),
 	})
 
 	_, err := CalculateBiggestEventDrawdown(nil)
@@ -810,7 +810,7 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 	resp, err := CalculateBiggestEventDrawdown(events)
 	assert.NoError(t, err)
 
-	if resp.Highest.Value != decimal.NewFromInt(1337) && !resp.Lowest.Value.Equal(decimal.NewFromInt(1238)) {
+	if resp.Highest.Value != udecimal.MustFromFloat64(1337) && !resp.Lowest.Value.Equal(udecimal.MustFromFloat64(1238)) {
 		t.Error("unexpected max drawdown")
 	}
 
@@ -822,9 +822,9 @@ func TestCalculateBiggestEventDrawdown(t *testing.T) {
 				CurrencyPair: p,
 				AssetType:    a,
 			},
-			Close: decimal.NewFromInt(1339),
-			High:  decimal.NewFromInt(1339),
-			Low:   decimal.NewFromInt(1339),
+			Close: udecimal.MustFromFloat64(1339),
+			High:  udecimal.MustFromFloat64(1339),
+			Low:   udecimal.MustFromFloat64(1339),
 		},
 	}
 	_, err = CalculateBiggestEventDrawdown(bogusEvent)

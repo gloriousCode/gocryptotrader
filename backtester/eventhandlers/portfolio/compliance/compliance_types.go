@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -27,9 +27,9 @@ type Snapshot struct {
 // SnapshotOrder adds some additional data that's only relevant for backtesting
 // to the order.Detail without adding to order.Detail
 type SnapshotOrder struct {
-	ClosePrice          decimal.Decimal `json:"close-price"`
-	VolumeAdjustedPrice decimal.Decimal `json:"volume-adjusted-price"`
-	SlippageRate        decimal.Decimal `json:"slippage-rate"`
-	CostBasis           decimal.Decimal `json:"cost-basis"`
-	Order               *order.Detail   `json:"order-detail"`
+	ClosePrice          udecimal.Decimal `json:"close-price"`
+	VolumeAdjustedPrice udecimal.Decimal `json:"volume-adjusted-price"`
+	SlippageRate        udecimal.Decimal `json:"slippage-rate"`
+	CostBasis           udecimal.Decimal `json:"cost-basis"`
+	Order               *order.Detail    `json:"order-detail"`
 }

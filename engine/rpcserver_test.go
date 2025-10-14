@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -71,7 +71,7 @@ type fExchange struct {
 }
 
 func (f fExchange) GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	return &futures.PositionSummary{
 		MaintenanceMarginRequirement: leet,
 		InitialMarginRequirement:     leet,
@@ -164,7 +164,7 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 }
 
 func (f fExchange) GetLatestFundingRates(_ context.Context, request *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	return []fundingrate.LatestRateResponse{
 		{
 			Exchange: f.GetName(),
@@ -186,7 +186,7 @@ func (f fExchange) GetLatestFundingRates(_ context.Context, request *fundingrate
 }
 
 func (f fExchange) GetHistoricalFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	return &fundingrate.HistoricalRates{
 		Exchange:  f.GetName(),
 		Asset:     request.Asset,
@@ -267,7 +267,7 @@ func (f fExchange) GetCurrencyTradeURL(_ context.Context, _ asset.Item, _ curren
 }
 
 func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	rates := []margin.Rate{
 		{
 			Time:             time.Now(),
@@ -344,42 +344,42 @@ func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (accoun
 func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
 	return &futures.TotalCollateralResponse{
 		CollateralCurrency:             currency.USD,
-		AvailableMaintenanceCollateral: decimal.NewFromInt(1338),
-		AvailableCollateral:            decimal.NewFromInt(1337),
+		AvailableMaintenanceCollateral: udecimal.MustFromFloat64(1338),
+		AvailableCollateral:            udecimal.MustFromFloat64(1337),
 		UsedBreakdown: &collateral.UsedBreakdown{
-			LockedInStakes:                  decimal.NewFromInt(3),
-			LockedInNFTBids:                 decimal.NewFromInt(3),
-			LockedInFeeVoucher:              decimal.NewFromInt(3),
-			LockedInSpotMarginFundingOffers: decimal.NewFromInt(3),
-			LockedInSpotOrders:              decimal.NewFromInt(3),
-			LockedAsCollateral:              decimal.NewFromInt(3),
+			LockedInStakes:                  udecimal.MustFromFloat64(3),
+			LockedInNFTBids:                 udecimal.MustFromFloat64(3),
+			LockedInFeeVoucher:              udecimal.MustFromFloat64(3),
+			LockedInSpotMarginFundingOffers: udecimal.MustFromFloat64(3),
+			LockedInSpotOrders:              udecimal.MustFromFloat64(3),
+			LockedAsCollateral:              udecimal.MustFromFloat64(3),
 		},
 		BreakdownByCurrency: []collateral.ByCurrency{
 			{
 				Currency:               currency.USD,
-				TotalFunds:             decimal.NewFromInt(1330),
-				CollateralContribution: decimal.NewFromInt(1330),
+				TotalFunds:             udecimal.MustFromFloat64(1330),
+				CollateralContribution: udecimal.MustFromFloat64(1330),
 				ScaledCurrency:         currency.USD,
 			},
 			{
 				Currency:   currency.DOGE,
-				TotalFunds: decimal.NewFromInt(1000),
-				ScaledUsed: decimal.NewFromInt(6),
+				TotalFunds: udecimal.MustFromFloat64(1000),
+				ScaledUsed: udecimal.MustFromFloat64(6),
 				ScaledUsedBreakdown: &collateral.UsedBreakdown{
-					LockedInStakes:                  decimal.NewFromInt(1),
-					LockedInNFTBids:                 decimal.NewFromInt(1),
-					LockedInFeeVoucher:              decimal.NewFromInt(1),
-					LockedInSpotMarginFundingOffers: decimal.NewFromInt(1),
-					LockedInSpotOrders:              decimal.NewFromInt(1),
-					LockedAsCollateral:              decimal.NewFromInt(1),
+					LockedInStakes:                  udecimal.MustFromFloat64(1),
+					LockedInNFTBids:                 udecimal.MustFromFloat64(1),
+					LockedInFeeVoucher:              udecimal.MustFromFloat64(1),
+					LockedInSpotMarginFundingOffers: udecimal.MustFromFloat64(1),
+					LockedInSpotOrders:              udecimal.MustFromFloat64(1),
+					LockedAsCollateral:              udecimal.MustFromFloat64(1),
 				},
-				CollateralContribution: decimal.NewFromInt(4),
+				CollateralContribution: udecimal.MustFromFloat64(4),
 				ScaledCurrency:         currency.USD,
 			},
 			{
 				Currency:               currency.XRP,
-				TotalFunds:             decimal.NewFromInt(1333333333333337),
-				CollateralContribution: decimal.NewFromInt(-3),
+				TotalFunds:             udecimal.MustFromFloat64(1333333333333337),
+				CollateralContribution: udecimal.MustFromFloat64(-3),
 				ScaledCurrency:         currency.USD,
 			},
 		},

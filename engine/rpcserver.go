@@ -18,7 +18,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -4157,7 +4157,7 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 		OrderCount:       int64(len(position.Orders)),
 	}
 	if getFundingPayments {
-		var sum decimal.Decimal
+		var sum udecimal.Decimal
 		fundingData := &gctrpc.FundingData{}
 		for i := range position.FundingRates.FundingRates {
 			if includeFundingRates {
@@ -4812,8 +4812,8 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 
 	calculators := make([]futures.CollateralCalculator, 0, len(acc.Currencies))
 	for i := range acc.Currencies {
-		total := decimal.NewFromFloat(acc.Currencies[i].Total)
-		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
+		total := udecimal.MustFromFloat64(acc.Currencies[i].Total)
+		free := udecimal.MustFromFloat64(acc.Currencies[i].AvailableWithoutBorrow)
 		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].Currency,
@@ -4837,7 +4837,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 			if tick.Last == 0 {
 				continue
 			}
-			cal.USDPrice = decimal.NewFromFloat(tick.Last)
+			cal.USDPrice = udecimal.MustFromFloat64(tick.Last)
 		}
 		calculators = append(calculators, cal)
 	}
@@ -5215,12 +5215,12 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		if r.TakerFeeRate == "" {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
-		req.TakeFeeRate, err = decimal.NewFromString(r.TakerFeeRate)
+		req.TakeFeeRate = udecimal.MustParse(r.TakerFeeRate)
 		if err != nil {
 			return nil, err
 		}
 
-		if req.TakeFeeRate.LessThanOrEqual(decimal.Zero) {
+		if req.TakeFeeRate.LessThanOrEqual(udecimal.Zero) {
 			return nil, fmt.Errorf("%w for offline calculations", common.ErrCannotCalculateOffline)
 		}
 		if len(r.Rates) == 0 {
@@ -5234,19 +5234,19 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 				return nil, err
 			}
 
-			offlineRate.HourlyRate, err = decimal.NewFromString(r.Rates[i].HourlyRate)
+			offlineRate.HourlyRate = udecimal.MustParse(r.Rates[i].HourlyRate)
 			if err != nil {
 				return nil, err
 			}
 
 			if r.Rates[i].BorrowCost != nil {
-				offlineRate.BorrowCost.Size, err = decimal.NewFromString(r.Rates[i].BorrowCost.Size)
+				offlineRate.BorrowCost.Size = udecimal.MustParse(r.Rates[i].BorrowCost.Size)
 				if err != nil {
 					return nil, err
 				}
 			}
 			if r.Rates[i].LendingPayment != nil {
-				offlineRate.LendingPayment.Size, err = decimal.NewFromString(r.Rates[i].LendingPayment.Size)
+				offlineRate.LendingPayment.Size = udecimal.MustParse(r.Rates[i].LendingPayment.Size)
 				if err != nil {
 					return nil, err
 				}

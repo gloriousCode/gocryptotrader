@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -38,7 +38,7 @@ type IFundingManager interface {
 	Reset() error
 	IsUsingExchangeLevelFunding() bool
 	GetFundingForEvent(common.Event) (IFundingPair, error)
-	Transfer(decimal.Decimal, *Item, *Item, bool) error
+	Transfer(udecimal.Decimal, *Item, *Item, bool) error
 	GenerateReport() (*Report, error)
 	AddUSDTrackingData(*kline.DataFromKline) error
 	CreateSnapshot(time.Time) error
@@ -50,7 +50,7 @@ type IFundingManager interface {
 	UpdateFundingFromLiveData(hasUpdatedFunding bool) error
 	HasFutures() bool
 	HasExchangeBeenLiquidated(handler common.Event) bool
-	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL decimal.Decimal) error
+	RealisePNL(receivingExchange string, receivingAsset asset.Item, receivingCurrency currency.Code, realisedPNL udecimal.Decimal) error
 	SetFunding(string, asset.Item, *account.Balance, bool) error
 }
 
@@ -58,7 +58,7 @@ type IFundingManager interface {
 // implementation can be swapped for live transferring
 type IFundingTransferer interface {
 	IsUsingExchangeLevelFunding() bool
-	Transfer(decimal.Decimal, *Item, *Item, bool) error
+	Transfer(udecimal.Decimal, *Item, *Item, bool) error
 	GetFundingForEvent(common.Event) (IFundingPair, error)
 	HasExchangeBeenLiquidated(handler common.Event) bool
 }
@@ -90,7 +90,7 @@ type IFundReader interface {
 type IFundReserver interface {
 	IFundReader
 	CanPlaceOrder(order.Side) bool
-	Reserve(decimal.Decimal, order.Side) error
+	Reserve(udecimal.Decimal, order.Side) error
 }
 
 // IFundReleaser can read
@@ -104,10 +104,10 @@ type IFundReleaser interface {
 // IPairReader is used to limit pair funding functions
 // to readonly
 type IPairReader interface {
-	BaseInitialFunds() decimal.Decimal
-	QuoteInitialFunds() decimal.Decimal
-	BaseAvailable() decimal.Decimal
-	QuoteAvailable() decimal.Decimal
+	BaseInitialFunds() udecimal.Decimal
+	QuoteInitialFunds() udecimal.Decimal
+	BaseAvailable() udecimal.Decimal
+	QuoteAvailable() udecimal.Decimal
 }
 
 // ICollateralReader is used to read data from
@@ -115,25 +115,25 @@ type IPairReader interface {
 type ICollateralReader interface {
 	ContractCurrency() currency.Code
 	CollateralCurrency() currency.Code
-	InitialFunds() decimal.Decimal
-	AvailableFunds() decimal.Decimal
-	CurrentHoldings() decimal.Decimal
+	InitialFunds() udecimal.Decimal
+	AvailableFunds() udecimal.Decimal
+	CurrentHoldings() udecimal.Decimal
 }
 
 // IPairReleaser limits funding usage for exchange event handling
 type IPairReleaser interface {
 	IPairReader
-	IncreaseAvailable(decimal.Decimal, order.Side) error
-	Release(decimal.Decimal, decimal.Decimal, order.Side) error
+	IncreaseAvailable(udecimal.Decimal, order.Side) error
+	Release(udecimal.Decimal, udecimal.Decimal, order.Side) error
 	Liquidate()
 }
 
 // ICollateralReleaser limits funding usage for exchange event handling
 type ICollateralReleaser interface {
 	ICollateralReader
-	UpdateContracts(order.Side, decimal.Decimal) error
-	TakeProfit(contracts, positionReturns decimal.Decimal) error
-	ReleaseContracts(decimal.Decimal) error
+	UpdateContracts(order.Side, udecimal.Decimal) error
+	TakeProfit(contracts, positionReturns udecimal.Decimal) error
+	ReleaseContracts(udecimal.Decimal) error
 	Liquidate()
 }
 
@@ -152,10 +152,10 @@ type Item struct {
 	exchange          string
 	asset             asset.Item
 	currency          currency.Code
-	initialFunds      decimal.Decimal
-	available         decimal.Decimal
-	reserved          decimal.Decimal
-	transferFee       decimal.Decimal
+	initialFunds      udecimal.Decimal
+	available         udecimal.Decimal
+	reserved          udecimal.Decimal
+	transferFee       udecimal.Decimal
 	pairedWith        *Item
 	trackingCandles   *kline.DataFromKline
 	snapshot          map[int64]ItemSnapshot
@@ -184,10 +184,10 @@ type BasicItem struct {
 	Exchange     string
 	Asset        asset.Item
 	Currency     currency.Code
-	InitialFunds decimal.Decimal
-	Available    decimal.Decimal
-	Reserved     decimal.Decimal
-	USDPrice     decimal.Decimal
+	InitialFunds udecimal.Decimal
+	Available    udecimal.Decimal
+	Reserved     udecimal.Decimal
+	USDPrice     udecimal.Decimal
 }
 
 // Report holds all funding data for result reporting
@@ -196,8 +196,8 @@ type Report struct {
 	UsingExchangeLevelFunding bool
 	Items                     []ReportItem
 	USDTotalsOverTime         []ItemSnapshot
-	InitialFunds              decimal.Decimal
-	FinalFunds                decimal.Decimal
+	InitialFunds              udecimal.Decimal
+	FinalFunds                udecimal.Decimal
 }
 
 // ReportItem holds reporting fields
@@ -205,16 +205,16 @@ type ReportItem struct {
 	Exchange             string
 	Asset                asset.Item
 	Currency             currency.Code
-	TransferFee          decimal.Decimal
-	InitialFunds         decimal.Decimal
-	FinalFunds           decimal.Decimal
-	USDInitialFunds      decimal.Decimal
-	USDInitialCostForOne decimal.Decimal
-	USDFinalFunds        decimal.Decimal
-	USDFinalCostForOne   decimal.Decimal
+	TransferFee          udecimal.Decimal
+	InitialFunds         udecimal.Decimal
+	FinalFunds           udecimal.Decimal
+	USDInitialFunds      udecimal.Decimal
+	USDInitialCostForOne udecimal.Decimal
+	USDFinalFunds        udecimal.Decimal
+	USDFinalCostForOne   udecimal.Decimal
 	Snapshots            []ItemSnapshot
 	USDPairCandle        *kline.DataFromKline
-	Difference           decimal.Decimal
+	Difference           udecimal.Decimal
 	ShowInfinite         bool
 	IsCollateral         bool
 	AppendedViaAPI       bool
@@ -225,9 +225,9 @@ type ReportItem struct {
 // across backtesting results
 type ItemSnapshot struct {
 	Time          time.Time
-	Available     decimal.Decimal
-	USDClosePrice decimal.Decimal
-	USDValue      decimal.Decimal
+	Available     udecimal.Decimal
+	USDClosePrice udecimal.Decimal
+	USDValue      udecimal.Decimal
 	Breakdown     []CurrencyContribution
 }
 
@@ -235,5 +235,5 @@ type ItemSnapshot struct {
 // determines its number
 type CurrencyContribution struct {
 	Currency        currency.Code
-	USDContribution decimal.Decimal
+	USDContribution udecimal.Decimal
 }

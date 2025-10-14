@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
@@ -104,11 +104,11 @@ func TestOnSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -137,13 +137,13 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.mfiHigh.Equal(decimal.NewFromInt(70)) {
+	if !s.mfiHigh.Equal(udecimal.MustFromFloat64(70)) {
 		t.Error("expected 70")
 	}
-	if !s.mfiLow.Equal(decimal.NewFromInt(30)) {
+	if !s.mfiLow.Equal(udecimal.MustFromFloat64(30)) {
 		t.Error("expected 30")
 	}
-	if !s.mfiPeriod.Equal(decimal.NewFromInt(14)) {
+	if !s.mfiPeriod.Equal(udecimal.MustFromFloat64(14)) {
 		t.Error("expected 14")
 	}
 }
@@ -160,42 +160,42 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 		{
 			event: &signal.Signal{
 				Base:       b,
-				ClosePrice: decimal.NewFromInt(99),
+				ClosePrice: udecimal.MustFromFloat64(99),
 				Direction:  order.DoNothing,
 			},
-			mfi: decimal.NewFromInt(99),
+			mfi: udecimal.MustFromFloat64(99),
 		},
 		{
 			event: &signal.Signal{
 				Base:       b,
-				ClosePrice: decimal.NewFromInt(98),
+				ClosePrice: udecimal.MustFromFloat64(98),
 				Direction:  order.DoNothing,
 			},
-			mfi: decimal.NewFromInt(98),
+			mfi: udecimal.MustFromFloat64(98),
 		},
 		{
 			event: &signal.Signal{
 				Base:       b,
-				ClosePrice: decimal.NewFromInt(1),
+				ClosePrice: udecimal.MustFromFloat64(1),
 				Direction:  order.DoNothing,
 			},
-			mfi: decimal.NewFromInt(1),
+			mfi: udecimal.MustFromFloat64(1),
 		},
 		{
 			event: &signal.Signal{
 				Base:       b,
-				ClosePrice: decimal.NewFromInt(2),
+				ClosePrice: udecimal.MustFromFloat64(2),
 				Direction:  order.DoNothing,
 			},
-			mfi: decimal.NewFromInt(2),
+			mfi: udecimal.MustFromFloat64(2),
 		},
 		{
 			event: &signal.Signal{
 				Base:       b,
-				ClosePrice: decimal.NewFromInt(50),
+				ClosePrice: udecimal.MustFromFloat64(50),
 				Direction:  order.DoNothing,
 			},
-			mfi: decimal.NewFromInt(50),
+			mfi: udecimal.MustFromFloat64(50),
 		},
 	}
 	resp, err := s.selectTopAndBottomPerformers(fundEvents, nil)
@@ -207,15 +207,15 @@ func TestSelectTopAndBottomPerformers(t *testing.T) {
 	for i := range resp {
 		switch resp[i].GetDirection() {
 		case order.Buy:
-			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(1)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(2)) {
+			if !resp[i].GetClosePrice().Equal(udecimal.MustFromFloat64(1)) && !resp[i].GetClosePrice().Equal(udecimal.MustFromFloat64(2)) {
 				t.Error("expected 1 or 2")
 			}
 		case order.Sell:
-			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(99)) && !resp[i].GetClosePrice().Equal(decimal.NewFromInt(98)) {
+			if !resp[i].GetClosePrice().Equal(udecimal.MustFromFloat64(99)) && !resp[i].GetClosePrice().Equal(udecimal.MustFromFloat64(98)) {
 				t.Error("expected 99 or 98")
 			}
 		case order.DoNothing:
-			if !resp[i].GetClosePrice().Equal(decimal.NewFromInt(50)) {
+			if !resp[i].GetClosePrice().Equal(udecimal.MustFromFloat64(50)) {
 				t.Error("expected 50")
 			}
 		}

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -83,7 +83,7 @@ func TestSetCustomSettings(t *testing.T) {
 func TestOnSignal(t *testing.T) {
 	t.Parallel()
 	s := Strategy{
-		openShortDistancePercentage: decimal.NewFromInt(14),
+		openShortDistancePercentage: udecimal.MustFromFloat64(14),
 	}
 	_, err := s.OnSignal(nil, nil, nil)
 	assert.ErrorIs(t, err, base.ErrSimultaneousProcessingOnly)
@@ -93,10 +93,10 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.openShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
+	if !s.openShortDistancePercentage.Equal(udecimal.MustFromFloat64(0)) {
 		t.Errorf("expected 5, received %v", s.openShortDistancePercentage)
 	}
-	if !s.closeShortDistancePercentage.Equal(decimal.NewFromInt(0)) {
+	if !s.closeShortDistancePercentage.Equal(udecimal.MustFromFloat64(0)) {
 		t.Errorf("expected 5, received %v", s.closeShortDistancePercentage)
 	}
 }
@@ -116,11 +116,11 @@ func TestSortSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -145,11 +145,11 @@ func TestSortSignals(t *testing.T) {
 			AssetType:      asset.Futures,
 			UnderlyingPair: p,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -168,20 +168,20 @@ func TestSortSignals(t *testing.T) {
 func TestCreateSignals(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
-	_, err := s.createSignals(nil, nil, nil, decimal.Zero, false)
+	_, err := s.createSignals(nil, nil, nil, udecimal.Zero, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	spotSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Spot},
 	}
-	_, err = s.createSignals(nil, spotSignal, nil, decimal.Zero, false)
+	_, err = s.createSignals(nil, spotSignal, nil, udecimal.Zero, false)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
 	// targeting first case
 	futuresSignal := &signal.Signal{
 		Base: &event.Base{AssetType: asset.Futures},
 	}
-	resp, err := s.createSignals(nil, spotSignal, futuresSignal, decimal.Zero, false)
+	resp, err := s.createSignals(nil, spotSignal, futuresSignal, udecimal.Zero, false)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 1, "createSignals must return one signal")
 	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
@@ -192,7 +192,7 @@ func TestCreateSignals(t *testing.T) {
 			Status: gctorder.Open,
 		},
 	}
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, false)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.Zero, false)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 2, "createSignals must return two signals")
 	caseTested := false
@@ -206,7 +206,7 @@ func TestCreateSignals(t *testing.T) {
 	require.True(t, caseTested, "Unhandled issue in test scenario")
 
 	// targeting third case
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.Zero, true)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.Zero, true)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 2, "createSignals must return two signals")
 
@@ -222,7 +222,7 @@ func TestCreateSignals(t *testing.T) {
 
 	// targeting first case after a cash and carry is completed, have a new one opened
 	pos[0].Status = gctorder.Closed
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.MustFromFloat64(1337), true)
 	require.NoError(t, err, "createSignals must not error")
 	require.Len(t, resp, 1, "createSignals must return one signal")
 	assert.Equal(t, asset.Spot, resp[0].GetAssetType())
@@ -231,7 +231,7 @@ func TestCreateSignals(t *testing.T) {
 
 	// targeting default case
 	pos[0].Status = gctorder.UnknownStatus
-	resp, err = s.createSignals(pos, spotSignal, futuresSignal, decimal.NewFromInt(1337), true)
+	resp, err = s.createSignals(pos, spotSignal, futuresSignal, udecimal.MustFromFloat64(1337), true)
 	require.NoError(t, err, "createSignals must not error")
 	assert.Len(t, resp, 2, "createSignals should return two signals")
 }
@@ -290,11 +290,11 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			CurrencyPair: cp,
 			AssetType:    asset.Spot,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -330,11 +330,11 @@ func TestOnSimultaneousSignals(t *testing.T) {
 			AssetType:      asset.Futures,
 			UnderlyingPair: cp,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -370,7 +370,7 @@ func TestCloseAllPositions(t *testing.T) {
 	_, err := s.CloseAllPositions(nil, nil)
 	assert.NoError(t, err)
 
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	cp := currency.NewBTCUSD()
 	h := []holdings.Holding{
 		{

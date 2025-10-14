@@ -76,8 +76,8 @@ func TestGetKlines(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour)
 	endTime := time.Now()
 	if mockTests {
-		startTime = time.Unix(1691897100, 0).Round(kline.FiveMin.Duration())
-		endTime = time.Unix(1691907100, 0).Round(kline.FiveMin.Duration())
+		startTime = time.Unix(1691897100, 0).RoundBank(kline.FiveMin.Duration())
+		endTime = time.Unix(1691907100, 0).RoundBank(kline.FiveMin.Duration())
 	}
 	for _, tc := range []struct {
 		category   string

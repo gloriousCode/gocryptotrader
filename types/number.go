@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 )
 
 var errInvalidNumberValue = errors.New("invalid value for Number type")
@@ -67,9 +67,9 @@ func (f Number) Int64() int64 {
 	return int64(f)
 }
 
-// Decimal returns a decimal.Decimal
-func (f Number) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(f))
+// Decimal returns a udecimal.Decimal
+func (f Number) Decimal() udecimal.Decimal {
+	return udecimal.MustFromFloat64(float64(f))
 }
 
 // String returns a string representation of the number

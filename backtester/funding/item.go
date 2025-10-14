@@ -3,15 +3,15 @@ package funding
 import (
 	"fmt"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Reserve allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
-func (i *Item) Reserve(amount decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
+func (i *Item) Reserve(amount udecimal.Decimal) error {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return errZeroAmountReceived
 	}
 	if amount.GreaterThan(i.available) {
@@ -30,11 +30,11 @@ func (i *Item) Reserve(amount decimal.Decimal) error {
 
 // Release reduces the amount of funding reserved and adds any difference
 // back to the available amount
-func (i *Item) Release(amount, diff decimal.Decimal) error {
-	if amount.LessThanOrEqual(decimal.Zero) {
+func (i *Item) Release(amount, diff udecimal.Decimal) error {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return errZeroAmountReceived
 	}
-	if diff.IsNegative() && !i.asset.IsFutures() {
+	if diff.LessThan(udecimal.Zero) && !i.asset.IsFutures() {
 		return fmt.Errorf("%w diff %v", errNegativeAmountReceived, diff)
 	}
 	if amount.GreaterThan(i.reserved) {
@@ -52,8 +52,8 @@ func (i *Item) Release(amount, diff decimal.Decimal) error {
 }
 
 // IncreaseAvailable adds funding to the available amount
-func (i *Item) IncreaseAvailable(amount decimal.Decimal) error {
-	if amount.IsNegative() || amount.IsZero() {
+func (i *Item) IncreaseAvailable(amount udecimal.Decimal) error {
+	if amount.LessThan(udecimal.Zero) || amount.IsZero() {
 		return fmt.Errorf("%w amount <= zero", errZeroAmountReceived)
 	}
 	i.available = i.available.Add(amount)
@@ -62,7 +62,7 @@ func (i *Item) IncreaseAvailable(amount decimal.Decimal) error {
 
 // CanPlaceOrder checks if the item has any funds available
 func (i *Item) CanPlaceOrder() bool {
-	return i.available.GreaterThan(decimal.Zero)
+	return i.available.GreaterThan(udecimal.Zero)
 }
 
 // Equal checks for equality via an Item to compare to
@@ -117,7 +117,7 @@ func (i *Item) MatchesExchange(item *Item) bool {
 }
 
 // TakeProfit increases/decreases available funds for a futures collateral item
-func (i *Item) TakeProfit(amount decimal.Decimal) error {
+func (i *Item) TakeProfit(amount udecimal.Decimal) error {
 	if i.asset.IsFutures() && !i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add profit to contracts", i.exchange, i.asset, i.currency, ErrNotCollateral)
 	}
@@ -127,14 +127,14 @@ func (i *Item) TakeProfit(amount decimal.Decimal) error {
 
 // AddContracts allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
-func (i *Item) AddContracts(amount decimal.Decimal) error {
+func (i *Item) AddContracts(amount udecimal.Decimal) error {
 	if !i.asset.IsFutures() {
 		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
 	}
 	if i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add contracts to collateral", i.exchange, i.asset, i.currency, ErrIsCollateral)
 	}
-	if amount.LessThanOrEqual(decimal.Zero) {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return errZeroAmountReceived
 	}
 	i.available = i.available.Add(amount)
@@ -143,14 +143,14 @@ func (i *Item) AddContracts(amount decimal.Decimal) error {
 
 // ReduceContracts allocates an amount of funds to be used at a later time
 // it prevents multiple events from claiming the same resource
-func (i *Item) ReduceContracts(amount decimal.Decimal) error {
+func (i *Item) ReduceContracts(amount udecimal.Decimal) error {
 	if !i.asset.IsFutures() {
 		return fmt.Errorf("%v %v %v %w", i.exchange, i.asset, i.currency, errNotFutures)
 	}
 	if i.isCollateral {
 		return fmt.Errorf("%v %v %v %w cannot add contracts to collateral", i.exchange, i.asset, i.currency, ErrIsCollateral)
 	}
-	if amount.LessThanOrEqual(decimal.Zero) {
+	if amount.LessThanOrEqual(udecimal.Zero) {
 		return errZeroAmountReceived
 	}
 	if amount.GreaterThan(i.available) {

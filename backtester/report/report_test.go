@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/compliance"
@@ -65,7 +65,7 @@ func TestGenerateReport(t *testing.T) {
 						VolumeColour:   "rgba(47, 194, 27, 0.8)",
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -81,7 +81,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -98,7 +98,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -115,7 +115,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -150,7 +150,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -167,7 +167,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         2,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -184,7 +184,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -201,7 +201,7 @@ func TestGenerateReport(t *testing.T) {
 						Volume:         3,
 						MadeOrder:      true,
 						OrderDirection: gctorder.Buy,
-						OrderAmount:    decimal.NewFromInt(1337),
+						OrderAmount:    udecimal.MustFromFloat64(1337),
 						Shape:          "arrowUp",
 						Text:           "hi",
 						Position:       "aboveBar",
@@ -234,7 +234,7 @@ func TestGenerateReport(t *testing.T) {
 				TotalUSDStatistics: &statistics.TotalFundingStatistics{},
 			},
 			StrategyName: "testStrat",
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 			ExchangeAssetPairStatistics: map[key.ExchangeAssetPair]*statistics.CurrencyPairStatistic{
 				{
 					Base:     p.Base.Item,
@@ -242,11 +242,11 @@ func TestGenerateReport(t *testing.T) {
 					Asset:    a,
 					Exchange: e,
 				}: {
-					LowestClosePrice:         statistics.ValueAtTime{Value: decimal.NewFromInt(100)},
-					HighestClosePrice:        statistics.ValueAtTime{Value: decimal.NewFromInt(200)},
-					MarketMovement:           decimal.NewFromInt(100),
-					StrategyMovement:         decimal.NewFromInt(100),
-					CompoundAnnualGrowthRate: decimal.NewFromInt(1),
+					LowestClosePrice:         statistics.ValueAtTime{Value: udecimal.MustFromFloat64(100)},
+					HighestClosePrice:        statistics.ValueAtTime{Value: udecimal.MustFromFloat64(200)},
+					MarketMovement:           udecimal.MustFromFloat64(100),
+					StrategyMovement:         udecimal.MustFromFloat64(100),
+					CompoundAnnualGrowthRate: udecimal.MustFromFloat64(1),
 					BuyOrders:                1,
 					SellOrders:               1,
 					ArithmeticRatios:         &statistics.Ratios{},
@@ -263,16 +263,16 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(1337),
+						Value: udecimal.MustFromFloat64(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(137),
+						Value: udecimal.MustFromFloat64(137),
 					},
-					DrawdownPercent: decimal.NewFromInt(100),
+					DrawdownPercent: udecimal.MustFromFloat64(100),
 				},
-				MarketMovement:   decimal.NewFromInt(1377),
-				StrategyMovement: decimal.NewFromInt(1377),
+				MarketMovement:   udecimal.MustFromFloat64(1377),
+				StrategyMovement: udecimal.MustFromFloat64(1377),
 			},
 			BestStrategyResults: &statistics.FinalResultsHolder{
 				Exchange: e,
@@ -281,16 +281,16 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(1337),
+						Value: udecimal.MustFromFloat64(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(137),
+						Value: udecimal.MustFromFloat64(137),
 					},
-					DrawdownPercent: decimal.NewFromInt(100),
+					DrawdownPercent: udecimal.MustFromFloat64(100),
 				},
-				MarketMovement:   decimal.NewFromInt(1337),
-				StrategyMovement: decimal.NewFromInt(1337),
+				MarketMovement:   udecimal.MustFromFloat64(1337),
+				StrategyMovement: udecimal.MustFromFloat64(1337),
 			},
 			BestMarketMovement: &statistics.FinalResultsHolder{
 				Exchange: e,
@@ -299,16 +299,16 @@ func TestGenerateReport(t *testing.T) {
 				MaxDrawdown: statistics.Swing{
 					Highest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(1337),
+						Value: udecimal.MustFromFloat64(1337),
 					},
 					Lowest: statistics.ValueAtTime{
 						Time:  time.Now(),
-						Value: decimal.NewFromInt(137),
+						Value: udecimal.MustFromFloat64(137),
 					},
-					DrawdownPercent: decimal.NewFromInt(100),
+					DrawdownPercent: udecimal.MustFromFloat64(100),
 				},
-				MarketMovement:   decimal.NewFromInt(1337),
-				StrategyMovement: decimal.NewFromInt(1337),
+				MarketMovement:   udecimal.MustFromFloat64(1337),
+				StrategyMovement: udecimal.MustFromFloat64(1337),
 			},
 		},
 	}
@@ -390,10 +390,10 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
-				ClosePrice:          decimal.NewFromInt(1335),
-				VolumeAdjustedPrice: decimal.NewFromInt(1337),
-				SlippageRate:        decimal.NewFromInt(1),
-				CostBasis:           decimal.NewFromInt(1337),
+				ClosePrice:          udecimal.MustFromFloat64(1335),
+				VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+				SlippageRate:        udecimal.MustFromFloat64(1),
+				CostBasis:           udecimal.MustFromFloat64(1337),
 				Order:               nil,
 			},
 		},
@@ -405,10 +405,10 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
-				ClosePrice:          decimal.NewFromInt(1335),
-				VolumeAdjustedPrice: decimal.NewFromInt(1337),
-				SlippageRate:        decimal.NewFromInt(1),
-				CostBasis:           decimal.NewFromInt(1337),
+				ClosePrice:          udecimal.MustFromFloat64(1335),
+				VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+				SlippageRate:        udecimal.MustFromFloat64(1),
+				CostBasis:           udecimal.MustFromFloat64(1337),
 				Order: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Buy,
@@ -423,10 +423,10 @@ func TestEnhanceCandles(t *testing.T) {
 	d.Statistics.ExchangeAssetPairStatistics[key.NewExchangeAssetPair(testExchange, asset.Spot, currency.NewBTCUSDT())].FinalOrders = compliance.Snapshot{
 		Orders: []compliance.SnapshotOrder{
 			{
-				ClosePrice:          decimal.NewFromInt(1335),
-				VolumeAdjustedPrice: decimal.NewFromInt(1337),
-				SlippageRate:        decimal.NewFromInt(1),
-				CostBasis:           decimal.NewFromInt(1337),
+				ClosePrice:          udecimal.MustFromFloat64(1335),
+				VolumeAdjustedPrice: udecimal.MustFromFloat64(1337),
+				SlippageRate:        udecimal.MustFromFloat64(1),
+				CostBasis:           udecimal.MustFromFloat64(1337),
 				Order: &gctorder.Detail{
 					Date: tt,
 					Side: gctorder.Sell,

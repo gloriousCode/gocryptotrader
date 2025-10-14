@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -35,8 +35,8 @@ type Contract struct {
 	Multiplier           float64
 	MaxLeverage          float64
 	LatestRate           fundingrate.Rate
-	FundingRateFloor     decimal.Decimal
-	FundingRateCeiling   decimal.Decimal
+	FundingRateFloor     udecimal.Decimal
+	FundingRateCeiling   udecimal.Decimal
 }
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges

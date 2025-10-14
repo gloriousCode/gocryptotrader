@@ -3,7 +3,7 @@ package exchange
 import (
 	"errors"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/fill"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
@@ -46,16 +46,16 @@ type Settings struct {
 	Pair  currency.Pair
 	Asset asset.Item
 
-	MakerFee decimal.Decimal
-	TakerFee decimal.Decimal
+	MakerFee udecimal.Decimal
+	TakerFee udecimal.Decimal
 
 	BuySide  MinMax
 	SellSide MinMax
 
 	Leverage Leverage
 
-	MinimumSlippageRate decimal.Decimal
-	MaximumSlippageRate decimal.Decimal
+	MinimumSlippageRate udecimal.Decimal
+	MaximumSlippageRate udecimal.Decimal
 
 	CanUseExchangeLimits    bool
 	Limits                  limits.MinMaxLevel
@@ -66,15 +66,15 @@ type Settings struct {
 
 // MinMax are the rules which limit the placement of orders.
 type MinMax struct {
-	MinimumSize  decimal.Decimal
-	MaximumSize  decimal.Decimal
-	MaximumTotal decimal.Decimal
+	MinimumSize  udecimal.Decimal
+	MaximumSize  udecimal.Decimal
+	MaximumTotal udecimal.Decimal
 }
 
 // Leverage rules are used to allow or limit the use of leverage in orders
 // when supported
 type Leverage struct {
 	CanUseLeverage                 bool
-	MaximumOrdersWithLeverageRatio decimal.Decimal
-	MaximumLeverageRate            decimal.Decimal
+	MaximumOrdersWithLeverageRatio udecimal.Decimal
+	MaximumLeverageRate            udecimal.Decimal
 }

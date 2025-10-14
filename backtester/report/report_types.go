@@ -3,7 +3,7 @@ package report
 import (
 	"errors"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -97,7 +97,7 @@ type DetailedCandle struct {
 	VolumeColour   string
 	MadeOrder      bool
 	OrderDirection order.Side
-	OrderAmount    decimal.Decimal
+	OrderAmount    udecimal.Decimal
 	Shape          string
 	Text           string
 	Position       string
@@ -110,7 +110,7 @@ type linkCurrencyDiff struct {
 	SpotPair      currency.Pair
 	FuturesEvents []statistics.DataAtOffset
 	SpotEvents    []statistics.DataAtOffset
-	DiffPercent   []decimal.Decimal
+	DiffPercent   []udecimal.Decimal
 }
 
 // PrettyNumbers is used for report rendering
@@ -119,18 +119,18 @@ type linkCurrencyDiff struct {
 type PrettyNumbers struct{}
 
 // Decimal2 renders a decimal nicely with 2 decimal places
-func (p *PrettyNumbers) Decimal2(d decimal.Decimal) string {
+func (p *PrettyNumbers) Decimal2(d udecimal.Decimal) string {
 	return convert.DecimalToHumanFriendlyString(d, 2, ".", ",")
 }
 
 // Decimal8 renders a decimal nicely with 8 decimal places
-func (p *PrettyNumbers) Decimal8(d decimal.Decimal) string {
+func (p *PrettyNumbers) Decimal8(d udecimal.Decimal) string {
 	return convert.DecimalToHumanFriendlyString(d, 8, ".", ",")
 }
 
 // Decimal64 renders a decimal nicely with the idea not to limit decimal places
 // and to make you nostalgic for Nintendo
-func (p *PrettyNumbers) Decimal64(d decimal.Decimal) string {
+func (p *PrettyNumbers) Decimal64(d udecimal.Decimal) string {
 	return convert.DecimalToHumanFriendlyString(d, 64, ".", ",")
 }
 

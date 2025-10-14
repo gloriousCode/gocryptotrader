@@ -467,7 +467,7 @@ func TestGetAveragePrice(t *testing.T) {
 
 	avgPrice, err = b.GetAveragePrice(true, 18)
 	require.NoError(t, err)
-	assert.Equal(t, 2.333, math.Round(avgPrice*1000)/1000)
+	assert.Equal(t, 2.333, math.RoundBank(avgPrice*1000)/1000)
 
 	_, err = b.GetAveragePrice(true, 25)
 	assert.ErrorIs(t, err, errNotEnoughLiquidity)

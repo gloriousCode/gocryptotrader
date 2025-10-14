@@ -14,7 +14,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -934,13 +934,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			Pair:             p,
 			Underlying:       p.Base,
 			Asset:            assetTypes[i],
-			EntryPrice:       decimal.NewFromInt(1337),
+			EntryPrice:       udecimal.MustFromInt64(1337, 0),
 			OpeningDirection: testOrderSide,
 			OrderDirection:   testOrderSide,
 			Time:             time.Now(),
-			Exposure:         decimal.NewFromInt(1337),
-			EntryAmount:      decimal.NewFromInt(1337),
-			PreviousPrice:    decimal.NewFromInt(1337),
+			Exposure:         udecimal.MustFromInt64(1337, 0),
+			EntryAmount:      udecimal.MustFromInt64(1337, 0),
+			PreviousPrice:    udecimal.MustFromInt64(1337, 0),
 		}
 		var calculatePNLResponse *futures.PNLResult
 		calculatePNLResponse, err = e.CalculatePNL(context.TODO(), calculatePNLRequest)
@@ -960,10 +960,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			CollateralCurrency: p.Quote,
 			Asset:              assetTypes[i],
 			Side:               testOrderSide,
-			USDPrice:           decimal.NewFromInt(1337),
-			FreeCollateral:     decimal.NewFromInt(1337),
-			LockedCollateral:   decimal.NewFromInt(1337),
-			UnrealisedPNL:      decimal.NewFromInt(1337),
+			USDPrice:           udecimal.MustFromInt64(1337, 0),
+			FreeCollateral:     udecimal.MustFromInt64(1337, 0),
+			LockedCollateral:   udecimal.MustFromInt64(1337, 0),
+			UnrealisedPNL:      udecimal.MustFromInt64(1337, 0),
 		}
 		var scaleCollateralResponse *collateral.ByCurrency
 		scaleCollateralResponse, err = e.ScaleCollateral(context.TODO(), collateralCalculator)

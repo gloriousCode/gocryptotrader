@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio/holdings"
@@ -97,7 +97,8 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		futuresSignal.SetDirection(order.DoNothing)
 		fp := latestFuture.GetClosePrice()
 		sp := latestSpot.GetClosePrice()
-		diffBetweenFuturesSpot := fp.Sub(sp).Div(sp).Mul(decimal.NewFromInt(100))
+		diffBetweenFuturesSpot, _ := fp.Sub(sp).Div(sp)
+		diffBetweenFuturesSpot = diffBetweenFuturesSpot.Mul(udecimal.MustFromInt64(100, 0))
 		futuresSignal.AppendReasonf("Futures Spot Difference: %v%%", diffBetweenFuturesSpot)
 		if len(pos) > 0 && pos[len(pos)-1].Status == order.Open {
 			futuresSignal.AppendReasonf("Unrealised PNL: %v %v", pos[len(pos)-1].UnrealisedPNL, pos[len(pos)-1].CollateralCurrency)
@@ -168,7 +169,7 @@ func (s *Strategy) CloseAllPositions(h []holdings.Holding, prices []data.Event) 
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
-func (s *Strategy) createSignals(pos []futures.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+func (s *Strategy) createSignals(pos []futures.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot udecimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", gctcommon.ErrNilPointer)
 	}
@@ -286,13 +287,13 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || osdp <= 0 {
 				return fmt.Errorf("%w provided openShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.openShortDistancePercentage = decimal.NewFromFloat(osdp)
+			s.openShortDistancePercentage = udecimal.MustFromFloat64(osdp)
 		case closeShortDistancePercentageString:
 			csdp, ok := v.(float64)
 			if !ok || csdp <= 0 {
 				return fmt.Errorf("%w provided closeShortDistancePercentage value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.closeShortDistancePercentage = decimal.NewFromFloat(csdp)
+			s.closeShortDistancePercentage = udecimal.MustFromFloat64(csdp)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -303,6 +304,6 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 
 // SetDefaults sets default values for overridable custom settings
 func (s *Strategy) SetDefaults() {
-	s.openShortDistancePercentage = decimal.Zero
-	s.closeShortDistancePercentage = decimal.Zero
+	s.openShortDistancePercentage = udecimal.Zero
+	s.closeShortDistancePercentage = udecimal.Zero
 }

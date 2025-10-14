@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -695,9 +695,7 @@ func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) 
 	for i := range balances.List {
 		for _, c := range balances.List[i].Coin {
 			// borrow amounts get truncated to 8 dec places when total and equity are calculated on the exchange
-			truncBorrow := c.BorrowAmount.Decimal().Truncate(8).InexactFloat64()
-
-			// wallet balance can be negative when borrow is present, and wallet balance will be offset with spot holdings
+			truncBorrow := c.BorrowAmount.Decimal().Trunc(8).InexactFloat64() // wallet balance can be negative when borrow is present, and wallet balance will be offset with spot holdings
 			// e.g. borrow $10,000, wallet balance will be -$9,900 ∴ spot holding $100
 			balanceDiff := truncBorrow + c.WalletBalance.Float64()
 
@@ -2038,7 +2036,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: lrt,
-					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
+					Rate: udecimal.MustFromFloat64(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
 			})

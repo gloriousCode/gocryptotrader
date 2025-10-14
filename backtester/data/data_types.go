@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -74,11 +74,11 @@ type Streamer interface {
 	IsLastEvent() (bool, error)
 	Offset() (int64, error)
 
-	StreamOpen() ([]decimal.Decimal, error)
-	StreamHigh() ([]decimal.Decimal, error)
-	StreamLow() ([]decimal.Decimal, error)
-	StreamClose() ([]decimal.Decimal, error)
-	StreamVol() ([]decimal.Decimal, error)
+	StreamOpen() ([]udecimal.Decimal, error)
+	StreamHigh() ([]udecimal.Decimal, error)
+	StreamLow() ([]udecimal.Decimal, error)
+	StreamClose() ([]udecimal.Decimal, error)
+	StreamVol() ([]udecimal.Decimal, error)
 
 	HasDataAtTime(time.Time) (bool, error)
 }
@@ -87,11 +87,11 @@ type Streamer interface {
 type Event interface {
 	common.Event
 	GetUnderlyingPair() currency.Pair
-	GetClosePrice() decimal.Decimal
-	GetHighPrice() decimal.Decimal
-	GetLowPrice() decimal.Decimal
-	GetOpenPrice() decimal.Decimal
-	GetVolume() decimal.Decimal
+	GetClosePrice() udecimal.Decimal
+	GetHighPrice() udecimal.Decimal
+	GetLowPrice() udecimal.Decimal
+	GetOpenPrice() udecimal.Decimal
+	GetVolume() udecimal.Decimal
 }
 
 // Events allows for some common functions on a slice of events

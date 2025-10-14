@@ -1,7 +1,7 @@
 package order
 
 import (
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
@@ -14,13 +14,13 @@ type Order struct {
 	ID                  string
 	Direction           order.Side
 	Status              order.Status
-	ClosePrice          decimal.Decimal
-	Amount              decimal.Decimal
+	ClosePrice          udecimal.Decimal
+	Amount              udecimal.Decimal
 	OrderType           order.Type
-	Leverage            decimal.Decimal
-	AllocatedFunds      decimal.Decimal
-	BuyLimit            decimal.Decimal
-	SellLimit           decimal.Decimal
+	Leverage            udecimal.Decimal
+	AllocatedFunds      udecimal.Decimal
+	BuyLimit            udecimal.Decimal
+	SellLimit           udecimal.Decimal
 	FillDependentEvent  signal.Event
 	ClosingPosition     bool
 	LiquidatingPosition bool
@@ -30,17 +30,17 @@ type Order struct {
 type Event interface {
 	common.Event
 	common.Directioner
-	GetClosePrice() decimal.Decimal
-	GetBuyLimit() decimal.Decimal
-	GetSellLimit() decimal.Decimal
-	SetAmount(decimal.Decimal)
-	GetAmount() decimal.Decimal
+	GetClosePrice() udecimal.Decimal
+	GetBuyLimit() udecimal.Decimal
+	GetSellLimit() udecimal.Decimal
+	SetAmount(udecimal.Decimal)
+	GetAmount() udecimal.Decimal
 	IsOrder() bool
 	GetStatus() order.Status
 	SetID(id string)
 	GetID() string
 	IsLeveraged() bool
-	GetAllocatedFunds() decimal.Decimal
+	GetAllocatedFunds() udecimal.Decimal
 	GetFillDependentEvent() signal.Event
 	IsClosingPosition() bool
 	IsLiquidating() bool

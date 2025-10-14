@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
@@ -48,7 +48,7 @@ func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 			if err != nil {
 				return Swing{}, fmt.Errorf("cannot calculate max drawdown, date range error: %w", err)
 			}
-			if highestPrice.IsPositive() && lowestPrice.IsPositive() {
+			if highestPrice.GreaterThan(udecimal.Zero) && lowestPrice.GreaterThan(udecimal.Zero) {
 				swings = append(swings, Swing{
 					Highest: ValueAtTime{
 						Time:  highestTime,
@@ -58,7 +58,10 @@ func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 						Time:  lowestTime,
 						Value: lowestPrice,
 					},
-					DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
+					DrawdownPercent: func() udecimal.Decimal {
+						d, _ := lowestPrice.Sub(highestPrice).Div(highestPrice)
+						return d.Mul(udecimal.MustFromInt64(100, 0))
+					}(),
 					IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 				})
 			}
@@ -79,9 +82,10 @@ func CalculateBiggestEventDrawdown(closePrices []data.Event) (Swing, error) {
 		if err != nil {
 			return Swing{}, fmt.Errorf("cannot close out max drawdown calculation: %w", err)
 		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
-			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
+		drawdownPercent := udecimal.Zero
+		if highestPrice.GreaterThan(udecimal.Zero) {
+			d, _ := lowestPrice.Sub(highestPrice).Div(highestPrice)
+			drawdownPercent = d.Mul(udecimal.MustFromInt64(100, 0))
 		}
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
@@ -133,7 +137,7 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 			lowestPrice = currLow
 			lowestTime = currTime
 		}
-		if highestPrice.LessThan(currHigh) && highestPrice.IsPositive() {
+		if highestPrice.LessThan(currHigh) && highestPrice.IsPos() {
 			if lowestTime.Equal(highestTime) {
 				// create distinction if the greatest drawdown occurs within the same candle
 				lowestTime = lowestTime.Add(interval.Duration() - time.Nanosecond)
@@ -151,7 +155,10 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 					Time:  lowestTime,
 					Value: lowestPrice,
 				},
-				DrawdownPercent:  lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100)),
+				DrawdownPercent: func() udecimal.Decimal {
+					d, _ := lowestPrice.Sub(highestPrice).Div(highestPrice)
+					return d.Mul(udecimal.MustFromInt64(100, 0))
+				}(),
 				IntervalDuration: int64(len(intervals.Ranges[0].Intervals)),
 			})
 			// reset the drawdown
@@ -171,9 +178,10 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 		if err != nil {
 			log.Errorln(common.CurrencyStatistics, err)
 		}
-		drawdownPercent := decimal.Zero
-		if highestPrice.GreaterThan(decimal.Zero) {
-			drawdownPercent = lowestPrice.Sub(highestPrice).Div(highestPrice).Mul(decimal.NewFromInt(100))
+		drawdownPercent := udecimal.Zero
+		if highestPrice.GreaterThan(udecimal.Zero) {
+			d, _ := lowestPrice.Sub(highestPrice).Div(highestPrice)
+			drawdownPercent = d.Mul(udecimal.MustFromInt64(100, 0))
 		}
 		if lowestTime.Equal(highestTime) {
 			// create distinction if the greatest drawdown occurs within the same candle
@@ -207,8 +215,8 @@ func CalculateBiggestValueAtTimeDrawdown(closePrices []ValueAtTime, interval gct
 }
 
 // CalculateRatios creates arithmetic and geometric ratios from funding or currency pair data
-func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFreeRatePerCandle decimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
-	var arithmeticBenchmarkAverage, geometricBenchmarkAverage decimal.Decimal
+func CalculateRatios(benchmarkRates, returnsPerCandle []udecimal.Decimal, riskFreeRatePerCandle udecimal.Decimal, maxDrawdown *Swing, logMessage string) (arithmeticStats, geometricStats *Ratios, err error) {
+	var arithmeticBenchmarkAverage, geometricBenchmarkAverage udecimal.Decimal
 	arithmeticBenchmarkAverage, err = gctmath.DecimalArithmeticMean(benchmarkRates)
 	if err != nil {
 		return nil, nil, err
@@ -218,10 +226,10 @@ func CalculateRatios(benchmarkRates, returnsPerCandle []decimal.Decimal, riskFre
 		return nil, nil, err
 	}
 
-	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(decimal.NewFromInt(int64(len(benchmarkRates))))
+	riskFreeRateForPeriod := riskFreeRatePerCandle.Mul(udecimal.MustFromInt64(int64(len(benchmarkRates)), 0))
 
 	var arithmeticReturnsPerCandle, geometricReturnsPerCandle, arithmeticSharpe, arithmeticSortino,
-		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar decimal.Decimal
+		arithmeticInformation, arithmeticCalmar, geomSharpe, geomSortino, geomInformation, geomCalmar udecimal.Decimal
 
 	arithmeticReturnsPerCandle, err = gctmath.DecimalArithmeticMean(returnsPerCandle)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -46,7 +46,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 				Order: &gctorder.Detail{
 					Price: 1337,
 				},
-				ClosePrice: decimal.NewFromInt(1337),
+				ClosePrice: udecimal.MustFromFloat64(1337),
 			},
 		},
 	}, false)
@@ -59,8 +59,8 @@ func TestGetSnapshotAtTime(t *testing.T) {
 	if len(snappySnap.Orders) == 0 {
 		t.Fatal("expected an order")
 	}
-	if !snappySnap.Orders[0].ClosePrice.Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	if !snappySnap.Orders[0].ClosePrice.Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 	if !snappySnap.Timestamp.Equal(tt) {
 		t.Errorf("expected %v, received %v", tt, snappySnap.Timestamp)

@@ -81,7 +81,7 @@ func TestCreateKlineRequest(t *testing.T) {
 
 	// Check end date/time shift if the request time is mid candle and not
 	// aligned correctly.
-	end = end.Round(0)
+	end = end.RoundBank(0)
 	end = end.Add(time.Second * 30)
 	r, err = CreateKlineRequest("name", pair, pair2, asset.Spot, OneHour, OneMin, start, end, 1)
 	require.NoError(t, err)

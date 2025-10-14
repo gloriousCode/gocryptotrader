@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2062,7 +2062,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 
 		fundingRates = append(fundingRates, fundingrate.Rate{
-			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
+			Rate: udecimal.MustFromFloat64(records[i].Rate.Float64()),
 			Time: records[i].Timestamp.Time(),
 		})
 	}
@@ -2480,7 +2480,8 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 		if resp.AverageDealPrice != 0 {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
-				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
+				divResult, _ := resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal())
+				purchased = divResult.InexactFloat64()
 			} else {
 				cost = resp.Amount.Float64()
 				purchased = resp.FilledTotal.Float64()

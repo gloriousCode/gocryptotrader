@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -297,18 +297,18 @@ func (m *OrderManager) ClearFuturesTracking(exch string, item asset.Item, pair c
 // UpdateOpenPositionUnrealisedPNL finds an open position from
 // an exchange asset pair, then calculates the unrealisedPNL
 // using the latest ticker data
-func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (decimal.Decimal, error) {
+func (m *OrderManager) UpdateOpenPositionUnrealisedPNL(e string, item asset.Item, pair currency.Pair, last float64, updated time.Time) (udecimal.Decimal, error) {
 	if m == nil {
-		return decimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
+		return udecimal.Zero, fmt.Errorf("order manager %w", ErrNilSubsystem)
 	}
 	if atomic.LoadInt32(&m.started) == 0 {
-		return decimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
+		return udecimal.Zero, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	if !item.IsFutures() {
-		return decimal.Zero, fmt.Errorf("%v %w", item, futures.ErrNotFuturesAsset)
+		return udecimal.Zero, fmt.Errorf("%v %w", item, futures.ErrNotFuturesAsset)
 	}
 
-	return m.orderStore.futuresPositionController.UpdateOpenPositionUnrealisedPNL(e, item, pair, last, updated)
+	return m.orderStore.futuresPositionController.UpdateOpenPositionUnrealisedPNL(e, item, pair, udecimal.MustFromFloat64(last), updated)
 }
 
 // GetOrderInfo calls the exchange's wrapper GetOrderInfo function

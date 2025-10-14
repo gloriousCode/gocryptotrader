@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -93,11 +93,11 @@ func TestOnSignal(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -113,7 +113,7 @@ func TestOnSignal(t *testing.T) {
 	_, err = s.OnSignal(da, nil, nil)
 	require.ErrorIs(t, err, base.ErrTooMuchBadData)
 
-	s.rsiPeriod = decimal.NewFromInt(1)
+	s.rsiPeriod = udecimal.MustFromFloat64(1)
 	_, err = s.OnSignal(da, nil, nil)
 	assert.NoError(t, err)
 
@@ -170,11 +170,11 @@ func TestOnSignals(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 
@@ -197,13 +197,13 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	s := Strategy{}
 	s.SetDefaults()
-	if !s.rsiHigh.Equal(decimal.NewFromInt(70)) {
+	if !s.rsiHigh.Equal(udecimal.MustFromFloat64(70)) {
 		t.Error("expected 70")
 	}
-	if !s.rsiLow.Equal(decimal.NewFromInt(30)) {
+	if !s.rsiLow.Equal(udecimal.MustFromFloat64(30)) {
 		t.Error("expected 30")
 	}
-	if !s.rsiPeriod.Equal(decimal.NewFromInt(14)) {
+	if !s.rsiPeriod.Equal(udecimal.MustFromFloat64(14)) {
 		t.Error("expected 14")
 	}
 }

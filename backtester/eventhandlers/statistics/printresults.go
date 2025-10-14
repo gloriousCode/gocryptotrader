@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	data2 "github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/portfolio"
@@ -151,7 +151,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 				fSIL(ev.GetExchange(), limit12),
 				fSIL(ev.GetAssetType().String(), limit10),
 				fSIL(ev.Pair().String(), limit14),
-				ev.GetClosePrice().Round(8),
+				ev.GetClosePrice().RoundBank(8),
 				ev.GetDirection())
 			result = addReason(ev.GetConcatReasons(), result)
 			result += common.CMDColours.Default
@@ -167,11 +167,11 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 				fSIL(ev.GetExchange(), limit12),
 				fSIL(ev.GetAssetType().String(), limit10),
 				fSIL(ev.Pair().String(), limit14),
-				ev.GetPurchasePrice().Round(8),
+				ev.GetPurchasePrice().RoundBank(8),
 				ev.GetDirection(),
-				ev.GetAmount().Round(8),
+				ev.GetAmount().RoundBank(8),
 				ev.GetExchangeFee(),
-				ev.GetTotal().Round(8))
+				ev.GetTotal().RoundBank(8))
 			result = addReason(ev.GetConcatReasons(), result)
 			result += common.CMDColours.Default
 		}
@@ -181,7 +181,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			fSIL(ev.GetExchange(), limit12),
 			fSIL(ev.GetAssetType().String(), limit10),
 			fSIL(ev.Pair().String(), limit14),
-			ev.GetClosePrice().Round(8))
+			ev.GetClosePrice().RoundBank(8))
 		result = addReason(ev.GetConcatReasons(), result)
 		result += common.CMDColours.Default
 	case data2.Event:
@@ -190,7 +190,7 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 			fSIL(ev.GetExchange(), limit12),
 			fSIL(ev.GetAssetType().String(), limit10),
 			fSIL(ev.Pair().String(), limit14),
-			ev.GetClosePrice().Round(8))
+			ev.GetClosePrice().RoundBank(8))
 		result = addReason(ev.GetConcatReasons(), result)
 		result += common.CMDColours.Default
 	default:
@@ -254,20 +254,20 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
 			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
 		}
-		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.ArithmeticRatios.CalmarRatio.Round(4))
+		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.ArithmeticRatios.SharpeRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.ArithmeticRatios.SortinoRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.ArithmeticRatios.InformationRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.ArithmeticRatios.CalmarRatio.RoundBank(4))
 
 		log.Infoln(common.CurrencyStatistics, common.CMDColours.H4+"------------------Geometric--------------------------------------------"+common.CMDColours.Default)
 		if c.ShowMissingDataWarning {
 			log.Infoln(common.CurrencyStatistics, "Missing data was detected during this backtesting run")
 			log.Infoln(common.CurrencyStatistics, "Ratio calculations will be skewed")
 		}
-		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.Round(4))
-		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.GeometricRatios.CalmarRatio.Round(4))
+		log.Infof(common.CurrencyStatistics, "%s Sharpe ratio: %v", sep, c.GeometricRatios.SharpeRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Sortino ratio: %v", sep, c.GeometricRatios.SortinoRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Information ratio: %v", sep, c.GeometricRatios.InformationRatio.RoundBank(4))
+		log.Infof(common.CurrencyStatistics, "%s Calmar ratio: %v", sep, c.GeometricRatios.CalmarRatio.RoundBank(4))
 	}
 
 	log.Infoln(common.CurrencyStatistics, common.CMDColours.H2+"------------------Results------------------------------------"+common.CMDColours.Default)
@@ -343,7 +343,7 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 			} else {
 				log.Infof(common.FundingStatistics, "%s Difference: %s%%", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.Difference, 8, ".", ","))
 			}
-			if spotResults[i].ReportItem.TransferFee.GreaterThan(decimal.Zero) {
+			if spotResults[i].ReportItem.TransferFee.GreaterThan(udecimal.Zero) {
 				log.Infof(common.FundingStatistics, "%s Transfer fee: %s", sep, convert.DecimalToHumanFriendlyString(spotResults[i].ReportItem.TransferFee, 8, ".", ","))
 			}
 			if i != len(spotResults)-1 {
@@ -395,7 +395,8 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 
 	log.Infoln(common.FundingStatistics, common.CMDColours.H3+"------------------Ratios------------------------------------------------"+common.CMDColours.Default)
 	log.Infoln(common.FundingStatistics, common.CMDColours.H4+"------------------Rates-------------------------------------------------"+common.CMDColours.Default)
-	log.Infof(common.FundingStatistics, "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.RiskFreeRate.Mul(decimal.NewFromInt(100)), 2, ".", ","))
+	riskFreeRatePercent := f.TotalUSDStatistics.RiskFreeRate.Mul(udecimal.MustFromInt64(100, 0))
+	log.Infof(common.FundingStatistics, "%s Risk free rate: %s%%", sep, convert.DecimalToHumanFriendlyString(riskFreeRatePercent, 2, ".", ","))
 	log.Infof(common.FundingStatistics, "%s Compound Annual Growth Rate: %v%%", sep, convert.DecimalToHumanFriendlyString(f.TotalUSDStatistics.CompoundAnnualGrowthRate, 8, ".", ","))
 	if f.TotalUSDStatistics.ArithmeticRatios == nil || f.TotalUSDStatistics.GeometricRatios == nil {
 		return fmt.Errorf("%w missing ratio calculations", gctcommon.ErrNilPointer)
@@ -405,20 +406,20 @@ func (f *FundingStatistics) PrintResults(wasAnyDataMissing bool) error {
 		log.Infoln(common.FundingStatistics, "Missing data was detected during this backtesting run")
 		log.Infoln(common.FundingStatistics, "Ratio calculations will be skewed")
 	}
-	log.Infof(common.FundingStatistics, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.Round(4))
+	log.Infof(common.FundingStatistics, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SharpeRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.SortinoRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Information ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.InformationRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Calmar ratio: %v", sep, f.TotalUSDStatistics.ArithmeticRatios.CalmarRatio.RoundBank(4))
 
 	log.Infoln(common.FundingStatistics, common.CMDColours.H4+"------------------Geometric--------------------------------------------"+common.CMDColours.Default)
 	if wasAnyDataMissing {
 		log.Infoln(common.FundingStatistics, "Missing data was detected during this backtesting run")
 		log.Infoln(common.FundingStatistics, "Ratio calculations will be skewed")
 	}
-	log.Infof(common.FundingStatistics, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.Round(4))
-	log.Infof(common.FundingStatistics, "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.Round(4))
+	log.Infof(common.FundingStatistics, "%s Sharpe ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SharpeRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Sortino ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.SortinoRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Information ratio: %v", sep, f.TotalUSDStatistics.GeometricRatios.InformationRatio.RoundBank(4))
+	log.Infof(common.FundingStatistics, "%s Calmar ratio: %v\n\n", sep, f.TotalUSDStatistics.GeometricRatios.CalmarRatio.RoundBank(4))
 
 	return nil
 }

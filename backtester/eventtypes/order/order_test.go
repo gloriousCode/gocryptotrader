@@ -3,7 +3,7 @@ package order
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,11 +32,11 @@ func TestSetDirection(t *testing.T) {
 func TestSetAmount(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		Amount: decimal.NewFromInt(1),
+		Amount: udecimal.MustFromFloat64(1),
 	}
-	o.SetAmount(decimal.NewFromInt(1337))
-	if !o.GetAmount().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	o.SetAmount(udecimal.MustFromFloat64(1337))
+	if !o.GetAmount().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestIsEmpty(t *testing.T) {
 func TestSetID(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		ID: "decimal.NewFromInt(1337)",
+		ID: "udecimal.MustFromFloat64(1337)",
 	}
 	o.SetID("1338")
 	if o.GetID() != "1338" {
@@ -67,10 +67,10 @@ func TestSetID(t *testing.T) {
 func TestLeverage(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		Leverage: decimal.NewFromInt(1),
+		Leverage: udecimal.MustFromFloat64(1),
 	}
-	o.SetLeverage(decimal.NewFromInt(1337))
-	if !o.GetLeverage().Equal(decimal.NewFromInt(1337)) || !o.IsLeveraged() {
+	o.SetLeverage(udecimal.MustFromFloat64(1337))
+	if !o.GetLeverage().Equal(udecimal.MustFromFloat64(1337)) || !o.IsLeveraged() {
 		t.Error("expected leverage")
 	}
 }
@@ -78,21 +78,21 @@ func TestLeverage(t *testing.T) {
 func TestGetFunds(t *testing.T) {
 	t.Parallel()
 	o := Order{
-		AllocatedFunds: decimal.NewFromInt(1337),
+		AllocatedFunds: udecimal.MustFromFloat64(1337),
 	}
 	funds := o.GetAllocatedFunds()
-	if !funds.Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	if !funds.Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 }
 
 func TestOpen(t *testing.T) {
 	t.Parallel()
 	k := Order{
-		ClosePrice: decimal.NewFromInt(1337),
+		ClosePrice: udecimal.MustFromFloat64(1337),
 	}
-	if !k.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	if !k.GetClosePrice().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 }
 
@@ -111,20 +111,20 @@ func TestIsLiquidating(t *testing.T) {
 func TestGetBuyLimit(t *testing.T) {
 	t.Parallel()
 	k := Order{
-		BuyLimit: decimal.NewFromInt(1337),
+		BuyLimit: udecimal.MustFromFloat64(1337),
 	}
-	if !k.GetBuyLimit().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", k.GetBuyLimit(), decimal.NewFromInt(1337))
+	if !k.GetBuyLimit().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetBuyLimit(), udecimal.MustFromFloat64(1337))
 	}
 }
 
 func TestGetSellLimit(t *testing.T) {
 	t.Parallel()
 	k := Order{
-		SellLimit: decimal.NewFromInt(1337),
+		SellLimit: udecimal.MustFromFloat64(1337),
 	}
-	if !k.GetSellLimit().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", k.GetSellLimit(), decimal.NewFromInt(1337))
+	if !k.GetSellLimit().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetSellLimit(), udecimal.MustFromFloat64(1337))
 	}
 }
 
@@ -154,10 +154,10 @@ func TestGetStatus(t *testing.T) {
 func TestGetFillDependentEvent(t *testing.T) {
 	t.Parallel()
 	k := Order{
-		FillDependentEvent: &signal.Signal{Amount: decimal.NewFromInt(1337)},
+		FillDependentEvent: &signal.Signal{Amount: udecimal.MustFromFloat64(1337)},
 	}
-	if !k.GetFillDependentEvent().GetAmount().Equal(decimal.NewFromInt(1337)) {
-		t.Errorf("received '%v' expected '%v'", k.GetFillDependentEvent(), decimal.NewFromInt(1337))
+	if !k.GetFillDependentEvent().GetAmount().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Errorf("received '%v' expected '%v'", k.GetFillDependentEvent(), udecimal.MustFromFloat64(1337))
 	}
 }
 

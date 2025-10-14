@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 	})
 	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, _ *http.Request) {
 		if !serverLimitRetry.Allow() {
-			w.Header().Add("Retry-After", strconv.Itoa(int(math.Round(serverLimitInterval.Seconds()))))
+			w.Header().Add("Retry-After", strconv.Itoa(int(math.RoundBank(serverLimitInterval.Seconds()))))
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
 				http.StatusTooManyRequests)

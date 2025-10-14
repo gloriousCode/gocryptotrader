@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -39,11 +39,11 @@ func TestGetBase(t *testing.T) {
 			CurrencyPair: p,
 			AssetType:    a,
 		},
-		Open:   decimal.NewFromInt(1337),
-		Close:  decimal.NewFromInt(1337),
-		Low:    decimal.NewFromInt(1337),
-		High:   decimal.NewFromInt(1337),
-		Volume: decimal.NewFromInt(1337),
+		Open:   udecimal.MustFromFloat64(1337),
+		Close:  udecimal.MustFromFloat64(1337),
+		Low:    udecimal.MustFromFloat64(1337),
+		High:   udecimal.MustFromFloat64(1337),
+		Volume: udecimal.MustFromFloat64(1337),
 	}})
 	assert.NoError(t, err)
 

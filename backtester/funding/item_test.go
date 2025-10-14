@@ -3,7 +3,7 @@ package funding
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -14,10 +14,10 @@ func TestMatchesExchange(t *testing.T) {
 	if i.MatchesExchange(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	if !baseItem.MatchesExchange(quoteItem) {
@@ -34,10 +34,10 @@ func TestMatchesItemCurrency(t *testing.T) {
 	if i.MatchesItemCurrency(nil) {
 		t.Errorf("received '%v' expected '%v'", true, false)
 	}
-	baseItem, err := CreateItem(exchName, a, pair.Base, decimal.Zero, decimal.Zero)
+	baseItem, err := CreateItem(exchName, a, pair.Base, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
-	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, decimal.Zero)
+	quoteItem, err := CreateItem(exchName, a, pair.Quote, elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	if baseItem.MatchesItemCurrency(quoteItem) {
@@ -51,7 +51,7 @@ func TestMatchesItemCurrency(t *testing.T) {
 func TestReserve(t *testing.T) {
 	t.Parallel()
 	i := Item{}
-	err := i.Reserve(decimal.Zero)
+	err := i.Reserve(udecimal.Zero)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = i.Reserve(elite)
@@ -81,7 +81,7 @@ func TestIncreaseAvailable(t *testing.T) {
 	if !i.available.Equal(elite) {
 		t.Errorf("expected %v", elite)
 	}
-	err = i.IncreaseAvailable(decimal.Zero)
+	err = i.IncreaseAvailable(udecimal.Zero)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = i.IncreaseAvailable(neg)
@@ -91,21 +91,21 @@ func TestIncreaseAvailable(t *testing.T) {
 func TestRelease(t *testing.T) {
 	t.Parallel()
 	i := Item{}
-	err := i.Release(decimal.Zero, decimal.Zero)
+	err := i.Release(udecimal.Zero, udecimal.Zero)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
-	err = i.Release(elite, decimal.Zero)
+	err = i.Release(elite, udecimal.Zero)
 	assert.ErrorIs(t, err, errCannotAllocate)
 
 	i.reserved = elite
-	err = i.Release(elite, decimal.Zero)
+	err = i.Release(elite, udecimal.Zero)
 	assert.NoError(t, err)
 
 	i.reserved = elite
 	err = i.Release(elite, one)
 	assert.NoError(t, err)
 
-	err = i.Release(neg, decimal.Zero)
+	err = i.Release(neg, udecimal.Zero)
 	assert.ErrorIs(t, err, errZeroAmountReceived)
 
 	err = i.Release(elite, neg)

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -18,7 +18,7 @@ import (
 
 const testExchange = "binance"
 
-var elite = decimal.NewFromInt(1337)
+var elite = udecimal.MustFromFloat64(1337)
 
 func TestLoad(t *testing.T) {
 	t.Parallel()

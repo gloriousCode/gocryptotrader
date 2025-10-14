@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
@@ -33,30 +33,30 @@ var (
 	startDate    = time.Date(time.Now().Year()-1, 8, 1, 0, 0, 0, 0, time.Local)
 	endDate      = time.Date(time.Now().Year()-1, 12, 1, 0, 0, 0, 0, time.Local)
 	tradeEndDate = startDate.Add(time.Hour * 72)
-	makerFee     = decimal.NewFromFloat(0.0002)
-	takerFee     = decimal.NewFromFloat(0.0007)
+	makerFee     = udecimal.MustFromFloat64(0.0002)
+	takerFee     = udecimal.MustFromFloat64(0.0007)
 	minMax       = MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.005),
-		MaximumSize:  decimal.NewFromInt(2),
-		MaximumTotal: decimal.NewFromInt(40000),
+		MinimumSize:  udecimal.MustFromFloat64(0.005),
+		MaximumSize:  udecimal.MustFromFloat64(2),
+		MaximumTotal: udecimal.MustFromFloat64(40000),
 	}
 	// strictMinMax used for live order restrictions
 	strictMinMax = MinMax{
-		MinimumSize:  decimal.NewFromFloat(0.001),
-		MaximumSize:  decimal.NewFromFloat(0.05),
-		MaximumTotal: decimal.NewFromInt(100),
+		MinimumSize:  udecimal.MustFromFloat64(0.001),
+		MaximumSize:  udecimal.MustFromFloat64(0.05),
+		MaximumTotal: udecimal.MustFromFloat64(100),
 	}
-	initialFunds1000000 *decimal.Decimal
-	initialFunds100000  *decimal.Decimal
-	initialFunds10      *decimal.Decimal
+	initialFunds1000000 *udecimal.Decimal
+	initialFunds100000  *udecimal.Decimal
+	initialFunds10      *udecimal.Decimal
 
 	mainCurrencyPair = currency.NewBTCUSDT()
 )
 
 func TestMain(m *testing.M) {
-	iF1 := decimal.NewFromInt(1000000)
-	iF2 := decimal.NewFromInt(100000)
-	iBF := decimal.NewFromInt(10)
+	iF1 := udecimal.MustFromFloat64(1000000)
+	iF2 := udecimal.MustFromFloat64(100000)
+	iBF := udecimal.MustFromFloat64(10)
 	initialFunds1000000 = &iF1
 	initialFunds100000 = &iF2
 	initialFunds10 = &iBF
@@ -108,7 +108,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errUnsetCurrency)
 
-	leet := decimal.NewFromInt(1337)
+	leet := udecimal.MustFromFloat64(1337)
 	c.CurrencySettings[0].SpotDetails = &SpotDetails{InitialQuoteFunds: &leet}
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errUnsetCurrency)
@@ -134,24 +134,24 @@ func TestValidateCurrencySettings(t *testing.T) {
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errPerpetualsUnsupported)
 
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(3)
+	c.CurrencySettings[0].MinimumSlippagePercent = udecimal.MustFromFloat64(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = udecimal.MustFromFloat64(3)
 	c.CurrencySettings[0].Quote = currency.NewCode("USD")
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errFeatureIncompatible)
 
 	c.CurrencySettings[0].Asset = asset.Spot
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(-1)
+	c.CurrencySettings[0].MinimumSlippagePercent = udecimal.MustFromFloat64(-1)
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errBadSlippageRates)
 
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(-1)
+	c.CurrencySettings[0].MinimumSlippagePercent = udecimal.MustFromFloat64(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = udecimal.MustFromFloat64(-1)
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errBadSlippageRates)
 
-	c.CurrencySettings[0].MinimumSlippagePercent = decimal.NewFromInt(2)
-	c.CurrencySettings[0].MaximumSlippagePercent = decimal.NewFromInt(1)
+	c.CurrencySettings[0].MinimumSlippagePercent = udecimal.MustFromFloat64(2)
+	c.CurrencySettings[0].MaximumSlippagePercent = udecimal.MustFromFloat64(1)
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errBadSlippageRates)
 
@@ -159,7 +159,7 @@ func TestValidateCurrencySettings(t *testing.T) {
 	err = c.validateCurrencySettings()
 	assert.ErrorIs(t, err, errBadInitialFunds)
 
-	z := decimal.Zero
+	z := udecimal.Zero
 	c.CurrencySettings[0].SpotDetails.InitialQuoteFunds = &z
 	c.CurrencySettings[0].SpotDetails.InitialBaseFunds = &z
 	err = c.validateCurrencySettings()
@@ -186,7 +186,7 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
-				MinimumSize: decimal.NewFromInt(-1),
+				MinimumSize: udecimal.MustFromFloat64(-1),
 			},
 		},
 	}
@@ -196,7 +196,7 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
-				MaximumTotal: decimal.NewFromInt(-1),
+				MaximumTotal: udecimal.MustFromFloat64(-1),
 			},
 		},
 	}
@@ -206,7 +206,7 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			SellSide: MinMax{
-				MaximumSize: decimal.NewFromInt(-1),
+				MaximumSize: udecimal.MustFromFloat64(-1),
 			},
 		},
 	}
@@ -216,9 +216,9 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromInt(2),
-				MaximumTotal: decimal.NewFromInt(10),
-				MaximumSize:  decimal.NewFromInt(1),
+				MinimumSize:  udecimal.MustFromFloat64(2),
+				MaximumTotal: udecimal.MustFromFloat64(10),
+				MaximumSize:  udecimal.MustFromFloat64(1),
 			},
 		},
 	}
@@ -228,8 +228,8 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			BuySide: MinMax{
-				MinimumSize: decimal.NewFromInt(2),
-				MaximumSize: decimal.NewFromInt(2),
+				MinimumSize: udecimal.MustFromFloat64(2),
+				MaximumSize: udecimal.MustFromFloat64(2),
 			},
 		},
 	}
@@ -239,15 +239,15 @@ func TestValidateMinMaxes(t *testing.T) {
 	c.CurrencySettings = []CurrencySettings{
 		{
 			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromInt(1),
-				MaximumTotal: decimal.NewFromInt(10),
-				MaximumSize:  decimal.NewFromInt(2),
+				MinimumSize:  udecimal.MustFromFloat64(1),
+				MaximumTotal: udecimal.MustFromFloat64(10),
+				MaximumSize:  udecimal.MustFromFloat64(2),
 			},
 		},
 	}
 	c.PortfolioSettings = PortfolioSettings{
 		BuySide: MinMax{
-			MinimumSize: decimal.NewFromInt(-1),
+			MinimumSize: udecimal.MustFromFloat64(-1),
 		},
 	}
 	err = c.validateMinMaxes()
@@ -255,7 +255,7 @@ func TestValidateMinMaxes(t *testing.T) {
 
 	c.PortfolioSettings = PortfolioSettings{
 		SellSide: MinMax{
-			MinimumSize: decimal.NewFromInt(-1),
+			MinimumSize: udecimal.MustFromFloat64(-1),
 		},
 	}
 	err = c.validateMinMaxes()
@@ -283,7 +283,7 @@ func TestValidateStrategySettings(t *testing.T) {
 
 	c.FundingSettings.ExchangeLevelFunding = []ExchangeLevelFunding{
 		{
-			InitialFunds: decimal.NewFromInt(-1),
+			InitialFunds: udecimal.MustFromFloat64(-1),
 		},
 	}
 	err = c.validateStrategySettings()
@@ -350,7 +350,7 @@ func TestPrintSettings(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	cfg.PrintSetting()
@@ -376,9 +376,9 @@ func TestValidate(t *testing.T) {
 					InitialQuoteFunds: initialFunds100000,
 				},
 				BuySide: MinMax{
-					MinimumSize:  decimal.NewFromInt(1),
-					MaximumSize:  decimal.NewFromInt(10),
-					MaximumTotal: decimal.NewFromInt(10),
+					MinimumSize:  udecimal.MustFromFloat64(1),
+					MaximumSize:  udecimal.MustFromFloat64(10),
+					MaximumTotal: udecimal.MustFromFloat64(10),
 				},
 			},
 		},
@@ -449,7 +449,7 @@ func TestGenerateConfigForDCAAPICandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -510,7 +510,7 @@ func TestGenerateConfigForPluginStrategy(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -548,7 +548,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Quote,
-					InitialFunds: decimal.NewFromInt(100000),
+					InitialFunds: udecimal.MustFromFloat64(100000),
 				},
 			},
 		},
@@ -588,7 +588,7 @@ func TestGenerateConfigForDCAAPICandlesExchangeLevelFunding(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -644,18 +644,18 @@ func TestGenerateConfigForDCAAPITrades(t *testing.T) {
 		},
 		PortfolioSettings: PortfolioSettings{
 			BuySide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
-				MaximumSize:  decimal.NewFromInt(1),
-				MaximumTotal: decimal.NewFromInt(10000),
+				MinimumSize:  udecimal.MustFromFloat64(0.1),
+				MaximumSize:  udecimal.MustFromFloat64(1),
+				MaximumTotal: udecimal.MustFromFloat64(10000),
 			},
 			SellSide: MinMax{
-				MinimumSize:  decimal.NewFromFloat(0.1),
-				MaximumSize:  decimal.NewFromInt(1),
-				MaximumTotal: decimal.NewFromInt(10000),
+				MinimumSize:  udecimal.MustFromFloat64(0.1),
+				MaximumSize:  udecimal.MustFromFloat64(1),
+				MaximumTotal: udecimal.MustFromFloat64(10000),
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -726,7 +726,7 @@ func TestGenerateConfigForDCAAPICandlesMultipleCurrencies(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -798,7 +798,7 @@ func TestGenerateConfigForDCAAPICandlesSimultaneousProcessing(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -868,7 +868,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 			SellSide: strictMinMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -931,7 +931,7 @@ func TestGenerateConfigForRSIAPICustomSettings(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -989,7 +989,7 @@ func TestGenerateConfigForDCACSVCandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -1042,7 +1042,7 @@ func TestGenerateConfigForDCACSVTrades(t *testing.T) {
 		},
 		PortfolioSettings: PortfolioSettings{},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -1109,7 +1109,7 @@ func TestGenerateConfigForDCADatabaseCandles(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -1152,13 +1152,13 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Base,
-					InitialFunds: decimal.NewFromFloat(3),
+					InitialFunds: udecimal.MustFromFloat64(3),
 				},
 				{
 					ExchangeName: mainExchange,
 					Asset:        asset.Spot,
 					Currency:     mainCurrencyPair.Quote,
-					InitialFunds: decimal.NewFromInt(10000),
+					InitialFunds: udecimal.MustFromFloat64(10000),
 				},
 			},
 		},
@@ -1237,7 +1237,7 @@ func TestGenerateConfigForTop2Bottom2(t *testing.T) {
 			SellSide: minMax,
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -1310,7 +1310,7 @@ func TestGenerateBinanceCashAndCarryStrategy(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {
@@ -1398,7 +1398,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 			},
 		},
 		StatisticSettings: StatisticSettings{
-			RiskFreeRate: decimal.NewFromFloat(0.03),
+			RiskFreeRate: udecimal.MustFromFloat64(0.03),
 		},
 	}
 	if saveConfig {

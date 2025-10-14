@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 )
 
 var (
@@ -25,9 +25,9 @@ var (
 	errCAGRZeroOpenValue       = errors.New("cannot calculate CAGR with an open value of 0")
 	errInformationBadLength    = errors.New("benchmark rates length does not match returns rates")
 
-	one        = decimal.NewFromInt(1)
-	two        = decimal.NewFromInt(2)
-	oneHundred = decimal.NewFromInt(100)
+	one        = udecimal.MustFromInt64(1, 0)
+	two        = udecimal.MustFromInt64(2, 0)
+	oneHundred = udecimal.MustFromInt64(100, 0)
 )
 
 // CalculateAmountWithFee returns a calculated fee included amount on fee
@@ -51,11 +51,13 @@ func PercentageDifference(x, y float64) float64 {
 }
 
 // PercentageDifferenceDecimal returns the difference between two decimal values as a percentage of their average
-func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
+func PercentageDifferenceDecimal(x, y udecimal.Decimal) udecimal.Decimal {
 	if x.IsZero() && y.IsZero() {
-		return decimal.Zero
+		return udecimal.Zero
 	}
-	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
+	avg, _ := x.Add(y).Div(two)
+	diff, _ := x.Sub(y).Abs().Div(avg)
+	return diff.Mul(oneHundred)
 }
 
 // CalculateNetProfit returns net profit
@@ -264,18 +266,18 @@ func SharpeRatio(movementPerCandle []float64, riskFreeRatePerInterval, average f
 // DecimalCompoundAnnualGrowthRate Calculates CAGR.
 // Using years, intervals per year would be 1 and number of intervals would be the number of years
 // Using days, intervals per year would be 365 and number of intervals would be the number of days
-func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals decimal.Decimal) (decimal.Decimal, error) {
+func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, numberOfIntervals udecimal.Decimal) (udecimal.Decimal, error) {
 	if numberOfIntervals.IsZero() {
-		return decimal.Zero, errCAGRNoIntervals
+		return udecimal.Zero, errCAGRNoIntervals
 	}
 	if openValue.IsZero() {
-		return decimal.Zero, errCAGRZeroOpenValue
+		return udecimal.Zero, errCAGRZeroOpenValue
 	}
-	closeOverOpen := closeValue.Div(openValue)
-	exp := intervalsPerYear.Div(numberOfIntervals)
+	closeOverOpen, _ := closeValue.Div(openValue)
+	exp, _ := intervalsPerYear.Div(numberOfIntervals)
 	pow := DecimalPow(closeOverOpen, exp)
 	if pow.IsZero() {
-		return decimal.Zero, ErrPowerDifferenceTooSmall
+		return udecimal.Zero, ErrPowerDifferenceTooSmall
 	}
 	k := pow.Sub(one).Mul(oneHundred)
 	return k, nil
@@ -283,112 +285,114 @@ func DecimalCompoundAnnualGrowthRate(openValue, closeValue, intervalsPerYear, nu
 
 // DecimalCalmarRatio is a function of the average compounded annual rate of return versus its maximum drawdown.
 // The higher the Calmar ratio, the better it performed on a risk-adjusted basis during the given time frame, which is mostly commonly set at 36 months
-func DecimalCalmarRatio(highestPrice, lowestPrice, average, riskFreeRateForPeriod decimal.Decimal) (decimal.Decimal, error) {
+func DecimalCalmarRatio(highestPrice, lowestPrice, average, riskFreeRateForPeriod udecimal.Decimal) (udecimal.Decimal, error) {
 	if highestPrice.IsZero() {
-		return decimal.Zero, errCalmarHighest
+		return udecimal.Zero, errCalmarHighest
 	}
-	drawdownDiff := highestPrice.Sub(lowestPrice).Div(highestPrice)
+	drawdownDiff, _ := highestPrice.Sub(lowestPrice).Div(highestPrice)
 	if drawdownDiff.IsZero() {
-		return decimal.Zero, nil
+		return udecimal.Zero, nil
 	}
-	return average.Sub(riskFreeRateForPeriod).Div(drawdownDiff), nil
+	result, _ := average.Sub(riskFreeRateForPeriod).Div(drawdownDiff)
+	return result, nil
 }
 
 // DecimalInformationRatio The information ratio (IR) is a measurement of portfolio returns beyond the returns of a benchmark,
 // usually an index, compared to the volatility of those returns.
 // The benchmark used is typically an index that represents the market or a particular sector or industry.
-func DecimalInformationRatio(returnsRates, benchmarkRates []decimal.Decimal, averageValues, averageComparison decimal.Decimal) (decimal.Decimal, error) {
+func DecimalInformationRatio(returnsRates, benchmarkRates []udecimal.Decimal, averageValues, averageComparison udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(benchmarkRates) != len(returnsRates) {
-		return decimal.Zero, errInformationBadLength
+		return udecimal.Zero, errInformationBadLength
 	}
-	diffs := make([]decimal.Decimal, len(returnsRates))
+	diffs := make([]udecimal.Decimal, len(returnsRates))
 	for i := range returnsRates {
 		diffs[i] = returnsRates[i].Sub(benchmarkRates[i])
 	}
 	stdDev, err := DecimalPopulationStandardDeviation(diffs)
 	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		return decimal.Zero, err
+		return udecimal.Zero, err
 	}
 	if stdDev.IsZero() {
-		return decimal.Zero, nil
+		return udecimal.Zero, nil
 	}
-	return averageValues.Sub(averageComparison).Div(stdDev), nil
+	result, _ := averageValues.Sub(averageComparison).Div(stdDev)
+	return result, nil
 }
 
 // DecimalPopulationStandardDeviation calculates standard deviation using population based calculation
-func DecimalPopulationStandardDeviation(values []decimal.Decimal) (decimal.Decimal, error) {
+func DecimalPopulationStandardDeviation(values []udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(values) < 2 {
-		return decimal.Zero, nil
+		return udecimal.Zero, nil
 	}
 	valAvg, err := DecimalArithmeticMean(values)
 	if err != nil {
-		return decimal.Zero, err
+		return udecimal.Zero, err
 	}
-	diffs := make([]decimal.Decimal, len(values))
+	diffs := make([]udecimal.Decimal, len(values))
 	for x := range values {
 		val := values[x].Sub(valAvg)
-		exp := two
-		pow := DecimalPow(val, exp)
-		diffs[x] = pow
+		diffs[x] = val.PowInt(2)
 	}
-	var diffAvg decimal.Decimal
+	var diffAvg udecimal.Decimal
 	diffAvg, err = DecimalArithmeticMean(diffs)
 	if err != nil {
-		return decimal.Zero, err
+		return udecimal.Zero, err
 	}
-	f, exact := diffAvg.Float64()
+	f := diffAvg.InexactFloat64()
+	exact := true
 	err = nil
 	if !exact {
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, diffAvg, f)
 	}
-	resp := decimal.NewFromFloat(math.Sqrt(f))
+	resp := udecimal.MustFromFloat64(math.Sqrt(f))
 	return resp, err
 }
 
 // DecimalSampleStandardDeviation standard deviation is a statistic that
 // measures the dispersion of a dataset relative to its mean and
 // is calculated as the square root of the variance
-func DecimalSampleStandardDeviation(values []decimal.Decimal) (decimal.Decimal, error) {
+func DecimalSampleStandardDeviation(values []udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(values) < 2 {
-		return decimal.Zero, nil
+		return udecimal.Zero, nil
 	}
 	mean, err := DecimalArithmeticMean(values)
 	if err != nil {
-		return decimal.Zero, err
+		return udecimal.Zero, err
 	}
-	superMean := make([]decimal.Decimal, len(values))
-	var combined decimal.Decimal
+	superMean := make([]udecimal.Decimal, len(values))
+	var combined udecimal.Decimal
 	for i := range values {
-		pow := values[i].Sub(mean).Pow(two)
+		pow := values[i].Sub(mean).PowInt(2)
 		superMean[i] = pow
 		combined.Add(pow)
 	}
-	avg := combined.Div(decimal.NewFromInt(int64(len(superMean))).Sub(one))
-	f, exact := avg.Float64()
+	avg, _ := combined.Div(udecimal.MustFromInt64(int64(len(superMean)), 0).Sub(one))
+	f := avg.InexactFloat64()
+	exact := true
 	err = nil
 	if !exact {
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, avg, f)
 	}
 	sqrt := math.Sqrt(f)
-	return decimal.NewFromFloat(sqrt), err
+	return udecimal.MustFromFloat64(sqrt), err
 }
 
 // DecimalGeometricMean is an average which indicates the central tendency or
 // typical value of a set of numbers by using the product of their values
 // The geometric average can only process positive numbers
-func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
+func DecimalGeometricMean(values []udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(values) == 0 {
-		return decimal.Zero, errZeroValue
+		return udecimal.Zero, errZeroValue
 	}
 	product := one
 	for i := range values {
-		if values[i].LessThanOrEqual(decimal.Zero) {
+		if values[i].LessThanOrEqual(udecimal.Zero) {
 			// cannot use negative or zero values in geometric calculation
-			return decimal.Zero, errGeometricNegative
+			return udecimal.Zero, errGeometricNegative
 		}
 		product = product.Mul(values[i])
 	}
-	exp := one.Div(decimal.NewFromInt(int64(len(values))))
+	exp, _ := one.Div(udecimal.MustFromInt64(int64(len(values)), 0))
 	pow := DecimalPow(product, exp)
 	geometricPower := pow
 	return geometricPower, nil
@@ -396,12 +400,18 @@ func DecimalGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
 
 // DecimalPow is lovely because shopspring decimal cannot
 // handle ^0.x and instead returns 1
-func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
+func DecimalPow(x, y udecimal.Decimal) udecimal.Decimal {
 	pow := math.Pow(x.InexactFloat64(), y.InexactFloat64())
 	if math.IsNaN(pow) || math.IsInf(pow, 0) {
-		return decimal.Zero
+		return udecimal.Zero
 	}
-	return decimal.NewFromFloat(pow)
+	result, err := udecimal.NewFromFloat64(pow)
+	if err != nil {
+		// If precision is too high, round to a reasonable precision
+		pow = math.Round(pow*1e15) / 1e15
+		result = udecimal.MustFromFloat64(pow)
+	}
+	return result
 }
 
 // DecimalFinancialGeometricMean is a modified geometric average to assess
@@ -409,16 +419,16 @@ func DecimalPow(x, y decimal.Decimal) decimal.Decimal {
 // This does impact the final figures as it is modifying values
 // It is still ultimately calculating a geometric average
 // which should only be compared to other financial geometric averages
-func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, error) {
+func DecimalFinancialGeometricMean(values []udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(values) == 0 {
-		return decimal.Zero, errZeroValue
+		return udecimal.Zero, errZeroValue
 	}
 	product := 1.0
 	for i := range values {
-		if values[i].LessThan(decimal.NewFromInt(-1)) {
+		if values[i].LessThan(udecimal.MustFromInt64(-1, 0)) {
 			// cannot lose more than 100%, figures are incorrect
 			// losing exactly 100% will return a 0 value, but is not an error
-			return decimal.Zero, errNegativeValueOutOfRange
+			return udecimal.Zero, errNegativeValueOutOfRange
 		}
 		// as we cannot have negative or zero value geometric numbers
 		// adding a 1 to the percentage movements allows for differentiation between
@@ -432,64 +442,68 @@ func DecimalFinancialGeometricMean(values []decimal.Decimal) (decimal.Decimal, e
 		// we minus 1 because we manipulated the values to be non-zero/negative
 		geometricPower--
 	}
-	return decimal.NewFromFloat(geometricPower), nil
+	return udecimal.MustFromFloat64(geometricPower), nil
 }
 
 // DecimalArithmeticMean is the basic form of calculating an average.
 // Divide the sum of all values by the length of values
-func DecimalArithmeticMean(values []decimal.Decimal) (decimal.Decimal, error) {
+func DecimalArithmeticMean(values []udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(values) == 0 {
-		return decimal.Zero, errZeroValue
+		return udecimal.Zero, errZeroValue
 	}
-	var sumOfValues decimal.Decimal
+	var sumOfValues udecimal.Decimal
 	for x := range values {
 		sumOfValues = sumOfValues.Add(values[x])
 	}
-	return sumOfValues.Div(decimal.NewFromInt(int64(len(values)))), nil
+	result, _ := sumOfValues.Div(udecimal.MustFromInt64(int64(len(values)), 0))
+	return result, nil
 }
 
 // DecimalSortinoRatio returns sortino ratio of backtest compared to risk-free
-func DecimalSortinoRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInterval, average decimal.Decimal) (decimal.Decimal, error) {
+func DecimalSortinoRatio(movementPerCandle []udecimal.Decimal, riskFreeRatePerInterval, average udecimal.Decimal) (udecimal.Decimal, error) {
 	if len(movementPerCandle) == 0 {
-		return decimal.Zero, errZeroValue
+		return udecimal.Zero, errZeroValue
 	}
-	totalNegativeResultsSquared := decimal.Zero
+	totalNegativeResultsSquared := udecimal.Zero
 	for x := range movementPerCandle {
-		if movementPerCandle[x].Sub(riskFreeRatePerInterval).LessThan(decimal.Zero) {
-			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).Pow(two))
+		if movementPerCandle[x].Sub(riskFreeRatePerInterval).LessThan(udecimal.Zero) {
+			totalNegativeResultsSquared = totalNegativeResultsSquared.Add(movementPerCandle[x].Sub(riskFreeRatePerInterval).PowInt(2))
 		}
 	}
 	if totalNegativeResultsSquared.IsZero() {
-		return decimal.Zero, ErrNoNegativeResults
+		return udecimal.Zero, ErrNoNegativeResults
 	}
-	f, exact := totalNegativeResultsSquared.Float64()
+	f := totalNegativeResultsSquared.InexactFloat64()
+	exact := true
 	var err error
 	if !exact {
 		err = fmt.Errorf("%w from %v to %v", ErrInexactConversion, totalNegativeResultsSquared, f)
 	}
 	fAverageDownsideDeviation := math.Sqrt(f / float64(len(movementPerCandle)))
-	averageDownsideDeviation := decimal.NewFromFloat(fAverageDownsideDeviation)
+	averageDownsideDeviation := udecimal.MustFromFloat64(fAverageDownsideDeviation)
 
-	return average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation), err
+	result, _ := average.Sub(riskFreeRatePerInterval).Div(averageDownsideDeviation)
+	return result, err
 }
 
 // DecimalSharpeRatio returns sharpe ratio of backtest compared to risk-free
-func DecimalSharpeRatio(movementPerCandle []decimal.Decimal, riskFreeRatePerInterval, average decimal.Decimal) (decimal.Decimal, error) {
-	totalIntervals := decimal.NewFromInt(int64(len(movementPerCandle)))
+func DecimalSharpeRatio(movementPerCandle []udecimal.Decimal, riskFreeRatePerInterval, average udecimal.Decimal) (udecimal.Decimal, error) {
+	totalIntervals := udecimal.MustFromInt64(int64(len(movementPerCandle)), 0)
 	if totalIntervals.IsZero() {
-		return decimal.Zero, errZeroValue
+		return udecimal.Zero, errZeroValue
 	}
-	excessReturns := make([]decimal.Decimal, len(movementPerCandle))
+	excessReturns := make([]udecimal.Decimal, len(movementPerCandle))
 	for i := range movementPerCandle {
 		excessReturns[i] = movementPerCandle[i].Sub(riskFreeRatePerInterval)
 	}
 	standardDeviation, err := DecimalPopulationStandardDeviation(excessReturns)
 	if err != nil && !errors.Is(err, ErrInexactConversion) {
-		return decimal.Zero, err
+		return udecimal.Zero, err
 	}
 	if standardDeviation.IsZero() {
-		return decimal.Zero, nil
+		return udecimal.Zero, nil
 	}
 
-	return average.Sub(riskFreeRatePerInterval).Div(standardDeviation), nil
+	result, _ := average.Sub(riskFreeRatePerInterval).Div(standardDeviation)
+	return result, nil
 }

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -34,9 +34,9 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	mfiPeriod decimal.Decimal
-	mfiLow    decimal.Decimal
-	mfiHigh   decimal.Decimal
+	mfiPeriod udecimal.Decimal
+	mfiLow    udecimal.Decimal
+	mfiHigh   udecimal.Decimal
 }
 
 // Name returns the name of the strategy
@@ -65,7 +65,7 @@ func (s *Strategy) SupportsSimultaneousProcessing() bool {
 
 type mfiFundEvent struct {
 	event signal.Event
-	mfi   decimal.Decimal
+	mfi   udecimal.Decimal
 	funds funding.IFundReader
 }
 
@@ -107,8 +107,9 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		}
 		es.SetPrice(latest.GetClosePrice())
 		offset := latest.GetOffset()
+		periodInt, _ := s.mfiPeriod.Int64()
 
-		if offset <= s.mfiPeriod.IntPart() {
+		if offset <= periodInt {
 			es.AppendReason("Not enough data for signal generation")
 			es.SetDirection(order.DoNothing)
 			resp = append(resp, &es)
@@ -120,10 +121,10 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 			return nil, err
 		}
 		var (
-			closeData  = make([]decimal.Decimal, len(history))
-			volumeData = make([]decimal.Decimal, len(history))
-			highData   = make([]decimal.Decimal, len(history))
-			lowData    = make([]decimal.Decimal, len(history))
+			closeData  = make([]udecimal.Decimal, len(history))
+			volumeData = make([]udecimal.Decimal, len(history))
+			highData   = make([]udecimal.Decimal, len(history))
+			lowData    = make([]udecimal.Decimal, len(history))
 		)
 		for i := range history {
 			closeData[i] = history[i].GetClosePrice()
@@ -147,8 +148,8 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if err != nil {
 			return nil, err
 		}
-		mfi := indicators.MFI(backfilledHighData, backfilledLowData, backfilledCloseData, backfilledVolumeData, int(s.mfiPeriod.IntPart()))
-		latestMFI := decimal.NewFromFloat(mfi[len(mfi)-1])
+		mfi := indicators.MFI(backfilledHighData, backfilledLowData, backfilledCloseData, backfilledVolumeData, int(periodInt))
+		latestMFI := udecimal.MustFromFloat64(mfi[len(mfi)-1])
 		hasDataAtTime, err := d[i].HasDataAtTime(latest.GetTime())
 		if err != nil {
 			return nil, err
@@ -218,19 +219,19 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 			if !ok || mfiHigh <= 0 {
 				return fmt.Errorf("%w provided mfi-high value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiHigh = decimal.NewFromFloat(mfiHigh)
+			s.mfiHigh = udecimal.MustFromFloat64(mfiHigh)
 		case mfiLowKey:
 			mfiLow, ok := v.(float64)
 			if !ok || mfiLow <= 0 {
 				return fmt.Errorf("%w provided mfi-low value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiLow = decimal.NewFromFloat(mfiLow)
+			s.mfiLow = udecimal.MustFromFloat64(mfiLow)
 		case mfiPeriodKey:
 			mfiPeriod, ok := v.(float64)
 			if !ok || mfiPeriod <= 0 {
 				return fmt.Errorf("%w provided mfi-period value could not be parsed: %v", base.ErrInvalidCustomSettings, v)
 			}
-			s.mfiPeriod = decimal.NewFromFloat(mfiPeriod)
+			s.mfiPeriod = udecimal.MustFromFloat64(mfiPeriod)
 		default:
 			return fmt.Errorf("%w unrecognised custom setting key %v with value %v. Cannot apply", base.ErrInvalidCustomSettings, k, v)
 		}
@@ -241,26 +242,27 @@ func (s *Strategy) SetCustomSettings(customSettings map[string]any) error {
 
 // SetDefaults sets the custom settings to their default values
 func (s *Strategy) SetDefaults() {
-	s.mfiHigh = decimal.NewFromInt(70)
-	s.mfiLow = decimal.NewFromInt(30)
-	s.mfiPeriod = decimal.NewFromInt(14)
+	s.mfiHigh = udecimal.MustFromInt64(70, 0)
+	s.mfiLow = udecimal.MustFromInt64(30, 0)
+	s.mfiPeriod = udecimal.MustFromInt64(14, 0)
 }
 
 // backfillMissingData will replace missing data with the previous candle's data
 // this will ensure that mfi can be calculated correctly
 // the decision to handle missing data occurs at the strategy level, not all strategies
 // may wish to modify data
-func (s *Strategy) backfillMissingData(d []decimal.Decimal, t time.Time) ([]float64, error) {
+func (s *Strategy) backfillMissingData(d []udecimal.Decimal, t time.Time) ([]float64, error) {
 	resp := make([]float64, len(d))
 	var missingDataStreak int64
+	periodInt, _ := s.mfiPeriod.Int64()
 	for i := range d {
-		if d[i].IsZero() && i > int(s.mfiPeriod.IntPart()) {
+		if d[i].IsZero() && i > int(periodInt) {
 			d[i] = d[i-1]
 			missingDataStreak++
 		} else {
 			missingDataStreak = 0
 		}
-		if missingDataStreak >= s.mfiPeriod.IntPart() {
+		if missingDataStreak >= periodInt {
 			return nil, fmt.Errorf("missing data exceeds mfi period length of %v at %s and will distort results. %w",
 				s.mfiPeriod,
 				t.Format(time.DateTime),

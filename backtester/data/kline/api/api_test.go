@@ -31,8 +31,8 @@ func TestLoadCandles(t *testing.T) {
 		ConfigFormat:  &currency.PairFormat{Uppercase: true},
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
-	tt1 := time.Now().Add(-time.Minute).Round(gctkline.OneMin.Duration())
-	tt2 := time.Now().Round(gctkline.OneMin.Duration())
+	tt1 := time.Now().Add(-time.Minute).RoundBank(gctkline.OneMin.Duration())
+	tt2 := time.Now().RoundBank(gctkline.OneMin.Duration())
 	interval := gctkline.OneMin
 	a := asset.Spot
 	data, err := LoadData(t.Context(), common.DataCandle, tt1, tt2, interval.Duration(), exch, cp, a)
@@ -59,8 +59,8 @@ func TestLoadTrades(t *testing.T) {
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 	}
 	interval := gctkline.OneMin
-	tt1 := time.Now().Add(-time.Minute * 10).Round(interval.Duration())
-	tt2 := time.Now().Round(interval.Duration())
+	tt1 := time.Now().Add(-time.Minute * 10).RoundBank(interval.Duration())
+	tt2 := time.Now().RoundBank(interval.Duration())
 	a := asset.Spot
 	data, err := LoadData(t.Context(), common.DataTrade, tt1, tt2, interval.Duration(), exch, cp, a)
 	require.NoError(t, err, "LoadData must not error")

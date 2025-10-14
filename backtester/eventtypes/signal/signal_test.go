@@ -3,7 +3,7 @@ package signal
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -30,10 +30,10 @@ func TestSetDirection(t *testing.T) {
 func TestSetPrice(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		ClosePrice: decimal.NewFromInt(1),
+		ClosePrice: udecimal.MustFromFloat64(1),
 	}
-	s.SetPrice(decimal.NewFromInt(1337))
-	if !s.GetClosePrice().Equal(decimal.NewFromInt(1337)) {
+	s.SetPrice(udecimal.MustFromFloat64(1337))
+	if !s.GetClosePrice().Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '%v'", s.GetClosePrice(), 1337)
 	}
 }
@@ -41,10 +41,10 @@ func TestSetPrice(t *testing.T) {
 func TestSetBuyLimit(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		BuyLimit: decimal.NewFromInt(10),
+		BuyLimit: udecimal.MustFromFloat64(10),
 	}
-	s.SetBuyLimit(decimal.NewFromInt(20))
-	if !s.GetBuyLimit().Equal(decimal.NewFromInt(20)) {
+	s.SetBuyLimit(udecimal.MustFromFloat64(20))
+	if !s.GetBuyLimit().Equal(udecimal.MustFromFloat64(20)) {
 		t.Errorf("expected 20, received %v", s.GetBuyLimit())
 	}
 }
@@ -52,10 +52,10 @@ func TestSetBuyLimit(t *testing.T) {
 func TestSetSellLimit(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		SellLimit: decimal.NewFromInt(10),
+		SellLimit: udecimal.MustFromFloat64(10),
 	}
-	s.SetSellLimit(decimal.NewFromInt(20))
-	if !s.GetSellLimit().Equal(decimal.NewFromInt(20)) {
+	s.SetSellLimit(udecimal.MustFromFloat64(20))
+	if !s.GetSellLimit().Equal(udecimal.MustFromFloat64(20)) {
 		t.Errorf("expected 20, received %v", s.GetSellLimit())
 	}
 }
@@ -63,19 +63,19 @@ func TestSetSellLimit(t *testing.T) {
 func TestGetAmount(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		Amount: decimal.NewFromInt(1337),
+		Amount: udecimal.MustFromFloat64(1337),
 	}
-	if !s.GetAmount().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	if !s.GetAmount().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 }
 
 func TestSetAmount(t *testing.T) {
 	t.Parallel()
 	s := Signal{}
-	s.SetAmount(decimal.NewFromInt(1337))
-	if !s.GetAmount().Equal(decimal.NewFromInt(1337)) {
-		t.Error("expected decimal.NewFromInt(1337)")
+	s.SetAmount(udecimal.MustFromFloat64(1337))
+	if !s.GetAmount().Equal(udecimal.MustFromFloat64(1337)) {
+		t.Error("expected udecimal.MustFromFloat64(1337)")
 	}
 }
 
@@ -110,10 +110,10 @@ func TestGetFillDependentEvent(t *testing.T) {
 		t.Error("expected nil")
 	}
 	s.FillDependentEvent = &Signal{
-		Amount: decimal.NewFromInt(1337),
+		Amount: udecimal.MustFromFloat64(1337),
 	}
 	e := s.GetFillDependentEvent()
-	if !e.GetAmount().Equal(decimal.NewFromInt(1337)) {
+	if !e.GetAmount().Equal(udecimal.MustFromFloat64(1337)) {
 		t.Error("expected 1337")
 	}
 }
@@ -159,9 +159,9 @@ func TestMatchOrderAmount(t *testing.T) {
 func TestGetHighPrice(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		HighPrice: decimal.NewFromInt(1337),
+		HighPrice: udecimal.MustFromFloat64(1337),
 	}
-	if !s.GetHighPrice().Equal(decimal.NewFromInt(1337)) {
+	if !s.GetHighPrice().Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '%v'", s.GetHighPrice(), 1337)
 	}
 }
@@ -169,9 +169,9 @@ func TestGetHighPrice(t *testing.T) {
 func TestGetLowPrice(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		LowPrice: decimal.NewFromInt(1337),
+		LowPrice: udecimal.MustFromFloat64(1337),
 	}
-	if !s.GetLowPrice().Equal(decimal.NewFromInt(1337)) {
+	if !s.GetLowPrice().Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '%v'", s.GetLowPrice(), 1337)
 	}
 }
@@ -179,9 +179,9 @@ func TestGetLowPrice(t *testing.T) {
 func TestGetOpenPrice(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		OpenPrice: decimal.NewFromInt(1337),
+		OpenPrice: udecimal.MustFromFloat64(1337),
 	}
-	if !s.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+	if !s.GetOpenPrice().Equal(udecimal.MustFromFloat64(1337)) {
 		t.Errorf("received '%v' expected '%v'", s.GetOpenPrice(), 1337)
 	}
 }
@@ -189,12 +189,12 @@ func TestGetOpenPrice(t *testing.T) {
 func TestToKline(t *testing.T) {
 	t.Parallel()
 	s := Signal{
-		OpenPrice: decimal.NewFromInt(1337),
+		OpenPrice: udecimal.MustFromFloat64(1337),
 	}
 	k := s.ToKline()
 	switch k.(type) {
 	case kline.Event:
-		if !k.GetOpenPrice().Equal(decimal.NewFromInt(1337)) {
+		if !k.GetOpenPrice().Equal(udecimal.MustFromFloat64(1337)) {
 			t.Errorf("received '%v' expected '%v'", k.GetOpenPrice(), 1337)
 		}
 	default:

@@ -3,7 +3,7 @@ package limits
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -78,35 +78,35 @@ func TestConforms(t *testing.T) {
 func TestConformToDecimalAmount(t *testing.T) {
 	t.Parallel()
 	tt := &MinMaxLevel{}
-	val := tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(1.001))
+	val := tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromFloat64(1.001))
 	assert.Equal(t, "1.001", val.String())
 
 	tt = &MinMaxLevel{}
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromInt(1))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromInt64(1, 0))
 	assert.Equal(t, "1", val.String())
 
 	tt.AmountStepIncrementSize = 0.001
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(1.001))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromFloat64(1.001))
 	assert.Equal(t, "1.001", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(0.0001))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromFloat64(0.0001))
 	assert.Equal(t, "0", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromFloat(0.7777))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromFloat64(0.7777))
 	assert.Equal(t, "0.777", val.String())
 
 	tt.AmountStepIncrementSize = 100
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromInt(100))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromInt64(100, 0))
 	assert.Equal(t, "100", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromInt(200))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromInt64(200, 0))
 	assert.Equal(t, "200", val.String())
 
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromInt(150))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromInt64(150, 0))
 	assert.Equal(t, "100", val.String())
 
 	tt = nil
-	val = tt.FloorAmountToStepIncrementDecimal(decimal.NewFromInt(150))
+	val = tt.FloorAmountToStepIncrementDecimal(udecimal.MustFromInt64(150, 0))
 	assert.Equal(t, "150", val.String())
 }
 

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
@@ -13,7 +13,7 @@ import (
 )
 
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
-func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) error {
+func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate udecimal.Decimal) error {
 	first := c.Events[0]
 	if first.DataEvent == nil {
 		// you can call stop while a backtester run is running
@@ -49,20 +49,22 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 		}
 	}
 
-	oneHundred := decimal.NewFromInt(100)
+	oneHundred := udecimal.MustFromInt64(100, 0)
 	if !firstPrice.IsZero() {
-		c.MarketMovement = lastPrice.Sub(firstPrice).Div(firstPrice).Mul(oneHundred)
+		marketMove, _ := lastPrice.Sub(firstPrice).Div(firstPrice)
+		c.MarketMovement = marketMove.Mul(oneHundred)
 	}
 	if !first.Holdings.TotalValue.IsZero() {
-		c.StrategyMovement = last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue).Mul(oneHundred)
+		strategyMove, _ := last.Holdings.TotalValue.Sub(first.Holdings.TotalValue).Div(first.Holdings.TotalValue)
+		c.StrategyMovement = strategyMove.Mul(oneHundred)
 	}
 	c.analysePNLGrowth()
 	err := c.calculateHighestCommittedFunds()
 	if err != nil {
 		return err
 	}
-	returnsPerCandle := make([]decimal.Decimal, len(c.Events))
-	benchmarkRates := make([]decimal.Decimal, len(c.Events))
+	returnsPerCandle := make([]udecimal.Decimal, len(c.Events))
+	benchmarkRates := make([]udecimal.Decimal, len(c.Events))
 
 	allDataEvents := make([]data.Event, len(c.Events))
 	for i := range c.Events {
@@ -81,7 +83,7 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 			benchmarkRates[i] = benchmarkRates[i-1]
 			continue
 		}
-		benchmarkRates[i] = c.Events[i].ClosePrice.Sub(
+		benchmarkRates[i], _ = c.Events[i].ClosePrice.Sub(
 			c.Events[i-1].ClosePrice).Div(
 			c.Events[i-1].ClosePrice)
 	}
@@ -98,19 +100,19 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 
 	interval := first.DataEvent.GetInterval()
 	intervalsPerYear := interval.IntervalsPerYear()
-	riskFreeRatePerCandle := riskFreeRate.Div(decimal.NewFromFloat(intervalsPerYear))
+	riskFreeRatePerCandle, _ := riskFreeRate.Div(udecimal.MustFromFloat64(intervalsPerYear))
 	c.ArithmeticRatios, c.GeometricRatios, err = CalculateRatios(benchmarkRates, returnsPerCandle, riskFreeRatePerCandle, &c.MaxDrawdown, sep)
 	if err != nil {
 		return err
 	}
 
 	if !last.Holdings.QuoteInitialFunds.IsZero() {
-		var cagr decimal.Decimal
+		var cagr udecimal.Decimal
 		cagr, err = gctmath.DecimalCompoundAnnualGrowthRate(
 			last.Holdings.QuoteInitialFunds,
 			last.Holdings.TotalValue,
-			decimal.NewFromFloat(intervalsPerYear),
-			decimal.NewFromInt(int64(len(c.Events))),
+			udecimal.MustFromFloat64(intervalsPerYear),
+			udecimal.MustFromInt64(int64(len(c.Events)), 0),
 		)
 		if err != nil && !errors.Is(err, gctmath.ErrPowerDifferenceTooSmall) {
 			errs = gctcommon.AppendError(errs, err)
@@ -119,11 +121,11 @@ func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) e
 	}
 	c.IsStrategyProfitable = last.Holdings.TotalValue.GreaterThan(first.Holdings.TotalValue)
 	c.DoesPerformanceBeatTheMarket = c.StrategyMovement.GreaterThan(c.MarketMovement)
-	c.TotalFees = last.Holdings.TotalFees.Round(8)
-	c.TotalValueLostToVolumeSizing = last.Holdings.TotalValueLostToVolumeSizing.Round(2)
-	c.TotalValueLost = last.Holdings.TotalValueLost.Round(2)
-	c.TotalValueLostToSlippage = last.Holdings.TotalValueLostToSlippage.Round(2)
-	c.TotalAssetValue = last.Holdings.BaseValue.Round(8)
+	c.TotalFees = last.Holdings.TotalFees.RoundBank(8)
+	c.TotalValueLostToVolumeSizing = last.Holdings.TotalValueLostToVolumeSizing.RoundBank(2)
+	c.TotalValueLost = last.Holdings.TotalValueLost.RoundBank(2)
+	c.TotalValueLostToSlippage = last.Holdings.TotalValueLostToSlippage.RoundBank(2)
+	c.TotalAssetValue = last.Holdings.BaseValue.RoundBank(8)
 	if last.PNL != nil {
 		c.UnrealisedPNL = last.PNL.GetUnrealisedPNL().PNL
 		c.RealisedPNL = last.PNL.GetRealisedPNL().PNL

@@ -3,7 +3,7 @@ package binancecashandcarry
 import (
 	"errors"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/strategies/base"
 )
 
@@ -24,6 +24,6 @@ var (
 // Strategy is an implementation of the Handler interface
 type Strategy struct {
 	base.Strategy
-	openShortDistancePercentage  decimal.Decimal
-	closeShortDistancePercentage decimal.Decimal
+	openShortDistancePercentage  udecimal.Decimal
+	closeShortDistancePercentage udecimal.Decimal
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
@@ -31,7 +31,7 @@ import (
 
 const testExchange = "binance"
 
-var leet = decimal.NewFromInt(1337)
+var leet = udecimal.MustFromFloat64(1337)
 
 func TestReset(t *testing.T) {
 	t.Parallel()
@@ -52,20 +52,20 @@ func TestReset(t *testing.T) {
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-	_, err := Setup(nil, nil, decimal.NewFromInt(-1))
+	_, err := Setup(nil, nil, udecimal.MustFromFloat64(-1))
 	assert.ErrorIs(t, err, errSizeManagerUnset)
 
-	_, err = Setup(&size.Size{}, nil, decimal.NewFromInt(-1))
+	_, err = Setup(&size.Size{}, nil, udecimal.MustFromFloat64(-1))
 	assert.ErrorIs(t, err, errNegativeRiskFreeRate)
 
-	_, err = Setup(&size.Size{}, nil, decimal.NewFromInt(1))
+	_, err = Setup(&size.Size{}, nil, udecimal.MustFromFloat64(1))
 	assert.ErrorIs(t, err, errRiskManagerUnset)
 
 	var p *Portfolio
-	p, err = Setup(&size.Size{}, &risk.Risk{}, decimal.NewFromInt(1))
+	p, err = Setup(&size.Size{}, &risk.Risk{}, udecimal.MustFromFloat64(1))
 	assert.NoError(t, err)
 
-	if !p.riskFreeRate.Equal(decimal.NewFromInt(1)) {
+	if !p.riskFreeRate.Equal(udecimal.MustFromFloat64(1)) {
 		t.Error("expected 1")
 	}
 }
@@ -238,11 +238,11 @@ func TestUpdate(t *testing.T) {
 	err = p.UpdateHoldings(&kline.Kline{}, nil)
 	assert.ErrorIs(t, err, funding.ErrFundsNotFound)
 
-	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.MustFromFloat64(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,11 +357,11 @@ func TestOnFill(t *testing.T) {
 	err = p.SetCurrencySettingsMap(&exchange.Settings{Exchange: ff, Asset: asset.Spot, Pair: currency.NewBTCUSDT()})
 	assert.NoError(t, err)
 
-	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.NewFromInt(1), decimal.Zero)
+	b, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.MustFromFloat64(1), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, decimal.NewFromInt(100), decimal.Zero)
+	q, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, udecimal.MustFromFloat64(100), udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,11 +404,11 @@ func TestOnSignal(t *testing.T) {
 	_, err = p.OnSignal(s, &exchange.Settings{}, nil)
 	assert.ErrorIs(t, err, funding.ErrFundsNotFound)
 
-	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, decimal.Zero)
+	bc, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, decimal.Zero)
+	qc, err := funding.CreateItem(testExchange, asset.Spot, currency.USDT, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,9 +477,9 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("expected common.CouldNotBuy, received %v", resp.Direction)
 	}
 
-	s.ClosePrice = decimal.NewFromInt(10)
+	s.ClosePrice = udecimal.MustFromFloat64(10)
 	s.Direction = gctorder.Buy
-	s.Amount = decimal.NewFromInt(1)
+	s.Amount = udecimal.MustFromFloat64(1)
 	resp, err = p.OnSignal(s, &exchange.Settings{}, funds)
 	assert.NoError(t, err)
 
@@ -487,11 +487,11 @@ func TestOnSignal(t *testing.T) {
 		t.Error("expected an amount to be sized")
 	}
 
-	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, decimal.Zero)
+	bc, err = funding.CreateItem(testExchange, asset.Futures, currency.BTC, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
-	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, decimal.Zero)
+	qc, err = funding.CreateItem(testExchange, asset.Futures, currency.USD, leet, udecimal.Zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -678,7 +678,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev := &kline.Kline{
 		Base: &event.Base{},
 	}
-	err := p.UpdatePNL(ev, decimal.Zero)
+	err := p.UpdatePNL(ev, udecimal.Zero)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
 	exch := &binance.Exchange{}
@@ -702,7 +702,7 @@ func TestCalculatePNL(t *testing.T) {
 	ev.CurrencyPair = pair
 	ev.Time = tt0
 
-	err = p.UpdatePNL(ev, decimal.Zero)
+	err = p.UpdatePNL(ev, udecimal.Zero)
 	assert.ErrorIs(t, err, errNoPortfolioSettings)
 
 	od := &gctorder.Detail{
@@ -762,7 +762,7 @@ func TestCalculatePNL(t *testing.T) {
 	err = s.FuturesTracker.TrackNewOrder(od)
 	assert.NoError(t, err)
 
-	err = p.UpdatePNL(ev, decimal.NewFromInt(1))
+	err = p.UpdatePNL(ev, udecimal.MustFromFloat64(1))
 	assert.NoError(t, err)
 
 	pos := s.FuturesTracker.GetPositions()
@@ -772,7 +772,7 @@ func TestCalculatePNL(t *testing.T) {
 	if len(pos[0].PNLHistory) == 0 {
 		t.Fatal("expected a pnl entry 😎")
 	}
-	if !pos[0].UnrealisedPNL.Equal(decimal.NewFromInt(26700)) {
+	if !pos[0].UnrealisedPNL.Equal(udecimal.MustFromFloat64(26700)) {
 		// 20 orders * $1 difference * 1x leverage
 		t.Errorf("expected 26700, received '%v'", pos[0].UnrealisedPNL)
 	}
@@ -812,16 +812,16 @@ func TestTrackFuturesOrder(t *testing.T) {
 	od.Price = 0
 	od.OrderID = od.Exchange
 	od.Date = time.Now()
-	contract, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, decimal.NewFromInt(9999), decimal.Zero)
+	contract, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Base, udecimal.MustFromFloat64(9999), udecimal.Zero)
 	assert.NoError(t, err)
 
-	collateral, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, decimal.NewFromInt(9999), decimal.Zero)
+	collateral, err := funding.CreateItem(od.Exchange, od.AssetType, od.Pair.Quote, udecimal.MustFromFloat64(9999), udecimal.Zero)
 	assert.NoError(t, err)
 
-	err = collateral.IncreaseAvailable(decimal.NewFromInt(9999))
+	err = collateral.IncreaseAvailable(udecimal.MustFromFloat64(9999))
 	assert.NoError(t, err)
 
-	err = contract.IncreaseAvailable(decimal.NewFromInt(9999))
+	err = contract.IncreaseAvailable(udecimal.MustFromFloat64(9999))
 	assert.NoError(t, err)
 
 	err = collateral.Reserve(leet)
@@ -1021,12 +1021,12 @@ func TestGetUnrealisedPNL(t *testing.T) {
 		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
-			RealisedPNL:           decimal.NewFromInt(1339),
-			Price:                 decimal.NewFromInt(1331),
-			Exposure:              decimal.NewFromInt(1332),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1338),
+			RealisedPNL:           udecimal.MustFromFloat64(1339),
+			Price:                 udecimal.MustFromFloat64(1331),
+			Exposure:              udecimal.MustFromFloat64(1332),
 			Direction:             gctorder.Short,
-			Fee:                   decimal.NewFromInt(1333),
+			Fee:                   udecimal.MustFromFloat64(1333),
 			IsLiquidated:          true,
 		},
 	}
@@ -1053,12 +1053,12 @@ func TestGetRealisedPNL(t *testing.T) {
 		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
-			RealisedPNL:           decimal.NewFromInt(1339),
-			Price:                 decimal.NewFromInt(1331),
-			Exposure:              decimal.NewFromInt(1332),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1338),
+			RealisedPNL:           udecimal.MustFromFloat64(1339),
+			Price:                 udecimal.MustFromFloat64(1331),
+			Exposure:              udecimal.MustFromFloat64(1332),
 			Direction:             gctorder.Short,
-			Fee:                   decimal.NewFromInt(1333),
+			Fee:                   udecimal.MustFromFloat64(1333),
 			IsLiquidated:          true,
 		},
 	}
@@ -1085,12 +1085,12 @@ func TestGetExposure(t *testing.T) {
 		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
-			RealisedPNL:           decimal.NewFromInt(1339),
-			Price:                 decimal.NewFromInt(1331),
-			Exposure:              decimal.NewFromInt(1332),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1338),
+			RealisedPNL:           udecimal.MustFromFloat64(1339),
+			Price:                 udecimal.MustFromFloat64(1331),
+			Exposure:              udecimal.MustFromFloat64(1332),
 			Direction:             gctorder.Short,
-			Fee:                   decimal.NewFromInt(1333),
+			Fee:                   udecimal.MustFromFloat64(1333),
 			IsLiquidated:          true,
 		},
 	}
@@ -1110,12 +1110,12 @@ func TestGetCollateralCurrency(t *testing.T) {
 		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
-			RealisedPNL:           decimal.NewFromInt(1339),
-			Price:                 decimal.NewFromInt(1331),
-			Exposure:              decimal.NewFromInt(1332),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1338),
+			RealisedPNL:           udecimal.MustFromFloat64(1339),
+			Price:                 udecimal.MustFromFloat64(1331),
+			Exposure:              udecimal.MustFromFloat64(1332),
 			Direction:             gctorder.Short,
-			Fee:                   decimal.NewFromInt(1333),
+			Fee:                   udecimal.MustFromFloat64(1333),
 			IsLiquidated:          true,
 		},
 	}
@@ -1136,12 +1136,12 @@ func TestGetDirection(t *testing.T) {
 		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
-			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
-			RealisedPNL:           decimal.NewFromInt(1339),
-			Price:                 decimal.NewFromInt(1331),
-			Exposure:              decimal.NewFromInt(1332),
+			RealisedPNLBeforeFees: udecimal.MustFromFloat64(1338),
+			RealisedPNL:           udecimal.MustFromFloat64(1339),
+			Price:                 udecimal.MustFromFloat64(1331),
+			Exposure:              udecimal.MustFromFloat64(1332),
 			Direction:             gctorder.Short,
-			Fee:                   decimal.NewFromInt(1333),
+			Fee:                   udecimal.MustFromFloat64(1333),
 			IsLiquidated:          true,
 		},
 	}
@@ -1263,7 +1263,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	require.NoError(t, err)
 
 	// spot order
-	item, err := funding.CreateItem(ff.Name, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	item, err := funding.CreateItem(ff.Name, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	require.NoError(t, err)
 
 	err = funds.AddItem(item)
@@ -1307,10 +1307,10 @@ func TestCheckLiquidationStatus(t *testing.T) {
 
 	item := asset.Futures
 	pair := currency.NewBTCUSDT()
-	contract, err := funding.CreateItem(testExchange, item, pair.Base, decimal.NewFromInt(100), decimal.Zero)
+	contract, err := funding.CreateItem(testExchange, item, pair.Base, udecimal.MustFromFloat64(100), udecimal.Zero)
 	assert.NoError(t, err)
 
-	collateral, err := funding.CreateItem(testExchange, item, pair.Quote, decimal.NewFromInt(100), decimal.Zero)
+	collateral, err := funding.CreateItem(testExchange, item, pair.Quote, udecimal.MustFromFloat64(100), udecimal.Zero)
 	assert.NoError(t, err)
 
 	collat, err := funding.CreateCollateral(contract, collateral)
@@ -1374,7 +1374,7 @@ func TestSetHoldingsForEvent(t *testing.T) {
 	err := p.SetHoldingsForEvent(nil, nil)
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 
-	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, decimal.Zero, decimal.Zero)
+	item, err := funding.CreateItem(testExchange, asset.Spot, currency.BTC, udecimal.Zero, udecimal.Zero)
 	assert.NoError(t, err)
 
 	cp, err := funding.CreatePair(item, item)

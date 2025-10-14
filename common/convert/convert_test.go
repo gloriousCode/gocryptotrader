@@ -3,7 +3,7 @@ package convert
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
+	"github.com/quagmt/udecimal"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,13 +102,13 @@ func TestFloatToHumanFriendlyString(t *testing.T) {
 func TestDecimalToHumanFriendlyString(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "0", DecimalToHumanFriendlyString(decimal.Zero, 0, ".", ","))
-	assert.Equal(t, "100", DecimalToHumanFriendlyString(decimal.NewFromInt(100), 0, ".", ","))
-	assert.Equal(t, "1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(1000), 0, ".", ","))
-	assert.Equal(t, "-1,000", DecimalToHumanFriendlyString(decimal.NewFromInt(-1000), 0, ".", ","))
-	assert.Equal(t, "-1~000!42", DecimalToHumanFriendlyString(decimal.NewFromFloat(-1000.42069), 2, "!", "~"))
-	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 5, ".", ","))
-	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(decimal.NewFromFloat(1000.42069), 100, ".", ","))
+	assert.Equal(t, "0", DecimalToHumanFriendlyString(udecimal.Zero, 0, ".", ","))
+	assert.Equal(t, "100", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(100), 0, ".", ","))
+	assert.Equal(t, "1,000", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(1000), 0, ".", ","))
+	assert.Equal(t, "-1,000", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(-1000), 0, ".", ","))
+	assert.Equal(t, "-1~000!42", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(-1000.42069), 2, "!", "~"))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(1000.42069), 5, ".", ","))
+	assert.Equal(t, "1,000.42069", DecimalToHumanFriendlyString(udecimal.MustFromFloat64(1000.42069), 100, ".", ","))
 }
 
 func TestIntToHumanFriendlyString(t *testing.T) {
