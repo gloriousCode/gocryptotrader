@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
 
 var errInvalidNumberValue = errors.New("invalid value for Number type")
@@ -14,7 +14,7 @@ var errInvalidNumberValue = errors.New("invalid value for Number type")
 type Number struct {
 	f float64
 	s string
-	d udecimal.Decimal
+	d decimal.Decimal
 }
 
 // UnmarshalJSON implements json.Unmarshaler
@@ -88,9 +88,9 @@ func (f Number) Int64() int64 {
 
 // Decimal returns a decimal.Decimal
 
-func (f Number) Decimal() udecimal.Decimal {
+func (f Number) Decimal() decimal.Decimal {
 	if f.d.IsZero() {
-		f.d = udecimal.MustParse(f.s)
+		f.d = decimal.RequireFromString(f.s)
 	}
 	return f.d
 }

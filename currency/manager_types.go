@@ -18,15 +18,6 @@ type PairsManager struct {
 	mutex                      sync.RWMutex
 }
 
-func (p *PairsManager) DisableAllPairs() {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-	for x := range p.Pairs {
-		p.Pairs[x].Enabled = nil
-		p.Pairs[x].AssetEnabled = false
-	}
-}
-
 // FullStore holds all supported asset types with the enabled and available
 // pairs for an exchange.
 type FullStore map[asset.Item]*PairStore

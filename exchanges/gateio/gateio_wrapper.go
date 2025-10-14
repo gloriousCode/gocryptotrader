@@ -2021,18 +2021,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		btcContracts = append(btcContracts, usdtContracts...)
 		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
 		for x := range btcContracts {
-			if btcContracts[x].InDelisting {
+			if btcContracts[x].Delisting {
 				continue
 			}
-			p := strings.ToUpper(btcContracts[x].Name)
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return err
-			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-				MinimumBaseAmount:       float64(btcContracts[x].OrderSizeMin),
-				MaximumBaseAmount:       float64(btcContracts[x].OrderSizeMax),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, btcContracts[x].Name),
+				MinimumBaseAmount:       btcContracts[x].OrderSizeMin.Float64(),
+				MaximumBaseAmount:       btcContracts[x].OrderSizeMax.Float64(),
 				MarketStepIncrementSize: 1,
 				AmountStepIncrementSize: 1,
 			})
@@ -2263,7 +2258,7 @@ type openInterestContract interface {
 }
 
 func (c *FuturesContract) openInterest() float64 {
-	i := float64(c.PositionSize) * c.IndexPrice.Float64()
+	i := c.PositionSize.Float64() * c.IndexPrice.Float64()
 	if q := c.QuantoMultiplier.Float64(); q != 0 {
 		i *= q
 	}
