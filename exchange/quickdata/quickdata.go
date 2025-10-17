@@ -88,7 +88,7 @@ func NewQuickData(k *key.ExchangeAssetPair, focuses []*FocusData) (*QuickData, e
 		Key:                k,
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
-		data:               &Data{Key: k},
+		data:               &Data{Key: *k},
 	}
 	err := q.setupExchange()
 	if err != nil {
@@ -566,18 +566,18 @@ func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
 
 // Data holds the GCT types that QuickData gathers
 type Data struct {
-	Key             *key.ExchangeAssetPair          `json:"key"`
-	Contract        *futures.Contract               `json:"contract,omitempty"`
-	Orderbook       *orderbook.Book                 `json:"orderbook,omitempty"`
-	Ticker          *ticker.Price                   `json:"ticker,omitempty"`
-	Kline           []websocket.KlineData           `json:"kline,omitempty"`
-	AccountBalance  []account.Balance               `json:"accountBalance,omitempty"`
-	Orders          []order.Detail                  `json:"orders,omitempty"`
-	FundingRate     *fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
-	Trades          []trade.Data                    `json:"trades,omitempty"`
-	ExecutionLimits *limits.MinMaxLevel             `json:"executionLimits,omitempty"`
-	URL             string                          `json:"url,omitzero"`
-	OpenInterest    float64                         `json:"openInterest,omitzero"`
+	Key             key.ExchangeAssetPair          `json:"key"`
+	Contract        futures.Contract               `json:"contract,omitempty"`
+	Orderbook       orderbook.Book                 `json:"orderbook,omitempty"`
+	Ticker          ticker.Price                   `json:"ticker,omitempty"`
+	Kline           []websocket.KlineData          `json:"kline,omitempty"`
+	AccountBalance  []account.Balance              `json:"accountBalance,omitempty"`
+	Orders          []order.Detail                 `json:"orders,omitempty"`
+	FundingRate     fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
+	Trades          []trade.Data                   `json:"trades,omitempty"`
+	ExecutionLimits limits.MinMaxLevel             `json:"executionLimits,omitempty"`
+	URL             string                         `json:"url,omitzero"`
+	OpenInterest    float64                        `json:"openInterest,omitzero"`
 }
 
 // LatestData returns the latest focus-specific payload guarded by the
@@ -631,7 +631,10 @@ func (q *QuickData) DumpJSON() ([]byte, error) {
 
 // Data returns the internal Data struct pointer and is unsafe while quickData is running
 func (q *QuickData) Data() *Data {
-	return q.data
+	q.m.RLock()
+	defer q.m.RUnlock()
+	d := *q.data
+	return &d
 }
 
 // WaitForInitialData allows a caller to wait for a response before doing other actions

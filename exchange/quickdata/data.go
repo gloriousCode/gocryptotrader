@@ -145,7 +145,7 @@ func (q *QuickData) handleWSTickers(data []ticker.Price) error {
 		return nil
 	}
 	q.m.Lock()
-	q.data.Ticker = payload
+	q.data.Ticker = *payload
 	q.m.Unlock()
 	focus.stream(payload)
 	focus.setSuccessful()
@@ -166,7 +166,7 @@ func (q *QuickData) handleWSTicker(data *ticker.Price) error {
 		return nil
 	}
 	q.m.Lock()
-	q.data.Ticker = data
+	q.data.Ticker = *data
 	q.m.Unlock()
 	focus.stream(data)
 	focus.setSuccessful()
@@ -192,7 +192,7 @@ func (q *QuickData) handleWSOrderbook(data *orderbook.Depth) error {
 		return nil
 	}
 	q.m.Lock()
-	q.data.Orderbook = payload
+	q.data.Orderbook = *payload
 	q.m.Unlock()
 	focus.stream(payload)
 	focus.setSuccessful()
@@ -288,7 +288,7 @@ func (q *QuickData) handleContractFocus(ctx context.Context, focus *FocusData) e
 		return fmt.Errorf("no contract found for %s %s", q.Key, focus.focusType)
 	}
 	q.m.Lock()
-	q.data.Contract = contractOfFocus
+	q.data.Contract = *contractOfFocus
 	q.m.Unlock()
 	focus.stream(contractOfFocus)
 	return nil
@@ -370,7 +370,7 @@ func (q *QuickData) handleTickerFocus(ctx context.Context, focus *FocusData) err
 		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
-	q.data.Ticker = resp
+	q.data.Ticker = *resp
 	q.m.Unlock()
 	focus.stream(resp)
 	return nil
@@ -437,7 +437,7 @@ func (q *QuickData) handleOrderBookFocus(ctx context.Context, focus *FocusData) 
 		return fmt.Errorf("%s %q %w", q.Key, focus.focusType.String(), err)
 	}
 	q.m.Lock()
-	q.data.Orderbook = ob
+	q.data.Orderbook = *ob
 	q.m.Unlock()
 	focus.stream(ob)
 	return nil
@@ -474,7 +474,7 @@ func (q *QuickData) handleOrderExecutionFocus(ctx context.Context, focus *FocusD
 		}
 	}
 	q.m.Lock()
-	q.data.ExecutionLimits = &el
+	q.data.ExecutionLimits = el
 	q.m.Unlock()
 	focus.stream(&el)
 	return nil
@@ -502,7 +502,7 @@ func (q *QuickData) handleFundingRateFocus(ctx context.Context, focus *FocusData
 		return fmt.Errorf("expected 1 funding rate for %s %q, got %d", q.Key, focus.focusType.String(), len(fr))
 	}
 	q.m.Lock()
-	q.data.FundingRate = &fr[0]
+	q.data.FundingRate = fr[0]
 	q.m.Unlock()
 	focus.stream(&fr[0])
 	return nil

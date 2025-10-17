@@ -159,6 +159,7 @@ const (
 	ContractFocusType
 	OrderLimitsFocusType
 	URLFocusType
+	OrdersFocusType
 )
 
 // allFocusList is a list of all supported FocusTypes
