@@ -1961,6 +1961,12 @@ func (b *Base) MessageID() string {
 	return uuid.Must(uuid.NewV7()).String()
 }
 
+// MessageSequence returns a sequential message sequence number from common.Counter
+// It is not universally unique but should be unique and sequential within each *Base instance
+func (b *Base) MessageSequence() int64 {
+	return b.messageSequence.IncrementAndGet()
+}
+
 func (b *Base) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	return nil, common.ErrNotYetImplemented
 }

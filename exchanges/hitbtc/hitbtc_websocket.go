@@ -102,7 +102,7 @@ func (e *Exchange) wsGetTableName(respRaw []byte) (string, error) {
 	if init.Error.Code == errAuthFailed {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	if init.ID > 0 {
+	if init.ID != "" {
 		if e.Websocket.Match.IncomingWithData(init.ID, respRaw) {
 			return "", nil
 		}
@@ -500,7 +500,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	for _, s := range subs {
 		r := WsRequest{
 			JSONRPCVersion: rpcVersion,
-			ID:             e.Websocket.Conn.GenerateMessageID(false),
+			ID:             e.MessageID(),
 		}
 		if err := json.Unmarshal([]byte(s.QualifiedChannel), &r); err != nil {
 			errs = common.AppendError(errs, err)
@@ -546,7 +546,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 			Nonce:     n,
 			Signature: hex.EncodeToString(hmac),
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 
 	err = e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
@@ -564,7 +564,7 @@ func (e *Exchange) wsPlaceOrder(ctx context.Context, pair currency.Pair, side st
 		return nil, fmt.Errorf("%v not authenticated, cannot place order", e.Name)
 	}
 
-	id := e.Websocket.Conn.GenerateMessageID(false)
+	id := e.MessageID()
 	fPair, err := e.FormatExchangeCurrency(pair, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -606,7 +606,7 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, clientOrderID string) (*Ws
 		Params: WsCancelOrderRequestData{
 			ClientOrderID: clientOrderID,
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -636,7 +636,7 @@ func (e *Exchange) wsReplaceOrder(ctx context.Context, clientOrderID string, qua
 			Quantity:        quantity,
 			Price:           price,
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -661,7 +661,7 @@ func (e *Exchange) wsGetActiveOrders(ctx context.Context) (*wsActiveOrdersRespon
 	req := WsReplaceOrderRequest{
 		Method: "getOrders",
 		Params: WsReplaceOrderRequestData{},
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -686,7 +686,7 @@ func (e *Exchange) wsGetTradingBalance(ctx context.Context) (*WsGetTradingBalanc
 	req := WsReplaceOrderRequest{
 		Method: "getTradingBalance",
 		Params: WsReplaceOrderRequestData{},
-		ID:     e.Websocket.Conn.GenerateMessageID(false),
+		ID:     e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -710,7 +710,7 @@ func (e *Exchange) wsGetCurrencies(ctx context.Context, currencyItem currency.Co
 		Params: WsGetCurrenciesRequestParameters{
 			Currency: currencyItem,
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -739,7 +739,7 @@ func (e *Exchange) wsGetSymbols(ctx context.Context, c currency.Pair) (*WsGetSym
 		Params: WsGetSymbolsRequestParameters{
 			Symbol: fPair.String(),
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
@@ -771,7 +771,7 @@ func (e *Exchange) wsGetTrades(ctx context.Context, c currency.Pair, limit int64
 			Sort:   sort,
 			By:     by,
 		},
-		ID: e.Websocket.Conn.GenerateMessageID(false),
+		ID: e.MessageID(),
 	}
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {

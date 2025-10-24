@@ -33,7 +33,7 @@ type Exchange struct {
 	instrumentInfoMutex sync.Mutex
 	instrumentInfoCache map[asset.Item]*IICH
 	messageIDSeq common.Counter
-	account      accountTypeHolder
+	account accountTypeHolder
 }
 
 const (

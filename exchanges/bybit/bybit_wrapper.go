@@ -256,7 +256,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Spot, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -278,7 +277,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Options, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -306,8 +304,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -335,8 +332,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -358,7 +354,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.CoinMarginedFutures, resp)
 		},
-		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	}); err != nil {
 		return err
 	}
@@ -377,7 +372,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleTradeData(conn, resp)
 		},
-		RequestIDGenerator:       e.messageIDSeq.IncrementAndGet,
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
 		MessageFilter:            OutboundTradeConnection,
 		SubscriptionsNotRequired: true,
@@ -401,7 +395,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.authSubscribe,
 		Unsubscriber:          e.authUnsubscribe,
 		Handler:               e.wsHandleAuthenticatedData,
-		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
 		MessageFilter:         InboundPrivateConnection,
 	})
