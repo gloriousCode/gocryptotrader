@@ -318,14 +318,14 @@ func (q *QuickData) checkRateLimits(b *exchange.Base) error {
 func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) error {
 	if q.AnyRequiresWebsocket() {
 		if !e.SupportsWebsocket() {
-			return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.key.Exchange)
+			return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.Key.Exchange)
 		}
 	} else {
 		return nil
 	}
 
 	if !b.Features.Supports.Websocket {
-		return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.key.Exchange)
+		return fmt.Errorf("%w exchange %s has no websocket. Websocket requirement was enabled", errNoWebsocketSwitchToREST, q.Key.Exchange)
 	}
 	if err := common.NilGuard(b.Websocket); err != nil {
 		return fmt.Errorf("%s %w", q.Key, err)
@@ -340,7 +340,7 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 		}
 		ch, ok := focusToSub[f.focusType]
 		if !ok || ch == "" {
-			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 		}
 		var sub *subscription.Subscription
 		for _, s := range b.Config.Features.Subscriptions {
@@ -354,7 +354,7 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 			sub = s
 		}
 		if sub == nil {
-			return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 		}
 		s := sub.Clone()
 		rFmtPair := q.Key.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat)
@@ -382,7 +382,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key, errNoWebsocketSwitchToREST)
+		return fmt.Errorf("%s %w", q.Key, errNoWebsocketSwitchToREST)
 	}
 	b := q.exch.GetBase()
 	generatedSubs := b.Websocket.GetSubscriptions()
@@ -390,7 +390,7 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 		if err := q.stopWebsocket(); err != nil {
 			return err
 		}
-		return fmt.Errorf("%s %w", q.key, errNoWebsocketSwitchToREST)
+		return fmt.Errorf("%s %w", q.Key, errNoWebsocketSwitchToREST)
 	}
 	for i := range generatedSubs {
 		for _, f := range q.focuses.List() {
@@ -409,13 +409,13 @@ func (q *QuickData) validateSubscriptions(newSubs []*subscription.Subscription) 
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 			}
 			if !generatedSubs[i].Pairs.Contains(q.Key.Pair(), false) {
 				if err := q.stopWebsocket(); err != nil {
 					return err
 				}
-				return fmt.Errorf("%s %s %w", q.key, f.focusType, errNoWebsocketSwitchToREST)
+				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 			}
 		}
 	}
