@@ -196,7 +196,7 @@ func TestHandleWSTickers(t *testing.T) {
 	assert.Equal(t, match.Last, q.data.Ticker.Last)
 	assert.NotEqual(t, mismatch.Last, q.data.Ticker.Last)
 
-	prev := *q.data.Ticker
+	prev := q.data.Ticker
 	noMatch1 := ticker.Price{AssetType: asset.Binary, Pair: currency.NewBTCUSDT(), Last: 300}
 	noMatch2 := ticker.Price{AssetType: asset.Binary, Pair: currency.NewPair(currency.BTC, currency.USDC), Last: 400}
 	require.NoError(t, q.handleWSTickers([]ticker.Price{noMatch1, noMatch2}))

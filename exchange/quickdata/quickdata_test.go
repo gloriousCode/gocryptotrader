@@ -3,6 +3,7 @@ package quickdata
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -37,7 +38,7 @@ var (
 
 func mustQuickData(t *testing.T, ft FocusType) *QuickData {
 	t.Helper()
-	ftd := NewFocusData(ft, false, false, time.Second)
+	ftd := NewFocusData(ft, false, true, time.Second)
 	ftd.Init()
 	k := key.NewExchangeAssetPair(exchangeName, assetType, pair)
 	qs, err := NewQuickData(&k, []*FocusData{ftd})
@@ -564,4 +565,23 @@ func TestExchange(t *testing.T) {
 	e := qs.Exchange()
 	assert.Equal(t, exchangeName, strings.ToLower(e.GetName()))
 	assert.Equal(t, qs.exch, e)
+}
+
+func TestSharedConn(t *testing.T) {
+	t.Parallel()
+	qs := mustQuickData(t, TickerFocusType)
+	qs2 := mustQuickData(t, OrderBookFocusType)
+	ws1, err := qs.Exchange().GetWebsocket()
+	require.NoError(t, err)
+	ws2, err := qs2.Exchange().GetWebsocket()
+	require.NoError(t, err)
+	require.Equal(t, ws1, ws2)
+	for i, s := range ws1.GetSubscriptions() {
+		fmt.Println(i, s)
+	}
+	t.Log("awaiting ticjer")
+	qs2.WaitForInitialData(t.Context(), TickerFocusType)
+	t.Log("awaiting ob")
+	qs2.WaitForInitialData(t.Context(), OrderBookFocusType)
+
 }
