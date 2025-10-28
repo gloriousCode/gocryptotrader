@@ -2902,22 +2902,20 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 			oneContract := ei.Symbols[i].Filters[2].StepSize
 			resp = append(resp, futures.Contract{
-				Exchange:                       e.Name,
-				Name:                           cp,
-				Underlying:                     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:                          item,
-				SettlementType:                 futures.Linear,
-				StartDate:                      ei.Symbols[i].OnboardDate.Time(),
-				EndDate:                        ed,
-				IsActive:                       ei.Symbols[i].Status == "TRADING",
-				Status:                         ei.Symbols[i].Status,
-				MarginCurrency:                 currency.NewCode(ei.Symbols[i].MarginAsset),
-				Type:                           ct,
-				FundingRateFloor:               fundingRateFloor,
-				FundingRateCeiling:             fundingRateCeil,
-				Multiplier:                     oneContract,
-				ContractValueDenomination:      futures.BaseDenomination,
-				ContractSettlementDenomination: futures.QuoteDenomination,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:              item,
+				SettlementType:     futures.Linear,
+				StartDate:          ei.Symbols[i].OnboardDate.Time(),
+				EndDate:            ed,
+				IsActive:           ei.Symbols[i].Status == "TRADING",
+				Status:             ei.Symbols[i].Status,
+				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:               ct,
+				FundingRateFloor:   fundingRateFloor,
+				FundingRateCeiling: fundingRateCeil,
+				Multiplier:         oneContract,
 			})
 		}
 		return resp, nil
@@ -2968,21 +2966,19 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:                       e.Name,
-				Name:                           cp,
-				Underlying:                     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-				Asset:                          item,
-				StartDate:                      ei.Symbols[i].OnboardDate.Time(),
-				EndDate:                        ed,
-				IsActive:                       ei.Symbols[i].ContractStatus == "TRADING",
-				MarginCurrency:                 currency.NewCode(ei.Symbols[i].MarginAsset),
-				SettlementType:                 futures.Inverse,
-				Type:                           ct,
-				Multiplier:                     ei.Symbols[i].ContractSize,
-				ContractValueDenomination:      futures.QuoteDenomination,
-				ContractSettlementDenomination: futures.BaseDenomination,
-				FundingRateFloor:               fundingRateFloor,
-				FundingRateCeiling:             fundingRateCeil,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:              item,
+				StartDate:          ei.Symbols[i].OnboardDate.Time(),
+				EndDate:            ed,
+				IsActive:           ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
+				SettlementType:     futures.Inverse,
+				Type:               ct,
+				Multiplier:         ei.Symbols[i].ContractSize,
+				FundingRateFloor:   fundingRateFloor,
+				FundingRateCeiling: fundingRateCeil,
 			})
 		}
 		return resp, nil
@@ -3142,18 +3138,17 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 					return nil, err
 				}
 				resp = append(resp, futures.Contract{
-					Exchange:                  e.Name,
-					Name:                      oldContract,
-					Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-					Asset:                     item,
-					StartDate:                 csd,
-					EndDate:                   ced,
-					IsActive:                  ei.Symbols[i].Status == "TRADING",
-					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
-					SettlementType:            futures.Linear,
-					Type:                      ct,
-					Multiplier:                ei.Symbols[i].ContractSize,
-					ContractValueDenomination: futures.BaseDenomination,
+					Exchange:       e.Name,
+					Name:           oldContract,
+					Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+					Asset:          item,
+					StartDate:      csd,
+					EndDate:        ced,
+					IsActive:       ei.Symbols[i].Status == "TRADING",
+					MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+					SettlementType: futures.Linear,
+					Type:           ct,
+					Multiplier:     ei.Symbols[i].ContractSize,
 				})
 				t = t.Add(backwardsInterval)
 			}
@@ -3198,18 +3193,17 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 					return nil, err
 				}
 				resp = append(resp, futures.Contract{
-					Exchange:                  e.Name,
-					Name:                      oldContract,
-					Underlying:                currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
-					Asset:                     item,
-					StartDate:                 csd,
-					EndDate:                   ced,
-					IsActive:                  ei.Symbols[i].ContractStatus == "TRADING",
-					MarginCurrency:            currency.NewCode(ei.Symbols[i].MarginAsset),
-					SettlementType:            futures.Inverse,
-					Type:                      ct,
-					Multiplier:                ei.Symbols[i].ContractSize,
-					ContractValueDenomination: futures.QuoteDenomination,
+					Exchange:       e.Name,
+					Name:           oldContract,
+					Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+					Asset:          item,
+					StartDate:      csd,
+					EndDate:        ced,
+					IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
+					MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+					SettlementType: futures.Inverse,
+					Type:           ct,
+					Multiplier:     ei.Symbols[i].ContractSize,
 				})
 				t = t.Add(backwardsInterval)
 			}

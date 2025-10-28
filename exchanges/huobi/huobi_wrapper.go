@@ -2071,16 +2071,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            s,
-				SettlementType:       futures.Inverse,
-				IsActive:             result[x].ContractStatus == 1,
-				Type:                 futures.Perpetual,
-				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result[x].ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          s,
+				SettlementType:     futures.Inverse,
+				IsActive:           result[x].ContractStatus == 1,
+				Type:               futures.Perpetual,
+				SettlementCurrency: currency.USD,
+				Multiplier:         result[x].ContractSize,
 			})
 		}
 		return resp, nil
@@ -2127,17 +2127,17 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			resp = append(resp, futures.Contract{
-				Exchange:             e.Name,
-				Name:                 cp,
-				Underlying:           underlying,
-				Asset:                item,
-				StartDate:            startTime,
-				EndDate:              endTime,
-				SettlementType:       futures.Linear,
-				IsActive:             result.Data[x].ContractStatus == 1,
-				Type:                 ct,
-				SettlementCurrencies: currency.Currencies{currency.USD},
-				Multiplier:           result.Data[x].ContractSize,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				SettlementType:     futures.Linear,
+				IsActive:           result.Data[x].ContractStatus == 1,
+				Type:               ct,
+				SettlementCurrency: currency.USD,
+				Multiplier:         result.Data[x].ContractSize,
 			})
 		}
 		return resp, nil

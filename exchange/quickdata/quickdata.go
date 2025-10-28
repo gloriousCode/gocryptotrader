@@ -330,114 +330,54 @@ func (q *QuickData) setupWebsocket(e exchange.IBotExchange, b *exchange.Base) er
 	if err := common.NilGuard(b.Websocket); err != nil {
 		return fmt.Errorf("%s %w", q.Key, err)
 	}
-	existing := Get(AnyKey{
-		Exchange:      q.Key.Exchange,
-		ConnectionKey: q.Key.Asset,
-	})
 	focusList := q.focuses.List()
-	if existing == nil {
-		conn, err := b.Websocket.GetConnection(q.Key.Asset)
-		if err != nil && !errors.Is(err, websocket.ErrNotConnected) {
-			// use standard con
-			conn = b.Websocket.Conn
+	// allows routing of all websocket data to our custom one
+	newSubs := make([]*subscription.Subscription, 0, len(focusList))
+	for _, f := range focusList {
+		if !f.UseWebsocket() {
+			continue
 		}
-		// allows routing of all websocket data to our custom one
-		newSubs := make([]*subscription.Subscription, 0, len(focusList))
-		for _, f := range focusList {
-			if !f.UseWebsocket() {
+		ch, ok := focusToSub[f.focusType]
+		if !ok || ch == "" {
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
+		}
+		var sub *subscription.Subscription
+		for _, s := range b.Config.Features.Subscriptions {
+			if s.Channel != ch {
 				continue
 			}
-			ch, ok := focusToSub[f.focusType]
-			if !ok || ch == "" {
-				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
+			if s.Asset != q.Key.Asset &&
+				s.Asset != asset.All && s.Asset != asset.Empty {
+				continue
 			}
-			var sub *subscription.Subscription
-			for _, s := range b.Config.Features.Subscriptions {
-				if s.Channel != ch {
-					continue
-				}
-				if s.Asset != q.Key.Asset &&
-					s.Asset != asset.All && s.Asset != asset.Empty {
-					continue
-				}
-				sub = s
-			}
-			if sub == nil {
-				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
-			}
-			s := sub.Clone()
-			rFmtPair := q.Key.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat)
-			s.Pairs.Add(rFmtPair)
-			newSubs = append(newSubs, s)
+			sub = s
 		}
-		b.Config.Features.Subscriptions = newSubs
-		b.Features.Subscriptions = newSubs
-		if err := b.Websocket.EnableAndConnect(); err != nil {
-			if !errors.Is(err, websocket.ErrWebsocketAlreadyEnabled) {
-				return fmt.Errorf("%s: %w", q.Key, err)
-			}
-			// EnableAndConnect returns an error if the websocket is already enabled,
-			// but a connection still needs to be established. In this case, we manually
-			// call Connect to ensure the websocket is connected.
-			if err := b.Websocket.Connect(); err != nil {
-				return fmt.Errorf("%s: %w", q.Key, err)
-			}
+		if sub == nil {
+			return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
 		}
-		if err := q.validateSubscriptions(newSubs); err != nil {
+		s := sub.Clone()
+		rFmtPair := q.Key.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat)
+		s.Pairs.Add(rFmtPair)
+		newSubs = append(newSubs, s)
+	}
+	b.Config.Features.Subscriptions = newSubs
+	b.Features.Subscriptions = newSubs
+	if err := b.Websocket.EnableAndConnect(); err != nil {
+		if !errors.Is(err, websocket.ErrWebsocketAlreadyEnabled) {
 			return fmt.Errorf("%s: %w", q.Key, err)
 		}
-		conn, err = b.Websocket.GetConnection(q.Key.Asset)
-		if err != nil {
-			if !errors.Is(err, websocket.ErrNotConnected) {
-				conn = b.Websocket.Conn
-			} else {
-				return fmt.Errorf("%s: %w", q.Key, err)
-			}
-		}
-
-		q.dataHandlerChannel = b.Websocket.ToRoutine
-		Store(AnyKey{
-			Exchange:      q.Key.Exchange,
-			ConnectionKey: q.Key.Asset,
-		}, &wsStoreButts{Conn: conn, Manager: b.Websocket})
-	} else {
-		b.Websocket = existing.Manager
-		q.dataHandlerChannel = b.Websocket.ToRoutine
-		subs := make([]*subscription.Subscription, 0, len(focusList))
-		for _, f := range focusList {
-			if !f.UseWebsocket() {
-				continue
-			}
-			ch, ok := focusToSub[f.focusType]
-			if !ok || ch == "" {
-				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
-			}
-			var sub *subscription.Subscription
-			for _, s := range b.Config.Features.Subscriptions {
-				if s.Channel != ch {
-					continue
-				}
-				if s.Asset != q.Key.Asset &&
-					s.Asset != asset.All && s.Asset != asset.Empty {
-					continue
-				}
-				sub = s
-			}
-			if sub == nil {
-				return fmt.Errorf("%s %s %w", q.Key, f.focusType, errNoWebsocketSwitchToREST)
-			}
-			s := sub.Clone()
-			rFmtPair := q.Key.Pair().Format(*b.CurrencyPairs.Pairs[q.Key.Asset].RequestFormat)
-			s.Pairs.Add(rFmtPair)
-			subs = append(subs, s)
-		}
-		if err := b.Websocket.SubscribeToChannels(existing.Conn, subs); err != nil {
-			return fmt.Errorf("%s: %w", q.Key.Exchange, err)
-		}
-		if err := b.Websocket.AddSubscriptions(existing.Conn, subs...); err != nil {
-			return fmt.Errorf("%s %w", q.Key, err)
+		// EnableAndConnect returns an error if the websocket is already enabled,
+		// but a connection still needs to be established. In this case, we manually
+		// call Connect to ensure the websocket is connected.
+		if err := b.Websocket.Connect(); err != nil {
+			return fmt.Errorf("%s: %w", q.Key, err)
 		}
 	}
+	if err := q.validateSubscriptions(newSubs); err != nil {
+		return fmt.Errorf("%s: %w", q.Key, err)
+	}
+
+	q.dataHandlerChannel = b.Websocket.ToRoutine
 	return nil
 }
 

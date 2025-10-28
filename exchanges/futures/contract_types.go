@@ -26,6 +26,7 @@ type Contract struct {
 	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
 	SettlementCurrencies           currency.Currencies
+	SettlementCurrency             currency.Code
 	MarginCurrency                 currency.Code
 	Multiplier                     float64
 	ContractValueInSettlement      float64

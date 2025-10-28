@@ -1653,23 +1653,21 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				ct = futures.SemiAnnually
 			}
 		}
-		cvd := futures.QuoteDenomination
 		contractSettlementType := futures.Linear
 		if cp.Base.Equal(currency.PI) || cp.Base.Equal(currency.FI) {
 			contractSettlementType = futures.Inverse
 		}
 		resp[i] = futures.Contract{
-			Exchange:                  e.Name,
-			Name:                      cp,
-			Underlying:                underlying,
-			Asset:                     item,
-			StartDate:                 startTime,
-			EndDate:                   endTime,
-			SettlementType:            contractSettlementType,
-			IsActive:                  result.Instruments[i].Tradable,
-			Type:                      ct,
-			ContractValueDenomination: cvd,
-			Multiplier:                result.Instruments[i].ContractSize,
+			Exchange:       e.Name,
+			Name:           cp,
+			Underlying:     underlying,
+			Asset:          item,
+			StartDate:      startTime,
+			EndDate:        endTime,
+			SettlementType: contractSettlementType,
+			IsActive:       result.Instruments[i].Tradable,
+			Type:           ct,
+			Multiplier:     result.Instruments[i].ContractSize,
 		}
 	}
 	return resp, nil

@@ -2903,44 +2903,25 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if result[i].SettlementCurrency == result[i].BaseCurrency {
 				contractSettlementType = futures.Inverse
 			}
-			var settlementDenomination futures.ContractDenomination
-			if settleCurr.Equal(underlying.Base) {
-				settlementDenomination = futures.BaseDenomination
-			} else if settleCurr.Equal(underlying.Quote) {
-				settlementDenomination = futures.QuoteDenomination
-			}
-			cvc := currency.NewCode(result[i].ContractValueCurrency)
-			var valueDenomination futures.ContractDenomination
-			if cvc.Equal(underlying.Base) {
-				valueDenomination = futures.BaseDenomination
-			} else if cvc.Equal(underlying.Quote) {
-				valueDenomination = futures.QuoteDenomination
-			}
 			if ct != futures.Perpetual && (result[i].ExpTime.Time().IsZero() || result[i].ExpTime.Time().Equal(time.Unix(0, 0))) {
 				fmt.Println("hi")
 			}
 
 			resp[i] = futures.Contract{
-				Exchange:                       e.Name,
-				Name:                           result[i].InstrumentID,
-				Underlying:                     underlying,
-				Asset:                          item,
-				StartDate:                      result[i].ListTime.Time(),
-				EndDate:                        result[i].ExpTime.Time(),
-				IsActive:                       result[i].State == "live",
-				Status:                         result[i].State,
-				Type:                           ct,
-				SettlementType:                 contractSettlementType,
-				SettlementCurrencies:           currency.Currencies{settleCurr},
-				MarginCurrency:                 settleCurr,
-				Multiplier:                     result[i].ContractValue.Float64(),
-				MaxLeverage:                    result[i].MaxLeverage.Float64(),
-				ContractSettlementDenomination: settlementDenomination,
-				ContractValueDenomination:      valueDenomination,
-			}
-
-			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrencies = currency.Currencies{settleCurr}
+				Exchange:           e.Name,
+				Name:               result[i].InstrumentID,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          result[i].ListTime.Time(),
+				EndDate:            result[i].ExpTime.Time(),
+				IsActive:           result[i].State == "live",
+				Status:             result[i].State,
+				Type:               ct,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: settleCurr,
+				MarginCurrency:     settleCurr,
+				Multiplier:         result[i].ContractValue.Float64(),
+				MaxLeverage:        result[i].MaxLeverage.Float64(),
 			}
 		}
 		return resp, nil
@@ -3261,18 +3242,17 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 				return nil, err
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:                  e.Name,
-				Name:                      oldContract,
-				Underlying:                underlyingPair,
-				Asset:                     item,
-				StartDate:                 csd,
-				EndDate:                   ced,
-				IsActive:                  ei[i].State == "TRADING",
-				MarginCurrency:            currency.NewCode(ei[i].SettlementCurrency),
-				SettlementType:            futures.Linear,
-				Type:                      ct,
-				Multiplier:                ei[i].ContractMultiplier.Float64(),
-				ContractValueDenomination: futures.BaseDenomination,
+				Exchange:       e.Name,
+				Name:           oldContract,
+				Underlying:     underlyingPair,
+				Asset:          item,
+				StartDate:      csd,
+				EndDate:        ced,
+				IsActive:       ei[i].State == "TRADING",
+				MarginCurrency: currency.NewCode(ei[i].SettlementCurrency),
+				SettlementType: futures.Linear,
+				Type:           ct,
+				Multiplier:     ei[i].ContractMultiplier.Float64(),
 			})
 			if t.After(time.Now()) {
 				break

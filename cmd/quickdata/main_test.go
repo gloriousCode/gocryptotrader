@@ -124,7 +124,7 @@ func TestRenderFunctions_NoPanicAndOutput(t *testing.T) {
 	_ = captureOutput(func() { renderURL("https://example.com") })
 
 	// contract
-	ctr := &futures.Contract{Name: currency.NewBTCUSDT(), StartDate: time.Now().Add(-time.Hour), EndDate: time.Now().Add(time.Hour), Multiplier: 1.0, SettlementCurrencies: currency.Currencies{currency.USDT}}
+	ctr := &futures.Contract{Name: currency.NewBTCUSDT(), StartDate: time.Now().Add(-time.Hour), EndDate: time.Now().Add(time.Hour), Multiplier: 1.0, SettlementCurrency: currency.Currencies{currency.USDT}}
 	_ = captureOutput(func() { renderContract(ctr) })
 	_ = captureOutput(func() { renderContract(nil) })
 

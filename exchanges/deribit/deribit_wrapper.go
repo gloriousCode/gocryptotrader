@@ -1193,19 +1193,18 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
-				Exchange:                  e.Name,
-				Name:                      cp,
-				Underlying:                currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
-				Asset:                     item,
-				SettlementCurrencies:      []currency.Code{currency.NewCode(inst.SettlementCurrency)},
-				StartDate:                 inst.CreationTimestamp.Time(),
-				EndDate:                   inst.ExpirationTimestamp.Time(),
-				Type:                      ct,
-				SettlementType:            contractSettlementType,
-				IsActive:                  inst.IsActive,
-				MaxLeverage:               inst.MaxLeverage,
-				Multiplier:                inst.ContractSize,
-				ContractValueDenomination: futures.QuoteDenomination,
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(currency.NewCode(inst.BaseCurrency), currency.NewCode(inst.QuoteCurrency)),
+				Asset:              item,
+				SettlementCurrency: currency.NewCode(inst.SettlementCurrency),
+				StartDate:          inst.CreationTimestamp.Time(),
+				EndDate:            inst.ExpirationTimestamp.Time(),
+				Type:               ct,
+				SettlementType:     contractSettlementType,
+				IsActive:           inst.IsActive,
+				MaxLeverage:        inst.MaxLeverage,
+				Multiplier:         inst.ContractSize,
 			})
 		}
 	}
@@ -1615,31 +1614,28 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			ct = futures.Perpetual
 		}
 		var contractSettlementType futures.ContractSettlementType
-		denomination := futures.QuoteDenomination
 		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency {
-			denomination = futures.BaseDenomination
+			contractSettlementType = futures.Inverse
+
 		}
 		if marketSummary.InstrumentType == "reversed" {
 			contractSettlementType = futures.Inverse
-			denomination = futures.BaseDenomination
 		} else {
 			contractSettlementType = futures.Linear
-			denomination = futures.QuoteDenomination
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:                  e.Name,
-			Name:                      cp,
-			Underlying:                underlying,
-			Asset:                     item,
-			StartDate:                 marketSummary.CreationTimestamp.Time(),
-			EndDate:                   marketSummary.ExpirationTimestamp.Time(),
-			IsActive:                  marketSummary.IsActive,
-			Type:                      ct,
-			SettlementType:            contractSettlementType,
-			SettlementCurrencies:      []currency.Code{currency.NewCode(marketSummary.SettlementCurrency)},
-			Multiplier:                marketSummary.ContractSize,
-			MaxLeverage:               marketSummary.MaxLeverage,
-			ContractValueDenomination: denomination,
+			Exchange:           e.Name,
+			Name:               cp,
+			Underlying:         underlying,
+			Asset:              item,
+			StartDate:          marketSummary.CreationTimestamp.Time(),
+			EndDate:            marketSummary.ExpirationTimestamp.Time(),
+			IsActive:           marketSummary.IsActive,
+			Type:               ct,
+			SettlementType:     contractSettlementType,
+			SettlementCurrency: currency.NewCode(marketSummary.SettlementCurrency),
+			Multiplier:         marketSummary.ContractSize,
+			MaxLeverage:        marketSummary.MaxLeverage,
 		})
 
 		tt = tt.Add(ct.Duration())
