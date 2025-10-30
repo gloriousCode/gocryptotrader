@@ -1,7 +1,9 @@
 package kraken
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -2008,13 +2010,13 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 	resp, err := k.GetHistoricalContractKlineData(
 		context.Background(),
 		&futures.GetKlineContractRequest{
-			UnderlyingPair:       currency.NewPair(currency.SOL, currency.USD),
-			Asset:                asset.Futures,
-			StartDate:            time.Now().Add(-time.Hour * 24 * 200),
-			EndDate:              time.Now(),
-			Interval:             kline.OneDay,
-			Contract:             futures.SemiAnnually,
-			ContractDenomination: futures.QuoteDenomination,
+			UnderlyingPair:                 currency.NewPair(currency.SOL, currency.USD),
+			Asset:                          asset.Futures,
+			StartDate:                      time.Now().Add(-time.Hour * 24 * 200),
+			EndDate:                        time.Now(),
+			Interval:                       kline.OneDay,
+			Contract:                       futures.SemiAnnually,
+			IndividualContractDenomination: futures.QuoteDenomination,
 		},
 	)
 	require.NoError(t, err)

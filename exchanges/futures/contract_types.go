@@ -25,17 +25,16 @@ type Contract struct {
 	Type           ContractType
 	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
-	SettlementCurrencies           currency.Currencies
-	SettlementCurrency             currency.Code
-	MarginCurrency                 currency.Code
-	Multiplier                     float64
-	ContractValueInSettlement      float64
-	MaxLeverage                    float64
-	LatestRate                     fundingrate.Rate
-	FundingRateFloor               decimal.Decimal
-	FundingRateCeiling             decimal.Decimal
-	ContractValueDenomination      ContractDenomination
-	ContractSettlementDenomination ContractDenomination
+	SettlementCurrencies                currency.Currencies
+	SettlementCurrency                  currency.Code
+	MarginCurrency                      currency.Code
+	Multiplier                          float64
+	ContractValueInSettlement           float64
+	MaxLeverage                         float64
+	LatestRate                          fundingrate.Rate
+	FundingRateFloor                    decimal.Decimal
+	FundingRateCeiling                  decimal.Decimal
+	IndividualContractValueDenomination ContractDenomination
 }
 
 type HistoricalContractKline struct {
@@ -86,13 +85,13 @@ type ContractDenomination int64
 type GetKlineContractRequest struct {
 	ContractPair currency.Pair
 	// used for okx
-	UnderlyingPair       currency.Pair
-	Asset                asset.Item
-	StartDate            time.Time
-	EndDate              time.Time
-	Interval             kline.Interval
-	Contract             ContractType
-	ContractDenomination ContractDenomination
+	UnderlyingPair                 currency.Pair
+	Asset                          asset.Item
+	StartDate                      time.Time
+	EndDate                        time.Time
+	Interval                       kline.Interval
+	Contract                       ContractType
+	IndividualContractDenomination ContractDenomination
 }
 
 var ErrUnderlyingPairRequired = errors.New("underlying pair required")

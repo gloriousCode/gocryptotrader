@@ -2767,9 +2767,12 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 		default:
 			ct = futures.LongDated
 		}
-		cd := futures.BaseDenomination
-		if settle.Equal(currency.USD) || settle.Equal(currency.USDT) {
+		var cd futures.ContractDenomination
+		switch {
+		case settle.Equal(currency.USD), settle.Equal(currency.USDT):
 			cd = futures.QuoteDenomination
+		default:
+			cd = futures.BaseDenomination
 		}
 		if cd != denomination {
 			panic("woah")
@@ -2802,7 +2805,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.ContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.IndividualContractDenomination)
 	if err != nil {
 		return nil, err
 	}

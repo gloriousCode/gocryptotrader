@@ -1866,7 +1866,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.ContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.IndividualContractDenomination)
 	if err != nil {
 		return nil, err
 	}
