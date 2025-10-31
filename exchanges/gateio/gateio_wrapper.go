@@ -2727,7 +2727,7 @@ loopdiloop:
 	return cp, date, nil
 }
 
-func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractDenomination) ([]futures.Contract, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractValue) ([]futures.Contract, error) {
 	var resp []futures.Contract
 	tt := startDate
 	for tt.Before(time.Now()) {
@@ -2767,12 +2767,12 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 		default:
 			ct = futures.LongDated
 		}
-		var cd futures.ContractDenomination
+		var cd futures.ContractValue
 		switch {
 		case settle.Equal(currency.USD), settle.Equal(currency.USDT):
-			cd = futures.QuoteDenomination
+			cd = futures.QuoteContract
 		default:
-			cd = futures.BaseDenomination
+			cd = futures.BaseContract
 		}
 		if cd != denomination {
 			panic("woah")

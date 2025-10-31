@@ -25,16 +25,16 @@ type Contract struct {
 	Type           ContractType
 	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
-	SettlementCurrencies                currency.Currencies
-	SettlementCurrency                  currency.Code
-	MarginCurrency                      currency.Code
-	Multiplier                          float64
-	ContractValueInSettlement           float64
-	MaxLeverage                         float64
-	LatestRate                          fundingrate.Rate
-	FundingRateFloor                    decimal.Decimal
-	FundingRateCeiling                  decimal.Decimal
-	IndividualContractValueDenomination ContractDenomination
+	SettlementCurrencies      currency.Currencies
+	SettlementCurrency        currency.Code
+	MarginCurrency            currency.Code
+	Multiplier                float64
+	ContractValueInSettlement float64
+	MaxLeverage               float64
+	LatestRate                fundingrate.Rate
+	FundingRateFloor          decimal.Decimal
+	FundingRateCeiling        decimal.Decimal
+	ContractValue             ContractValue
 }
 
 type HistoricalContractKline struct {
@@ -80,7 +80,7 @@ type ContractKline struct {
 	BaseKline       *kline.Item
 }
 
-type ContractDenomination int64
+type ContractValue int64
 
 type GetKlineContractRequest struct {
 	ContractPair currency.Pair
@@ -91,22 +91,22 @@ type GetKlineContractRequest struct {
 	EndDate                        time.Time
 	Interval                       kline.Interval
 	Contract                       ContractType
-	IndividualContractDenomination ContractDenomination
+	IndividualContractDenomination ContractValue
 }
 
 var ErrUnderlyingPairRequired = errors.New("underlying pair required")
 
 const (
-	UnsetDenomination ContractDenomination = iota
-	BaseDenomination
-	QuoteDenomination
+	UnsetDenomination ContractValue = iota
+	BaseContract
+	QuoteContract
 )
 
-func (c *ContractDenomination) String() string {
+func (c *ContractValue) String() string {
 	switch *c {
-	case BaseDenomination:
+	case BaseContract:
 		return "base"
-	case QuoteDenomination:
+	case QuoteContract:
 		return "quote"
 	default:
 		return "unknown"

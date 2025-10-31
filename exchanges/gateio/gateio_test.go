@@ -2730,7 +2730,7 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 			EndDate:                        time.Now(),
 			Interval:                       kline.OneDay,
 			Contract:                       futures.Quarterly,
-			IndividualContractDenomination: futures.QuoteDenomination,
+			IndividualContractDenomination: futures.QuoteContract,
 		},
 	)
 	require.NoError(t, err)

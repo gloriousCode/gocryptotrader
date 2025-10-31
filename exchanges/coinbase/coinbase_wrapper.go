@@ -901,6 +901,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			SettlementCurrency: products.Products[i].QuoteCurrencyID,
 			Multiplier:         products.Products[i].BaseIncrement.Float64(),
 			LatestRate:         funRate,
+			ContractValue:      futures.BaseContract,
 		}
 		if i < perpStart {
 			contracts[i].Type = futures.LongDated

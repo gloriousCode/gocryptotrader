@@ -1140,6 +1140,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			SettlementType:     contractSettlementType,
 			IsActive:           marketSummary[i].Active,
 			Type:               ct,
+			ContractValue:      futures.BaseContract,
 		}
 		c.LatestRate = fundingrate.Rate{
 			Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),

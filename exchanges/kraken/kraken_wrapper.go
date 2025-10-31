@@ -1816,7 +1816,7 @@ type ContractAndExpiry struct {
 }
 
 // GetLongDatedContractsFromDate returns previous expired contracts for a given pair
-func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractDenomination) ([]ContractAndExpiry, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractValue) ([]ContractAndExpiry, error) {
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
@@ -1825,7 +1825,7 @@ func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.I
 	}
 	if !cp.Base.Equal(currency.PF) && !cp.Base.Equal(currency.FF) {
 		var err error
-		if cd == futures.QuoteDenomination {
+		if cd == futures.QuoteContract {
 			cp, err = currency.NewPairFromStrings(currency.FF.String(), cp.Base.String()+cp.Quote.String())
 		} else {
 			cp, err = currency.NewPairFromStrings(currency.FI.String(), cp.Base.String()+cp.Quote.String())

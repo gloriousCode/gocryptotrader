@@ -1186,11 +1186,11 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			case "perpetual":
 				ct = futures.Perpetual
 			}
-			var contractSettlementType futures.ContractSettlementType
+			contractSettlementType := futures.Linear
+			cv := futures.QuoteContract
 			if inst.InstrumentType == "reversed" {
 				contractSettlementType = futures.Inverse
-			} else {
-				contractSettlementType = futures.Linear
+				cv = futures.BaseContract
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
@@ -1205,6 +1205,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				IsActive:           inst.IsActive,
 				MaxLeverage:        inst.MaxLeverage,
 				Multiplier:         inst.ContractSize,
+				ContractValue:      cv,
 			})
 		}
 	}
