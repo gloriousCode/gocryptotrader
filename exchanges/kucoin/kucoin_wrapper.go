@@ -1900,10 +1900,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			ct = futures.Quarterly
 		}
 		contractSettlementType := futures.Linear
-		cv := futures.QuoteContract
 		if contracts[i].IsInverse {
 			contractSettlementType = futures.Inverse
-			cv = futures.BaseContract
 		}
 		var fri time.Duration
 		if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {

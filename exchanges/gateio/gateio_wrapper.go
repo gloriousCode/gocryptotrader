@@ -1796,11 +1796,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
 			contractSettlementType := futures.Linear
-			cv := futures.QuoteContract
 			switch {
 			case contracts[i].Name.Base.Equal(currency.BTC) && settle.Equal(currency.BTC):
 				contractSettlementType = futures.Inverse
-				cv = futures.BaseContract
 			case !contracts[i].Name.Base.Equal(settle) && !settle.Equal(currency.USDT):
 				contractSettlementType = futures.Quanto
 			}
@@ -2728,7 +2726,7 @@ loopdiloop:
 	return cp, date, nil
 }
 
-func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractValue) ([]futures.Contract, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractSettlementType) ([]futures.Contract, error) {
 	var resp []futures.Contract
 	tt := startDate
 	for tt.Before(time.Now()) {
@@ -2768,12 +2766,12 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 		default:
 			ct = futures.LongDated
 		}
-		var cd futures.ContractValue
+		var cd futures.ContractSettlementType
 		switch {
 		case settle.Equal(currency.USD), settle.Equal(currency.USDT):
-			cd = futures.QuoteContract
+			cd = futures.Inverse
 		default:
-			cd = futures.BaseContract
+			cd = futures.Linear
 		}
 		if cd != denomination {
 			panic("woah")
@@ -2806,7 +2804,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.IndividualContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.SettlementType)
 	if err != nil {
 		return nil, err
 	}
