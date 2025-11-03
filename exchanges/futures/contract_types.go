@@ -34,7 +34,6 @@ type Contract struct {
 	LatestRate                fundingrate.Rate
 	FundingRateFloor          decimal.Decimal
 	FundingRateCeiling        decimal.Decimal
-	ContractValue             ContractValue
 }
 
 type HistoricalContractKline struct {
@@ -80,38 +79,19 @@ type ContractKline struct {
 	BaseKline       *kline.Item
 }
 
-type ContractValue int64
-
 type GetKlineContractRequest struct {
 	ContractPair currency.Pair
 	// used for okx
-	UnderlyingPair                 currency.Pair
-	Asset                          asset.Item
-	StartDate                      time.Time
-	EndDate                        time.Time
-	Interval                       kline.Interval
-	Contract                       ContractType
-	IndividualContractDenomination ContractValue
+	UnderlyingPair currency.Pair
+	Asset          asset.Item
+	StartDate      time.Time
+	EndDate        time.Time
+	Interval       kline.Interval
+	Contract       ContractType
+	SettlementType ContractSettlementType
 }
 
 var ErrUnderlyingPairRequired = errors.New("underlying pair required")
-
-const (
-	UnsetDenomination ContractValue = iota
-	BaseContract
-	QuoteContract
-)
-
-func (c *ContractValue) String() string {
-	switch *c {
-	case BaseContract:
-		return "base"
-	case QuoteContract:
-		return "quote"
-	default:
-		return "unknown"
-	}
-}
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges
 type ContractSettlementType uint8

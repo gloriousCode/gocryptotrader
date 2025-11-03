@@ -2916,7 +2916,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
 				Multiplier:         oneContract,
-				ContractValue:      futures.BaseContract,
 			})
 		}
 		return resp, nil
@@ -2980,7 +2979,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Multiplier:         ei.Symbols[i].ContractSize,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
-				ContractValue:      futures.QuoteContract,
 			})
 		}
 		return resp, nil

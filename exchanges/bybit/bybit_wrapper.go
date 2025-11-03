@@ -1757,17 +1757,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 
 			var ct futures.ContractType
-			cd := futures.BaseContract
 			switch contractType {
 			case "inverseperpetual":
 				ct = futures.Perpetual
-				cd = futures.QuoteContract
 			case "inversefutures":
 				ct, err = getContractLength(end.Sub(start))
 				if err != nil {
 					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, e.Name, item, cp, inverseContracts.List[i].LaunchTime.Time(), inverseContracts.List[i].DeliveryTime)
 				}
-				cd = futures.QuoteContract
 			default:
 				if e.Verbose {
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", e.Name, item, cp, start, end)
@@ -1789,7 +1786,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				SettlementCurrency: currency.NewCode(inverseContracts.List[i].SettleCoin),
 				MaxLeverage:        inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
 				Multiplier:         inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
-				ContractValue:      cd,
 			})
 		}
 		return resp, nil
@@ -1869,7 +1865,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				SettlementCurrency: currency.USDC,
 				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
 				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
-				ContractValue:      futures.BaseContract,
 			})
 		}
 		return resp, nil
@@ -1943,7 +1938,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				SettlementCurrency: currency.USDT,
 				MaxLeverage:        instruments[i].LeverageFilter.MaxLeverage.Float64(),
 				Multiplier:         instruments[i].LeverageFilter.LeverageStep.Float64(),
-				ContractValue:      futures.BaseContract,
 			})
 		}
 		return resp, nil

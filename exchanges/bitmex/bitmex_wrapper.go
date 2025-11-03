@@ -1082,7 +1082,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					SettlementType:     contractSettlementType,
 					SettlementCurrency: currency.NewCode(marketInfo[x].SettlCurrency),
 					Multiplier:         float64(marketInfo[x].Multiplier),
-					ContractValue:      futures.QuoteContract,
 					LatestRate: fundingrate.Rate{
 						Time: marketInfo[x].FundingTimestamp,
 						Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1162,7 +1161,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 					SettlementCurrency: currency.NewCode(marketInfo[x].SettlCurrency),
 					Multiplier:         float64(marketInfo[x].Multiplier),
 					SettlementType:     contractSettlementType,
-					ContractValue:      futures.BaseContract,
 				})
 			}
 		}

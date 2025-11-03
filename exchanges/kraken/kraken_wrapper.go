@@ -1816,7 +1816,7 @@ type ContractAndExpiry struct {
 }
 
 // GetLongDatedContractsFromDate returns previous expired contracts for a given pair
-func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, cd futures.ContractValue) ([]ContractAndExpiry, error) {
+func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, st futures.ContractSettlementType) ([]ContractAndExpiry, error) {
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
@@ -1825,7 +1825,7 @@ func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.I
 	}
 	if !cp.Base.Equal(currency.PF) && !cp.Base.Equal(currency.FF) {
 		var err error
-		if cd == futures.QuoteContract {
+		if st == futures.Inverse {
 			cp, err = currency.NewPairFromStrings(currency.FF.String(), cp.Base.String()+cp.Quote.String())
 		} else {
 			cp, err = currency.NewPairFromStrings(currency.FI.String(), cp.Base.String()+cp.Quote.String())
@@ -1866,7 +1866,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.IndividualContractDenomination)
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.SettlementType)
 	if err != nil {
 		return nil, err
 	}

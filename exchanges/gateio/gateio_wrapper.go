@@ -1796,13 +1796,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
 			contractSettlementType := futures.Linear
+			cv := futures.QuoteContract
 			switch {
 			case contracts[i].Name.Base.Equal(currency.BTC) && settle.Equal(currency.BTC):
 				contractSettlementType = futures.Inverse
+				cv = futures.BaseContract
 			case !contracts[i].Name.Base.Equal(settle) && !settle.Equal(currency.USDT):
 				contractSettlementType = futures.Quanto
 			}
-			c := futures.Contract{
+			resp[i] = futures.Contract{
 				Exchange:           e.Name,
 				Name:               contracts[i].Name,
 				Underlying:         contracts[i].Name,
@@ -1813,12 +1815,11 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
+				LatestRate: fundingrate.Rate{
+					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
+					Rate: contracts[i].FundingRate.Decimal(),
+				},
 			}
-			c.LatestRate = fundingrate.Rate{
-				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
-				Rate: contracts[i].FundingRate.Decimal(),
-			}
-			resp[i] = c
 		}
 		return resp, nil
 	case asset.DeliveryFutures:
