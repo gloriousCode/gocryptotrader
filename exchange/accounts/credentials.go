@@ -1,4 +1,4 @@
-package account
+package accounts
 
 import (
 	"context"
@@ -224,3 +224,4 @@ func GetCredentialsFromContext(ctx context.Context) *Credentials {
 
 	return ctxCredStore.Get()
 }
+

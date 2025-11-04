@@ -9,8 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-func (q *QuickData) handleWSAccountChange(data *account.Change) error {
+func (q *QuickData) handleWSAccountChange(data *accounts.Change) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -34,8 +34,8 @@ func (q *QuickData) handleWSAccountChange(data *account.Change) error {
 		// it is not an error to get other data, just ignore it
 		return nil
 	}
-	payload := make([]account.Balance, 1)
-	payload[0] = *data.Balance
+	payload := make([]accounts.Balance, 1)
+	payload[0] = data.Balance
 	q.m.Lock()
 	q.data.AccountBalance = payload
 	q.m.Unlock()
@@ -44,7 +44,7 @@ func (q *QuickData) handleWSAccountChange(data *account.Change) error {
 	return nil
 }
 
-func (q *QuickData) handleWSAccountChanges(data []account.Change) error {
+func (q *QuickData) handleWSAccountChanges(data []accounts.Change) error {
 	if err := common.NilGuard(data); err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (q *QuickData) handleWSAccountChanges(data []account.Change) error {
 	if focus == nil {
 		return fmt.Errorf("%w %q", errKeyNotFound, AccountHoldingsFocusType)
 	}
-	var payload []account.Balance
+	var payload []accounts.Balance
 	for i := range data {
 		if data[i].AssetType == q.Key.Asset &&
 			(data[i].Balance.Currency.Equal(q.Key.Pair().Base) || data[i].Balance.Currency.Equal(q.Key.Pair().Quote)) {
@@ -400,20 +400,20 @@ func (q *QuickData) handleAccountHoldingsFocus(ctx context.Context, focus *Focus
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ais, err := q.exch.UpdateAccountInfo(ctx, q.Key.Asset)
+	ais, err := q.exch.UpdateAccountBalances(ctx, q.key.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
 			q.Key, focus.focusType.String(), err)
 	}
 	// filter results only to passed in key currencies
-	sa := make([]account.Balance, 0, 2)
+	sa := make([]accounts.Balance, 0, 2)
 	// iterate on account index as it is not a pointer
-	for i := range ais.Accounts {
-		if ais.Accounts[i].AssetType != q.Key.Asset {
+	for i := range ais {
+		if ais[i].AssetType != q.key.Asset {
 			continue
 		}
-		for _, c := range ais.Accounts[i].Currencies {
-			if c.Currency.Equal(q.Key.Base.Currency()) {
+		for _, c := range ais[i].Balances {
+			if c.Currency.Equal(q.key.Base.Currency()) {
 				sa = append(sa, c)
 			}
 			if c.Currency.Equal(q.Key.Quote.Currency()) {

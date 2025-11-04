@@ -15,10 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/quickdata"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -53,7 +53,7 @@ type appConfig struct {
 	UseWebsocket bool
 	PollInterval time.Duration
 	BookLevels   int
-	Credentials  *account.Credentials
+	Credentials  *accounts.Credentials
 	JSONOnly     bool
 }
 
@@ -64,7 +64,7 @@ func main() {
 	// Context & OS signals for graceful shutdown
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
-	ctx = account.DeployCredentialsToContext(ctx, cfg.Credentials)
+	ctx = accounts.DeployCredentialsToContext(ctx, cfg.Credentials)
 	k := key.NewExchangeAssetPair(cfg.Exchange, cfg.Asset, cfg.Pair)
 	qsChan, err := quickdata.NewQuickestData(ctx, &k, cfg.FocusType)
 	if err != nil {
@@ -83,7 +83,23 @@ func parseFlags() *appConfig {
 	exch := flag.String("exchange", "", "Exchange name, e.g. binance, okx")
 	assetStr := flag.String("asset", "spot", "Asset type, e.g. spot, futures, perpetualswap")
 	pairStr := flag.String("pair", "BTC-USDT", "Currency pair, e.g. BTC-USDT or ETHUSD")
-	focusStr := flag.String("data", "ticker", "Data type: ticker, orderbook, kline, trades, openinterest, fundingrate, accountholdings, activeorders, orderexecution, url, contract")
+	focusHelp := `Data type:
+  Focus            Aliases
+------------------------------------
+  ticker           ticker,tick
+  orderbook        orderbook,order_book,ob,book
+  kline            kline,candles,candle,ohlc
+  trades           trades,trade
+  openinterest     openinterest,oi
+  fundingrate      fundingrate,funding
+  accountholdings  accountholdings,account,holdings,balances
+  activeorders     activeorders,orders
+  orderexecution   orderexecution,executionlimits,limits
+  url              url,tradeurl,trade_url
+  contract         contract
+`
+	focusStr := flag.String("data", "ticker", focusHelp)
+
 	pollStr := flag.String("poll", "5s", "Poll interval for REST focus and timeout for websocket initial data wait")
 	bookLevels := flag.Int("book-levels", 15, "Number of levels to render per side for orderbook focus")
 	jsonOnly := flag.Bool("json", false, "Emit NDJSON only (no ANSI rendering/headers)")
@@ -129,9 +145,9 @@ func parseFlags() *appConfig {
 	}
 
 	// Credentials (only applied when supplied or required by focus)
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	if quickdata.RequiresAuth(fType) {
-		creds = &account.Credentials{
+		creds = &accounts.Credentials{
 			Key:             *apiKey,
 			Secret:          *apiSecret,
 			SubAccount:      *subAccount,
@@ -280,26 +296,26 @@ func renderTicker(t *ticker.Price) {
 		ansiDim, ansiReset, t.Volume, ansiDim, ansiReset, spread, spreadPct, ansiDim, ansiReset, t.MarkPrice, ansiDim, ansiReset, t.IndexPrice)
 }
 
-func renderTrades(trs []trade.Data) {
-	if len(trs) == 0 {
+func renderTrades(trades []trade.Data) {
+	if len(trades) == 0 {
 		outPrintln("No trades.")
 		return
 	}
 	// Summaries
-	n := len(trs)
-	start := trs[0].Timestamp
-	end := trs[n-1].Timestamp
+	n := len(trades)
+	start := trades[0].Timestamp
+	end := trades[n-1].Timestamp
 	if end.Before(start) {
 		start, end = end, start
 	}
 	var baseVol, quoteVol float64
 	var buys, sells int
-	for i := range trs {
-		baseVol += trs[i].Amount
-		quoteVol += trs[i].Amount * trs[i].Price
-		if trs[i].Side&order.Buy == order.Buy || trs[i].Side&order.Bid == order.Bid || trs[i].Side&order.Long == order.Long {
+	for i := range trades {
+		baseVol += trades[i].Amount
+		quoteVol += trades[i].Amount * trades[i].Price
+		if trades[i].Side.IsLong() {
 			buys++
-		} else if trs[i].Side&order.Sell == order.Sell || trs[i].Side&order.Ask == order.Ask || trs[i].Side&order.Short == order.Short {
+		} else if trades[i].Side.IsShort() {
 			sells++
 		}
 	}
@@ -307,7 +323,7 @@ func renderTrades(trs []trade.Data) {
 	if baseVol != 0 {
 		vwap = quoteVol / baseVol
 	}
-	last := trs[n-1]
+	last := trades[n-1]
 	span := end.Sub(start)
 	outPrintf("%sTrades:%s N=%d Span=%s\n", ansiBold, ansiReset, n, span.Truncate(time.Second))
 	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
@@ -347,29 +363,24 @@ func renderKlines(kl []websocket.KlineData) {
 	}
 	avgVol := totalVol / float64(n)
 	span := end.Sub(start)
-	interval := kl[n-1].Interval
-	if interval == "" && n > 1 {
-		interval = kl[0].Interval
-	}
+	interval := kl[0].Interval
 	outPrintf("%sKlines:%s N=%d Interval=%s Span=%s\n", ansiBold, ansiReset, n, interval, span.Truncate(time.Second))
 	outPrintf("Range: %s -> %s\n", start.UTC().Format(time.RFC3339), end.UTC().Format(time.RFC3339))
 	outPrintf("O/C: %.8f -> %.8f  Change: %+.8f (%.4f%%)\n", firstOpen, lastClose, change, changePct)
 	outPrintf("High/Low: %.8f / %.8f  Volume: total=%.4f avg=%.4f\n", high, low, totalVol, avgVol)
 }
 
-func renderAccountHoldings(h *account.Holdings) {
-	if h == nil || len(h.Accounts) == 0 {
+func renderAccountHoldings(h []accounts.Balance) {
+	if h == nil || len(h) == 0 {
 		outPrintln("No holdings.")
 		return
 	}
-	outPrintf("%s%-12s %-8s %-10s %-10s %-10s %-10s%s\n", ansiDim, "Account", "Asset", "Currency", "Total", "Free", "Hold", ansiReset)
-	for i := range h.Accounts {
-		sa := h.Accounts[i]
-		for j := range sa.Currencies {
-			c := sa.Currencies[j]
-			outPrintf("%-12s %-8s %-10s % -10.8f % -10.8f % -10.8f\n",
-				sa.ID, sa.AssetType, c.Currency.String(), c.Total, c.Free, c.Hold)
-		}
+	outPrintf("%s%-12s %-14s %-14s %-14s%s\n",
+		ansiDim, "Currency", "Total", "Free", "Hold", ansiReset)
+
+	for _, a := range h {
+		outPrintf("%-12s %-14.8f %-14.8f %-14.8f\n",
+			a.Currency, a.Total, a.Free, a.Hold)
 	}
 }
 
@@ -425,7 +436,9 @@ func renderPrettyPayload(payload any, bookLevels int) {
 		renderTrades(v)
 	case trade.Data:
 		renderTrades([]trade.Data{v})
-	case *account.Holdings:
+	case accounts.Balance:
+		renderAccountHoldings([]accounts.Balance{v})
+	case []accounts.Balance:
 		renderAccountHoldings(v)
 	case []order.Detail:
 		renderActiveOrders(v)

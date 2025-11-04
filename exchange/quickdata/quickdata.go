@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -153,8 +153,8 @@ func (q *QuickData) Run(ctx context.Context) error {
 	if _, ok := ctx.Deadline(); !ok && ctx.Done() == nil {
 		return ErrContextMustBeAbleToFinish
 	}
-	if creds := account.GetCredentialsFromContext(ctx); q.AnyRequiresAuth() && creds == nil {
-		return fmt.Errorf("%w for %s", errNoCredentials, q.Key)
+	if creds := accounts.GetCredentialsFromContext(ctx); q.AnyRequiresAuth() && creds == nil {
+		return fmt.Errorf("%w for %s", errNoCredentials, q.key)
 	}
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
@@ -459,9 +459,9 @@ func (q *QuickData) handleWSData(d any) error {
 		return err
 	}
 	switch data := d.(type) {
-	case account.Change:
+	case accounts.Change:
 		return q.handleWSAccountChange(&data)
-	case []account.Change:
+	case []accounts.Change:
 		return q.handleWSAccountChanges(data)
 	case *order.Detail:
 		return q.handleWSOrderDetail(data)
@@ -569,18 +569,18 @@ func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
 
 // Data holds the GCT types that QuickData gathers
 type Data struct {
-	Key             key.ExchangeAssetPair          `json:"key"`
-	Contract        futures.Contract               `json:"contract,omitempty"`
-	Orderbook       orderbook.Book                 `json:"orderbook,omitempty"`
-	Ticker          ticker.Price                   `json:"ticker,omitempty"`
-	Kline           []websocket.KlineData          `json:"kline,omitempty"`
-	AccountBalance  []account.Balance              `json:"accountBalance,omitempty"`
-	Orders          []order.Detail                 `json:"orders,omitempty"`
-	FundingRate     fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
-	Trades          []trade.Data                   `json:"trades,omitempty"`
-	ExecutionLimits limits.MinMaxLevel             `json:"executionLimits,omitempty"`
-	URL             string                         `json:"url,omitzero"`
-	OpenInterest    float64                        `json:"openInterest,omitzero"`
+	Key             *key.ExchangeAssetPair          `json:"key"`
+	Contract        *futures.Contract               `json:"contract,omitempty"`
+	Orderbook       *orderbook.Book                 `json:"orderbook,omitempty"`
+	Ticker          *ticker.Price                   `json:"ticker,omitempty"`
+	Kline           []websocket.KlineData           `json:"kline,omitempty"`
+	AccountBalance  []accounts.Balance              `json:"accountBalance,omitempty"`
+	Orders          []order.Detail                  `json:"orders,omitempty"`
+	FundingRate     *fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
+	Trades          []trade.Data                    `json:"trades,omitempty"`
+	ExecutionLimits *limits.MinMaxLevel             `json:"executionLimits,omitempty"`
+	URL             string                          `json:"url,omitzero"`
+	OpenInterest    float64                         `json:"openInterest,omitzero"`
 }
 
 // LatestData returns the latest focus-specific payload guarded by the
