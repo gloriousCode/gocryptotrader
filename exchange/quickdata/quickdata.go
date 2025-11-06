@@ -154,7 +154,7 @@ func (q *QuickData) Run(ctx context.Context) error {
 		return ErrContextMustBeAbleToFinish
 	}
 	if creds := accounts.GetCredentialsFromContext(ctx); q.AnyRequiresAuth() && creds == nil {
-		return fmt.Errorf("%w for %s", errNoCredentials, q.key)
+		return fmt.Errorf("%w for %s", errNoCredentials, q.Key)
 	}
 	if q.AnyRequiresWebsocket() {
 		q.wg.Go(func() {
@@ -569,18 +569,18 @@ func (q *QuickData) HasBeenSuccessful(focusType FocusType) (bool, error) {
 
 // Data holds the GCT types that QuickData gathers
 type Data struct {
-	Key             *key.ExchangeAssetPair          `json:"key"`
-	Contract        *futures.Contract               `json:"contract,omitempty"`
-	Orderbook       *orderbook.Book                 `json:"orderbook,omitempty"`
-	Ticker          *ticker.Price                   `json:"ticker,omitempty"`
-	Kline           []websocket.KlineData           `json:"kline,omitempty"`
-	AccountBalance  []accounts.Balance              `json:"accountBalance,omitempty"`
-	Orders          []order.Detail                  `json:"orders,omitempty"`
-	FundingRate     *fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
-	Trades          []trade.Data                    `json:"trades,omitempty"`
-	ExecutionLimits *limits.MinMaxLevel             `json:"executionLimits,omitempty"`
-	URL             string                          `json:"url,omitzero"`
-	OpenInterest    float64                         `json:"openInterest,omitzero"`
+	Key             key.ExchangeAssetPair          `json:"key"`
+	Contract        futures.Contract               `json:"contract,omitempty"`
+	Orderbook       orderbook.Book                 `json:"orderbook,omitempty"`
+	Ticker          ticker.Price                   `json:"ticker,omitempty"`
+	Kline           []websocket.KlineData          `json:"kline,omitempty"`
+	AccountBalance  []accounts.Balance             `json:"accountBalance,omitempty"`
+	Orders          []order.Detail                 `json:"orders,omitempty"`
+	FundingRate     fundingrate.LatestRateResponse `json:"fundingRate,omitempty"`
+	Trades          []trade.Data                   `json:"trades,omitempty"`
+	ExecutionLimits limits.MinMaxLevel             `json:"executionLimits,omitempty"`
+	URL             string                         `json:"url,omitzero"`
+	OpenInterest    float64                        `json:"openInterest,omitzero"`
 }
 
 // LatestData returns the latest focus-specific payload guarded by the

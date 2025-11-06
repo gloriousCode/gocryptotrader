@@ -56,7 +56,7 @@ func (q *QuickData) handleWSAccountChanges(data []accounts.Change) error {
 	for i := range data {
 		if data[i].AssetType == q.Key.Asset &&
 			(data[i].Balance.Currency.Equal(q.Key.Pair().Base) || data[i].Balance.Currency.Equal(q.Key.Pair().Quote)) {
-			payload = append(payload, *data[i].Balance)
+			payload = append(payload, data[i].Balance)
 		}
 	}
 	if len(payload) == 0 {
@@ -400,7 +400,7 @@ func (q *QuickData) handleAccountHoldingsFocus(ctx context.Context, focus *Focus
 	if err := common.NilGuard(focus); err != nil {
 		return err
 	}
-	ais, err := q.exch.UpdateAccountBalances(ctx, q.key.Asset)
+	ais, err := q.exch.UpdateAccountBalances(ctx, q.Key.Asset)
 	if err != nil {
 		return fmt.Errorf("%s %q %w",
 			q.Key, focus.focusType.String(), err)
@@ -409,11 +409,11 @@ func (q *QuickData) handleAccountHoldingsFocus(ctx context.Context, focus *Focus
 	sa := make([]accounts.Balance, 0, 2)
 	// iterate on account index as it is not a pointer
 	for i := range ais {
-		if ais[i].AssetType != q.key.Asset {
+		if ais[i].AssetType != q.Key.Asset {
 			continue
 		}
 		for _, c := range ais[i].Balances {
-			if c.Currency.Equal(q.key.Base.Currency()) {
+			if c.Currency.Equal(q.Key.Base.Currency()) {
 				sa = append(sa, c)
 			}
 			if c.Currency.Equal(q.Key.Quote.Currency()) {
