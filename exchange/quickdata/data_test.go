@@ -24,7 +24,7 @@ func TestHandleWSAccountChange(t *testing.T) {
 
 	d := &accounts.Change{
 		AssetType: q.Key.Asset,
-		Balance: &account.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
 			Hold:                   1337,
@@ -62,7 +62,7 @@ func TestHandleWSAccountChanges(t *testing.T) {
 
 	d := accounts.Change{
 		AssetType: q.Key.Asset,
-		Balance: &accounts.Balance{
+		Balance: accounts.Balance{
 			Currency:               currency.BTC,
 			Total:                  1337,
 			Hold:                   1337,
