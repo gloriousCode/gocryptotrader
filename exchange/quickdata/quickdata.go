@@ -87,7 +87,7 @@ func NewQuickData(k *key.ExchangeAssetPair, focuses []*FocusData) (*QuickData, e
 		Key:                k,
 		dataHandlerChannel: make(chan any, 10),
 		focuses:            sm,
-		data:               &Data{Key: *k},
+		data:               &Data{Key: k},
 	}
 	err := q.setupExchange()
 	if err != nil {

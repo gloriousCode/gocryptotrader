@@ -69,3 +69,12 @@ func (s *FocusStore) DisableWebsocketFocuses() {
 		s.s[k].m.Unlock()
 	}
 }
+
+// DisableSpecificWebsocketFocuses sets a FocusData in the store to not use websockets
+func (s *FocusStore) DisableSpecificWebsocketFocuses(key FocusType) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.s[key].m.Lock()
+	s.s[key].useWebsocket = false
+	s.s[key].m.Unlock()
+}
