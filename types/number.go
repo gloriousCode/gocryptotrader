@@ -12,9 +12,10 @@ var errInvalidNumberValue = errors.New("invalid value for Number type")
 
 // Number represents a floating point number, and implements json.Unmarshaller and json.Marshaller
 type Number struct {
-	f float64
-	s string
-	d decimal.Decimal
+	f       float64
+	s       string
+	d       decimal.Decimal
+	isEmpty bool
 }
 
 // UnmarshalJSON implements json.Unmarshaler
@@ -38,19 +39,29 @@ func (f *Number) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	s := string(data)
+	if s == "" {
+		*f = Number{
+			isEmpty: true,
+		}
+		return nil
+	}
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data) // We don't use err; We know it's not valid and errInvalidNumberValue is clearer
 	}
 
-	*f = Number{f: val, s: s}
+	*f = Number{f: val, s: s, d: decimal.RequireFromString(s)}
 
 	return nil
 }
 
+func (f Number) IsEmpty() bool {
+	return f.isEmpty
+}
+
 func NumberFromString(s string) (Number, error) {
 	if s == "" {
-		return Number{}, nil
+		return Number{isEmpty: true}, nil
 	}
 	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
@@ -87,10 +98,9 @@ func (f Number) Int64() int64 {
 }
 
 // Decimal returns a decimal.Decimal
-
 func (f Number) Decimal() decimal.Decimal {
-	if f.d.IsZero() {
-		f.d = decimal.RequireFromString(f.s)
+	if f.s == "" {
+		return decimal.Zero
 	}
 	return f.d
 }
