@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/fees"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1922,6 +1923,16 @@ func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount,
 		price,
 		orderType,
 	)
+}
+
+// GetFee returns a fee from storage
+func (b *Base) GetFee(k *key.ExchangeAssetPair) (*fees.Fee, error) {
+	return fees.GetFee(k)
+}
+
+// EstimateFee estimates a fee based on parameters provided from storage
+func (b *Base) EstimateFee(k *key.ExchangeAssetPair, amount, price float64, isMaker bool) (float64, error) {
+	return fees.EstimateFee(k, amount, price, isMaker)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection

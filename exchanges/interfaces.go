@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/fees"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -87,6 +88,8 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
+	GetFee(pair key.ExchangeAssetPair) (*fees.Fee, error)
+	UpdateFees(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
