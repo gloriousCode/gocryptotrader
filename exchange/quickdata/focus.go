@@ -158,6 +158,7 @@ const (
 	ContractFocusType
 	OrderLimitsFocusType
 	URLFocusType
+	FeeFocusType
 	OrdersFocusType
 )
 
@@ -174,6 +175,7 @@ var allFocusList = []FocusType{
 	ContractFocusType,
 	OrderLimitsFocusType,
 	URLFocusType,
+	FeeFocusType,
 }
 
 var wsSupportedFocusList = []FocusType{
@@ -189,6 +191,7 @@ var wsSupportedFocusList = []FocusType{
 var authFocusList = []FocusType{
 	AccountHoldingsFocusType,
 	ActiveOrdersFocusType,
+	FeeFocusType,
 }
 
 // futuresOnlyFocusList is a list of FocusTypes that are only valid for futures assets

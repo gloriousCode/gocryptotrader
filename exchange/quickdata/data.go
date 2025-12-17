@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -506,4 +507,19 @@ func (q *QuickData) handleFundingRateFocus(ctx context.Context, focus *FocusData
 	q.m.Unlock()
 	focus.stream(&fr[0])
 	return nil
+}
+
+func (q *QuickData) handleFeeFocus(ctx, focus *FocusData) error {
+	if err := common.NilGuard(focus); err != nil {
+		return err
+	}
+	q.exch.GetFeeByType(ctx, exchange.FeeBuilder{
+		FeeType:             0,
+		Pair:                currency.Pair{},
+		IsMaker:             false,
+		FiatCurrency:        currency.Code{},
+		BankTransactionType: 0,
+		PurchasePrice:       0,
+		Amount:              0,
+	})
 }
