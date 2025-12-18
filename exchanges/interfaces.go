@@ -88,7 +88,8 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetFee(pair key.ExchangeAssetPair) (*fees.Fee, error)
+	GetFeeButts(fees.Key) (*fees.Fee, error)
+	EstimateFee(k fees.Key, amount, price float64, isMaker bool) (float64, error)
 	UpdateFees(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
 	EnsureOnePairEnabled() error

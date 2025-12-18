@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/fees"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
@@ -570,8 +571,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		}
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Balances {
-			free := resp.Balances[i].Free.InexactFloat64()
-			locked := resp.Balances[i].Locked.InexactFloat64()
+			free := resp.Balances[i].Free.Float64()
+			locked := resp.Balances[i].Locked.Float64()
 			subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
 				Total: free + locked,
 				Hold:  locked,
@@ -3008,4 +3009,36 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+func (e *Exchange) UpdateFees(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	switch a {
+	case asset.Spot, asset.Margin:
+		acc, err := e.GetAccount(ctx)
+		if err != nil {
+			return err
+		}
+		pairs, err := e.CurrencyPairs.GetPairs(a, false)
+		if err != nil {
+			return err
+		}
+		fs := make([]fees.Fee, len(pairs))
+		for i, p := range pairs {
+			fs[i] = fees.Fee{
+				Key:       fees.NewKey(e.Name, a, p, *creds),
+				MakerFee:  acc.CommissionRates.Maker.Float64(),
+				TakerFee:  acc.CommissionRates.Taker.Float64(),
+				UpdatedAt: time.Now(),
+			}
+		}
+		return fees.Load(fs)
+	}
+	return nil
 }

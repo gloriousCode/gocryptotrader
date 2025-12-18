@@ -8,6 +8,9 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 var (
@@ -20,17 +23,22 @@ var (
 	errPairNotSet        = errors.New("currency pair not set")
 )
 
+type Key struct {
+	key.ExchangeAssetPair
+	Credentials accounts.Credentials
+}
+
 type store struct {
-	epaFees map[*key.ExchangeAssetPair]*Fee
+	epaFees map[Key]*Fee
 	mtx     sync.RWMutex
 }
 
 var manager = store{
-	epaFees: make(map[*key.ExchangeAssetPair]*Fee),
+	epaFees: make(map[Key]*Fee),
 }
 
 type Fee struct {
-	Key         *key.ExchangeAssetPair
+	Key         Key
 	MakerFee    float64
 	TakerFee    float64
 	Tier        uint8
@@ -44,12 +52,12 @@ func Load(fees []Fee) error {
 }
 
 // GetFee returns the fee matching the key
-func GetFee(k *key.ExchangeAssetPair) (*Fee, error) {
+func GetFee(k Key) (*Fee, error) {
 	return manager.getFee(k)
 }
 
 // EstimateFee is a convenience method to estimate fees without retrieving the fee structure first
-func EstimateFee(k *key.ExchangeAssetPair, price, amount float64, isMaker bool) (float64, error) {
+func EstimateFee(k Key, price, amount float64, isMaker bool) (float64, error) {
 	return manager.estimateFee(k, price, amount, isMaker)
 }
 
@@ -60,7 +68,7 @@ func (e *store) load(fees []Fee) error {
 	e.mtx.Lock()
 	defer e.mtx.Unlock()
 	if e.epaFees == nil {
-		e.epaFees = make(map[key.ExchangeAssetPair]*Fee)
+		e.epaFees = make(map[Key]*Fee)
 	}
 
 	for x := range fees {
@@ -85,7 +93,7 @@ func (e *store) load(fees []Fee) error {
 	return nil
 }
 
-func (e *store) getFee(k *key.ExchangeAssetPair) (*Fee, error) {
+func (e *store) getFee(k Key) (*Fee, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 	if e.epaFees == nil {
@@ -98,7 +106,7 @@ func (e *store) getFee(k *key.ExchangeAssetPair) (*Fee, error) {
 	return f, nil
 }
 
-func (e *store) estimateFee(k *key.ExchangeAssetPair, price, amount float64, isMaker bool) (float64, error) {
+func (e *store) estimateFee(k Key, price, amount float64, isMaker bool) (float64, error) {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 	if e.epaFees == nil {
@@ -113,4 +121,11 @@ func (e *store) estimateFee(k *key.ExchangeAssetPair, price, amount float64, isM
 		feeRate = m1.MakerFee
 	}
 	return price * amount * feeRate, nil
+}
+
+func NewKey(name string, a asset.Item, p currency.Pair, creds accounts.Credentials) Key {
+	return Key{
+		ExchangeAssetPair: key.NewExchangeAssetPair(name, a, p),
+		Credentials:       creds,
+	}
 }

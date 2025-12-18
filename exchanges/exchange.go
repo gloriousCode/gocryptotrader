@@ -1925,13 +1925,13 @@ func (b *Base) CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, amount,
 	)
 }
 
-// GetFee returns a fee from storage
-func (b *Base) GetFee(k *key.ExchangeAssetPair) (*fees.Fee, error) {
+// GetFeeButts returns a fee from storage
+func (b *Base) GetFeeButts(k fees.Key) (*fees.Fee, error) {
 	return fees.GetFee(k)
 }
 
 // EstimateFee estimates a fee based on parameters provided from storage
-func (b *Base) EstimateFee(k *key.ExchangeAssetPair, amount, price float64, isMaker bool) (float64, error) {
+func (b *Base) EstimateFee(k fees.Key, amount, price float64, isMaker bool) (float64, error) {
 	return fees.EstimateFee(k, amount, price, isMaker)
 }
 
@@ -1970,4 +1970,8 @@ func (b *Base) MessageSequence() int64 {
 // SubscribeAccountBalances returns a pipe to stream account holding updates
 func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
 	return b.Accounts.Subscribe()
+}
+
+func (b *Base) UpdateFees(ctx context.Context, a asset.Item) error {
+	return common.ErrNotYetImplemented
 }

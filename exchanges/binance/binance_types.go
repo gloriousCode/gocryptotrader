@@ -451,15 +451,31 @@ type Balance struct {
 
 // Account holds the account data
 type Account struct {
-	MakerCommission  int        `json:"makerCommission"`
-	TakerCommission  int        `json:"takerCommission"`
-	BuyerCommission  int        `json:"buyerCommission"`
-	SellerCommission int        `json:"sellerCommission"`
-	CanTrade         bool       `json:"canTrade"`
-	CanWithdraw      bool       `json:"canWithdraw"`
-	CanDeposit       bool       `json:"canDeposit"`
-	UpdateTime       types.Time `json:"updateTime"`
-	Balances         []Balance  `json:"balances"`
+	MakerCommission  types.Number `json:"makerCommission"`
+	TakerCommission  types.Number `json:"takerCommission"`
+	BuyerCommission  types.Number `json:"buyerCommission"`
+	SellerCommission types.Number `json:"sellerCommission"`
+	CommissionRates  struct {
+		Maker  types.Number `json:"maker"`
+		Taker  types.Number `json:"taker"`
+		Buyer  types.Number `json:"buyer"`
+		Seller types.Number `json:"seller"`
+	} `json:"commissionRates"`
+	CanTrade                   bool   `json:"canTrade"`
+	CanWithdraw                bool   `json:"canWithdraw"`
+	CanDeposit                 bool   `json:"canDeposit"`
+	Brokered                   bool   `json:"brokered"`
+	RequireSelfTradePrevention bool   `json:"requireSelfTradePrevention"`
+	PreventSor                 bool   `json:"preventSor"`
+	UpdateTime                 int64  `json:"updateTime"`
+	AccountType                string `json:"accountType"`
+	Balances                   []struct {
+		Asset  currency.Code `json:"asset"`
+		Free   types.Number  `json:"free"`
+		Locked types.Number  `json:"locked"`
+	} `json:"balances"`
+	Permissions []string `json:"permissions"`
+	Uid         int      `json:"uid"`
 }
 
 // MarginAccount holds the margin account data
