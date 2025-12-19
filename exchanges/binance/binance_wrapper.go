@@ -3039,6 +3039,44 @@ func (e *Exchange) UpdateFees(ctx context.Context, a asset.Item) error {
 			}
 		}
 		return fees.Load(fs)
+	case asset.USDTMarginedFutures:
+		acc, err := e.UAccountInformationV2(ctx)
+		if err != nil {
+			return err
+		}
+		pairs, err := e.CurrencyPairs.GetPairs(a, false)
+		if err != nil {
+			return err
+		}
+		fs := make([]fees.Fee, len(pairs))
+		for i, p := range pairs {
+			fs[i] = fees.Fee{
+				Key:       fees.NewKey(e.Name, a, p, *creds),
+				MakerFee:  acc.CommissionRates.Maker.Float64(),
+				TakerFee:  acc.CommissionRates.Taker.Float64(),
+				UpdatedAt: time.Now(),
+			}
+		}
+		return fees.Load(fs)
+	case asset.CoinMarginedFutures:
+		acc, err := e.GetFuturesAccountInfo(ctx)
+		if err != nil {
+			return err
+		}
+		pairs, err := e.CurrencyPairs.GetPairs(a, false)
+		if err != nil {
+			return err
+		}
+		fs := make([]fees.Fee, len(pairs))
+		for i, p := range pairs {
+			fs[i] = fees.Fee{
+				Key:       fees.NewKey(e.Name, a, p, *creds),
+				MakerFee:  acc.CommissionRates.Maker.Float64(),
+				TakerFee:  acc.CommissionRates.Taker.Float64(),
+				UpdatedAt: time.Now(),
+			}
+		}
+		return fees.Load(fs)
 	}
 	return nil
 }

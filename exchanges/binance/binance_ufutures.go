@@ -1039,3 +1039,10 @@ func (e *Exchange) GetAssetsMode(ctx context.Context) (bool, error) {
 	}
 	return result.MultiAssetsMargin, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, uFuturesMultiAssetsMargin, nil, uFuturesDefaultRate, &result)
 }
+
+func (e *Exchange) UGetFeeRates(ctx context.Context) (UFeeRatesData, error) {
+	// https://www.binance.com/bapi/composite/v1/public/commission/futures-trade-level/get
+
+	// coinmargined
+	// https://www.binance.com/bapi/futures/v1/public/delivery/trade-level/get
+}
