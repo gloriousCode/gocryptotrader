@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/fees"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -3027,4 +3028,46 @@ func (e *Exchange) MessageID() string {
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])
+}
+
+func (e *Exchange) UpdateFees(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	eat := e.GetAssetTypes(false)
+	fs := make([]fees.Fee, len(eat))
+	for i, ea := range eat {
+		feeData, err := e.GetTradeFee(ctx, GetInstrumentTypeFromAssetItem(a), "", "", "", "")
+		if err != nil {
+			return err
+		}
+		f := fees.Fee{
+			Key:       fees.NewKey(e.Name, ea, creds),
+			UpdatedAt: time.Now(),
+		}
+		for _, butts := range feeData {
+			butts.
+		}
+		switch ea {
+		case asset.Spot, asset.Margin, asset.CrossMargin:
+			f.MakerFee = feeData.MakerFee.Float64()
+			f.TakerFee = feeData.TakerFee.Float64()
+
+		case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+			f.MakerFee = feeData.FuturesMakerFee.Float64()
+			f.TakerFee = feeData.FuturesTakerFee.Float64()
+		case asset.DeliveryFutures:
+			f.MakerFee = feeData.DeliveryMakerFee.Float64()
+			f.TakerFee = feeData.DeliveryTakerFee.Float64()
+		}
+		fs[i] = f
+	}
+	return fees.Load(fs)
 }

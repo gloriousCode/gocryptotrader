@@ -151,3 +151,11 @@ func TestFetchOrderbook(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateFees(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		assert.NoError(t, e.UpdateFees(t.Context(), a))
+	}
+}

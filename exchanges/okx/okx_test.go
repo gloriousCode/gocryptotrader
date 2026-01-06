@@ -6302,3 +6302,11 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
 }
+
+func TestUpdateFees(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		assert.NoError(t, e.UpdateFees(t.Context(), a))
+	}
+}

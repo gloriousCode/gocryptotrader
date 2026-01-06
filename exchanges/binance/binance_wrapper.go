@@ -3052,7 +3052,7 @@ func (e *Exchange) UpdateFees(ctx context.Context, a asset.Item) error {
 		for i, p := range pairs {
 			fs[i] = fees.Fee{
 				Key:       fees.NewKey(e.Name, a, p, *creds),
-				MakerFee:  acc.CommissionRates.Maker.Float64(),
+				MakerFee:  acc..Maker.Float64(),
 				TakerFee:  acc.CommissionRates.Taker.Float64(),
 				UpdatedAt: time.Now(),
 			}
