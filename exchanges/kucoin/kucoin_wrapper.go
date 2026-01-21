@@ -1885,13 +1885,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if err != nil {
 			return nil, err
 		}
-		if r.IncludePredictedRate {
-			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", e.Name, len(contracts))
-		}
 		timeChecked := time.Now()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 		for i := range contracts {
-			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
+			upcomingFRTime := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
 			cp := currency.NewPair(contracts[i].BaseCurrency,
 				currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):]))
 			var isPerp bool
@@ -1908,22 +1905,15 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				Asset:    r.Asset,
 				Pair:     cp,
 				LatestRate: fundingrate.Rate{
-					Time: timeOfNextFundingRate.Add(-fri),
+					Time: upcomingFRTime.Add(-fri),
 					Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
 				},
-				TimeOfNextRate: timeOfNextFundingRate,
+				TimeOfNextRate: upcomingFRTime,
 				TimeChecked:    timeChecked,
-			}
-			if r.IncludePredictedRate {
-				var fr *FuturesFundingRate
-				fr, err = e.GetFuturesCurrentFundingRate(ctx, contracts[i].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				rate.PredictedUpcomingRate = fundingrate.Rate{
-					Time: timeOfNextFundingRate,
-					Rate: decimal.NewFromFloat(fr.PredictedValue),
-				}
+				PredictedUpcomingRate: fundingrate.Rate{
+					Time: upcomingFRTime,
+					Rate: decimal.NewFromFloat(contracts[i].PredictedFundingFeeRate),
+				},
 			}
 			resp = append(resp, rate)
 		}
@@ -1946,7 +1936,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if err != nil {
 		return nil, err
 	}
-	rate := fundingrate.LatestRateResponse{
+	upcomingFRTime := fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC()
+	resp[0] = fundingrate.LatestRateResponse{
 		Exchange: e.Name,
 		Asset:    r.Asset,
 		Pair:     r.Pair,
@@ -1954,16 +1945,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Time: fr.TimePoint.Time(),
 			Rate: decimal.NewFromFloat(fr.Value),
 		},
-		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
+		TimeOfNextRate: upcomingFRTime,
 		TimeChecked:    time.Now(),
-	}
-	if r.IncludePredictedRate {
-		rate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: rate.TimeOfNextRate,
+		PredictedUpcomingRate: fundingrate.Rate{
+			Time: upcomingFRTime,
 			Rate: decimal.NewFromFloat(fr.PredictedValue),
-		}
+		},
 	}
-	resp[0] = rate
 	return resp, nil
 }
 

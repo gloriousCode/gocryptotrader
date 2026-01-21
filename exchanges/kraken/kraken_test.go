@@ -1498,13 +1498,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSD(),
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error")
-
-	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
@@ -1512,9 +1505,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 	err = e.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
 	assert.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error: %s", err)
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.Futures,
-		Pair:                 futuresTestPair,
-		IncludePredictedRate: true,
+		Asset: asset.Futures,
+		Pair:  futuresTestPair,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
 }

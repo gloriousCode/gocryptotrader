@@ -1202,12 +1202,6 @@
             "in": "query",
             "required": false,
             "type": "boolean"
-          },
-          {
-            "name": "includePredictedRate",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
           }
         ],
         "tags": [
@@ -2090,12 +2084,6 @@
             "type": "string"
           },
           {
-            "name": "includePredicted",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "includePayments",
             "in": "query",
             "required": false,
@@ -2528,12 +2516,6 @@
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "includePredicted",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
           }
         ],
         "tags": [
@@ -2779,12 +2761,6 @@
           },
           {
             "name": "includeFullFundingRates",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"

@@ -1110,14 +1110,12 @@ message GetManagedPositionRequest {
   bool include_full_order_data = 4;
   bool get_funding_payments = 5;
   bool include_full_funding_rates = 6;
-  bool include_predicted_rate = 7;
 }
 
 message GetAllManagedPositionsRequest {
   bool include_full_order_data = 1;
   bool get_funding_payments = 2;
   bool include_full_funding_rates = 3;
-  bool include_predicted_rate = 4;
 }
 
 message GetManagedPositionsResponse {
@@ -1327,7 +1325,6 @@ message GetFundingRatesRequest {
   string start_date = 4;
   string end_date = 5;
   string payment_currency = 6;
-  bool include_predicted = 7;
   bool include_payments = 8;
   bool respect_history_limits = 9;
 }
@@ -1340,7 +1337,6 @@ message GetLatestFundingRateRequest {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  bool include_predicted = 4;
 }
 
 message GetLatestFundingRateResponse {

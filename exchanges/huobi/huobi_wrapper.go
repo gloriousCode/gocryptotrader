@@ -2142,7 +2142,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			ft = ft.Add(-fri)
 			nft = nft.Add(-fri)
 		}
-		rate := fundingrate.LatestRateResponse{
+		resp = append(resp, fundingrate.LatestRateResponse{
 			Exchange: e.Name,
 			Asset:    r.Asset,
 			Pair:     cp,
@@ -2152,14 +2152,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			},
 			TimeOfNextRate: nft,
 			TimeChecked:    time.Now(),
-		}
-		if r.IncludePredictedRate {
-			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Time: rate.TimeOfNextRate,
+			PredictedUpcomingRate: fundingrate.Rate{
+				Time: nft,
 				Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
-			}
-		}
-		resp = append(resp, rate)
+			},
+		})
 	}
 	return resp, nil
 }

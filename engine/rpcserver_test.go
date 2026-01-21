@@ -3032,7 +3032,6 @@ func TestGetAllManagedPositions(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	request.IncludePredictedRate = true
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
