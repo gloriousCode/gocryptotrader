@@ -1177,6 +1177,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				ct = futures.Weekly
 			case "month":
 				ct = futures.Monthly
+			case "quarter":
+				ct = futures.Quarterly
 			case "perpetual":
 				ct = futures.Perpetual
 			}
