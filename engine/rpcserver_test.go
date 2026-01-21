@@ -2692,13 +2692,12 @@ func TestGetFundingRates(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	request := &gctrpc.GetFundingRatesRequest{
-		Exchange:         "",
-		Asset:            "",
-		Pair:             nil,
-		StartDate:        "",
-		EndDate:          "",
-		IncludePredicted: false,
-		IncludePayments:  false,
+		Exchange:        "",
+		Asset:           "",
+		Pair:            nil,
+		StartDate:       "",
+		EndDate:         "",
+		IncludePayments: false,
 	}
 	_, err = s.GetFundingRates(t.Context(), request)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
@@ -2717,7 +2716,6 @@ func TestGetFundingRates(t *testing.T) {
 		Base:      cp.Base.String(),
 		Quote:     cp.Quote.String(),
 	}
-	request.IncludePredicted = true
 	request.IncludePayments = true
 	_, err = s.GetFundingRates(t.Context(), request)
 	assert.NoError(t, err)
@@ -2788,10 +2786,9 @@ func TestGetLatestFundingRate(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	request := &gctrpc.GetLatestFundingRateRequest{
-		Exchange:         "",
-		Asset:            "",
-		Pair:             nil,
-		IncludePredicted: false,
+		Exchange: "",
+		Asset:    "",
+		Pair:     nil,
 	}
 	_, err = s.GetLatestFundingRate(t.Context(), request)
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
@@ -2810,7 +2807,6 @@ func TestGetLatestFundingRate(t *testing.T) {
 		Base:      cp.Base.String(),
 		Quote:     cp.Quote.String(),
 	}
-	request.IncludePredicted = true
 	_, err = s.GetLatestFundingRate(t.Context(), request)
 	assert.NoError(t, err)
 }

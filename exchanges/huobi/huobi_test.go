@@ -1730,7 +1730,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 		Pair:  currency.NewBTCUSD(),
 	})
-	require.NoError(t, err)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,

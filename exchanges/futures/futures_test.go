@@ -1218,26 +1218,14 @@ func TestAreFundingRatePrerequisitesMet(t *testing.T) {
 	err := CheckFundingRatePrerequisites(false, false)
 	assert.NoError(t, err)
 
-	err = CheckFundingRatePrerequisites(true, false)
-	assert.NoError(t, err)
+	err = CheckFundingRatePrerequisites(false, true)
+	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
 
 	err = CheckFundingRatePrerequisites(true, false)
 	assert.NoError(t, err)
 
 	err = CheckFundingRatePrerequisites(true, true)
 	assert.NoError(t, err)
-
-	err = CheckFundingRatePrerequisites(true, true)
-	assert.NoError(t, err)
-
-	err = CheckFundingRatePrerequisites(false, true)
-	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
-
-	err = CheckFundingRatePrerequisites(false, true)
-	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
-
-	err = CheckFundingRatePrerequisites(false, false)
-	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
 }
 
 func TestLastUpdated(t *testing.T) {

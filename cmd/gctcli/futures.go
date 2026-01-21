@@ -124,7 +124,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getfundingrates",
 			Aliases:   []string{"funding", "f"},
 			Usage:     "returns funding rate data between two dates",
-			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepredicted> <includepayments> <respecthistorylimits>",
+			ArgsUsage: "<exchange> <asset> <pair> <start> <end> <paymentcurrency> <includepayments> <respecthistorylimits>",
 			Action:    getFundingRates,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -162,11 +162,6 @@ var futuresCommands = &cli.Command{
 					Usage:   "optional - if you are paid in a currency that isn't easily inferred from the Pair, eg BTCUSD-PERP use this field",
 				},
 				&cli.BoolFlag{
-					Name:    "includepredicted",
-					Aliases: []string{"ip", "predicted"},
-					Usage:   "optional - include the predicted next funding rate",
-				},
-				&cli.BoolFlag{
 					Name:    "includepayments",
 					Aliases: []string{"pay"},
 					Usage:   "optional - include funding rate payments, must be authenticated",
@@ -182,7 +177,7 @@ var futuresCommands = &cli.Command{
 			Name:      "getlatestfundingrate",
 			Aliases:   []string{"latestrate", "lr", "r8"},
 			Usage:     "returns the latest funding rate data",
-			ArgsUsage: "<exchange> <asset> <pair> <includepredicted>",
+			ArgsUsage: "<exchange> <asset> <pair>",
 			Action:    getLatestFundingRate,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
@@ -199,11 +194,6 @@ var futuresCommands = &cli.Command{
 					Name:    "pair",
 					Aliases: []string{"p"},
 					Usage:   "currency pair",
-				},
-				&cli.BoolFlag{
-					Name:    "includepredicted",
-					Aliases: []string{"ip", "predicted"},
-					Usage:   "optional - include the predicted next funding rate",
 				},
 			},
 		},
@@ -744,11 +734,11 @@ func getFundingRates(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 	var (
-		exchangeName, assetType, currencyPair, paymentCurrency             string
-		includePredicted, includePayments, respectFundingRateHistoryLimits bool
-		p                                                                  currency.Pair
-		s, e                                                               time.Time
-		err                                                                error
+		exchangeName, assetType, currencyPair, paymentCurrency string
+		includePayments, respectFundingRateHistoryLimits       bool
+		p                                                      currency.Pair
+		s, e                                                   time.Time
+		err                                                    error
 	)
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
@@ -795,14 +785,6 @@ func getFundingRates(c *cli.Context) error {
 		paymentCurrency = c.Args().Get(5)
 	}
 
-	if c.IsSet("includepredicted") {
-		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(6) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(6))
-		if err != nil {
-			return err
-		}
-	}
 	if c.IsSet("includepayments") {
 		includePayments = c.Bool("includepayments")
 	} else if c.Args().Get(7) != "" {
@@ -851,7 +833,6 @@ func getFundingRates(c *cli.Context) error {
 			},
 			StartDate:            s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:              e.Format(common.SimpleTimeFormatWithTimezone),
-			IncludePredicted:     includePredicted,
 			IncludePayments:      includePayments,
 			RespectHistoryLimits: respectFundingRateHistoryLimits,
 			PaymentCurrency:      paymentCurrency,
@@ -870,7 +851,6 @@ func getLatestFundingRate(c *cli.Context) error {
 	}
 	var (
 		exchangeName, assetType, currencyPair string
-		includePredicted                      bool
 		p                                     currency.Pair
 		err                                   error
 	)
@@ -903,15 +883,6 @@ func getLatestFundingRate(c *cli.Context) error {
 		return err
 	}
 
-	if c.IsSet("includepredicted") {
-		includePredicted = c.Bool("includepredicted")
-	} else if c.Args().Get(3) != "" {
-		includePredicted, err = strconv.ParseBool(c.Args().Get(3))
-		if err != nil {
-			return err
-		}
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
@@ -928,7 +899,6 @@ func getLatestFundingRate(c *cli.Context) error {
 				Base:      p.Base.String(),
 				Quote:     p.Quote.String(),
 			},
-			IncludePredicted: includePredicted,
 		})
 	if err != nil {
 		return err

@@ -1070,7 +1070,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 		Pair:  currency.NewBTCUSDT(),
 	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,

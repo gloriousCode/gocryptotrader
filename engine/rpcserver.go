@@ -4638,11 +4638,9 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		fundingData.TimeOfNextRate = funding.TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
 	}
 	fundingData.Rates = rates
-	if r.IncludePredicted {
-		fundingData.UpcomingRate = &gctrpc.FundingRate{
-			Date: funding.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate: funding.PredictedUpcomingRate.Rate.String(),
-		}
+	fundingData.UpcomingRate = &gctrpc.FundingRate{
+		Date: funding.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+		Rate: funding.PredictedUpcomingRate.Rate.String(),
 	}
 	response.Rates = fundingData
 
@@ -4708,11 +4706,9 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	if !fundingRates[0].TimeOfNextRate.IsZero() {
 		fundingData.TimeOfNextRate = fundingRates[0].TimeOfNextRate.Format(common.SimpleTimeFormatWithTimezone)
 	}
-	if r.IncludePredicted {
-		fundingData.UpcomingRate = &gctrpc.FundingRate{
-			Date: fundingRates[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-			Rate: fundingRates[0].PredictedUpcomingRate.Rate.String(),
-		}
+	fundingData.UpcomingRate = &gctrpc.FundingRate{
+		Date: fundingRates[0].PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+		Rate: fundingRates[0].PredictedUpcomingRate.Rate.String(),
 	}
 	response.Rate = fundingData
 	return &response, nil

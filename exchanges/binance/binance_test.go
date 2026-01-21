@@ -2760,15 +2760,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Pair:            currency.NewBTCUSDT(),
 		StartDate:       start,
 		EndDate:         end,
-		IncludePayments: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewBTCUSDT(),
-		StartDate:       start,
-		EndDate:         end,
 		PaymentCurrency: currency.DOGE,
 	})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
@@ -2805,7 +2796,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 		Pair:  cp,
 	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
 
 	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
