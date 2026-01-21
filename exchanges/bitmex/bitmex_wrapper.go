@@ -533,10 +533,9 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	limit := 1000
 	req := &GenericRequestParams{
 		Symbol:  p.String(),
-		Count:   int32(limit),
+		Count:   countLimit,
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
@@ -581,7 +580,7 @@ allTrades:
 				ts = tradeData[i].Timestamp
 			}
 		}
-		if len(tradeData) != limit {
+		if len(tradeData) != int(countLimit) {
 			break allTrades
 		}
 	}
@@ -984,159 +983,121 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !e.SupportsAsset(item) || item == asset.Index {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-
-	enabledPairs, err := e.GetEnabledPairs(item)
-	if err != nil {
-		return nil, err
-	}
-	enabledLen := len(enabledPairs)
-	resp := make([]futures.Contract, 0, enabledLen)
-	for i := 0; i < enabledLen; i += 500 {
-		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{Reverse: true, Count: 500, Start: int32(i)})
+	var resp []futures.Contract
+	switch item {
+	case asset.PerpetualContract:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + perpetualContractID + `"}`,
+		})
 		if err != nil {
 			return nil, err
 		}
-		switch item {
-		case asset.PerpetualContract:
-			for x := range marketInfo {
-				if marketInfo[x].Typ != perpetualContractID {
-					continue
-				}
-				if strings.ToLower(marketInfo[x].State) != "open" {
-					continue
-				}
-				var cp, underlying currency.Pair
-				var settleTrail string
-				if strings.Contains(marketInfo[x].Symbol, currency.UnderscoreDelimiter) {
-					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
-					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
-					if len(settlement) != 2 {
-						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
-							e.Name,
-							marketInfo[x].Symbol,
-							item)
-						break
-					}
-					settleTrail = currency.UnderscoreDelimiter + settlement[1]
-				}
-				cp, err = currency.NewPairFromStrings(marketInfo[x].Underlying,
-					marketInfo[x].QuoteCurrency+settleTrail)
-				if err != nil {
-					return nil, err
-				}
-				underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-				if err != nil {
-					return nil, err
-				}
-				var s time.Time
-				if marketInfo[x].Front != "" {
-					s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
-					if err != nil {
-						return nil, err
-					}
-				}
-				var contractSettlementType futures.ContractSettlementType
-				switch {
-				case cp.Quote.Equal(currency.USDT):
-					contractSettlementType = futures.Linear
-				case cp.Quote.Equal(currency.USD):
-					contractSettlementType = futures.Quanto
-				default:
-					contractSettlementType = futures.Inverse
-				}
-				resp = append(resp, futures.Contract{
-					Exchange:           e.Name,
-					Name:               cp,
-					Underlying:         underlying,
-					Asset:              item,
-					StartDate:          s,
-					IsActive:           marketInfo[x].State == "Open",
-					Status:             marketInfo[x].State,
-					Type:               futures.Perpetual,
-					SettlementType:     contractSettlementType,
-					SettlementCurrency: currency.NewCode(marketInfo[x].SettlCurrency),
-					Multiplier:         float64(marketInfo[x].Multiplier),
-					LatestRate: fundingrate.Rate{
-						Time: marketInfo[x].FundingTimestamp,
-						Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
-					},
-				})
+		for x := range marketInfo {
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].QuoteCurrency)
+			if err != nil {
+				return nil, err
 			}
-		case asset.Futures:
-			for x := range marketInfo {
-				if marketInfo[x].Typ != futuresID {
-					continue
-				}
-				if strings.ToLower(marketInfo[x].State) != "open" {
-					continue
-				}
-				var cp, underlying currency.Pair
-				splitter := strings.Split(marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-				if len(splitter) < 2 {
-					log.Warnf(log.ExchangeSys, "%s unable to split %s with %s", e.Name, marketInfo[x].Symbol, marketInfo[x].RootSymbol)
-					continue
-				}
-				cp, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, strings.Join(splitter[1:], ""))
+			var s time.Time
+			if marketInfo[x].Front != "" {
+				s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
 				if err != nil {
 					return nil, err
 				}
-				underlying, err = currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].SettlCurrency)
-				if err != nil {
-					return nil, err
-				}
-				var s, end time.Time
-				if marketInfo[x].Front != "" {
-					s, err = time.Parse(time.RFC3339, marketInfo[x].Front)
-					if err != nil {
-						return nil, err
-					}
-				}
-				if marketInfo[x].Expiry != "" {
-					end, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
-					if err != nil {
-						return nil, err
-					}
-				}
-				var ct futures.ContractType
-				contractDuration := end.Sub(s)
-				switch {
-				case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Weekly
-				case contractDuration <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
-					ct = futures.Fortnightly
-				case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Monthly
-				case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Quarterly
-				case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.HalfYearly
-				case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.NineMonthly
-				case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
-					ct = futures.Yearly
-				}
-				contractSettlementType := futures.Inverse
-				switch {
-				case strings.Contains(cp.Quote.String(), "USDT"):
-					contractSettlementType = futures.Linear
-				case strings.Contains(cp.Quote.String(), "USD"):
-					contractSettlementType = futures.Quanto
-				}
-				resp = append(resp, futures.Contract{
-					Exchange:           e.Name,
-					Name:               cp,
-					Underlying:         underlying,
-					Asset:              item,
-					StartDate:          s,
-					EndDate:            end,
-					IsActive:           marketInfo[x].State == "Open",
-					Status:             marketInfo[x].State,
-					Type:               ct,
-					SettlementCurrency: currency.NewCode(marketInfo[x].SettlCurrency),
-					Multiplier:         float64(marketInfo[x].Multiplier),
-					SettlementType:     contractSettlementType,
-				})
 			}
+			var contractSettlementType futures.ContractSettlementType
+			switch {
+			case cp.Quote.Equal(currency.USDT):
+				contractSettlementType = futures.Linear
+			case cp.Quote.Equal(currency.USD):
+				contractSettlementType = futures.Quanto
+			default:
+				contractSettlementType = futures.Inverse
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          s,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               futures.Perpetual,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
+				LatestRate: fundingrate.Rate{
+					Time: marketInfo[x].FundingTimestamp,
+					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
+				},
+			})
+		}
+	case asset.Futures:
+		marketInfo, err := e.GetInstruments(ctx, &GenericRequestParams{
+			Count:  countLimit,
+			Filter: `{"typ": "` + futuresID + `"}`,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for x := range marketInfo {
+			cp, err := currency.NewPairFromStrings(marketInfo[x].RootSymbol, marketInfo[x].Symbol[len(marketInfo[x].RootSymbol):])
+			if err != nil {
+				return nil, err
+			}
+			var startTime, endTime time.Time
+			if marketInfo[x].Front != "" {
+				startTime, err = time.Parse(time.RFC3339, marketInfo[x].Front)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if marketInfo[x].Expiry != "" {
+				endTime, err = time.Parse(time.RFC3339, marketInfo[x].Expiry)
+				if err != nil {
+					return nil, err
+				}
+			}
+			var ct futures.ContractType
+			contractDuration := endTime.Sub(startTime)
+			switch {
+			case contractDuration <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Weekly
+			case contractDuration <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Fortnightly
+			case contractDuration <= kline.OneMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Monthly
+			case contractDuration <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Quarterly
+			case contractDuration <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.HalfYearly
+			case contractDuration <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.NineMonthly
+			case contractDuration <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
+				ct = futures.Yearly
+			}
+			contractSettlementType := futures.Inverse
+			switch {
+			case strings.Contains(cp.Quote.String(), "USDT"):
+				contractSettlementType = futures.Linear
+			case strings.Contains(cp.Quote.String(), "USD"):
+				contractSettlementType = futures.Quanto
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:           e.Name,
+				Name:               cp,
+				Underlying:         currency.NewPair(cp.Base, marketInfo[x].SettlementCurrency),
+				Asset:              item,
+				StartDate:          startTime,
+				EndDate:            endTime,
+				IsActive:           marketInfo[x].State == "Open",
+				Status:             marketInfo[x].State,
+				Type:               ct,
+				SettlementCurrency: marketInfo[x].SettlementCurrency,
+				Multiplier:         marketInfo[x].Multiplier,
+				SettlementType:     contractSettlementType,
+			})
 		}
 	}
 	return resp, nil

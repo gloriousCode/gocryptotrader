@@ -21,7 +21,10 @@ type Number struct {
 // UnmarshalJSON implements json.Unmarshaler
 func (f *Number) UnmarshalJSON(data []byte) error {
 	switch c := data[0]; c { // From json.decode literalInterface
-	case 'n', 't', 'f': // null, true, false
+	case 'n': // null
+		*f = Number(0)
+		return nil
+	case 't', 'f': // true, false
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data)
 	case '"': // string
 		if len(data) < 2 || data[len(data)-1] != '"' {
