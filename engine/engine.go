@@ -465,7 +465,7 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	if bot.Settings.EnableExchangeSyncManager {
+	if bot.Config.SyncManagerConfig.Enabled && bot.Settings.EnableExchangeSyncManager {
 		cfg := bot.Config.SyncManagerConfig
 		cfg.SynchronizeTicker = bot.Settings.EnableTickerSyncing
 		cfg.SynchronizeOrderbook = bot.Settings.EnableOrderbookSyncing
@@ -514,7 +514,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableWebsocketRoutine {
-		if w, err := setupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose); err != nil {
+		if w, err := SetupWebsocketRoutineManager(bot.ExchangeManager, bot.OrderManager, bot.currencyPairSyncer, &bot.Config.Currency, bot.Settings.Verbose); err != nil {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
 			bot.WebsocketRoutineManager = w

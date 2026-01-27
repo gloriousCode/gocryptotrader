@@ -40,7 +40,9 @@ var (
 	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
-	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
+	ErrOrderHistoryTooLarge     = errors.New("order history start date too long ago")
+	ErrContractTypeNotSupported = errors.New("contract type not supported")
+	ErrContractMismatch         = errors.New("contract mismatch")
 
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
@@ -202,6 +204,7 @@ type CollateralCalculator struct {
 type OpenInterest struct {
 	Key          key.ExchangeAssetPair
 	OpenInterest float64
+	LastUpdated  time.Time
 }
 
 // PNLCalculator implements the PNLCalculation interface

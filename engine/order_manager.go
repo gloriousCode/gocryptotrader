@@ -13,9 +13,11 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -469,8 +471,8 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	}
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
-	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
-		newOrder.Pair,
+	err = limits.CheckOrderExecutionLimits(
+		key.NewExchangeAssetPair(newOrder.Exchange, newOrder.AssetType, newOrder.Pair),
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Type)
@@ -521,11 +523,13 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if checkExchangeLimits {
 		// Checks for exchange min max limits for order amounts before order
 		// execution can occur
-		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
-			newOrder.Pair,
-			newOrder.Price,
-			newOrder.Amount,
-			newOrder.Type)
+		el, err := exch.GetOrderExecutionLimits(newOrder.AssetType, newOrder.Pair)
+		if err != nil {
+			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+				newOrder.Exchange,
+				err)
+		}
+		err = el.Validate(newOrder.Price, newOrder.Amount, newOrder.Type)
 		if err != nil {
 			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
 				newOrder.Exchange,
@@ -801,12 +805,11 @@ func (m *OrderManager) processFuturesPositions(exch exchange.IBotExchange, posit
 		return nil
 	}
 	frp, err := exch.GetHistoricalFundingRates(context.TODO(), &fundingrate.HistoricalRatesRequest{
-		Asset:                position.Asset,
-		Pair:                 position.Pair,
-		StartDate:            position.Orders[0].Date,
-		EndDate:              time.Now(),
-		IncludePayments:      true,
-		IncludePredictedRate: true,
+		Asset:           position.Asset,
+		Pair:            position.Pair,
+		StartDate:       position.Orders[0].Date,
+		EndDate:         time.Now(),
+		IncludePayments: true,
 	})
 	if err != nil {
 		return err

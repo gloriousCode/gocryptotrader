@@ -291,10 +291,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 
 			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 
 			trades = append(trades, trade.Data{
@@ -333,10 +330,8 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 
 		tSide, err := order.StringToOrderSide(tradeUpdate.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
+
 		}
 
 		return trade.AddTradesToBuffer(trade.Data{
@@ -391,30 +386,20 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 	if oContainer.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return nil, err
 		}
 	} else if oContainer.Order.Side != "" {
 		oSide, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return nil, err
+
 		}
 	}
 
 	oStatus, err = stringToOrderStatus(oContainer.Reply, oContainer.OpenQuantity)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  orderID,
-			Err:      err,
-		}
+		return nil, err
+
 	}
 	if oContainer.Status[0] != "OK" {
 		return nil, fmt.Errorf("%s - Order rejected: %v", e.Name, oContainer.Status)
@@ -438,11 +423,8 @@ func (e *Exchange) parseOrderContainer(oContainer *wsOrderContainer) (*order.Det
 	if oContainer.Reply == "order_filled" {
 		o.Side, err = order.StringToOrderSide(oContainer.Order.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return nil, err
+
 		}
 		o.RemainingAmount = oContainer.Order.OpenQuantity
 		o.Amount = oContainer.Order.Quantity

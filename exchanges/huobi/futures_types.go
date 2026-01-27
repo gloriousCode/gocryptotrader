@@ -862,3 +862,6 @@ type FTriggerOrderHistoryData struct {
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
+
+type ExpiredContractData struct {
+}

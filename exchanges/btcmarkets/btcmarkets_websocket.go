@@ -247,36 +247,20 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		oType, err := order.StringToOrderType(orderData.OrderType)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return err
 		}
 		oSide, err := order.StringToOrderSide(orderData.Side)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return err
 		}
 		oStatus, err := order.StringToOrderStatus(orderData.Status)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return err
 		}
 
 		clientID := ""
 		if creds, err := e.GetCredentials(ctx); err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
+			return err
 		} else if creds != nil {
 			clientID = creds.ClientID
 		}

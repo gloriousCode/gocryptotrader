@@ -139,6 +139,16 @@ func (r *Request) GetRanges(limit uint64) (*IntervalRangeHolder, error) {
 	return CalculateCandleDateRanges(r.Start, r.End, r.ExchangeInterval, limit)
 }
 
+func (i *Item) ClearEmpty() {
+	 newCandles := make([]Candle, 0, len(i.Candles))
+	for j := range i.Candles {
+		if i.Candles[j].Close != 0 {
+			newCandles = append(newCandles, i.Candles[j])
+		}
+	}
+	i.Candles = newCandles
+}
+
 // ProcessResponse converts time series candles into a kline.Item type. This
 // will auto convert from a lower to higher time series if applicable.
 func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
@@ -165,6 +175,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	holder.RemoveDuplicates()
 	holder.RemoveOutsideRange(r.Start, r.End)
 	holder.SortCandlesByTimestamp(false)
+	holder.RemoveZeroes()
 	err := holder.addPadding(r.Start, r.End, r.PartialCandle)
 	if err != nil {
 		return nil, err
@@ -205,6 +216,7 @@ func (r *Request) Size() uint64 {
 // exceed exchange limits and require multiple requests.
 type ExtendedRequest struct {
 	*Request
+	LogProblems bool
 	RangeHolder *IntervalRangeHolder
 }
 
@@ -229,10 +241,24 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	}
 
 	summary := r.RangeHolder.DataSummary(false)
-	if len(summary) > 0 {
+	if len(summary) > 0 && r.LogProblems {
 		log.Warnf(log.ExchangeSys, "%v - %v", r.Exchange, summary)
 	}
 	return holder, nil
+}
+
+func (r *ExtendedRequest) ClearEmpty() {
+	if r == nil || r.RangeHolder == nil {
+		return
+	}
+	newCandles := make([]Candle, 0, len(r.ProcessedCandles))
+	for i := range r.ProcessedCandles {
+		if r.ProcessedCandles[i].Close == 0 && r.ProcessedCandles[i].High == 0 && r.ProcessedCandles[i].Low == 0 && r.ProcessedCandles[i].Open == 0 && r.ProcessedCandles[i].Volume == 0 {
+			continue
+		}
+		newCandles = append(newCandles, r.ProcessedCandles[i])
+	}
+	r.ProcessedCandles = newCandles
 }
 
 // Size returns the max length of return for pre-allocation.

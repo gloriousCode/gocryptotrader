@@ -530,11 +530,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  strconv.FormatInt(resp.Result[x].ID, 10),
-				Err:      err,
-			}
+			return nil, err
 		}
 
 		orderDetails[x] = order.Detail{

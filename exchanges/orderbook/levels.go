@@ -266,24 +266,41 @@ func (l Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Mov
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice}
+	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
 	for x := range l {
 		levelValue := l[x].Amount * l[x].Price
-		leftover := quote - levelValue
+		leftover := (quote * l[x].Price) - levelValue
 		if leftover < 0 {
+			existingTradeQuote := quote
+			for i := range m.Trades {
+				existingTradeQuote -= m.Trades[i].PurchaseSize * m.Trades[i].Price
+			}
+			m.Trades = append(m.Trades, Trade{
+				Price:        l[x].Price,
+				TrancheSize:  l[x].Amount,
+				PurchaseSize: existingTradeQuote,
+			})
 			m.Purchased += quote
 			m.Sold += quote / levelValue * l[x].Amount
 			// This level is not consumed so the book shifts to this price.
 			m.EndPrice = l[x].Price
 			quote = 0
+
 			break
 		}
-		// Full level consumed
+
+		m.Trades = append(m.Trades, Trade{
+			Price:           l[x].Price,
+			TrancheSize:     l[x].Amount,
+			PurchaseSize:    quote,
+			ConsumedTranche: true,
+		})
+		// Full tranche consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		quote = leftover
 		if leftover == 0 {
-			// Price no longer exists on the book so use next full price level
+			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact. If available.
 			if x+1 < len(l) {
 				m.EndPrice = l[x+1].Price
@@ -314,10 +331,19 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice}
+	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
 	for x := range l {
 		leftover := base - l[x].Amount
 		if leftover < 0 {
+			var existingTradeBase = base
+			for i := range m.Trades {
+				existingTradeBase -= m.Trades[i].PurchaseSize
+			}
+			m.Trades = append(m.Trades, Trade{
+				Price:        l[x].Price,
+				TrancheSize:  l[x].Amount,
+				PurchaseSize: existingTradeBase,
+			})
 			m.Purchased += l[x].Price * base
 			m.Sold += base
 			// This level is not consumed so the book shifts to this price.
@@ -325,7 +351,13 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 			base = 0
 			break
 		}
-		// Full level consumed
+		m.Trades = append(m.Trades, Trade{
+			Price:           l[x].Price,
+			TrancheSize:     l[x].Amount,
+			PurchaseSize:    leftover,
+			ConsumedTranche: leftover == 0,
+		})
+		// Full tranche consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		base = leftover

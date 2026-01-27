@@ -193,6 +193,7 @@ type FuturesManagement interface {
 	GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error)
 	SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error
 	GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error)
+	GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error)
 }
 
 // MarginManagement manages margin positions and rates

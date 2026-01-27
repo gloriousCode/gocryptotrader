@@ -853,6 +853,28 @@ func TestWSRetrieveTradeVolumes(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func ConvertToDeribitDate(code currency.Code, date time.Time) (string, time.Time) {
+	// BTC-7JUN24
+	for {
+		if date.Weekday() == time.Friday {
+			break
+		}
+		date = date.Add(time.Hour * 24)
+	}
+	return code.String() + "-" + date.Format("02Jan06"), date
+}
+
+func TestGetTradingViewChartOfOldContract(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	cd := time.Date(2024, time.April, 21, 0, 0, 0, 0, time.UTC)
+	contract, date := ConvertToDeribitDate(currency.BTC, cd)
+	_, err := d.GetTradingViewChart(context.Background(), strings.ToUpper(contract), "60", date.Add(-time.Hour*24*7), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetTradingViewChartData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradingViewChart(t.Context(), "", "60", time.Now().Add(-time.Hour), time.Now())
@@ -3789,9 +3811,8 @@ func TestWSRetrieveCombos(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
@@ -4223,4 +4244,27 @@ func TestAppendCandles(t *testing.T) {
 	resp, err = appendCandles(candles, time.Unix(1338, 0))
 	assert.NoError(t, err)
 	assert.Empty(t, resp)
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	d.Verbose = true
+	resp, err := d.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair: currency.NewPair(currency.ETH, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 200),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.Weekly,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+	for i := range resp.Data {
+		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
+		butts, err := d.GetInstrument(context.Background(), resp.Data[i].PremiumContract.Name.String())
+		t.Log(butts, err)
+	}
 }

@@ -323,6 +323,9 @@ const (
 	createWithdrawalOrderEPL
 	getWithdrawalPaymentMethodsEPL
 	getFiatDepositPaymentMethodsEPL
+	getIndexCandlestickEPL
+	yeahWHATEVEREPL
+
 )
 
 var rateLimits = func() request.RateLimitDefinitions {
@@ -410,6 +413,8 @@ var rateLimits = func() request.RateLimitDefinitions {
 		getLendingHistoryEPL:          request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowInfoEPL:        request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
 		getPublicBorrowHistoryEPL:     request.NewRateLimitWithWeight(oneSecondInterval, 6, 1),
+		yeahWHATEVEREPL:             request.NewRateLimitWithWeight(oneSecondInterval, 999999, 1),
+
 		// Convert
 		getMonthlyStatementEPL:      request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		applyForMonthlyStatementEPL: request.NewRateLimitWithWeight(time.Hour*24*30, 20, 1),

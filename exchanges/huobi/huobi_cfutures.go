@@ -175,6 +175,7 @@ func (e *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (LastTr
 		return resp, err
 	}
 	params := url.Values{}
+
 	params.Set("contract_code", codeValue)
 	path := common.EncodeURLValues(huobiLastTradeContract, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)

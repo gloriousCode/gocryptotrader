@@ -1960,3 +1960,7 @@ func (b *Base) MessageSequence() int64 {
 func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
 	return b.Accounts.Subscribe()
 }
+
+func (b *Base) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	return nil, common.ErrNotYetImplemented
+}

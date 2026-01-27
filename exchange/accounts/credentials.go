@@ -10,6 +10,18 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// Credentials define parameters that allow for an authenticated request.
+type Credentials struct {
+	Key                 string
+	Secret              string
+	ClientID            string // TODO: Implement with exchange orders functionality
+	PEMKey              string
+	SubAccount          string
+	OneTimePassword     string
+	SecretBase64Decoded bool
+	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
+}
+
 // contextCredential is a string flag for use with context values when setting
 // credentials internally or via gRPC.
 type contextCredential string
@@ -40,18 +52,6 @@ var (
 	errInvalidCredentialMetaDataLength = errors.New("invalid meta data to process credentials")
 	errMissingInfo                     = errors.New("cannot parse meta data missing information in key value pair")
 )
-
-// Credentials define parameters that allow for an authenticated request.
-type Credentials struct {
-	Key                 string
-	Secret              string
-	ClientID            string // TODO: Implement with exchange orders functionality
-	PEMKey              string
-	SubAccount          string
-	OneTimePassword     string
-	SecretBase64Decoded bool
-	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
-}
 
 // GetMetaData returns the credentials for metadata context deployment
 func (c *Credentials) GetMetaData() (flag, values string) {
@@ -210,3 +210,18 @@ func DeployCredentialsToContext(ctx context.Context, creds *Credentials) context
 func DeploySubAccountOverrideToContext(ctx context.Context, subAccount string) context.Context {
 	return context.WithValue(ctx, ContextSubAccountFlag, subAccount)
 }
+
+// GetCredentialsFromContext retrieves credentials from context if they exist
+func GetCredentialsFromContext(ctx context.Context) *Credentials {
+	value := ctx.Value(ContextCredentialsFlag)
+	if value == nil {
+		return nil
+	}
+	ctxCredStore, ok := value.(*ContextCredentialsStore)
+	if !ok {
+		return nil
+	}
+
+	return ctxCredStore.Get()
+}
+

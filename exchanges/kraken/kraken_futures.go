@@ -43,10 +43,10 @@ func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType st
 		return nil, err
 	}
 	params := url.Values{}
-	if !to.IsZero() {
+	if !to.IsZero() && to.Before(time.Now()) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if !from.IsZero() {
+	if !from.IsZero() && from.Before(time.Now()) {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution
@@ -78,6 +78,23 @@ func (e *Exchange) GetFuturesTrades(ctx context.Context, symbol currency.Pair, t
 func (e *Exchange) GetInstruments(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
+}
+
+type Butts struct {
+	Result                                   string      `json:"result"`
+	ServerTime                               time.Time   `json:"serverTime"`
+	Tradeable                                string      `json:"tradeable"`
+	ExperiencingDislocation                  bool        `json:"experiencingDislocation"`
+	PriceDislocationDirection                interface{} `json:"priceDislocationDirection"`
+	ExperiencingExtremeVolatility            bool        `json:"experiencingExtremeVolatility"`
+	ExtremeVolatilityInitialMarginMultiplier int         `json:"extremeVolatilityInitialMarginMultiplier"`
+}
+
+// GetInstrumentStatus gets status of futures market and it's data
+func (e *Exchange) GetInstrumentStatus(ctx context.Context, instrument string) (Butts, error) {
+	var resp Butts
+	butts := futuresInstruments + "/" + instrument + "/status"
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, butts, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data

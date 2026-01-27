@@ -17,14 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
-	if exchangeManager == nil {
-		return nil, errNilExchangeManager
-	}
-	if syncer == nil {
-		return nil, errNilCurrencyPairSyncer
-	}
+// SetupWebsocketRoutineManager creates a new websocket routine manager
+func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer ICurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if cfg == nil {
 		return nil, errNilCurrencyConfig
 	}
@@ -37,6 +31,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		currencyFormat:  cfg.CurrencyPairFormat,
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -47,12 +42,8 @@ func (m *WebsocketRoutineManager) Start() error {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
 
-	if m.currencyConfig == nil {
+	if m.currencyFormat == nil {
 		return errNilCurrencyConfig
-	}
-
-	if m.currencyConfig.CurrencyPairFormat == nil {
-		return errNilCurrencyPairFormat
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
@@ -204,11 +195,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
-				SyncItemTicker,
-				nil)
+			err := m.syncer.WebsocketUpdateTicker(d)
 			if err != nil {
 				return err
 			}
@@ -221,11 +208,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
+				err := m.syncer.WebsocketUpdateTicker(&d[x])
 				if err != nil {
 					return err
 				}
@@ -273,9 +256,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
@@ -299,9 +279,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
 				err := m.orderManager.Add(&d[x])
@@ -325,8 +302,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				m.printOrderSummary(od, true)
 			}
 		}
-	case order.ClassificationError:
-		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case []accounts.Change, accounts.Change:
@@ -355,7 +330,7 @@ func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
 		return p
 	}
-	return p.Format(*m.currencyConfig.CurrencyPairFormat)
+	return p.Format(*m.currencyFormat)
 }
 
 // printOrderSummary this function will be deprecated when a order manager

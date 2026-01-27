@@ -193,7 +193,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 	pairs := make([]currency.Pair, 0, len(marketInfo))
 	for x := range marketInfo {
-		if marketInfo[x].State != "Open" && a != asset.Index {
+		if strings.ToLower(marketInfo[x].State) != "open" && a != asset.Index {
 			continue
 		}
 
@@ -1107,10 +1107,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
-	}
-
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 
 	count := "1"

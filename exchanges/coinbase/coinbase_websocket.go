@@ -220,42 +220,31 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Orders {
 			var oType order.Type
 			if oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
+
 			}
 			var oStatus order.Status
 			if oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
+
 			}
 			price := wsUser[i].Orders[j].AveragePrice
-			if wsUser[i].Orders[j].LimitPrice != 0 {
+			if wsUser[i].Orders[j].LimitPrice.Float64() != 0 {
 				price = wsUser[i].Orders[j].LimitPrice
 			}
 			var assetType asset.Item
 			if assetType, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
+
 			}
 			var tif order.TimeInForce
 			if tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
+
 			}
 			if wsUser[i].Orders[j].PostOnly {
 				tif |= order.PostOnly
@@ -283,17 +272,11 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Positions.PerpetualFuturesPositions {
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var mType margin.Type
 			if mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			allOrders = append(allOrders, order.Detail{
 				Pair:       wsUser[i].Positions.PerpetualFuturesPositions[j].ProductID,
@@ -308,10 +291,7 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Positions.ExpiringFuturesPositions {
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			allOrders = append(allOrders, order.Detail{
 				Pair:           wsUser[i].Positions.ExpiringFuturesPositions[j].ProductID,

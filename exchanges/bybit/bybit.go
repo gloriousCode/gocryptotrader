@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -28,7 +30,9 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-
+	instrumentInfoMutex sync.Mutex
+	instrumentInfoCache map[asset.Item]*IICH
+	messageIDSeq common.Counter
 	account accountTypeHolder
 }
 
@@ -1313,10 +1317,10 @@ func (e *Exchange) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.FrozenPeriod <= 0 {
 		return errFrozenPeriodRequired
 	}
-	if arg.TradeQuantityLimit <= 0 {
+	if arg.TradeQuantityLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
 	}
-	if arg.DeltaLimit <= 0 {
+	if arg.DeltaLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
@@ -1495,7 +1499,7 @@ func (e *Exchange) CreateInternalTransfer(ctx context.Context, arg *TransferPara
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -1550,7 +1554,7 @@ func (e *Exchange) CreateUniversalTransfer(ctx context.Context, arg *TransferPar
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {

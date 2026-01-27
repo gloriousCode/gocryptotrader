@@ -1227,19 +1227,11 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 	for x := range response.Data {
 		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
+			return err
 		}
 		orderStatus, err := order.StringToOrderStatus(response.Data[x].State)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
+			return err
 		}
 		pair, err := currency.NewPairFromString(response.Data[x].InstrumentID)
 		if err != nil {

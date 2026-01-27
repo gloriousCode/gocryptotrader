@@ -1854,3 +1854,21 @@ func BenchmarkRetrieve(b *testing.B) {
 		_ = asks.retrieve(6)
 	}
 }
+
+func TestButts(t *testing.T) {
+	asks := Tranches{}
+	asksSnapshot := Tranches{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	asks.load(asksSnapshot)
+
+	hi := asks.retrieve(6)
+	hi2 := asks.retrieve(6)
+	hi2[0].Amount = 0
+	t.Log(hi[0].Amount)
+}

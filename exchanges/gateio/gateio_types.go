@@ -580,6 +580,8 @@ type Orderbook struct {
 	Asks    OrderbookLevels `json:"asks"`
 }
 
+// OrderbookItem stores an orderbook item
+
 // Trade represents market trade.
 type Trade struct {
 	ID          int64        `json:"id,string"`
@@ -997,12 +999,12 @@ type ContractClosePosition struct {
 
 // OptionOrderParam represents option order request body
 type OptionOrderParam struct {
-	OrderSize   float64      `json:"size"`              // Order size. Specify positive number to make a bid, and negative number to ask
-	Iceberg     float64      `json:"iceberg,omitempty"` // Display size for iceberg order. 0 for non-iceberg. Note that you will have to pay the taker fee for the hidden size
-	Contract    string       `json:"contract"`
-	Text        string       `json:"text,omitempty"`
-	TimeInForce string       `json:"tif,omitempty"`
-	Price       types.Number `json:"price,omitempty"`
+	OrderSize   float64 `json:"size"`              // Order size. Specify positive number to make a bid, and negative number to ask
+	Iceberg     float64 `json:"iceberg,omitempty"` // Display size for iceberg order. 0 for non-iceberg. Note that you will have to pay the taker fee for the hidden size
+	Contract    string  `json:"contract"`
+	Text        string  `json:"text,omitempty"`
+	TimeInForce string  `json:"tif,omitempty"`
+	Price       float64 `json:"price,omitempty,string"`
 	// Close Set as true to close the position, with size set to 0
 	Close      bool `json:"close,omitempty"`
 	ReduceOnly bool `json:"reduce_only,omitempty"`
@@ -1061,7 +1063,7 @@ type WithdrawalResponse struct {
 // WithdrawalRequestParam represents currency withdrawal request param.
 type WithdrawalRequestParam struct {
 	Currency currency.Code `json:"currency"`
-	Amount   types.Number  `json:"amount"`
+	Amount   float64       `json:"amount,string"`
 	Chain    string        `json:"chain,omitempty"`
 
 	// Optional parameters
@@ -1104,7 +1106,7 @@ type TransferCurrencyParam struct {
 	Currency     currency.Code `json:"currency"`
 	From         string        `json:"from"`
 	To           string        `json:"to"`
-	Amount       types.Number  `json:"amount"`
+	Amount       float64       `json:"amount,string"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Settle       string        `json:"settle"`
 }
@@ -1119,7 +1121,7 @@ type SubAccountTransferParam struct {
 	Currency       currency.Code `json:"currency"`
 	SubAccount     string        `json:"sub_account"`
 	Direction      string        `json:"direction"`
-	Amount         types.Number  `json:"amount"`
+	Amount         float64       `json:"amount,string"`
 	SubAccountType string        `json:"sub_account_type"`
 }
 
@@ -1244,12 +1246,12 @@ type MarginFundingAccountItem struct {
 type MarginLoanRequestParam struct {
 	Side         string        `json:"side"`
 	Currency     currency.Code `json:"currency"`
-	Rate         types.Number  `json:"rate,omitempty"`
-	Amount       types.Number  `json:"amount,omitempty"`
+	Rate         float64       `json:"rate,omitempty,string"`
+	Amount       float64       `json:"amount,omitempty,string"`
 	Days         int64         `json:"days,omitempty"`
 	AutoRenew    bool          `json:"auto_renew,omitempty"`
 	CurrencyPair currency.Pair `json:"currency_pair,omitzero"`
-	FeeRate      types.Number  `json:"fee_rate,omitempty"`
+	FeeRate      float64       `json:"fee_rate,omitempty,string"`
 	OrigID       string        `json:"orig_id,omitempty"`
 	Text         string        `json:"text,omitempty"`
 }
@@ -1440,8 +1442,8 @@ type SpotOrdersDetail struct {
 type ClosePositionRequestParam struct {
 	Text         string        `json:"text"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
-	Amount       types.Number  `json:"amount"`
-	Price        types.Number  `json:"price"`
+	Amount       float64       `json:"amount,string"`
+	Price        float64       `json:"price,string"`
 }
 
 // CancelOrderByIDParam represents cancel order by id request param.
@@ -1496,19 +1498,19 @@ type PriceTriggeredOrderParam struct {
 
 // TriggerPriceInfo represents a trigger price and related information for Price triggered order
 type TriggerPriceInfo struct {
-	Price      types.Number `json:"price"`
-	Rule       string       `json:"rule"`
-	Expiration int64        `json:"expiration"`
+	Price      float64 `json:"price,string"`
+	Rule       string  `json:"rule"`
+	Expiration int64   `json:"expiration"`
 }
 
 // PutOrderData represents order detail for price triggered order request
 type PutOrderData struct {
-	Type        string       `json:"type"`
-	Side        string       `json:"side"`
-	Price       types.Number `json:"price"`
-	Amount      types.Number `json:"amount"`
-	Account     string       `json:"account"`
-	TimeInForce string       `json:"time_in_force,omitempty"`
+	Type        string  `json:"type"`
+	Side        string  `json:"side"`
+	Price       float64 `json:"price,string"`
+	Amount      float64 `json:"amount,string"`
+	Account     string  `json:"account"`
+	TimeInForce string  `json:"time_in_force,omitempty"`
 }
 
 // OrderID represents order creation ID response.
@@ -1637,7 +1639,7 @@ type CrossMarginAccountHistoryItem struct {
 // CrossMarginBorrowLoanParams represents a cross margin borrow loan parameters
 type CrossMarginBorrowLoanParams struct {
 	Currency currency.Code `json:"currency"`
-	Amount   types.Number  `json:"amount"`
+	Amount   float64       `json:"amount,string"`
 	Text     string        `json:"text"`
 }
 
@@ -1658,7 +1660,7 @@ type CrossMarginLoanResponse struct {
 // CurrencyAndAmount represents request parameters for repayment
 type CurrencyAndAmount struct {
 	Currency currency.Code `json:"currency"`
-	Amount   types.Number  `json:"amount"`
+	Amount   float64       `json:"amount,string"`
 }
 
 // RepaymentHistoryItem represents an item in a repayment history.
@@ -1675,9 +1677,9 @@ type RepaymentHistoryItem struct {
 type FlashSwapOrderParams struct {
 	PreviewID    string        `json:"preview_id"`
 	SellCurrency currency.Code `json:"sell_currency"`
-	SellAmount   types.Number  `json:"sell_amount,omitempty"`
+	SellAmount   float64       `json:"sell_amount,omitempty,string"`
 	BuyCurrency  currency.Code `json:"buy_currency"`
-	BuyAmount    types.Number  `json:"buy_amount,omitempty"`
+	BuyAmount    float64       `json:"buy_amount,omitempty,string"`
 }
 
 // FlashSwapOrderResponse represents create flash swap order response
@@ -1872,8 +1874,8 @@ type Order struct {
 
 // AmendFuturesOrderParam represents amend futures order parameter
 type AmendFuturesOrderParam struct {
-	Size  types.Number `json:"size"`
-	Price types.Number `json:"price"`
+	Size  float64 `json:"size,string"`
+	Price float64 `json:"price,string"`
 }
 
 // PositionCloseHistoryResponse represents a close position history detail
@@ -1917,8 +1919,8 @@ type FuturesPriceTriggeredOrderParam struct {
 // FuturesInitial represents a price triggered order initial parameters
 type FuturesInitial struct {
 	Contract    currency.Pair `json:"contract"`
-	Size        int64         `json:"size"`  // Order size. Positive size means to buy, while negative one means to sell. Set to 0 to close the position
-	Price       types.Number  `json:"price"` // Order price. Set to 0 to use market price
+	Size        int64         `json:"size"`         // Order size. Positive size means to buy, while negative one means to sell. Set to 0 to close the position
+	Price       float64       `json:"price,string"` // Order price. Set to 0 to use market price
 	Close       bool          `json:"close,omitempty"`
 	TimeInForce string        `json:"tif,omitempty"`
 	Text        string        `json:"text,omitempty"`
@@ -1928,12 +1930,12 @@ type FuturesInitial struct {
 
 // FuturesTrigger represents a price triggered order trigger parameter
 type FuturesTrigger struct {
-	StrategyType int64        `json:"strategy_type,omitempty"` // How the order will be triggered 0: by price, which means the order will be triggered if price condition is satisfied 1: by price gap, which means the order will be triggered if gap of recent two prices of specified price_type are satisfied. Only 0 is supported currently
-	PriceType    int64        `json:"price_type,omitempty"`
-	Price        types.Number `json:"price,omitempty"`
-	Rule         int64        `json:"rule,omitempty"`
-	Expiration   int64        `json:"expiration,omitempty"` // how long(in seconds) to wait for the condition to be triggered before cancelling the order
-	OrderType    string       `json:"order_type,omitempty"`
+	StrategyType int64   `json:"strategy_type,omitempty"` // How the order will be triggered 0: by price, which means the order will be triggered if price condition is satisfied 1: by price gap, which means the order will be triggered if gap of recent two prices of specified price_type are satisfied. Only 0 is supported currently
+	PriceType    int64   `json:"price_type,omitempty"`
+	Price        float64 `json:"price,omitempty,string"`
+	Rule         int64   `json:"rule,omitempty"`
+	Expiration   int64   `json:"expiration,omitempty"` // how long(in seconds) to wait for the condition to be triggered before cancelling the order
+	OrderType    string  `json:"order_type,omitempty"`
 }
 
 // PriceTriggeredOrder represents a future triggered price order response
@@ -2632,7 +2634,7 @@ type InterSubAccountTransferParams struct {
 	SubAccountFromAssetType asset.Item    `json:"sub_account_from_type"` // Required
 	SubAccountToUserID      string        `json:"sub_account_to"`        // Required
 	SubAccountToAssetType   asset.Item    `json:"sub_account_to_type"`   // Required
-	Amount                  types.Number  `json:"amount"`                // Required
+	Amount                  float64       `json:"amount,string"`         // Required
 }
 
 // CreateAPIKeySubAccountParams represents subaccount new API key creation parameters.
@@ -2670,8 +2672,8 @@ type CreateAPIKeyResponse struct {
 
 // PriceAndAmount used in updating an order
 type PriceAndAmount struct {
-	Amount types.Number `json:"amount,omitempty"`
-	Price  types.Number `json:"price,omitempty"`
+	Amount float64 `json:"amount,omitempty,string"`
+	Price  float64 `json:"price,omitempty,string"`
 }
 
 // BalanceDetails represents a user's balance details

@@ -476,6 +476,14 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
+		var lastPrice float64
+		last, err := e.GetLastSpotTrade(ctx, p)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
+		}
+
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         tickerData.Tick.High,
 			Low:          tickerData.Tick.Low,
@@ -483,6 +491,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			QuoteVolume:  tickerData.Tick.Volume,
 			Open:         tickerData.Tick.Open,
 			Close:        tickerData.Tick.Close,
+			Last:         lastPrice,
 			Pair:         p,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
@@ -495,7 +504,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-
+		var lastPrice float64
+		last, err := e.GetLastTrade(ctx, p)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
+		}
 		if len(marketData.Tick.Bid) == 0 {
 			return nil, errors.New("invalid data for bid")
 		}
@@ -507,6 +522,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
 			Volume:       marketData.Tick.Amount,
+			Last:         lastPrice,
 			QuoteVolume:  marketData.Tick.Vol,
 			Open:         marketData.Tick.Open,
 			Close:        marketData.Tick.Close,
@@ -524,7 +540,16 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-
+		var lastPrice float64
+		last, err := e.FLastTradeData(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		if err != nil {
+			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
+		} else {
+			lastPrice = last.Tick.Data[0].Price
+		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
@@ -537,6 +562,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Ask:          marketData.Tick.Ask[0],
 			ExchangeName: e.Name,
 			AssetType:    a,
+			Last:         lastPrice,
 		})
 		if err != nil {
 			return nil, err
@@ -1233,39 +1259,15 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		typeDetails := strings.Split(respData.Type, "-")
 		orderSide, err := order.StringToOrderSide(typeDetails[0])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderType, err := order.StringToOrderType(typeDetails[1])
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		orderStatus, err := order.StringToOrderStatus(respData.State)
 		if err != nil {
-			if e.Websocket.IsConnected() {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
-			} else {
-				return nil, err
-			}
+			return nil, err
 		}
 		var p currency.Pair
 		var a asset.Item
@@ -2153,11 +2155,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			TimeOfNextRate: nft,
 			TimeChecked:    time.Now(),
 		}
-		if r.IncludePredictedRate {
-			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Time: rate.TimeOfNextRate,
-				Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
-			}
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.TimeOfNextRate,
+			Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
 		}
 		resp = append(resp, rate)
 	}
@@ -2335,4 +2335,86 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+var cannotGetExpired = errors.New("cannot get expired contracts")
+var fContractDateFormat = "060102"
+var validContractShortTypes = []string{
+	"cw", "nw", "cq", "nq",
+}
+
+func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+	loc, err := time.LoadLocation("Asia/Singapore")
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	tt = tt.In(loc)
+	switch pair.Quote.Item.Symbol {
+	case "NW":
+		tt = tt.AddDate(0, 0, 7)
+		fallthrough
+	case "CW":
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case "NQ":
+		tt = tt.AddDate(0, 3, 0)
+		fallthrough
+	case "CQ":
+		// Find the next quarter end
+		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+			tt = tt.AddDate(0, 1, 0)
+		}
+		// Find the last day of the quarter
+		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		// Find the last Friday of the quarter
+		for tt.Weekday() != time.Friday {
+			tt = tt.AddDate(0, 0, -1)
+		}
+	default:
+		return currency.EMPTYPAIR, fmt.Errorf(" %w %v", errInvalidContractType, pair)
+	}
+	pair.Quote = currency.NewCode(tt.Format(fContractDateFormat))
+	return pair, nil
+}
+
+// GetExpiredContractCandles returns previous expired contracts for a given pair
+func (e *Exchange) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
+	if k.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+	}
+	if common.StringSliceCompareInsensitive(validContractShortTypes, k.Quote.String()) {
+		return nil, fmt.Errorf("%w for %v, accepted quotes: %v", cannotGetExpired, k.Quote, validContractShortTypes)
+	}
+	latestExpiry := earliestExpiry
+	var contractNames []currency.Pair
+	prevCon := k.Pair()
+	for latestExpiry.Before(time.Now()) {
+		cont, err := e.convertContractShortHandToExpiry(k.Pair(), latestExpiry)
+		if err != nil {
+			return nil, err
+		}
+		latestExpiry = latestExpiry.AddDate(0, 0, 7)
+		if cont.Equal(prevCon) {
+			continue
+		}
+		contractNames = append(contractNames, cont)
+		prevCon = cont
+	}
+	resp := make([]currency.Pair, 0, len(contractNames))
+	for i := range contractNames {
+		_, err := e.FGetKlineData(ctx, contractNames[i], "60min", 1, time.Time{}, time.Time{})
+		if err != nil {
+			// given that the contract is expired, there is no proper way to verify
+			// when it was initially listed. If there is an error retrieving the contract
+			// we can assume that it was not valid at the time that it was generated
+			// and should not be returned
+			continue
+		}
+		resp = append(resp, contractNames[i])
+	}
+	return resp, nil
 }

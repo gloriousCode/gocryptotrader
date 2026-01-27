@@ -179,7 +179,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if products.Products[x].TradingDisabled {
 			continue
 		}
-		if products.Products[x].Price == 0 {
+		if products.Products[x].Price.Float64() == 0 {
 			continue
 		}
 		pairs = append(pairs, products.Products[x].ID)

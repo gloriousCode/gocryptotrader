@@ -4235,9 +4235,8 @@ func TestInstrument(t *testing.T) {
 func TestGetLatestFundingRate(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		IncludePredictedRate: true,
+		Asset: asset.PerpetualSwap,
+		Pair:  perpetualSwapPair,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4246,12 +4245,11 @@ func TestGetLatestFundingRate(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	r := &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		PaymentCurrency:      currency.USDT,
-		StartDate:            time.Now().Add(-time.Hour * 24 * 2),
-		EndDate:              time.Now(),
-		IncludePredictedRate: true,
+		Asset:           asset.PerpetualSwap,
+		Pair:            perpetualSwapPair,
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:         time.Now(),
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
@@ -4458,6 +4456,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 	}
+	t.Logf("%+v", resp[0])
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
@@ -5662,6 +5661,22 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
+func TestGetPrivateFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPrivateFundingRates(context.Background(), "USDT", "linear", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetPrivateFundingRates(context.Background(), "USD", "inverse", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetPrivateFundingRates(context.Background(), "USDC", "linear", "futures_spot", time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -6301,4 +6316,22 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	resp, err := ok.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 90),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.Weekly,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
 }

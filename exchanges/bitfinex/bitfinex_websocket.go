@@ -1461,11 +1461,8 @@ func (e *Exchange) wsHandleOrder(data []any) {
 		if ordType, ok := data[8].(string); ok {
 			oType, err := order.StringToOrderType(ordType)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  od.OrderID,
-					Err:      err,
-				}
+				e.Websocket.DataHandler <- err
+				return
 			}
 			od.Type = oType
 		}
@@ -1475,11 +1472,8 @@ func (e *Exchange) wsHandleOrder(data []any) {
 			statusParts := strings.Split(combinedStatus, " @ ")
 			oStatus, err := order.StringToOrderStatus(statusParts[0])
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  od.OrderID,
-					Err:      err,
-				}
+				e.Websocket.DataHandler <- err
+				return
 			}
 			od.Status = oStatus
 		}

@@ -31,8 +31,8 @@ const (
 	spotDefaultRate request.EndpointLimit = iota
 	spotExchangeInfo
 	spotHistoricalTradesRate
-	spotOrderbookDepth500Rate
 	spotOrderbookDepth100Rate
+	spotOrderbookDepth500Rate
 	spotOrderbookDepth1000Rate
 	spotOrderbookDepth5000Rate
 	spotOrderbookTickerAllRate
@@ -46,6 +46,7 @@ const (
 	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
+	uFuturesFundingRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
 	uFuturesSymbolOrdersRate
@@ -124,6 +125,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		spotAllOrdersRate:               request.GetRateLimiterWithWeight(spotOrderLimiter, 10),
 		spotOpenOrdersAllRate:           request.GetRateLimiterWithWeight(spotOrderLimiter, 40),
 		uFuturesDefaultRate:             request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
+		uFuturesFundingRate:			 request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 		uFuturesKline100Rate:            request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 1),
 		uFuturesOrderbook50Rate:         request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 2),
 		uFuturesOrderbook100Rate:        request.GetRateLimiterWithWeight(usdMarginedFuturesLimiter, 5),

@@ -253,27 +253,53 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 	}
+	switch a {
+	case asset.Spot:
+		pairInfo, err := e.fetchSpotPairInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
+		}
 
-	pairInfo, err := e.fetchSpotPairInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
+		l := make([]limits.MinMaxLevel, 0, len(pairInfo))
+
+		for pair, info := range pairInfo {
+			l = append(l, limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
+				PriceStepIncrementSize: info.TickSize,
+				MinimumBaseAmount:      info.OrderMinimum,
+			})
+		}
+
+		if err := limits.Load(l); err != nil {
+			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
+		}
+		return nil
+	case asset.Futures:
+		symbols, err := e.GetInstruments(ctx)
+		if err != nil {
+			return err
+		}
+		l := make([]limits.MinMaxLevel, 0, len(symbols.Instruments))
+		for x := range symbols.Instruments {
+			if !symbols.Instruments[x].Tradable {
+				continue
+			}
+			pair, err := currency.NewPairFromString(symbols.Instruments[x].Symbol)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
+				PriceStepIncrementSize: symbols.Instruments[x].TickSize,
+				MinimumBaseAmount:      symbols.Instruments[x].ContractSize,
+			})
+		}
+		if err := limits.Load(l); err != nil {
+			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
+		}
+		return nil
 	}
-
-	l := make([]limits.MinMaxLevel, 0, len(pairInfo))
-
-	for pair, info := range pairInfo {
-		l = append(l, limits.MinMaxLevel{
-			Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
-			PriceStepIncrementSize: info.TickSize,
-			MinimumBaseAmount:      info.OrderMinimum,
-		})
-	}
-
-	if err := limits.Load(l); err != nil {
-		return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
-	}
-
-	return nil
+	return asset.ErrNotSupported
 }
 
 func (e *Exchange) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {
@@ -365,6 +391,23 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 		}
 	}
 	return e.EnsureOnePairEnabled()
+}
+
+func (e *Exchange) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
+	cp, err := e.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
+	if err != nil {
+		if errors.Is(err, currency.ErrPairNotFound) {
+			altName := assetTranslator.LookupAltName(symbol)
+			if altName == "" {
+				return currency.Pair{}, err
+			}
+			cp, err = e.CurrencyPairs.Match(altName, item)
+			if err != nil {
+				return currency.Pair{}, err
+			}
+		}
+	}
+	return cp, nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -1434,6 +1477,21 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				Volume: candles[x].Volume,
 			})
 		}
+	case asset.Futures:
+		fc, err := e.GetFuturesCharts(ctx, e.FormatExchangeKlineIntervalFutures(interval), "spot", pair, end, start)
+		if err != nil {
+			return nil, err
+		}
+		for j := range fc.Candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   fc.Candles[j].Time.Time(),
+				Open:   fc.Candles[j].Open,
+				High:   fc.Candles[j].High,
+				Low:    fc.Candles[j].Low,
+				Close:  fc.Candles[j].Close,
+				Volume: fc.Candles[j].Volume,
+			})
+		}
 	default:
 		// TODO add new Futures API support
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
@@ -1585,6 +1643,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			SettlementType: contractSettlementType,
 			IsActive:       result.Instruments[i].Tradable,
 			Type:           ct,
+			Multiplier:     result.Instruments[i].ContractSize,
 		}
 	}
 	return resp, nil
@@ -1632,10 +1691,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			},
 			TimeChecked: time.Now(),
 		}
-		if r.IncludePredictedRate {
-			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
-			}
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
 		}
 		resp = append(resp, rate)
 	}
@@ -1686,6 +1743,175 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 		})
 	}
 	return resp, nil
+}
+
+func (e *Exchange) calculateContractExpiryPair(pair currency.Pair, tt time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
+	loc, err := time.LoadLocation("Europe/London")
+	if err != nil {
+		return currency.EMPTYPAIR, time.Time{}, err
+	}
+	tt = tt.In(loc)
+	switch ct {
+	case futures.Monthly:
+		year, month, _ := tt.Date()
+		nextMonth := time.Date(year, month+1, 0, 0, 0, 0, 0, tt.Location())
+		for i := 0; i >= -7; i-- {
+			if nextMonth.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextMonth.AddDate(0, 0, i)
+				break
+			}
+		}
+	case futures.Quarterly:
+		year, quarter := tt.Year(), (tt.Month()-1)/3+1
+		nextQuarter := time.Date(year, time.Month((quarter-1)*3+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 3, 0)
+		for i := 0; i >= -7; i-- {
+			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextQuarter.AddDate(0, 0, i)
+				break
+			}
+		}
+	case futures.SemiAnnually:
+		year, quarter := tt.Year(), (tt.Month()-1)/6+1
+		nextQuarter := time.Date(year, time.Month((quarter-1)*6+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 6, 0)
+		for i := 0; i >= -7; i-- {
+			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
+				tt = nextQuarter.AddDate(0, 0, i)
+				break
+			}
+		}
+	default:
+		panic("unhandled default case")
+	}
+	pair.Quote = currency.NewCode(pair.Quote.String() + currency.UnderscoreDelimiter + tt.Format("060102"))
+	return pair, tt, nil
+}
+
+type ContractAndExpiry struct {
+	Contract currency.Pair
+	Expiry   time.Time
+}
+
+// GetLongDatedContractsFromDate returns previous expired contracts for a given pair
+func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.Item, cp currency.Pair, earliestExpiry time.Time, contractDuration time.Duration, ct futures.ContractType, st futures.ContractSettlementType) ([]ContractAndExpiry, error) {
+	if item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	if !ct.IsLongDated() {
+		return nil, fmt.Errorf("%w %v", futures.ErrContractTypeNotSupported, ct)
+	}
+	if !cp.Base.Equal(currency.PF) && !cp.Base.Equal(currency.FF) {
+		var err error
+		if st == futures.Inverse {
+			cp, err = currency.NewPairFromStrings(currency.FF.String(), cp.Base.String()+cp.Quote.String())
+		} else {
+			cp, err = currency.NewPairFromStrings(currency.FI.String(), cp.Base.String()+cp.Quote.String())
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var resp []ContractAndExpiry
+	tn := time.Now()
+	tnc := 0
+	tt := earliestExpiry
+	for {
+		if tt.After(tn) {
+			tnc++
+		}
+		if tnc > 1 {
+			break
+		}
+		pair, expiration, err := e.calculateContractExpiryPair(cp, tt, ct)
+		if err != nil {
+			return nil, err
+		}
+		resp = append(resp, ContractAndExpiry{
+			Contract: pair,
+			Expiry:   expiration,
+		})
+		tt = expiration
+		tt = tt.Add(contractDuration)
+	}
+	return resp, nil
+}
+
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.StartDate, req.Contract.Duration(), req.Contract, req.SettlementType)
+	if err != nil {
+		return nil, err
+	}
+	var resp futures.HistoricalContractKline
+
+	fc, err := e.GetFuturesCharts(ctx, e.FormatExchangeKlineIntervalFutures(req.Interval), "spot", contracts[len(contracts)-1].Contract, contracts[len(contracts)-1].Expiry, contracts[0].Expiry.Add(-req.Contract.Duration()))
+	if err != nil {
+		return nil, err
+	}
+	for i := range contracts {
+		contractKline := kline.Item{
+			Exchange:       e.Name,
+			Pair:           contracts[i].Contract,
+			UnderlyingPair: req.UnderlyingPair,
+			Asset:          req.Asset,
+			Interval:       req.Interval,
+		}
+		for j := range fc.Candles {
+			tt := fc.Candles[j].Time.Time()
+			if tt.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || tt.After(contracts[i].Expiry) {
+				continue
+			}
+			contractKline.Candles = append(contractKline.Candles, kline.Candle{
+				Time:   fc.Candles[j].Time.Time(),
+				Open:   fc.Candles[j].Open,
+				High:   fc.Candles[j].High,
+				Low:    fc.Candles[j].Low,
+				Close:  fc.Candles[j].Close,
+				Volume: fc.Candles[j].Volume,
+			})
+		}
+		spotKline := kline.Item{
+			Exchange: e.Name,
+			Pair:     req.UnderlyingPair,
+			Asset:    req.Asset,
+			Interval: req.Interval,
+		}
+		sc, err := e.GetOHLC(ctx, req.UnderlyingPair, e.FormatExchangeKlineInterval(req.Interval))
+		if err != nil {
+			return nil, err
+		}
+		for j := range sc {
+			if sc[j].Time.Before(contracts[i].Expiry.Add(-req.Contract.Duration())) || sc[j].Time.After(contracts[i].Expiry) {
+				continue
+			}
+			spotKline.Candles = append(spotKline.Candles, kline.Candle{
+				Time:   sc[j].Time,
+				Open:   sc[j].Open,
+				High:   sc[j].High,
+				Low:    sc[j].Low,
+				Close:  sc[j].Close,
+				Volume: sc[j].Volume,
+			})
+		}
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &futures.Contract{
+				Exchange:   e.Name,
+				Name:       contracts[i].Contract,
+				Underlying: req.UnderlyingPair,
+				Asset:      req.Asset,
+				StartDate:  contracts[i].Expiry.Add(-req.Contract.Duration()),
+				EndDate:    contracts[i].Expiry,
+				Type:       req.Contract,
+			},
+			PremiumKline: &contractKline,
+			BaseKline:    &spotKline,
+		})
+	}
+	return &resp, nil
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

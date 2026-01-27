@@ -375,6 +375,9 @@ func (e *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (A
 // symbol: string of currency pair
 func (e *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (*PriceChangeStats, error) {
 	resp := PriceChangeStats{}
+	if symbol.IsEmpty() {
+		return nil, errors.New("symbol is required, use GetTickers")
+	}
 	params := url.Values{}
 	rateLimit := spotTickerAllRate
 	if !symbol.IsEmpty() {

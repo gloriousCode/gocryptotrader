@@ -1427,7 +1427,7 @@ func (e *Exchange) SetLendingRate(ctx context.Context, arg *LendingRate) (*Lendi
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
-	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
+	} else if arg.Rate.Float64() < 0.01 || arg.Rate.Float64() > 3.65 {
 		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errRateRequired)
 	}
 	var resp *LendingRate
@@ -4995,6 +4995,48 @@ func (e *Exchange) GetSingleFundingRate(ctx context.Context, instrumentID string
 	params.Set("instId", instrumentID)
 	var resp *FundingRateResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate", params), nil, &resp, request.UnauthenticatedRequest)
+}
+
+type FundingRateData struct {
+	Acc3DFundingRate types.Number `json:"acc3dFundingRate"`
+	Apy              types.Number `json:"apy"`
+	ArbitrageId      string       `json:"arbitrageId"`
+	BuyInstId        string       `json:"buyInstId"`
+	BuyInstType      string       `json:"buyInstType"`
+	Ccy              string       `json:"ccy"`
+	FundingRate      types.Number `json:"fundingRate"`
+	FundingTime      types.Time   `json:"fundingTime"`
+	NextFundingRate  types.Number `json:"nextFundingRate"`
+	NotionalUsd      types.Number `json:"notionalUsd"`
+	SellInstId       string       `json:"sellInstId"`
+	SellInstType     string       `json:"sellInstType"`
+	Spread           string       `json:"spread"`
+	State            string       `json:"state"`
+	Ts               types.Time   `json:"ts"`
+	Yield3DPer10K    types.Number `json:"yield3dPer10K"`
+}
+
+var publicFundingRateArbitrage = "funding-rate-arbitrage"
+
+// GetPrivateFundingRates is a private endpoint for retrieving funding rates.
+func (e *Exchange) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbitrageType string, snapshotTime time.Time) ([]FundingRateData, error) {
+	params := url.Values{}
+	if ccyType == "" {
+		return nil, errMissingInstrumentID
+	}
+	if ctType != "inverse" && ctType != "linear" {
+		return nil, errMissingInstrumentID
+	}
+	params.Set("ccyType", ccyType)
+	params.Set("ctType", ctType)
+	if arbitrageType == "" {
+		arbitrageType = "futures_spot"
+	}
+	params.Set("arbitrageType", arbitrageType)
+	params.Set("t", fmt.Sprint(snapshotTime.UnixMilli()))
+
+	var resp []FundingRateData
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, request.UnauthenticatedRequest)
 }
 
 // GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months

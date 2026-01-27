@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -41,6 +42,21 @@ type Code struct {
 	// job to update all maps and instances through the code base.
 	// _         []struct{}
 	upperCase bool
+}
+
+func (i *Item) UnmarshalJSON(b []byte) error {
+	rawJSON := string(b)
+	rawJSON = strings.Replace(rawJSON, "\"", "", -1)
+	c := NewCode(rawJSON)
+	*i = Item{
+		ID:         c.Item.ID,
+		FullName:   c.Item.FullName,
+		Symbol:     c.Item.Symbol,
+		Lower:      c.Item.Lower,
+		Role:       c.Item.Role,
+		AssocChain: c.Item.AssocChain,
+	}
+	return nil
 }
 
 // Item defines a sub type containing the main attributes of a designated
@@ -121,6 +137,7 @@ var (
 	PPT              = NewCode("PPT")
 	KMD              = NewCode("KMD")
 	TUSD             = NewCode("TUSD")
+	FDUSD            = NewCode("FDUSD")
 	CNX              = NewCode("CNX")
 	LINK             = NewCode("LINK")
 	WTC              = NewCode("WTC")
@@ -1584,6 +1601,7 @@ var (
 	MYR              = NewCode("MYR")
 	AFN              = NewCode("AFN")
 	ARS              = NewCode("ARS")
+	GRASS              = NewCode("GRASS")
 	AWG              = NewCode("AWG")
 	AZN              = NewCode("AZN")
 	BSD              = NewCode("BSD")
@@ -3019,6 +3037,7 @@ var (
 	SWAP             = NewCode("SWAP")
 	PI               = NewCode("PI")
 	FI               = NewCode("FI")
+	FF               = NewCode("FF")
 	USDM             = NewCode("USDM")
 	USDTM            = NewCode("USDTM")
 	CBETH            = NewCode("CBETH")

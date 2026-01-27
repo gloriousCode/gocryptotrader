@@ -89,6 +89,7 @@ type Book struct {
 	Exchange string
 	Pair     currency.Pair
 	Asset    asset.Item
+	ContractDecimals float64
 
 	// LastUpdated is the time when a change occurred on the exchange books.
 	// Note: This does not necessarily indicate the change is out of sync with
@@ -148,6 +149,7 @@ type options struct {
 	idAligned              bool
 	checksumStringRequired bool
 	maxDepth               int
+	contractDecimals       float64
 }
 
 // Movement defines orderbook traversal details from either hitting the bids or
@@ -160,15 +162,18 @@ type Movement struct {
 	// from the reference price.
 	ImpactPercentage float64
 	// SlippageCost is the cost of the slippage. This is priced in quotation.
-	SlippageCost float64
+	SlippageCost         float64
+	SlippageContractCost float64
 	// StartPrice defines the reference price or the head of the orderbook side.
 	StartPrice float64
 	// EndPrice defines where the price has ended on the orderbook side.
 	EndPrice float64
 	// Sold defines the amount of currency sold.
-	Sold float64
+	Sold          float64
+	ContractsSold float64
 	// Purchases defines the amount of currency purchased.
-	Purchased float64
+	Purchased          float64
+	ContractsPurchased float64
 	// AverageOrderCost defines the average order cost of position as it slips
 	// through the orderbook Levels.
 	AverageOrderCost float64
@@ -177,6 +182,14 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket update
 	FullBookSideConsumed bool
+	Trades []Trade
+}
+
+type Trade struct {
+	Price           float64
+	PurchaseSize float64
+	TrancheSize     float64
+	ConsumedTranche bool
 }
 
 // SideAmounts define the amounts total for the Levels, total value in

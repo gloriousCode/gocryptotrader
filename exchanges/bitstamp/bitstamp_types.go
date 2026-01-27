@@ -1,6 +1,7 @@
 package bitstamp
 
 import (
+	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -21,6 +22,8 @@ const (
 	BuyOrder = iota
 	SellOrder
 )
+
+var errWSPairParsingError = errors.New("unable to parse currency pair from wsResponse.Channel")
 
 // Ticker holds ticker information
 type Ticker struct {
@@ -236,8 +239,10 @@ type websocketData struct {
 }
 
 type websocketResponse struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
+	Event       string `json:"event"`
+	Channel     string `json:"channel"`
+	channelType string
+	pair        currency.Pair
 }
 
 type websocketTradeResponse struct {
@@ -308,4 +313,20 @@ type websocketOrderData struct {
 	Side            orderSide  `json:"order_type"`
 	Datetime        types.Time `json:"datetime"`
 	Microtimestamp  types.Time `json:"microtimestamp"`
+}
+
+// TickerFromBatch holds ticker information
+type TickerFromBatch struct {
+	Ask       types.Number `json:"ask"`
+	Bid       types.Number `json:"bid"`
+	High      types.Number `json:"high"`
+	Last      types.Number `json:"last"`
+	Low       types.Number `json:"low"`
+	Open      types.Number `json:"open"`
+	Open24    types.Number `json:"open_24"`
+	Pair      string       `json:"pair"`
+	Side      string       `json:"side"`
+	Timestamp int64        `json:"timestamp,string"`
+	Volume    types.Number `json:"volume"`
+	Vwap      types.Number `json:"vwap"`
 }

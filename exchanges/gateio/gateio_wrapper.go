@@ -334,6 +334,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Ask:          tickerNew.LowestAsk.Float64(),
 			Last:         tickerNew.Last.Float64(),
 			ExchangeName: e.Name,
+			Volume:       tickerNew.BaseVolume.Float64(),
+			QuoteVolume:  tickerNew.QuoteVolume.Float64(),
 			AssetType:    a,
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
@@ -952,7 +954,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      types.Number(s.Price),
+			Price:      s.Price,
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1331,7 +1333,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	response, err := e.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
+			Amount:   withdrawRequest.Amount,
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -1781,7 +1783,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			case !contracts[i].Name.Base.Equal(settle) && !settle.Equal(currency.USDT):
 				contractSettlementType = futures.Quanto
 			}
-			c := futures.Contract{
+			resp[i] = futures.Contract{
 				Exchange:           e.Name,
 				Name:               contracts[i].Name,
 				Underlying:         contracts[i].Name,
@@ -1792,12 +1794,11 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
+				LatestRate: fundingrate.Rate{
+					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
+					Rate: contracts[i].FundingRate.Decimal(),
+				},
 			}
-			c.LatestRate = fundingrate.Rate{
-				Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
-				Rate: contracts[i].FundingRate.Decimal(),
-			}
-			resp[i] = c
 		}
 		return resp, nil
 	case asset.DeliveryFutures:
@@ -1807,11 +1808,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
-			name, err := currency.NewPairFromString(contracts[i].Name)
+			var name, underlying currency.Pair
+			var settlePair currency.Code
+			name, err = currency.NewPairFromString(contracts[i].Name)
 			if err != nil {
 				return nil, err
 			}
-			underlying, err := currency.NewPairFromString(contracts[i].Underlying)
+			underlying, err = currency.NewPairFromString(contracts[i].Underlying)
 			if err != nil {
 				return nil, err
 			}
@@ -1834,6 +1837,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				ct = futures.HalfYearly
 				startTime = endTime.Add(-kline.SixMonth.Duration())
 			}
+			cd := futures.Linear
+			switch {
+			case settlePair.Equal(underlying.Base):
+				cd = futures.Inverse
+			case settlePair.Equal(underlying.Quote):
+			default:
+			}
 			resp[i] = futures.Contract{
 				Exchange:           e.Name,
 				Name:               name,
@@ -1841,7 +1851,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Asset:              a,
 				StartDate:          startTime,
 				EndDate:            endTime,
-				SettlementType:     futures.Linear,
+				SettlementType:     cd,
 				IsActive:           !contracts[i].InDelisting,
 				Type:               ct,
 				SettlementCurrency: settle,
@@ -1862,7 +1872,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 	var l []limits.MinMaxLevel
 	switch a {
-	case asset.Spot:
+	case asset.Margin, asset.CrossMargin, asset.Spot:
+		var pairsData []CurrencyPairDetail
 		pairsData, err := e.ListSpotCurrencyPairs(ctx)
 		if err != nil {
 			return err
@@ -1970,6 +1981,30 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				})
 			}
 		}
+
+	case asset.Futures:
+		btcContracts, err := e.GetAllFutureContracts(ctx, currency.BTC)
+		if err != nil {
+			return err
+		}
+		usdtContracts, err := e.GetAllFutureContracts(ctx, currency.USDT)
+		if err != nil {
+			return err
+		}
+		btcContracts = append(btcContracts, usdtContracts...)
+		l = make([]limits.MinMaxLevel, 0, len(btcContracts))
+		for x := range btcContracts {
+			if btcContracts[x].Delisting {
+				continue
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, btcContracts[x].Name),
+				MinimumBaseAmount:       btcContracts[x].OrderSizeMin.Float64(),
+				MaximumBaseAmount:       btcContracts[x].OrderSizeMax.Float64(),
+				MarketStepIncrementSize: 1,
+				AmountStepIncrementSize: 1,
+			})
+		}
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -2005,10 +2040,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
-	}
-
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
 	}
 
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
@@ -2082,7 +2113,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		return []fundingrate.LatestRateResponse{
-			contractToFundingRate(e.Name, r.Asset, fPair, contract, r.IncludePredictedRate),
+			contractToFundingRate(e.Name, r.Asset, fPair, contract),
 		}, nil
 	}
 
@@ -2100,13 +2131,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !pairs.Contains(contracts[i].Name, true) {
 			continue
 		}
-		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i], r.IncludePredictedRate))
+		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i]))
 	}
 
 	return slices.Clip(resp), nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
@@ -2118,11 +2149,9 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		TimeOfNextRate: contract.FundingNextApply.Time(),
 		TimeChecked:    time.Now(),
 	}
-	if includeUpcomingRate {
-		resp.PredictedUpcomingRate = fundingrate.Rate{
-			Time: contract.FundingNextApply.Time(),
-			Rate: contract.FundingRateIndicative.Decimal(),
-		}
+	resp.PredictedUpcomingRate = fundingrate.Rate{
+		Time: contract.FundingNextApply.Time(),
+		Rate: contract.FundingRateIndicative.Decimal(),
 	}
 	return resp
 }
@@ -2202,7 +2231,7 @@ type openInterestContract interface {
 }
 
 func (c *FuturesContract) openInterest() float64 {
-	i := float64(c.PositionSize) * c.IndexPrice.Float64()
+	i := c.PositionSize.Float64() * c.IndexPrice.Float64()
 	if q := c.QuantoMultiplier.Float64(); q != 0 {
 		i *= q
 	}
@@ -2452,7 +2481,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 
 		var cost float64
 		var purchased float64
-		if resp.AverageDealPrice != 0 {
+		if resp.AverageDealPrice.Float64() != 0 {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
@@ -2516,7 +2545,7 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		}
 
 		oType := order.Market
-		if resp.Price != 0 {
+		if resp.Price.Float64() != 0 {
 			oType = order.Limit
 		}
 
@@ -2575,8 +2604,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Side:         side,
 		Type:         s.Type.Lower(),
 		Account:      e.assetTypeToString(s.AssetType),
-		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),
-		Price:        types.Number(s.Price),
+		Amount:       types.NumberFromFloat64(s.GetTradeAmount(e.GetTradingRequirements())),
+		Price:        types.NumberFromFloat64(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
@@ -2653,4 +2682,211 @@ func (e *Exchange) MessageID() string {
 	var buf [32]byte
 	hex.Encode(buf[:], u[:])
 	return string(buf[:])
+}
+
+func (e *Exchange) GetContractFromCurrencyAndDate(pair currency.Pair, date time.Time, ct futures.ContractType) (currency.Pair, time.Time, error) {
+loopdiloop:
+	for {
+		switch ct {
+		case futures.Weekly:
+			if date.Weekday() == time.Friday {
+				break loopdiloop
+			}
+			date = date.Add(time.Hour * 24)
+		case futures.Quarterly:
+			switch date.Month() {
+			case time.March, time.June, time.September, time.December:
+				date = time.Date(date.Year(), date.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+				for {
+					if date.Weekday() == time.Friday {
+						break loopdiloop
+					}
+					date = date.Add(-time.Hour * 24)
+				}
+			default:
+				date = date.AddDate(0, 1, 0)
+				continue
+			}
+		}
+	}
+	cp, _ := currency.NewPairFromStrings(pair.Base.String(), pair.Quote.String()+currency.UnderscoreDelimiter+date.Format("20060102"))
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return cp, date, nil
+}
+
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, contractType futures.ContractType, startDate time.Time, denomination futures.ContractSettlementType) ([]futures.Contract, error) {
+	var resp []futures.Contract
+	tt := startDate
+	for tt.Before(time.Now()) {
+		contract, expiry, err := e.GetContractFromCurrencyAndDate(underlyingPair, tt, contractType)
+		if err != nil {
+			return nil, err
+		}
+		settle, err := getSettlementCurrency(contract, item)
+		if err != nil {
+			return nil, err
+		}
+		sc, err := e.GetDeliveryContract(ctx, settle, contract)
+		if err != nil {
+			return nil, err
+		}
+		var name, underlying currency.Pair
+		name, err = currency.NewPairFromString(sc.Name)
+		if err != nil {
+			return nil, err
+		}
+		underlying, err = currency.NewPairFromString(sc.Underlying)
+		if err != nil {
+			return nil, err
+		}
+		var ct futures.ContractType
+		var s, end time.Time
+		end = expiry
+		switch sc.Type {
+		case "WEEKLY":
+			s = end.Add(-kline.OneWeek.Duration())
+		case "BI-WEEKLY":
+			s = end.Add(-kline.TwoWeek.Duration())
+		case "QUARTERLY":
+			s = end.Add(-kline.ThreeMonth.Duration())
+		case "BI-QUARTERLY":
+			s = end.Add(-kline.SixMonth.Duration())
+		default:
+			ct = futures.LongDated
+		}
+		var cd futures.ContractSettlementType
+		switch {
+		case settle.Equal(currency.USD), settle.Equal(currency.USDT):
+			cd = futures.Inverse
+		default:
+			cd = futures.Linear
+		}
+		if cd != denomination {
+			panic("woah")
+		}
+		resp = append(resp, futures.Contract{
+			Exchange:           e.Name,
+			Name:               name,
+			Underlying:         underlying,
+			Asset:              item,
+			StartDate:          s,
+			EndDate:            end,
+			IsActive:           !sc.InDelisting,
+			Type:               ct,
+			SettlementType:     futures.Linear,
+			SettlementCurrency: settle,
+			Multiplier:         sc.QuantoMultiplier.Float64(),
+			MaxLeverage:        sc.LeverageMax.Float64(),
+		})
+		tt = tt.Add(contractType.Duration())
+	}
+	return resp, nil
+}
+
+// GetHistoricalContractKlineData gets each contract's data in a range
+// then grabs spot data for comparisons
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate, req.SettlementType)
+	if err != nil {
+		return nil, err
+	}
+	var resp futures.HistoricalContractKline
+	resp.Data = make([]futures.ContractKline, 0, len(contracts))
+	for i := range contracts {
+		if contracts[i].StartDate.After(time.Now()) {
+			continue
+		}
+		klineReq, err := e.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		var klinesForContract []kline.Candle
+		for j := range klineReq.RangeHolder.Ranges {
+			candles, err := e.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
+				return nil, err
+			}
+			for k := range candles.Candles {
+				if candles.Candles[k].Close == 0 {
+					continue
+				}
+				klinesForContract = append(klinesForContract, kline.Candle{
+					Time:   candles.Candles[k].Time,
+					Open:   candles.Candles[k].Open,
+					High:   candles.Candles[k].High,
+					Low:    candles.Candles[k].Low,
+					Close:  candles.Candles[k].Close,
+					Volume: candles.Candles[k].Volume,
+				})
+			}
+		}
+		if len(klinesForContract) == 0 {
+			continue
+		}
+
+		spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		if req.UnderlyingPair.Quote.Equal(currency.USD) {
+			req.UnderlyingPair.Quote = currency.USDT
+		}
+		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		up, err := e.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for i := range spotUnderlyingReq.RangeHolder.Ranges {
+			candles, err := e.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
+				return nil, err
+			}
+			for j := range candles.Candles {
+				spotCandles = append(spotCandles, kline.Candle{
+					Time:   candles.Candles[j].Time,
+					Open:   candles.Candles[j].Open,
+					High:   candles.Candles[j].High,
+					Low:    candles.Candles[j].Low,
+					Close:  candles.Candles[j].Close,
+					Volume: candles.Candles[j].Volume,
+				})
+			}
+		}
+		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+		if err != nil {
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
+		}
+
+		contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
+		if err != nil {
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
+		}
+		contractKlineItem.SortCandlesByTimestamp(false)
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
+		})
+	}
+	if len(resp.Data) == 0 {
+		return nil, kline.ErrInsufficientCandleData
+	}
+
+	return &resp, nil
 }

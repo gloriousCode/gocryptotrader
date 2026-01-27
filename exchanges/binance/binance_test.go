@@ -193,6 +193,7 @@ func TestUExchangeInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 2)
 }
 
 func TestUFuturesOrderbook(t *testing.T) {
@@ -2755,17 +2756,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		StartDate:            start,
-		EndDate:              end,
-		IncludePayments:      true,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewBTCUSDT(),
 		StartDate:       start,
@@ -2802,14 +2794,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewBTCUSDT()
-	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 cp,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
 		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, cp, err)
 
@@ -3300,6 +3285,26 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	ct, _, _, err := e.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+
+	ct, _, _, err = e.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+}
+
+func TestGetExpiredContractsFromDate(t *testing.T) {
+	t.Parallel()
+	e.Verbose = true
+	resp, err := e.GetLongDatedContractsFromDate(t.Context(), asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+}
+
 func TestGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFundingRateInfo(t.Context())
@@ -3338,6 +3343,19 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
+func TestSpotFutures(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.NewCode("BTCUSD"), currency.NewCode("231229"))
+	cp.Delimiter = "_"
+	b.Verbose = true
+	interval := b.FormatExchangeKlineInterval(kline.OneDay)
+	resp, err := b.GetFuturesKlineData(context.Background(), cp, interval, 0, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(resp)
+}
+
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -3349,4 +3367,24 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	resp, err := b.GetHistoricalContractKlineData(context.Background(), &futures.GetKlineContractRequest{
+		UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+		Asset:          asset.USDTMarginedFutures,
+		StartDate:      time.Now().Add(-time.Hour * 24 * 365),
+		EndDate:        time.Now(),
+		Interval:       kline.OneDay,
+		Contract:       futures.Quarterly,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+}
+
+func TestFetchUSDTMarginExchangeLimits(t *testing.T) {
+	resp, err := b.FetchUSDTMarginExchangeLimits(context.Background())
+	require.NoError(t, err)
+	t.Log(resp)
 }

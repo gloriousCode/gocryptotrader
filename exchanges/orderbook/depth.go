@@ -644,6 +644,21 @@ func (d *Depth) GetLevels(count int) (ask, bid []Level, err error) {
 	return d.askLevels.retrieve(count), d.bidLevels.retrieve(count), nil
 }
 
+func (d *Depth) GetTranche(count int, isBid bool) ([]Level, error) {
+	if count < 0 {
+		return nil, errInvalidBookDepth
+	}
+	d.m.RLock()
+	defer d.m.RUnlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
+	if isBid {
+		return d.bidLevels.retrieve(count), nil
+	}
+	return d.askLevels.retrieve(count), nil
+}
+
 // Pair returns the pair associated with the depth
 func (d *Depth) Pair() currency.Pair {
 	d.m.RLock()

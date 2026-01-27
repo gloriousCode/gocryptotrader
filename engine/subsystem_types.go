@@ -73,7 +73,21 @@ type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
 	PrintOrderbookSummary(*orderbook.Book, string, error)
-	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
+	WebsocketUpdate(string, currency.Pair, asset.Item, SyncItemType, error) error
+	WebsocketUpdateTicker(price *ticker.Price) error
+}
+// iBot limits exposure of accessible functions to engine bot
+type iBot interface {
+	SetupExchanges() error
+}
+
+// ICurrencyPairSyncer defines a limited scoped currency pair syncer
+type ICurrencyPairSyncer interface {
+	IsRunning() bool
+	PrintTickerSummary(*ticker.Price, string, error)
+	PrintOrderbookSummary(*orderbook.Book, string, error)
+	WebsocketUpdate(string, currency.Pair, asset.Item, SyncItemType, error) error
+	WebsocketUpdateTicker(price *ticker.Price) error
 }
 
 // iDatabaseConnectionManager defines a limited scoped databaseConnectionManager

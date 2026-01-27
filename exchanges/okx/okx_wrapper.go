@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -82,6 +83,7 @@ func (e *Exchange) SetDefaults() {
 			Websocket:           true,
 			MaximumOrderHistory: kline.OneDay.Duration() * 90,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				OrderbookFetching:     true,
 				AutoPairUpdates:       true,
@@ -131,7 +133,10 @@ func (e *Exchange) SetDefaults() {
 					Supported:         true,
 					SupportsRestBatch: true,
 				},
-				FundingRates:              true,
+				FundingRates: true,
+				FundingRateBatching: map[asset.Item]bool{
+					asset.PerpetualSwap: true,
+				},
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
 					kline.EightHour: true,
@@ -1888,7 +1893,7 @@ allOrders:
 				orderAmount := orderList[i].Size
 				if orderList[i].QuantityType == "quote_ccy" {
 					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
+					orderAmount = types.NumberFromFloat64(orderAmount.Float64() / orderList[i].AveragePrice.Float64())
 				}
 
 				remainingAmount := float64(0)
@@ -2150,6 +2155,40 @@ func (e *Exchange) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]
 	return instruments, nil
 }
 
+func (e *Exchange) CreateRateMate(data FundingRateData, inverse bool) (*fundingrate.LatestRateResponse, error) {
+	if data.State != "live" {
+		return nil, nil
+	}
+	var cp currency.Pair
+	var err error
+	if strings.Contains(data.BuyInstId, "SWAP") {
+		cp, err = e.GetPairFromInstrumentID(data.BuyInstId)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cp, err = e.GetPairFromInstrumentID(data.SellInstId)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &fundingrate.LatestRateResponse{
+		Exchange: e.Name,
+		Asset:    asset.PerpetualSwap,
+		Pair:     cp,
+		LatestRate: fundingrate.Rate{
+			Time: data.FundingTime.Time(),
+			Rate: data.FundingRate.Decimal(),
+		},
+		PredictedUpcomingRate: fundingrate.Rate{
+			Time: data.FundingTime.Time().Add(time.Hour * 8),
+			Rate: data.NextFundingRate.Decimal(),
+		},
+		TimeOfNextRate: data.FundingTime.Time().Add(time.Hour * 8),
+		TimeChecked:    time.Now(),
+	}, nil
+}
+
 // GetLatestFundingRates returns the latest funding rates data
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
@@ -2158,9 +2197,58 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r.Asset != asset.PerpetualSwap {
 		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
 	}
+
+	// This is an override for my own application
 	if r.Pair.IsEmpty() {
-		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+		var resp []fundingrate.LatestRateResponse
+		rates, err := e.GetPrivateFundingRates(ctx, "USDT", "linear", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := e.CreateRateMate(rates[i], false)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		rates, err = e.GetPrivateFundingRates(ctx, "USDC", "linear", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := e.CreateRateMate(rates[i], false)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		rates, err = e.GetPrivateFundingRates(ctx, "USD", "inverse", "futures-spot", time.Now())
+		if err != nil {
+			return nil, err
+		}
+		for i := range rates {
+			rateMate, err := e.CreateRateMate(rates[i], true)
+			if err != nil {
+				return nil, err
+			}
+			if rateMate == nil {
+				continue
+			}
+			resp = append(resp, *rateMate)
+		}
+
+		return resp, nil
 	}
+
 	format, err := e.GetPairFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
@@ -2188,12 +2276,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		Time: fr.FundingTime.Time().Add(-fri),
 		Rate: fr.FundingRate.Decimal(),
 	}
-	if r.IncludePredictedRate {
-		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-fri),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time().Add(-fri),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
@@ -2267,11 +2353,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		Rate: fr.FundingRate.Decimal(),
 	}
 	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-	if r.IncludePredictedRate {
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time(),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	if r.IncludePayments {
 		pairRate.PaymentCurrency = r.Pair.Base
@@ -2347,7 +2431,7 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (coll
 	if err != nil {
 		return 0, err
 	}
-	switch cfg.AccountLevel {
+	switch cfg.AccountLevel.Int64() {
 	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
@@ -2630,7 +2714,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			orderAmount := positions[j].Size
 			if positions[j].QuantityType == "quote_ccy" {
 				// Size is quote amount.
-				orderAmount /= positions[j].AveragePrice
+				orderAmount = types.NumberFromFloat64(positions[j].Size.Float64() / positions[j].AveragePrice.Float64())
 			}
 
 			remainingAmount := float64(0)
@@ -2779,11 +2863,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				}
 
 				settleCurr = currency.NewCode(result[i].SettlementCurrency)
-
-				contractSettlementType = futures.Linear
-				if result[i].SettlementCurrency == result[i].BaseCurrency {
-					contractSettlementType = futures.Inverse
-				}
 			}
 
 			var ct futures.ContractType
@@ -2793,30 +2872,41 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				switch result[i].Alias {
 				case "this_week", "next_week":
 					ct = futures.Weekly
+				case "this_month", "next_month":
+					ct = futures.Monthly
 				case "quarter", "next_quarter":
 					ct = futures.Quarterly
+				case "third_quarter":
+					ct = futures.NineMonthly
+				default:
+					return nil, fmt.Errorf("unknown alias value: %q", result[i].Alias)
 				}
+			}
+			contractSettlementType = futures.Linear
+			if result[i].SettlementCurrency == result[i].BaseCurrency {
+				contractSettlementType = futures.Inverse
+			}
+			if ct != futures.Perpetual && (result[i].ExpTime.Time().IsZero() || result[i].ExpTime.Time().Equal(time.Unix(0, 0))) {
+				fmt.Println("hi")
 			}
 
 			resp[i] = futures.Contract{
-				Exchange:       e.Name,
-				Name:           result[i].InstrumentID,
-				Underlying:     underlying,
-				Asset:          item,
-				StartDate:      result[i].ListTime.Time(),
-				EndDate:        result[i].ExpTime.Time(),
-				IsActive:       result[i].State == "live",
-				Status:         result[i].State,
-				Type:           ct,
-				SettlementType: contractSettlementType,
-				MarginCurrency: settleCurr,
-				Multiplier:     result[i].ContractValue.Float64(),
-				MaxLeverage:    result[i].MaxLeverage.Float64(),
+				Exchange:           e.Name,
+				Name:               result[i].InstrumentID,
+				Underlying:         underlying,
+				Asset:              item,
+				StartDate:          result[i].ListTime.Time(),
+				EndDate:            result[i].ExpTime.Time(),
+				IsActive:           result[i].State == "live",
+				Status:             result[i].State,
+				Type:               ct,
+				SettlementType:     contractSettlementType,
+				SettlementCurrency: settleCurr,
+				MarginCurrency:     settleCurr,
+				Multiplier:         result[i].ContractValue.Float64(),
+				MaxLeverage:        result[i].MaxLeverage.Float64(),
 			}
 
-			if !settleCurr.IsEmpty() {
-				resp[i].SettlementCurrency = settleCurr
-			}
 		}
 		return resp, nil
 	case asset.Spread:
@@ -3019,6 +3109,246 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	default:
 		return "", fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
+}
+
+func (e *Exchange) convertContractShortHandToExpiry(underlyingPair currency.Pair, contractType futures.ContractType, tt time.Time) (cp currency.Pair, start, end time.Time, err error) {
+	loc, err := time.LoadLocation("UTC")
+	if err != nil {
+		return currency.EMPTYPAIR, time.Time{}, time.Time{}, err
+	}
+	tt = tt.In(loc)
+	var duration time.Duration
+	switch contractType {
+	case futures.Fortnightly:
+		tt = tt.AddDate(0, 0, 7)
+		duration = kline.OneWeek.Duration() * 2
+		fallthrough
+	case futures.Weekly:
+		if duration == 0 {
+			duration = kline.OneWeek.Duration()
+		}
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case futures.BiMonthly:
+		tt = tt.AddDate(0, 1, 0)
+		duration = kline.OneMonth.Duration() * 2
+		fallthrough
+	case futures.Monthly:
+		if duration == 0 {
+			duration = kline.OneMonth.Duration()
+		}
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case futures.BiQuarterly:
+		duration = kline.OneMonth.Duration() * 6
+		tt = tt.AddDate(0, 3, 0)
+		fallthrough
+	case futures.Quarterly:
+		if duration == 0 {
+			duration = kline.OneMonth.Duration() * 3
+		}
+		// Find the next quarter end
+		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+			tt = tt.AddDate(0, 1, 0)
+		}
+		// Find the last day of the quarter
+		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		// Find the last Friday of the quarter
+		for tt.Weekday() != time.Friday {
+			tt = tt.AddDate(0, 0, -1)
+		}
+	default:
+		return currency.EMPTYPAIR, time.Time{}, time.Time{}, fmt.Errorf("%w %v", futures.ErrContractMismatch, contractType)
+	}
+	fContractDateFormat := "060102"
+	return currency.NewPairWithDelimiter(underlyingPair.Base.Upper().String(), underlyingPair.Quote.Upper().String()+currency.DashDelimiter+tt.Format(fContractDateFormat), currency.DashDelimiter),
+		tt.Add(-duration),
+		tt,
+		nil
+}
+
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
+	if item != asset.Futures {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	var resp []futures.Contract
+	ei, err := e.getInstrumentsForAsset(ctx, item)
+	if err != nil {
+		return nil, err
+	}
+	for i := range ei {
+		uc, err := currency.NewPairFromString(ei[i].Underlying)
+		if err != nil {
+			return nil, err
+		}
+		if !uc.Base.Equal(underlyingPair.Base) && !uc.Quote.Equal(underlyingPair.Quote) {
+			continue
+		}
+		var respCt futures.ContractType
+		var backwardsInterval time.Duration
+		switch ei[i].Alias {
+		case "this_week":
+			respCt = futures.Weekly
+			backwardsInterval = kline.OneWeek.Duration()
+		case "next_week":
+			respCt = futures.Fortnightly
+			backwardsInterval = kline.OneWeek.Duration() * 2
+		case "this_month":
+			respCt = futures.Monthly
+			backwardsInterval = kline.OneMonth.Duration()
+		case "next_month":
+			respCt = futures.BiMonthly
+			backwardsInterval = kline.OneMonth.Duration() * 2
+		case "quarter":
+			respCt = futures.Quarterly
+			backwardsInterval = kline.OneMonth.Duration() * 3
+		case "next_quarter":
+			respCt = futures.BiQuarterly
+			backwardsInterval = kline.OneMonth.Duration() * 6
+		}
+		if respCt != ct {
+			continue
+		}
+		if ei[i].State != "live" {
+			continue
+		}
+		for {
+			oldContract, csd, ced, err := e.convertContractShortHandToExpiry(underlyingPair, ct, t)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:       e.Name,
+				Name:           oldContract,
+				Underlying:     underlyingPair,
+				Asset:          item,
+				StartDate:      csd,
+				EndDate:        ced,
+				IsActive:       ei[i].State == "TRADING",
+				MarginCurrency: currency.NewCode(ei[i].SettlementCurrency),
+				SettlementType: futures.Linear,
+				Type:           ct,
+				Multiplier:     ei[i].ContractMultiplier.Float64(),
+			})
+			if t.After(time.Now()) {
+				break
+			}
+			t = t.Add(backwardsInterval)
+		}
+		break
+	}
+	return resp, nil
+}
+
+// GetHistoricalContractKlineData gets each contract's data in a range
+// then grabs spot data for comparisons
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
+	if err != nil {
+		return nil, err
+	}
+	if len(contracts) == 0 {
+		return nil, nil
+	}
+	var resp futures.HistoricalContractKline
+	resp.Data = make([]futures.ContractKline, 0, len(contracts))
+	latestContract := contracts[len(contracts)-1]
+	for i := range contracts {
+		if contracts[i].StartDate.After(time.Now()) {
+			continue
+		}
+		klineReq, err := e.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		var klinesForContract []kline.Candle
+
+		for j := range klineReq.RangeHolder.Ranges {
+			candles, err := e.GetCandlesticksHistory(ctx, latestContract.Name.String(), req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time, 300)
+			if err != nil {
+				return nil, err
+			}
+			for k := range candles {
+				if candles[k].ClosePrice.Float64() == 0 {
+					continue
+				}
+				klinesForContract = append(klinesForContract, kline.Candle{
+					Time:   candles[k].OpenTime.Time(),
+					Open:   candles[k].OpenPrice.Float64(),
+					High:   candles[k].HighestPrice.Float64(),
+					Low:    candles[k].LowestPrice.Float64(),
+					Close:  candles[k].ClosePrice.Float64(),
+					Volume: candles[k].Volume.Float64(),
+				})
+			}
+		}
+		if len(klinesForContract) == 0 {
+			continue
+		}
+
+		spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		if req.UnderlyingPair.Quote.Equal(currency.USD) {
+			req.UnderlyingPair.Quote = currency.USDT
+		}
+		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		up, err := e.FormatSymbol(req.UnderlyingPair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for i := range spotUnderlyingReq.RangeHolder.Ranges {
+			candles, err := e.GetCandlesticksHistory(ctx, up, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time, 300)
+			if err != nil {
+				return nil, err
+			}
+			for j := range candles {
+				spotCandles = append(spotCandles, kline.Candle{
+					Time:   candles[j].OpenTime.Time(),
+					Open:   candles[j].OpenPrice.Float64(),
+					High:   candles[j].HighestPrice.Float64(),
+					Low:    candles[j].LowestPrice.Float64(),
+					Close:  candles[j].ClosePrice.Float64(),
+					Volume: candles[j].Volume.Float64(),
+				})
+			}
+		}
+		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+		if err != nil {
+			return nil, err
+		}
+
+		contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
+		if err != nil {
+			return nil, err
+		}
+		contractKlineItem.SortCandlesByTimestamp(false)
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
+		})
+	}
+	if len(resp.Data) == 0 {
+		return nil, kline.ErrInsufficientCandleData
+	}
+
+	return &resp, nil
 }
 
 // MessageID returns a universally unique ID using UUID V7, with hyphens removed to fit the maximum 32-character field for okx

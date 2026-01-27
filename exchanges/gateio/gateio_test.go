@@ -2531,9 +2531,8 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	assert.NoError(t, err)
 
@@ -2574,14 +2573,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,
 		IncludePayments: true,
-	})
-	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
-
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.ENJ, currency.USDT),
-		PaymentCurrency:      currency.USDT,
-		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 
@@ -2725,6 +2716,25 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	g.Verbose = true
+	resp, err := g.GetHistoricalContractKlineData(
+		context.Background(),
+		&futures.GetKlineContractRequest{
+			UnderlyingPair:                 currency.NewPair(currency.LTC, currency.USDT),
+			Asset:                          asset.Futures,
+			StartDate:                      time.Now().Add(-time.Hour * 24 * 200),
+			EndDate:                        time.Now(),
+			Interval:                       kline.OneDay,
+			Contract:                       futures.Quarterly,
+			IndividualContractDenomination: futures.QuoteContract,
+		},
+	)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+}
+
 func TestGetUnifiedAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2768,6 +2778,40 @@ type FixtureConnection struct{ websocket.Connection }
 
 func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
+}
+
+func BenchmarkNewButts(b *testing.B) {
+	b.ReportAllocs()
+	hello := make([]Candlestick, b.N)
+	tn := time.Now()
+
+	for i := range b.N {
+		hello[i] = Candlestick{
+			Timestamp:      tn,
+			QuoteCcyVolume: 1337,
+			ClosePrice:     1337,
+			HighestPrice:   1337,
+			LowestPrice:    1337,
+			OpenPrice:      1337,
+			BaseCcyAmount:  1337,
+		}
+	}
+}
+
+func BenchmarkNewButts2(b *testing.B) {
+	b.ReportAllocs()
+	hello := make([]Candlestick, b.N)
+	tn := time.Now()
+
+	for i := range b.N {
+		hello[i].Timestamp = tn
+		hello[i].QuoteCcyVolume = 1337
+		hello[i].ClosePrice = 1337
+		hello[i].HighestPrice = 1337
+		hello[i].LowestPrice = 1337
+		hello[i].OpenPrice = 1337
+		hello[i].BaseCcyAmount = 1337
+	}
 }
 
 func TestHandleSubscriptions(t *testing.T) {

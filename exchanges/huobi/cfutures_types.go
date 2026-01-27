@@ -420,6 +420,24 @@ type LastTradeData struct {
 	} `json:"tick"`
 }
 
+type BatchTicker struct {
+	Ch     string `json:"ch"`
+	Status string `json:"status"`
+	Ts     int64  `json:"ts"`
+	Tick   struct {
+		Id   int64 `json:"id"`
+		Ts   int64 `json:"ts"`
+		Data []struct {
+			Id        float64 `json:"id"`
+			Ts        int64   `json:"ts"`
+			TradeId   int64   `json:"trade-id"`
+			Amount    float64 `json:"amount"`
+			Price     float64 `json:"price"`
+			Direction string  `json:"direction"`
+		} `json:"data"`
+	} `json:"tick"`
+}
+
 // BatchTradesData stores batch trades for a given swap contract
 type BatchTradesData struct {
 	ID        int64                      `json:"id"`

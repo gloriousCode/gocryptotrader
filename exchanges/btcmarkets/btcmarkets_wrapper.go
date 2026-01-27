@@ -980,6 +980,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	return limits.Load(l)
 }
 
+
+
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported

@@ -286,6 +286,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Last:         ticks[0].Last,
 		Volume:       ticks[0].Volume,
 		High:         ticks[0].High24Hr,
+		OpenInterest: ticks[0].OpenInterest,
 		ExchangeName: e.Name,
 		AssetType:    a,
 	})
@@ -1114,9 +1115,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 	if r.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
-	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 
 	format, err := e.GetPairFormat(r.Asset, true)

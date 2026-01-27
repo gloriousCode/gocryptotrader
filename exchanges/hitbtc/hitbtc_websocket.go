@@ -228,18 +228,12 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		var trades []trade.Data
 		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 		for i := range tradeSnapshot.Params.Data {
 			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
 			if err != nil {
-				return &order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
@@ -375,37 +369,24 @@ func (e *Exchange) wsHandleOrderData(o *wsOrderData) error {
 	}
 	oType, err := order.StringToOrderType(o.Type)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
+		return err
+
 	}
 	o.Status = strings.Replace(o.Status, "canceled", "cancelled", 1)
 	oStatus, err := order.StringToOrderStatus(o.Status)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
+		return err
+
 	}
 	oSide, err := order.StringToOrderSide(o.Side)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
+		return err
+
 	}
 
 	p, err := currency.NewPairFromString(o.Symbol)
 	if err != nil {
-		e.Websocket.DataHandler <- order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  o.ID,
-			Err:      err,
-		}
+		return err
 	}
 
 	var a asset.Item

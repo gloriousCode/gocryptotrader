@@ -179,6 +179,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 	}
+
 	return nil
 }
 

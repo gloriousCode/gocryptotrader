@@ -192,6 +192,16 @@ func TestGetTicker(t *testing.T) {
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
 }
 
+func TestAllCurrencyPairTickers(t *testing.T) {
+	t.Parallel()
+	//b.HTTPRecording = true
+	b.Verbose = true
+	_, err := b.AllCurrencyPairTickers(context.Background())
+	if err != nil {
+		t.Error("AllCurrencyPairTickers() error", err)
+	}
+}
+
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	ob, err := e.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())

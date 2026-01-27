@@ -535,10 +535,10 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
-		if args[x].Amount <= 0 {
+		if args[x].Amount.Float64() <= 0 {
 			return nil, errInvalidAmount
 		}
-		if args[x].Price <= 0 {
+		if args[x].Price.Float64() <= 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -601,10 +601,10 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price < 0 {
+	if arg.Price.Float64() < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -1562,7 +1562,7 @@ func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoan
 	if arg.Mode != "all" && arg.Mode != "partial" {
 		return nil, errInvalidRepayMode
 	}
-	if arg.Mode == "partial" && arg.Amount <= 0 {
+	if arg.Mode == "partial" && arg.Amount.Float64() <= 0 {
 		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", errInvalidAmount)
 	}
 	var response *MarginLoanResponse

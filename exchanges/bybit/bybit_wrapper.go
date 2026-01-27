@@ -103,6 +103,7 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				TradeFetching:         true,
 				KlineFetching:         true,
@@ -1822,6 +1823,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Type:               ct,
 				SettlementCurrency: inverseContracts.List[i].SettleCoin,
 				MaxLeverage:        inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -2013,9 +2015,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
-	}
 	switch r.Asset {
 	case asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -2147,6 +2146,56 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 	}
 	return resp, nil
+}
+
+func (e *Exchange) getCachedInstrumentInfo(symbol string, a asset.Item) ([]*InstrumentInfo, error) {
+	ii, err := e.cacheInstrumentInfo(context.Background(), a)
+	if err != nil {
+		return nil, err
+	}
+	if symbol == "" {
+		return ii.List, nil
+	}
+	for i := range ii.List {
+		if ii.List[i].Symbol == symbol {
+			return []*InstrumentInfo{ii.List[i]}, nil
+		}
+	}
+	return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, symbol)
+}
+
+func (e *Exchange) cacheInstrumentInfo(ctx context.Context, a asset.Item) (*InstrumentsInfo, error) {
+	e.instrumentInfoMutex.Lock()
+	defer e.instrumentInfoMutex.Unlock()
+	if e.instrumentInfoCache == nil {
+		e.instrumentInfoCache = make(map[asset.Item]*IICH)
+	}
+	if res, ok := e.instrumentInfoCache[a]; ok && time.Since(res.TimeLoaded) < time.Minute {
+		return res.InstrumentsInfo, nil
+	}
+	var instrumentsInfo InstrumentsInfo
+	NPCT := ""
+	for {
+		instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "Trading", "", NPCT, 1000)
+		if err != nil {
+			return nil, err
+		}
+		NPCT = instrumentsInfo.NextPageCursor
+		instrumentsInfo.List = append(instrumentsInfo.List, instrumentInfo.List...)
+		if NPCT == "" {
+			break
+		}
+	}
+	e.instrumentInfoCache[a] = &IICH{
+		InstrumentsInfo: &instrumentsInfo,
+		TimeLoaded:      time.Now(),
+	}
+	return &instrumentsInfo, nil
+}
+
+type IICH struct {
+	InstrumentsInfo *InstrumentsInfo
+	TimeLoaded      time.Time
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

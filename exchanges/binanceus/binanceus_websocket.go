@@ -230,11 +230,8 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				orderID := strconv.FormatInt(data.Data.OrderID, 10)
 				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				clientOrderID := data.Data.ClientOrderID
 				if orderStatus == order.Cancelled {
@@ -242,19 +239,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				orderType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				orderSide, err := order.StringToOrderSide(data.Data.Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
+
 				}
 				e.Websocket.DataHandler <- &order.Detail{
 					Price:                data.Data.Price,
