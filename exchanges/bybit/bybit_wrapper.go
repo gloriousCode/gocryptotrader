@@ -419,6 +419,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	var nextPageCursor string
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
+		category = getCategoryName(a)
 		for {
 			response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
 			if err != nil {
@@ -2147,7 +2148,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	return resp, nil
 }
 
-func (e *Exchange) getCachedInstrumentInfo(symbol string, a asset.Item) ([]InstrumentInfo, error) {
+func (e *Exchange) getCachedInstrumentInfo(symbol string, a asset.Item) ([]*InstrumentInfo, error) {
 	ii, err := e.cacheInstrumentInfo(context.Background(), a)
 	if err != nil {
 		return nil, err
@@ -2157,7 +2158,7 @@ func (e *Exchange) getCachedInstrumentInfo(symbol string, a asset.Item) ([]Instr
 	}
 	for i := range ii.List {
 		if ii.List[i].Symbol == symbol {
-			return []InstrumentInfo{ii.List[i]}, nil
+			return []*InstrumentInfo{ii.List[i]}, nil
 		}
 	}
 	return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, symbol)

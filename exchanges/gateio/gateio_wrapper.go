@@ -1851,7 +1851,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Asset:              a,
 				StartDate:          startTime,
 				EndDate:            endTime,
-				SettlementType:     futures.Linear,
+				SettlementType:     cd,
 				IsActive:           !contracts[i].InDelisting,
 				Type:               ct,
 				SettlementCurrency: settle,

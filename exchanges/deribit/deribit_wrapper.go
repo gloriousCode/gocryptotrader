@@ -1581,10 +1581,7 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			tt = tt.Add(ct.Duration())
 			continue
 		}
-		underlying, err := currency.NewPairFromStrings(marketSummary.BaseCurrency, marketSummary.QuoteCurrency)
-		if err != nil {
-			return nil, err
-		}
+		underlying := currency.NewPair(marketSummary.BaseCurrency, marketSummary.QuoteCurrency)
 		if !underlying.Equal(underlyingPair) {
 			tt = tt.Add(ct.Duration())
 			continue
@@ -1595,16 +1592,16 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 		if err != nil {
 			return nil, err
 		}
-		var ct futures.ContractType
+		var contractType futures.ContractType
 		switch marketSummary.SettlementPeriod {
 		case "day":
-			ct = futures.Daily
+			contractType = futures.Daily
 		case "week":
-			ct = futures.Weekly
+			contractType = futures.Weekly
 		case "month":
-			ct = futures.Monthly
+			contractType = futures.Monthly
 		case "perpetual":
-			ct = futures.Perpetual
+			contractType = futures.Perpetual
 		}
 		var contractSettlementType futures.ContractSettlementType
 		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency {
@@ -1624,14 +1621,14 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			StartDate:          marketSummary.CreationTimestamp.Time(),
 			EndDate:            marketSummary.ExpirationTimestamp.Time(),
 			IsActive:           marketSummary.IsActive,
-			Type:               ct,
+			Type:               contractType,
 			SettlementType:     contractSettlementType,
-			SettlementCurrency: currency.NewCode(marketSummary.SettlementCurrency),
+			SettlementCurrency: marketSummary.SettlementCurrency,
 			Multiplier:         marketSummary.ContractSize,
 			MaxLeverage:        marketSummary.MaxLeverage,
 		})
 
-		tt = tt.Add(ct.Duration())
+		tt = tt.Add(contractType.Duration())
 	}
 	return resp, nil
 }

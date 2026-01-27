@@ -25,15 +25,15 @@ type Contract struct {
 	Type           ContractType
 	SettlementType ContractSettlementType
 	// Optional values if the exchange offers them
-	SettlementCurrencies      currency.Currencies
-	SettlementCurrency        currency.Code
-	MarginCurrency            currency.Code
-	Multiplier                float64
-	ContractValueInSettlement float64
-	MaxLeverage               float64
-	LatestRate                fundingrate.Rate
-	FundingRateFloor          decimal.Decimal
-	FundingRateCeiling        decimal.Decimal
+	SettlementCurrency             currency.Code
+	MarginCurrency                 currency.Code
+	Multiplier                     float64
+	ContractValueInSettlement      float64
+	MaxLeverage                    float64
+	LatestRate                     fundingrate.Rate
+	FundingRateFloor               decimal.Decimal
+	FundingRateCeiling             decimal.Decimal
+	AdditionalSettlementCurrencies currency.Currencies
 }
 
 type HistoricalContractKline struct {

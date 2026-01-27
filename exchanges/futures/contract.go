@@ -19,31 +19,7 @@ var (
 	ErrContractNotSupported          = errors.New("unsupported contract")
 )
 
-// Contract holds details on futures contracts
-type Contract struct {
-	Exchange       string
-	Name           currency.Pair
-	Underlying     currency.Pair
-	Asset          asset.Item
-	StartDate      time.Time
-	EndDate        time.Time
-	IsActive       bool
-	Status         string
-	Type           ContractType
-	SettlementType ContractSettlementType
-	// Optional values if the exchange offers them
-	SettlementCurrency             currency.Code
-	AdditionalSettlementCurrencies currency.Currencies
-	MarginCurrency                 currency.Code
-	Multiplier                     float64
-	MaxLeverage                    float64
-	LatestRate                     fundingrate.Rate
-	FundingRateFloor               decimal.Decimal
-	FundingRateCeiling             decimal.Decimal
-}
-
 // ContractSettlementType holds the various style of contracts offered by futures exchanges
-type ContractSettlementType uint8
 type Butteroo map[time.Time]*Butts
 
 func (c *HistoricalContractKline) Analyse() {

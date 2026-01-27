@@ -22,7 +22,7 @@ type Number struct {
 func (f *Number) UnmarshalJSON(data []byte) error {
 	switch c := data[0]; c { // From json.decode literalInterface
 	case 'n': // null
-		*f = Number(0)
+		*f = NumberFromFloat64(0)
 		return nil
 	case 't', 'f': // true, false
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data)

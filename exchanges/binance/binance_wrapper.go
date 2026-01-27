@@ -343,39 +343,28 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
+		for i := range tick {
+			p, err := e.CurrencyPairs.Match(tick[i].Symbol, a)
+			if err != nil {
+				continue
+			}
 
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
-				}
-
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice.Float64(),
-					Low:          tick[y].LowPrice.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume.Float64(),
-					QuoteVolume:  tick[y].QuoteVolume.Float64(),
-					Open:         tick[y].OpenPrice.Float64(),
-					Close:        tick[y].PrevClosePrice.Float64(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[i].LastPrice.Float64(),
+				High:         tick[i].HighPrice.Float64(),
+				Low:          tick[i].LowPrice.Float64(),
+				Bid:          tick[i].BidPrice.Float64(),
+				Ask:          tick[i].AskPrice.Float64(),
+				Volume:       tick[i].Volume.Float64(),
+				QuoteVolume:  tick[i].QuoteVolume.Float64(),
+				Open:         tick[i].OpenPrice.Float64(),
+				Close:        tick[i].PrevClosePrice.Float64(),
+				Pair:         p,
+				ExchangeName: e.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -383,26 +372,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		for y := range tick {
-			cp, isEnabled, err := e.MatchSymbolCheckEnabled(tick[y].Symbol, a, false)
+		for i := range tick {
+			p, err := e.CurrencyPairs.Match(tick[i].Symbol, a)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
-				return err
-			}
-			if !isEnabled {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice,
-				High:         tick[y].HighPrice,
-				Low:          tick[y].LowPrice,
-				Volume:       tick[y].Volume,
-				QuoteVolume:  tick[y].QuoteVolume,
-				Open:         tick[y].OpenPrice,
-				Close:        tick[y].PrevClosePrice,
-				Pair:         cp,
+				Last:         tick[i].LastPrice,
+				High:         tick[i].HighPrice,
+				Low:          tick[i].LowPrice,
+				Volume:       tick[i].Volume,
+				QuoteVolume:  tick[i].QuoteVolume,
+				Open:         tick[i].OpenPrice,
+				Close:        tick[i].PrevClosePrice,
+				Pair:         p,
 				ExchangeName: e.Name,
 				AssetType:    a,
 			})
@@ -416,21 +399,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		for y := range tick {
-			splitter := strings.Split(tick[y].Symbol, "_")
-			cp, err := currency.NewPairFromStrings(splitter[0], strings.Join(splitter[1:], ""))
+		for i := range tick {
+			p, err := e.CurrencyPairs.Match(tick[i].Symbol, a)
 			if err != nil {
-				return err
+				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice.Float64(),
-				High:         tick[y].HighPrice.Float64(),
-				Low:          tick[y].LowPrice.Float64(),
-				Volume:       tick[y].Volume.Float64(),
-				QuoteVolume:  tick[y].QuoteVolume.Float64(),
-				Open:         tick[y].OpenPrice.Float64(),
-				Close:        tick[y].PrevClosePrice.Float64(),
-				Pair:         cp,
+				Last:         tick[i].LastPrice.Float64(),
+				High:         tick[i].HighPrice.Float64(),
+				Low:          tick[i].LowPrice.Float64(),
+				Volume:       tick[i].Volume.Float64(),
+				QuoteVolume:  tick[i].QuoteVolume.Float64(),
+				Open:         tick[i].OpenPrice.Float64(),
+				Close:        tick[i].PrevClosePrice.Float64(),
+				Pair:         p,
 				ExchangeName: e.Name,
 				AssetType:    a,
 			})
@@ -1912,38 +1894,22 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	fPair := r.Pair
-	var err error
-	if !fPair.IsEmpty() {
-		var format currency.PairFormat
-		format, err = e.GetPairFormat(r.Asset, true)
-		if err != nil {
-			return nil, err
-		}
-		fPair = r.Pair.Format(format)
-	}
 
 	switch r.Asset {
 	case asset.USDTMarginedFutures:
 		var mp []UMarkPrice
-		var fri []FundingRateInfoResponse
-		fri, err = e.UGetFundingRateInfo(ctx)
+		fri, err := e.UGetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		mp, err = e.UGetMarkPrice(ctx, fPair)
+		mp, err = e.UGetMarkPrice(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
-			var cp currency.Pair
-			var isEnabled bool
-			cp, isEnabled, err = e.MatchSymbolCheckEnabled(mp[i].Symbol, r.Asset, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return nil, err
-			}
-			if !isEnabled {
+			cp, err := e.CurrencyPairs.Match(mp[i].Symbol, r.Asset)
+			if err != nil {
 				continue
 			}
 			var isPerp bool
@@ -1984,22 +1950,21 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
-		var fri []FundingRateInfoResponse
-		fri, err = e.GetFundingRateInfo(ctx)
+		fri, err := e.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		var mp []IndexMarkPrice
-		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
+
+		mp, err = e.GetIndexAndMarkPrice(ctx, "", "")
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
-			var cp currency.Pair
-			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			cp, err := e.CurrencyPairs.Match(mp[i].Symbol, r.Asset)
 			if err != nil {
-				return nil, err
+				continue
 			}
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -2951,43 +2916,45 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
-	if len(k) == 0 {
+func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(keys) == 0 {
 		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
 	}
-	for i := range k {
-		if k[i].Asset != asset.USDTMarginedFutures && k[i].Asset != asset.CoinMarginedFutures {
+	for i := range keys {
+		if keys[i].Asset != asset.USDTMarginedFutures && keys[i].Asset != asset.CoinMarginedFutures {
 			// avoid API calls or returning errors after a successful retrieval
-			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
 		}
 	}
 	var wg sync.WaitGroup
-	result := make([]futures.OpenInterest, len(k))
-	wg.Add(len(k))
-	for i := range k {
-		go func(hello int) {
-			defer wg.Done()
-			switch k[hello].Asset {
+	result := make([]futures.OpenInterest, len(keys))
+	for i := range keys {
+		wg.Go(func() {
+			fPair, err := e.FormatExchangeCurrency(keys[i].Pair(), keys[i].Asset)
+			if err != nil {
+				return
+			}
+			switch keys[i].Asset {
 			case asset.USDTMarginedFutures:
-				oi, err := e.UOpenInterest(ctx, k[hello].Pair())
+				oi, err := e.UOpenInterest(ctx, fPair)
 				if err != nil {
 					return
 				}
-				result[hello] = futures.OpenInterest{
-					Key:          key.NewExchangeAssetPair(e.Name, k[hello].Asset, k[hello].Pair()),
+				result[i] = futures.OpenInterest{
+					Key:          key.NewExchangeAssetPair(e.Name, keys[i].Asset, keys[i].Pair()),
 					OpenInterest: oi.OpenInterest,
 				}
 			case asset.CoinMarginedFutures:
-				oi, err := e.OpenInterest(ctx, k[hello].Pair())
+				oi, err := e.OpenInterest(ctx, fPair)
 				if err != nil {
 					return
 				}
-				result[hello] = futures.OpenInterest{
-					Key:          key.NewExchangeAssetPair(e.Name, k[hello].Asset, k[hello].Pair()),
+				result[i] = futures.OpenInterest{
+					Key:          key.NewExchangeAssetPair(e.Name, keys[i].Asset, keys[i].Pair()),
 					OpenInterest: oi.OpenInterest,
 				}
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 	return result, nil
