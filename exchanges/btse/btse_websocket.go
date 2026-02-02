@@ -62,8 +62,8 @@ func (e *Exchange) WsConnect() error {
 	if e.IsWebsocketAuthenticationSupported() {
 		err = e.WsAuthenticate(ctx)
 		if err != nil {
-			e.Websocket.DataHandler <- err
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return err
 		}
 	}
 
@@ -121,14 +121,15 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	type Result map[string]any
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
@@ -192,7 +193,8 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			oSide, err = order.StringToOrderSide(notification.Data[i].OrderMode)
+
+			oSide, err = order.StringToOrderSide(strings.ReplaceAll(notification.Data[i].OrderMode, "MODE_", ""))
 			if err != nil {
 				return err
 			}
@@ -213,7 +215,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				return err
 			}
 
-			e.Websocket.DataHandler <- &order.Detail{
+			if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 				Price:        notification.Data[i].Price,
 				Amount:       notification.Data[i].Size,
 				TriggerPrice: notification.Data[i].TriggerPrice,
@@ -225,6 +227,8 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				AssetType:    a,
 				Date:         notification.Data[i].Timestamp.Time(),
 				Pair:         p,
+			}); err != nil {
+				return err
 			}
 		}
 	case strings.Contains(topic, "tradeHistoryApi"):
@@ -275,7 +279,9 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 		}
 		if tradeFeed {
 			for i := range trades {
-				e.Websocket.DataHandler <- trades[i]
+				if err := e.Websocket.DataHandler.Send(ctx, trades[i]); err != nil {
+					return err
+				}
 			}
 		}
 		if saveTradeData {
