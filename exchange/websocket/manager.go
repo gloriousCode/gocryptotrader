@@ -412,9 +412,18 @@ func (m *Manager) Connect(ctx context.Context) error {
 	return m.connect(ctx)
 }
 
-func (m *Manager) EnableAndConnectNoSubs() error {
+func (m *Manager) EnableAndConnect(ctx context.Context) error {
 	if !m.IsEnabled() {
-		_ = m.EnableAndConnect()
+		_ = m.Enable(ctx)
+	}
+	m.m.Lock()
+	defer m.m.Unlock()
+	return m.connect(ctx)
+}
+
+func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
+	if !m.IsEnabled() {
+		_ = m.EnableAndConnect(ctx)
 	}
 	if m.IsConnecting() {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)
@@ -430,9 +439,8 @@ func (m *Manager) EnableAndConnectNoSubs() error {
 
 	m.setState(connectingState)
 
-	m.Wg.Add(2)
-	go m.monitorFrame(&m.Wg, m.monitorData)
-	go m.monitorFrame(&m.Wg, m.monitorTraffic)
+	m.Wg.Add(1)
+	go m.monitorFrame(ctx, &m.Wg, m.monitorTraffic)
 
 	if !m.useMultiConnectionManagement {
 		if m.connector == nil {
@@ -447,7 +455,7 @@ func (m *Manager) EnableAndConnectNoSubs() error {
 
 		if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 			// This oversees all connections and does not need to be part of wait group management.
-			go m.monitorFrame(nil, m.monitorConnection)
+			go m.monitorFrame(ctx, nil, m.monitorConnection)
 		}
 		return nil
 	}
@@ -542,7 +550,7 @@ func (m *Manager) EnableAndConnectNoSubs() error {
 
 	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.
-		go m.monitorFrame(nil, m.monitorConnection)
+		go m.monitorFrame(ctx, nil, m.monitorConnection)
 	}
 
 	return subscriptionError
@@ -746,8 +754,6 @@ func (m *Manager) Disable() error {
 	m.setEnabled(false)
 	return nil
 }
-
-
 
 // Enable enables the exchange websocket protocol
 func (m *Manager) Enable(ctx context.Context) error {

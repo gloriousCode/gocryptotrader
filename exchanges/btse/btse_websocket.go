@@ -256,12 +256,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			e.Websocket.DataHandler <- &ticker.Price{
+			if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 				Last:         tradeHistory.Data[x].Price,
 				Pair:         p,
 				ExchangeName: e.Name,
 				AssetType:    a,
 				LastUpdated:  tradeHistory.Data[x].Timestamp.Time(),
+			}); err != nil {
+				return err
 			}
 			if !e.IsSaveTradeDataEnabled() {
 				continue

@@ -464,12 +464,14 @@ func (e *Exchange) handleWsTrades(msg []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &ticker.Price{
+		if err := e.Websocket.DataHandler.Send(context.TODO(), &ticker.Price{
 			Last:         t.Price,
 			Pair:         p,
 			ExchangeName: e.Name,
 			AssetType:    a,
 			LastUpdated:  t.Timestamp,
+		}); err != nil {
+			return err
 		}
 
 		oSide, err := order.StringToOrderSide(t.Side)

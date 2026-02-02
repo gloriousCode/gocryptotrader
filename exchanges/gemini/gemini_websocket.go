@@ -294,12 +294,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			e.Websocket.DataHandler <- &ticker.Price{
+			if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 				Last:         result.Price,
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    asset.Spot,
 				LastUpdated:  result.Timestamp.Time(),
+			}); err != nil {
+				return err
 			}
 
 			if !e.IsSaveTradeDataEnabled() {
@@ -462,12 +464,14 @@ func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) 
 
 	// TODO investigate this
 	for x := range result.Trades {
-		e.Websocket.DataHandler <- &ticker.Price{
+		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			Last:         result.Trades[x].Price,
 			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			LastUpdated:  result.Trades[x].Timestamp.Time(),
+		}); err != nil {
+			return err
 		}
 	}
 
