@@ -312,6 +312,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
 				OpenInterest: ticks[x].OpenInterest.Float64(),
+				MarkPrice:    ticks[x].MarkPrice,
+				IndexPrice:   ticks[x].IndexPrice,
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -1451,7 +1453,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			}
 			oType, err := order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+				return nil, err
 			}
 			orders = append(orders, order.Detail{
 				Price:           futuresOrders.Items[i].Price,
@@ -1991,6 +1993,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(records) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
+
 	fundingRates := make([]fundingrate.Rate, 0, len(records))
 	for i := range records {
 		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timepoint.Time())) ||
