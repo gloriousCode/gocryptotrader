@@ -31,6 +31,7 @@ var (
 	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
 	ErrRequestRouteNotFound    = errors.New("request route not found")
 	ErrSignatureNotSet         = errors.New("signature not set")
+	ErrAlreadyConnected        = errors.New("websocket already connected")
 )
 
 // Private websocket errors
@@ -51,7 +52,6 @@ var (
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
-	errAlreadyConnected                     = errors.New("websocket already connected")
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
@@ -429,7 +429,7 @@ func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)
 	}
 	if m.IsConnected() {
-		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyConnected)
+		return fmt.Errorf("%v %w", m.exchangeName, ErrAlreadyConnected)
 	}
 
 	if m.subscriptions == nil {
@@ -564,7 +564,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)
 	}
 	if m.IsConnected() {
-		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyConnected)
+		return fmt.Errorf("%v %w", m.exchangeName, ErrAlreadyConnected)
 	}
 
 	if m.subscriptions == nil {
