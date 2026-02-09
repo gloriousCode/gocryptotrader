@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -27,12 +28,14 @@ const (
 type WebsocketRoutineManager struct {
 	state           int32
 	verbose         bool
+	printSummaries  bool
 	exchangeManager iExchangeManager
 	orderManager    iOrderManager
 	syncer          iCurrencyPairSyncer
 	currencyConfig  *currency.Config
 	shutdown        chan struct{}
-	dataHandlers    []WebsocketDataHandler
+	dataHandlers    atomic.Value
+	handlersInit    uint32
 	wg              sync.WaitGroup
 	mu              sync.RWMutex
 }

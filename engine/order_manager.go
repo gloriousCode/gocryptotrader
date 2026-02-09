@@ -48,6 +48,7 @@ func SetupOrderManager(exchangeManager iExchangeManager, communicationsManager i
 		activelyTrackFuturesPositions: cfg.ActivelyTrackFuturesPositions,
 		futuresPositionSeekDuration:   cfg.FuturesTrackingSeekDuration,
 		respectOrderHistoryLimits:     cfg.RespectOrderHistoryLimits,
+		printOrderSummaries:           cfg.PrintSummaries,
 		orderStore: store{
 			Orders:                    make(map[string][]*order.Detail),
 			exchangeManager:           exchangeManager,
@@ -858,8 +859,37 @@ func (m *OrderManager) Add(o *order.Detail) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
+	defer func() {
+		if m.printOrderSummaries {
+			m.printOrderSummary(o, false)
+		}
+	}()
 	return m.orderStore.add(o)
+}
+
+// printOrderSummary this function will be deprecated when a order manager
+// update is done.
+func (m *OrderManager) printOrderSummary(o *order.Detail, isUpdate bool) {
+	orderNotif := "New Order:"
+	if isUpdate {
+		orderNotif = "Order Change:"
+	}
+
+	log.Debugf(log.OrderMgr,
+		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
+		orderNotif,
+		o.Exchange,
+		o.AssetType,
+		o.Pair,
+		o.Status,
+		o.Type,
+		o.Side,
+		o.OrderID,
+		o.ClientOrderID,
+		o.Price,
+		o.Amount,
+		o.ExecutedAmount,
+		o.RemainingAmount)
 }
 
 // GetByExchangeAndID returns a copy of an order from an exchange if it matches the ID
@@ -881,6 +911,11 @@ func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
+	defer func() {
+		if m.printOrderSummaries {
+			m.printOrderSummary(od, true)
+		}
+	}()
 	return m.orderStore.updateExisting(od)
 }
 

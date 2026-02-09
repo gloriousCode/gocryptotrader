@@ -134,6 +134,7 @@ type OrderManager struct {
 	FuturesTrackingSeekDuration   time.Duration `json:"futuresTrackingSeekDuration"`
 	RespectOrderHistoryLimits     bool          `json:"respectOrderHistoryLimits"`
 	CancelOrdersOnShutdown        bool          `json:"cancelOrdersOnShutdown"`
+	PrintSummaries                bool          `json:"printSummaries"`
 }
 
 // DataHistoryManager holds all information required for the data history manager

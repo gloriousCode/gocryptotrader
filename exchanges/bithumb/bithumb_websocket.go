@@ -108,7 +108,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		updated := &ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			Last:         tick.PreviousClosePrice,
@@ -120,7 +120,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			QuoteVolume:  tick.Value,
 			Volume:       tick.Volume,
 			LastUpdated:  lu,
-		})
+		}
+		if err := ticker.ProcessTicker(updated); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, updated)
 	case "transaction":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil

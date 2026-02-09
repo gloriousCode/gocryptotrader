@@ -265,7 +265,7 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			out = append(out, ticker.Price{
+			updated := ticker.Price{
 				ExchangeName: e.Name,
 				Volume:       data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
@@ -277,7 +277,11 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 				AssetType:    a,
 				Pair:         data.CurrencyPair,
 				LastUpdated:  pushTime,
-			})
+			}
+			if err := ticker.ProcessTicker(&updated); err != nil {
+				return err
+			}
+			out = append(out, updated)
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, out)

@@ -203,17 +203,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		t.Error(err)
 	}
 
-	classificationError := order.ClassificationError{
-		Exchange: "test",
-		OrderID:  "one",
-		Err:      errors.New("lol"),
-	}
-	err = m.websocketDataHandler(exchName, classificationError)
-	if err == nil {
-		t.Error("Expected error")
-	}
-	assert.ErrorIs(t, err, classificationError.Err)
-
 	err = m.websocketDataHandler(exchName, &orderbook.Book{
 		Exchange: "Bitstamp",
 		Pair:     currency.NewBTCUSD(),
@@ -253,8 +242,9 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	err = m.registerWebsocketDataHandler(fn, true)
 	require.NoError(t, err)
 
-	if len(m.dataHandlers) != 1 {
-		t.Fatal("unexpected data handlers registered")
+	dh := m.dataHandlers.Load()
+	if len(dh.([]WebsocketDataHandler)) != 1 {
+		t.Fatal("unexpected data handler count")
 	}
 
 	mock := websocket.NewManager()
@@ -299,15 +289,15 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 
 	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
 	require.NoError(t, err)
-
-	if len(m.dataHandlers) != 3 {
+	dh := m.dataHandlers.Load()
+	if len(dh.([]WebsocketDataHandler)) != 3 {
 		t.Fatal("unexpected data handler count")
 	}
 
 	err = m.setWebsocketDataHandler(m.websocketDataHandler)
 	require.NoError(t, err)
 
-	if len(m.dataHandlers) != 1 {
+	if len(dh.([]WebsocketDataHandler)) != 1 {
 		t.Fatal("unexpected data handler count")
 	}
 }

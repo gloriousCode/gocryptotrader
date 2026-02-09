@@ -50,6 +50,7 @@ type OrderManager struct {
 	activelyTrackFuturesPositions bool
 	futuresPositionSeekDuration   time.Duration
 	respectOrderHistoryLimits     bool
+	printOrderSummaries           bool
 }
 
 // store holds all orders by exchange

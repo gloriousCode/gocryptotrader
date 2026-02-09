@@ -39,6 +39,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		syncer:          syncer,
 		currencyConfig:  cfg,
 	}
+	man.ensureHandlersInit()
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
 
@@ -172,13 +173,13 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				if payload.Data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
 				}
-				m.mu.RLock()
-				for x := range m.dataHandlers {
-					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
+				m.ensureHandlersInit()
+				handlers := m.dataHandlers.Load().([]WebsocketDataHandler)
+				for x := range handlers {
+					if err := handlers[x](ws.GetName(), payload.Data); err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
-				m.mu.RUnlock()
 			}
 		}
 	})
@@ -191,46 +192,44 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
+		if !m.verbose {
+			return nil
+		}
 		log.Infoln(log.WebsocketMgr, d)
 	case error:
-		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
+		return fmt.Errorf("exchange %s websocket error - %v", exchName, data)
 	case websocket.FundingData:
-		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				m.FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
+			exchName,
+			m.FormatCurrency(d.CurrencyPair),
+			d.AssetType,
+			d)
 	case *ticker.Price:
-		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
-				SyncItemTicker,
-				nil)
-			if err != nil {
-				return err
-			}
+		if !m.syncer.IsRunning() {
+			return nil
 		}
-		err := ticker.ProcessTicker(d)
+		err := m.syncer.WebsocketUpdate(exchName,
+			d.Pair,
+			d.AssetType,
+			SyncItemTicker,
+			nil)
 		if err != nil {
 			return err
 		}
 		m.syncer.PrintTickerSummary(d, "websocket", err)
 	case []ticker.Price:
+		if !m.syncer.IsRunning() {
+			return nil
+		}
 		for x := range d {
-			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
-				if err != nil {
-					return err
-				}
-			}
-			err := ticker.ProcessTicker(&d[x])
+			err := m.syncer.WebsocketUpdate(exchName,
+				d[x].Pair,
+				d[x].AssetType,
+				SyncItemTicker,
+				nil)
 			if err != nil {
 				return err
 			}
@@ -239,50 +238,37 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
 	case websocket.KlineData:
-		if m.verbose {
+		if !m.verbose {
+			return nil
+		}
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
+			exchName,
+			m.FormatCurrency(d.Pair),
+			d.AssetType,
+			d)
+	case []websocket.KlineData:
+		if !m.verbose {
+			return nil
+		}
+		for x := range d {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
-				m.FormatCurrency(d.Pair),
-				d.AssetType,
+				m.FormatCurrency(d[x].Pair),
+				d[x].AssetType,
 				d)
 		}
-	case []websocket.KlineData:
-		for x := range d {
-			if m.verbose {
-				log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-					exchName,
-					m.FormatCurrency(d[x].Pair),
-					d[x].AssetType,
-					d)
-			}
-		}
 	case *orderbook.Depth:
-		base, err := d.Retrieve()
-		if err != nil {
+		if !m.syncer.IsRunning() {
+			return nil
+		}
+		if err := m.syncer.WebsocketUpdate(exchName, d.Pair(), d.Asset(), SyncItemOrderbook, nil); err != nil {
 			return err
 		}
-		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				base.Pair,
-				base.Asset,
-				SyncItemOrderbook,
-				nil)
-			if err != nil {
-				return err
-			}
-		}
-		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
 		if !m.orderManager.IsRunning() {
 			return nil
 		}
-		if !m.orderManager.Exists(d) {
-			err := m.orderManager.Add(d)
-			if err != nil {
-				return err
-			}
-			m.printOrderSummary(d, false)
-		} else {
+		if m.orderManager.Exists(d) {
 			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.OrderID)
 			if err != nil {
 				return err
@@ -291,25 +277,22 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-
 			err = m.orderManager.UpdateExistingOrder(od)
 			if err != nil {
 				return err
 			}
-			m.printOrderSummary(od, true)
+		} else {
+			err := m.orderManager.Add(d)
+			if err != nil {
+				return err
+			}
 		}
 	case []order.Detail:
 		if !m.orderManager.IsRunning() {
 			return nil
 		}
 		for x := range d {
-			if !m.orderManager.Exists(&d[x]) {
-				err := m.orderManager.Add(&d[x])
-				if err != nil {
-					return err
-				}
-				m.printOrderSummary(&d[x], false)
-			} else {
+			if m.orderManager.Exists(&d[x]) {
 				od, err := m.orderManager.GetByExchangeAndID(d[x].Exchange, d[x].OrderID)
 				if err != nil {
 					return err
@@ -322,29 +305,38 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				if err != nil {
 					return err
 				}
-				m.printOrderSummary(od, true)
+			} else {
+				err := m.orderManager.Add(&d[x])
+				if err != nil {
+					return err
+				}
 			}
 		}
-	case order.ClassificationError:
-		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
+		if !m.verbose {
+			return nil
+		}
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case []accounts.Change, accounts.Change:
-		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
+		if !m.verbose {
+			return nil
 		}
+		log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
 	case []trade.Data, trade.Data:
-		if m.verbose {
-			log.Infof(log.Trade, "%+v", d)
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.Trade, "%+v", d)
 	case []fill.Data:
-		if m.verbose {
-			log.Infof(log.Fill, "%+v", d)
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.Fill, "%+v", d)
 	default:
-		if m.verbose {
-			log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
+		if !m.verbose {
+			return nil
 		}
+		log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
 	}
 	return nil
 }
@@ -356,35 +348,6 @@ func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 		return p
 	}
 	return p.Format(*m.currencyConfig.CurrencyPairFormat)
-}
-
-// printOrderSummary this function will be deprecated when a order manager
-// update is done.
-func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o == nil {
-		return
-	}
-
-	orderNotif := "New Order:"
-	if isUpdate {
-		orderNotif = "Order Change:"
-	}
-
-	log.Debugf(log.WebsocketMgr,
-		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
-		orderNotif,
-		o.Exchange,
-		o.AssetType,
-		o.Pair,
-		o.Status,
-		o.Type,
-		o.Side,
-		o.OrderID,
-		o.ClientOrderID,
-		o.Price,
-		o.Amount,
-		o.ExecutedAmount,
-		o.RemainingAmount)
 }
 
 // registerWebsocketDataHandler registers an externally (GCT Library) defined
@@ -404,10 +367,15 @@ func (m *WebsocketRoutineManager) registerWebsocketDataHandler(fn WebsocketDataH
 		return m.setWebsocketDataHandler(fn)
 	}
 
+	m.ensureHandlersInit()
 	m.mu.Lock()
+	handlers := m.dataHandlers.Load().([]WebsocketDataHandler)
 	// Push front so that any registered data handler has first preference
 	// over the gct default handler.
-	m.dataHandlers = append([]WebsocketDataHandler{fn}, m.dataHandlers...)
+	next := make([]WebsocketDataHandler, 0, len(handlers)+1)
+	next = append(next, fn)
+	next = append(next, handlers...)
+	m.dataHandlers.Store(next)
 	m.mu.Unlock()
 	return nil
 }
@@ -421,8 +389,21 @@ func (m *WebsocketRoutineManager) setWebsocketDataHandler(fn WebsocketDataHandle
 	if fn == nil {
 		return errNilWebsocketDataHandlerFunction
 	}
+	m.ensureHandlersInit()
 	m.mu.Lock()
-	m.dataHandlers = []WebsocketDataHandler{fn}
+	m.dataHandlers.Store([]WebsocketDataHandler{fn})
 	m.mu.Unlock()
 	return nil
+}
+
+func (m *WebsocketRoutineManager) ensureHandlersInit() {
+	if m == nil || atomic.LoadUint32(&m.handlersInit) == 1 {
+		return
+	}
+	m.mu.Lock()
+	if m.handlersInit == 0 {
+		m.dataHandlers.Store([]WebsocketDataHandler{})
+		atomic.StoreUint32(&m.handlersInit, 1)
+	}
+	m.mu.Unlock()
 }
