@@ -2293,14 +2293,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	sd := r.StartDate
 	maxLookback := time.Now().Add(-e.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
-		if r.RespectHistoryLimits {
-			r.StartDate = maxLookback
-		} else {
-			return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
-		}
-		if r.EndDate.Before(maxLookback) {
-			return nil, futures.ErrGetFundingDataRequired
-		}
 		r.StartDate = maxLookback
 	}
 	format, err := e.GetPairFormat(r.Asset, true)

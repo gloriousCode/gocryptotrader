@@ -458,9 +458,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pa
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params.Set("currency_pair", currencyPair.String())
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
+	params.Set("limit", "1000")
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string

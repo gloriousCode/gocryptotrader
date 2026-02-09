@@ -6,7 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// GateIO endpoints limits. See: https://www.gate.io/docs/developers/apiv4/en/#frequency-limit-rule
+// GateIO endpoints limits. See: https://www.gate.com/docs/developers/apiv4/ (public endpoints are 200r/10s per endpoint).
 const (
 	publicTickersSpotEPL request.EndpointLimit = iota + 1
 	publicOrderbookSpotEPL
@@ -204,13 +204,13 @@ const (
 
 // package level rate limits for REST API
 var packageRateLimits = request.RateLimitDefinitions{
-	publicOrderbookSpotEPL:          standardRateLimit(),
-	publicMarketTradesSpotEPL:       standardRateLimit(),
-	publicCandleStickSpotEPL:        standardRateLimit(),
-	publicTickersSpotEPL:            standardRateLimit(),
-	publicCurrencyPairDetailSpotEPL: standardRateLimit(),
-	publicListCurrencyPairsSpotEPL:  standardRateLimit(),
-	publicCurrenciesSpotEPL:         standardRateLimit(),
+	publicOrderbookSpotEPL:          publicRateLimit(),
+	publicMarketTradesSpotEPL:       publicRateLimit(),
+	publicCandleStickSpotEPL:        publicRateLimit(),
+	publicTickersSpotEPL:            publicRateLimit(),
+	publicCurrencyPairDetailSpotEPL: publicRateLimit(),
+	publicListCurrencyPairsSpotEPL:  publicRateLimit(),
+	publicCurrenciesSpotEPL:         publicRateLimit(),
 
 	publicCurrencyPairsMarginEPL: standardRateLimit(),
 	publicOrderbookMarginEPL:     standardRateLimit(),
@@ -222,28 +222,28 @@ var packageRateLimits = request.RateLimitDefinitions{
 	publicCandleSticksDeliveryEPL:   standardRateLimit(),
 	publicTickersDeliveryEPL:        standardRateLimit(),
 
-	publicFuturesContractsEPL:      standardRateLimit(),
-	publicOrderbookFuturesEPL:      standardRateLimit(),
-	publicTradingHistoryFuturesEPL: standardRateLimit(),
-	publicCandleSticksFuturesEPL:   standardRateLimit(),
-	publicPremiumIndexEPL:          standardRateLimit(),
-	publicTickersFuturesEPL:        standardRateLimit(),
-	publicFundingRatesEPL:          standardRateLimit(),
-	publicInsuranceFuturesEPL:      standardRateLimit(),
-	publicStatsFuturesEPL:          standardRateLimit(),
-	publicIndexConstituentsEPL:     standardRateLimit(),
-	publicLiquidationHistoryEPL:    standardRateLimit(),
+	publicFuturesContractsEPL:      publicRateLimit(),
+	publicOrderbookFuturesEPL:      publicRateLimit(),
+	publicTradingHistoryFuturesEPL: publicRateLimit(),
+	publicCandleSticksFuturesEPL:   publicRateLimit(),
+	publicPremiumIndexEPL:          publicRateLimit(),
+	publicTickersFuturesEPL:        publicRateLimit(),
+	publicFundingRatesEPL:          publicRateLimit(),
+	publicInsuranceFuturesEPL:      publicRateLimit(),
+	publicStatsFuturesEPL:          publicRateLimit(),
+	publicIndexConstituentsEPL:     publicRateLimit(),
+	publicLiquidationHistoryEPL:    publicRateLimit(),
 
-	publicUnderlyingOptionsEPL:            standardRateLimit(),
-	publicExpirationOptionsEPL:            standardRateLimit(),
-	publicContractsOptionsEPL:             standardRateLimit(),
-	publicSettlementOptionsEPL:            standardRateLimit(),
-	publicOrderbookOptionsEPL:             standardRateLimit(),
-	publicTickerOptionsEPL:                standardRateLimit(),
-	publicUnderlyingTickerOptionsEPL:      standardRateLimit(),
-	publicCandleSticksOptionsEPL:          standardRateLimit(),
-	publicMarkpriceCandleSticksOptionsEPL: standardRateLimit(),
-	publicTradeHistoryOptionsEPL:          standardRateLimit(),
+	publicUnderlyingOptionsEPL:            publicRateLimit(),
+	publicExpirationOptionsEPL:            publicRateLimit(),
+	publicContractsOptionsEPL:             publicRateLimit(),
+	publicSettlementOptionsEPL:            publicRateLimit(),
+	publicOrderbookOptionsEPL:             publicRateLimit(),
+	publicTickerOptionsEPL:                publicRateLimit(),
+	publicUnderlyingTickerOptionsEPL:      publicRateLimit(),
+	publicCandleSticksOptionsEPL:          publicRateLimit(),
+	publicMarkpriceCandleSticksOptionsEPL: publicRateLimit(),
+	publicTradeHistoryOptionsEPL:          publicRateLimit(),
 
 	publicGetServerTimeEPL:     standardRateLimit(),
 	publicFlashSwapEPL:         standardRateLimit(),
@@ -389,13 +389,17 @@ var packageRateLimits = request.RateLimitDefinitions{
 	websocketRateLimitNotNeededEPL: nil, // no rate limit for certain websocket functions
 
 	// Risk limits
-	publicFuturesRiskTableEPL:       standardRateLimit(),
-	publicFuturesRiskLimitTiersEPL:  standardRateLimit(),
-	publicDeliveryRiskLimitTiersEPL: standardRateLimit(),
+	publicFuturesRiskTableEPL:       publicRateLimit(),
+	publicFuturesRiskLimitTiersEPL:  publicRateLimit(),
+	publicDeliveryRiskLimitTiersEPL: publicRateLimit(),
 	unifiedUserRiskUnitDetailsEPL:   standardRateLimit(),
 	deliveryUpdateRiskLimitEPL:      standardRateLimit(),
 	perpetualUpdateRiskDualModeEPL:  standardRateLimit(),
 	perpetualUpdateRiskEPL:          standardRateLimit(),
+}
+
+func publicRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second*10, 200, 1)
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {
