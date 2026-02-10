@@ -44,7 +44,9 @@ type SyncManager struct {
 	currencyPairs            map[key.ExchangeAssetPair]*currencyPairSyncAgent
 	tickerBatchLastRequested map[key.ExchangeAsset]time.Time
 
-	remoteConfig    *config.RemoteControlConfig
-	config          config.SyncManagerConfig
-	exchangeManager iExchangeManager
+	remoteConfig            *config.RemoteControlConfig
+	config                  config.SyncManagerConfig
+	exchangeManager         iExchangeManager
+	tickerThresholdCount    uint64
+	orderbookThresholdCount uint64
 }

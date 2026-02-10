@@ -28,16 +28,14 @@ const (
 type WebsocketRoutineManager struct {
 	state           int32
 	verbose         bool
-	printSummaries  bool
 	exchangeManager iExchangeManager
 	orderManager    iOrderManager
 	syncer          iCurrencyPairSyncer
 	currencyConfig  *currency.Config
-	shutdown        chan struct{}
+	shutdown        chan any
 	dataHandlers    atomic.Value
 	handlersInit    uint32
 	wg              sync.WaitGroup
-	mu              sync.RWMutex
 }
 
 // WebsocketDataHandler defines a function signature for a function that handles

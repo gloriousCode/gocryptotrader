@@ -77,6 +77,13 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		return nil, fmt.Errorf("%s %w", c.FiatDisplayCurrency, currency.ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
+	if c.OrderbookSummaryThreshold == 0 {
+		c.OrderbookSummaryThreshold = 10
+	}
+	if c.TickerSummaryThreshold == 0 {
+		c.TickerSummaryThreshold = 10
+	}
+
 	if c.PairFormatDisplay == nil {
 		return nil, fmt.Errorf("%T %w", c.PairFormatDisplay, common.ErrNilPointer)
 	}
@@ -701,7 +708,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 	)
 }
 
-// PrintTickerSummary outputs the ticker results
+// PrintTickerSummary outputs the ticker results.
 func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, err error) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
@@ -710,30 +717,27 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		return
 	}
 	if err != nil {
-		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.SyncMgr, "Failed to get %s ticker. Error: %s",
-				protocol,
-				err)
-			return
-		}
 		log.Errorf(log.SyncMgr, "Failed to get %s ticker. Error: %s",
 			protocol,
 			err)
 		return
 	}
-
 	// ignoring error as not all tickers have volume populated and error is not actionable
 	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
-
+	m.tickerThresholdCount++
+	if m.tickerThresholdCount < m.config.TickerSummaryThreshold {
+		return
+	}
+	m.tickerThresholdCount = 0
 	if currency.ForexEnabled() &&
 		result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+		log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f after %v updates",
 			result.ExchangeName,
 			protocol,
 			m.FormatCurrency(result.Pair),
@@ -743,12 +747,13 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 			printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
 			printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
-			result.Volume)
+			result.Volume,
+			m.config.TickerSummaryThreshold)
 	} else {
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 			!m.fiatDisplayCurrency.IsEmpty() {
-			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f",
+			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f after %v updates",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -758,9 +763,10 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Bid, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.High, m.fiatDisplayCurrency),
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
-				result.Volume)
+				result.Volume,
+				m.config.TickerSummaryThreshold)
 		} else {
-			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f",
+			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f after %v updates",
 				result.ExchangeName,
 				protocol,
 				m.FormatCurrency(result.Pair),
@@ -770,7 +776,8 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				result.Bid,
 				result.High,
 				result.Low,
-				result.Volume)
+				result.Volume,
+				m.config.TickerSummaryThreshold)
 		}
 	}
 }
@@ -785,11 +792,42 @@ func (m *SyncManager) FormatCurrency(cp currency.Pair) string {
 }
 
 const (
-	book = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s"
+	book = "%s %s %s %s ORDERBOOK: Bids len: %d Amount: %f %s. Total value: %s Asks len: %d Amount: %f %s. Total value: %s after %v updates"
 )
 
-// PrintOrderbookSummary outputs orderbook results
-func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol string, err error) {
+func (m *SyncManager) PrintWebsocketOrderbookSummary(result *orderbook.Depth) {
+	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+		return
+	}
+	if !m.config.SynchronizeOrderbook {
+		return
+	}
+	if !m.config.LogSyncUpdateEvents {
+		return
+	}
+	if err := common.NilGuard(result); err != nil {
+		return
+	}
+	m.orderbookThresholdCount++
+	if m.orderbookThresholdCount < m.config.OrderbookSummaryThreshold {
+		return
+	}
+	m.orderbookThresholdCount = 0
+	o, err := result.Retrieve()
+	if err != nil {
+		log.Errorf(log.OrderBook, "Failed to retrieve orderbook for %s %s %s %s. Error: %s",
+			result.Exchange(),
+			m.FormatCurrency(result.Pair()),
+			strings.ToUpper(result.Asset().String()),
+			"Websocket",
+			err)
+		return
+	}
+	m.printBookSummary(o, "websocket")
+}
+
+// PrintOrderbookSummary outputs orderbook results.
+func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol string, err error, summaryEvery ...uint64) {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
 		return
 	}
@@ -797,21 +835,6 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol str
 		return
 	}
 	if err != nil {
-		if result == nil {
-			log.Errorf(log.OrderBook, "Failed to get %s orderbook. Error: %s",
-				protocol,
-				err)
-			return
-		}
-		if err == common.ErrNotYetImplemented {
-			log.Warnf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s",
-				protocol,
-				result.Exchange,
-				result.Pair,
-				result.Asset,
-				err)
-			return
-		}
 		log.Errorf(log.OrderBook, "Failed to get %s orderbook for %s %s %s. Error: %s",
 			protocol,
 			result.Exchange,
@@ -823,6 +846,15 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol str
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
+	m.orderbookThresholdCount++
+	if m.orderbookThresholdCount < m.config.OrderbookSummaryThreshold {
+		return
+	}
+	m.orderbookThresholdCount = 0
+	m.printBookSummary(result, protocol)
+}
+
+func (m *SyncManager) printBookSummary(result *orderbook.Book, protocol string) {
 	bidsAmount, bidsValue := result.TotalBidsAmount()
 	asksAmount, asksValue := result.TotalAsksAmount()
 
@@ -857,6 +889,7 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol str
 		asksAmount,
 		result.Pair.Base,
 		askValueResult,
+		m.config.OrderbookSummaryThreshold,
 	)
 }
 

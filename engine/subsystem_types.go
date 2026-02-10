@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -54,11 +53,7 @@ type iCommsManager interface {
 // iOrderManager defines a limited scoped order manager
 type iOrderManager interface {
 	IsRunning() bool
-	Exists(*order.Detail) bool
-	Add(*order.Detail) error
-	Cancel(context.Context, *order.Cancel) error
-	GetByExchangeAndID(string, string) (*order.Detail, error)
-	UpdateExistingOrder(*order.Detail) error
+	DataHandlerUpsert(*order.Detail) error
 }
 
 // iPortfolioManager limits exposure of accessible functions to portfolio manager
@@ -72,7 +67,7 @@ type iPortfolioManager interface {
 type iCurrencyPairSyncer interface {
 	IsRunning() bool
 	PrintTickerSummary(*ticker.Price, string, error)
-	PrintOrderbookSummary(*orderbook.Book, string, error)
+	PrintWebsocketOrderbookSummary(*orderbook.Depth)
 	WebsocketUpdate(string, currency.Pair, asset.Item, syncItemType, error) error
 }
 

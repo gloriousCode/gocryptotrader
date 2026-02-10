@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -23,11 +22,13 @@ type benchSyncer struct {
 	running bool
 }
 
+var benchErrSink uint64
+
 func (b benchSyncer) IsRunning() bool { return b.running }
 
 func (b benchSyncer) PrintTickerSummary(_ *ticker.Price, _ string, _ error) {}
 
-func (b benchSyncer) PrintOrderbookSummary(_ *orderbook.Book, _ string, _ error) {}
+func (b benchSyncer) PrintWebsocketOrderbookSummary(*orderbook.Depth) {}
 
 func (b benchSyncer) WebsocketUpdate(_ string, _ currency.Pair, _ asset.Item, _ syncItemType, _ error) error {
 	return nil
@@ -39,17 +40,7 @@ type benchOrderManager struct {
 
 func (b benchOrderManager) IsRunning() bool { return b.running }
 
-func (b benchOrderManager) Exists(_ *order.Detail) bool { return false }
-
-func (b benchOrderManager) Add(_ *order.Detail) error { return nil }
-
-func (b benchOrderManager) Cancel(_ context.Context, _ *order.Cancel) error { return nil }
-
-func (b benchOrderManager) GetByExchangeAndID(_ string, _ string) (*order.Detail, error) {
-	return &order.Detail{}, nil
-}
-
-func (b benchOrderManager) UpdateExistingOrder(_ *order.Detail) error { return nil }
+func (b benchOrderManager) DataHandlerUpsert(_ *order.Detail) error { return nil }
 
 type handlerBenchmarkCase struct {
 	name          string

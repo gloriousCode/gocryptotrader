@@ -166,7 +166,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err := m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
+	updated, err := om.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,7 +182,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	updated, err = m.orderManager.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
+	updated, err = om.GetByExchangeAndID(origOrder.Exchange, origOrder.OrderID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -223,7 +223,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = new(WebsocketRoutineManager)
-	m.shutdown = make(chan struct{})
+	m.shutdown = make(chan any)
 
 	err = m.registerWebsocketDataHandler(nil, false)
 	require.ErrorIs(t, err, errNilWebsocketDataHandlerFunction)
@@ -276,7 +276,7 @@ func TestSetWebsocketDataHandler(t *testing.T) {
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
 	m = new(WebsocketRoutineManager)
-	m.shutdown = make(chan struct{})
+	m.shutdown = make(chan any)
 
 	err = m.setWebsocketDataHandler(nil)
 	require.ErrorIs(t, err, errNilWebsocketDataHandlerFunction)

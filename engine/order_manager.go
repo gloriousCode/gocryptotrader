@@ -867,6 +867,22 @@ func (m *OrderManager) Add(o *order.Detail) error {
 	return m.orderStore.add(o)
 }
 
+// DataHandlerUpsert will add an order if it does not exist or update the existing order
+func (m *OrderManager) DataHandlerUpsert(o *order.Detail) error {
+	if m.Exists(o) {
+		od, err := m.GetByExchangeAndID(o.Exchange, o.OrderID)
+		if err != nil {
+			return err
+		}
+		err = od.UpdateOrderFromDetail(o)
+		if err != nil {
+			return err
+		}
+		return m.UpdateExistingOrder(od)
+	}
+	return m.Add(o)
+}
+
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
 func (m *OrderManager) printOrderSummary(o *order.Detail, isUpdate bool) {

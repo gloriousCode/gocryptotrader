@@ -155,16 +155,18 @@ type CurrencyStateManager struct {
 
 // SyncManagerConfig stores the currency pair synchronization manager config
 type SyncManagerConfig struct {
-	Enabled                 bool                 `json:"enabled"`
-	SynchronizeTicker       bool                 `json:"synchronizeTicker"`
-	SynchronizeOrderbook    bool                 `json:"synchronizeOrderbook"`
-	SynchronizeTrades       bool                 `json:"synchronizeTrades"`
-	SynchronizeContinuously bool                 `json:"synchronizeContinuously"`
-	TimeoutREST             time.Duration        `json:"timeoutREST"`
-	TimeoutWebsocket        time.Duration        `json:"timeoutWebsocket"`
-	NumWorkers              int                  `json:"numWorkers"`
-	FiatDisplayCurrency     currency.Code        `json:"fiatDisplayCurrency"`
-	PairFormatDisplay       *currency.PairFormat `json:"pairFormatDisplay,omitempty"`
+	Enabled                   bool                 `json:"enabled"`
+	SynchronizeTicker         bool                 `json:"synchronizeTicker"`
+	TickerSummaryThreshold    uint64               `json:"tickerSummaryThreshold"`
+	SynchronizeOrderbook      bool                 `json:"synchronizeOrderbook"`
+	OrderbookSummaryThreshold uint64               `json:"orderbookSummaryThreshold"`
+	SynchronizeTrades         bool                 `json:"synchronizeTrades"`
+	SynchronizeContinuously   bool                 `json:"synchronizeContinuously"`
+	TimeoutREST               time.Duration        `json:"timeoutREST"`
+	TimeoutWebsocket          time.Duration        `json:"timeoutWebsocket"`
+	NumWorkers                int                  `json:"numWorkers"`
+	FiatDisplayCurrency       currency.Code        `json:"fiatDisplayCurrency"`
+	PairFormatDisplay         *currency.PairFormat `json:"pairFormatDisplay,omitempty"`
 	// log events
 	Verbose                 bool `json:"verbose"`
 	LogSyncUpdateEvents     bool `json:"logSyncUpdateEvents"`
