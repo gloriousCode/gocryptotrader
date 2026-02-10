@@ -727,11 +727,9 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
-	m.tickerThresholdCount++
-	if m.tickerThresholdCount < m.config.TickerSummaryThreshold {
+	if !m.shouldLogSummary(&m.tickerSummaryCounters, key.NewExchangeAssetPair(result.ExchangeName, result.AssetType, result.Pair), m.config.TickerSummaryThreshold) {
 		return
 	}
-	m.tickerThresholdCount = 0
 	if currency.ForexEnabled() &&
 		result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
@@ -808,11 +806,9 @@ func (m *SyncManager) PrintWebsocketOrderbookSummary(result *orderbook.Depth) {
 	if err := common.NilGuard(result); err != nil {
 		return
 	}
-	m.orderbookThresholdCount++
-	if m.orderbookThresholdCount < m.config.OrderbookSummaryThreshold {
+	if !m.shouldLogSummary(&m.orderbookSummaryCounters, result.Key(), m.config.OrderbookSummaryThreshold) {
 		return
 	}
-	m.orderbookThresholdCount = 0
 	o, err := result.Retrieve()
 	if err != nil {
 		log.Errorf(log.OrderBook, "Failed to retrieve orderbook for %s %s %s %s. Error: %s",
@@ -846,12 +842,18 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol str
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
-	m.orderbookThresholdCount++
-	if m.orderbookThresholdCount < m.config.OrderbookSummaryThreshold {
+	if !m.shouldLogSummary(&m.orderbookSummaryCounters, key.NewExchangeAssetPair(result.Exchange, result.Asset, result.Pair), m.config.OrderbookSummaryThreshold) {
 		return
 	}
-	m.orderbookThresholdCount = 0
 	m.printBookSummary(result, protocol)
+}
+
+func (m *SyncManager) shouldLogSummary(counters *sync.Map, k key.ExchangeAssetPair, threshold uint64) bool {
+	if threshold <= 1 {
+		return true
+	}
+	counter, _ := counters.LoadOrStore(k, new(uint64))
+	return atomic.AddUint64(counter.(*uint64), 1)%threshold == 0
 }
 
 func (m *SyncManager) printBookSummary(result *orderbook.Book, protocol string) {
