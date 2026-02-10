@@ -29,8 +29,9 @@ const (
 	SyncItemTicker syncItemType = iota
 	SyncItemOrderbook
 	SyncItemTrade
-	SyncManagerName = "exchange_syncer"
-	minSyncInterval = time.Second
+	SyncManagerName         = "exchange_syncer"
+	minSyncInterval         = time.Second
+	summaryThresholdDefault = 10
 )
 
 var (
@@ -77,11 +78,11 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		return nil, fmt.Errorf("%s %w", c.FiatDisplayCurrency, currency.ErrFiatDisplayCurrencyIsNotFiat)
 	}
 
-	if c.OrderbookSummaryThreshold == 0 {
-		c.OrderbookSummaryThreshold = 10
+	if c.OrderbookSummaryThreshold <= 1 {
+		c.OrderbookSummaryThreshold = summaryThresholdDefault
 	}
-	if c.TickerSummaryThreshold == 0 {
-		c.TickerSummaryThreshold = 10
+	if c.TickerSummaryThreshold <= 1 {
+		c.TickerSummaryThreshold = summaryThresholdDefault
 	}
 
 	if c.PairFormatDisplay == nil {
@@ -722,32 +723,37 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 			err)
 		return
 	}
+	k := key.NewExchangeAssetPair(result.ExchangeName, result.AssetType, result.Pair)
 	// ignoring error as not all tickers have volume populated and error is not actionable
-	_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	if m.shouldLogSummary(&m.tickerStatsCounters, k, m.config.TickerSummaryThreshold) {
+		_ = stats.Add(result.ExchangeName, result.Pair, result.AssetType, result.Last, result.Volume)
+	}
 	if !m.config.LogSyncUpdateEvents {
 		return
 	}
-	if !m.shouldLogSummary(&m.tickerSummaryCounters, key.NewExchangeAssetPair(result.ExchangeName, result.AssetType, result.Pair), m.config.TickerSummaryThreshold) {
+	if !m.shouldLogSummary(&m.tickerSummaryCounters, k, m.config.TickerSummaryThreshold) {
 		return
 	}
-	if currency.ForexEnabled() &&
-		result.Pair.Quote.IsFiatCurrency() &&
-		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
-		!m.fiatDisplayCurrency.IsEmpty() {
-		origCurrency := result.Pair.Quote.Upper()
-		log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f after %v updates",
-			result.ExchangeName,
-			protocol,
-			m.FormatCurrency(result.Pair),
-			strings.ToUpper(result.AssetType.String()),
-			printConvertCurrencyFormat(result.Last, origCurrency, m.fiatDisplayCurrency),
-			printConvertCurrencyFormat(result.Ask, origCurrency, m.fiatDisplayCurrency),
-			printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
-			printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
-			printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
-			result.Volume,
-			m.config.TickerSummaryThreshold)
-	} else {
+	{
+		if currency.ForexEnabled() &&
+			result.Pair.Quote.IsFiatCurrency() &&
+			!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
+			!m.fiatDisplayCurrency.IsEmpty() {
+			origCurrency := result.Pair.Quote.Upper()
+			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %s Ask %s Bid %s High %s Low %s Volume %.8f after %v updates",
+				result.ExchangeName,
+				protocol,
+				m.FormatCurrency(result.Pair),
+				strings.ToUpper(result.AssetType.String()),
+				printConvertCurrencyFormat(result.Last, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Ask, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Bid, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.High, origCurrency, m.fiatDisplayCurrency),
+				printConvertCurrencyFormat(result.Low, origCurrency, m.fiatDisplayCurrency),
+				result.Volume,
+				m.config.TickerSummaryThreshold)
+			return
+		}
 		if result.Pair.Quote.IsFiatCurrency() &&
 			result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 			!m.fiatDisplayCurrency.IsEmpty() {
@@ -763,20 +769,20 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 				printCurrencyFormat(result.Low, m.fiatDisplayCurrency),
 				result.Volume,
 				m.config.TickerSummaryThreshold)
-		} else {
-			log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f after %v updates",
-				result.ExchangeName,
-				protocol,
-				m.FormatCurrency(result.Pair),
-				strings.ToUpper(result.AssetType.String()),
-				result.Last,
-				result.Ask,
-				result.Bid,
-				result.High,
-				result.Low,
-				result.Volume,
-				m.config.TickerSummaryThreshold)
+			return
 		}
+		log.Infof(log.SyncMgr, "%s %s %s %s TICKER: Last %.8f Ask %.8f Bid %.8f High %.8f Low %.8f Volume %.8f after %v updates",
+			result.ExchangeName,
+			protocol,
+			m.FormatCurrency(result.Pair),
+			strings.ToUpper(result.AssetType.String()),
+			result.Last,
+			result.Ask,
+			result.Bid,
+			result.High,
+			result.Low,
+			result.Volume,
+			m.config.TickerSummaryThreshold)
 	}
 }
 
@@ -809,17 +815,19 @@ func (m *SyncManager) PrintWebsocketOrderbookSummary(result *orderbook.Depth) {
 	if !m.shouldLogSummary(&m.orderbookSummaryCounters, result.Key(), m.config.OrderbookSummaryThreshold) {
 		return
 	}
-	o, err := result.Retrieve()
-	if err != nil {
-		log.Errorf(log.OrderBook, "Failed to retrieve orderbook for %s %s %s %s. Error: %s",
-			result.Exchange(),
-			m.FormatCurrency(result.Pair()),
-			strings.ToUpper(result.Asset().String()),
-			"Websocket",
-			err)
-		return
+	{
+		o, err := result.Retrieve()
+		if err != nil {
+			log.Errorf(log.OrderBook, "Failed to retrieve orderbook for %s %s %s %s. Error: %s",
+				result.Exchange(),
+				m.FormatCurrency(result.Pair()),
+				strings.ToUpper(result.Asset().String()),
+				"Websocket",
+				err)
+			return
+		}
+		m.printBookSummary(o, "websocket")
 	}
-	m.printBookSummary(o, "websocket")
 }
 
 // PrintOrderbookSummary outputs orderbook results.
@@ -850,7 +858,7 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Book, protocol str
 
 func (m *SyncManager) shouldLogSummary(counters *sync.Map, k key.ExchangeAssetPair, threshold uint64) bool {
 	if threshold <= 1 {
-		return true
+		threshold = summaryThresholdDefault
 	}
 	counter, _ := counters.LoadOrStore(k, new(uint64))
 	return atomic.AddUint64(counter.(*uint64), 1)%threshold == 0

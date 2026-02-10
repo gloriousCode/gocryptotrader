@@ -2,11 +2,13 @@ package engine
 
 import (
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -18,29 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-type benchSyncer struct {
-	running bool
-}
-
 var benchErrSink uint64
-
-func (b benchSyncer) IsRunning() bool { return b.running }
-
-func (b benchSyncer) PrintTickerSummary(_ *ticker.Price, _ string, _ error) {}
-
-func (b benchSyncer) PrintWebsocketOrderbookSummary(*orderbook.Depth) {}
-
-func (b benchSyncer) WebsocketUpdate(_ string, _ currency.Pair, _ asset.Item, _ syncItemType, _ error) error {
-	return nil
-}
-
-type benchOrderManager struct {
-	running bool
-}
-
-func (b benchOrderManager) IsRunning() bool { return b.running }
-
-func (b benchOrderManager) DataHandlerUpsert(_ *order.Detail) error { return nil }
 
 type handlerBenchmarkCase struct {
 	name          string
@@ -49,24 +29,73 @@ type handlerBenchmarkCase struct {
 	orderRunning  bool
 }
 
-func newBenchHandlerManager(syncerRunning, orderRunning bool) *WebsocketRoutineManager {
-	return &WebsocketRoutineManager{
-		syncer:       benchSyncer{running: syncerRunning},
-		orderManager: benchOrderManager{running: orderRunning},
+func newBenchHandlerManager(syncerRunning, orderRunning bool) (*WebsocketRoutineManager, func(), error) {
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Bitstamp")
+	if err != nil {
+		return nil, nil, err
 	}
+	exch.SetDefaults()
+	if err := em.Add(exch); err != nil {
+		return nil, nil, err
+	}
+
+	syncer, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:       true,
+		SynchronizeOrderbook:    true,
+		SynchronizeTrades:       true,
+		SynchronizeContinuously: true,
+		FiatDisplayCurrency:     currency.USD,
+		PairFormatDisplay:       &currency.EMPTYFORMAT,
+		LogSyncUpdateEvents:     false,
+	}, em, &config.RemoteControlConfig{}, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	if syncerRunning {
+		if err := syncer.Start(); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	var wg sync.WaitGroup
+	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
+	if err != nil {
+		return nil, nil, err
+	}
+	if orderRunning {
+		if err := om.Start(); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	cleanup := func() {
+		if orderRunning && om.IsRunning() {
+			_ = om.Stop()
+		}
+		if syncerRunning && syncer.IsRunning() {
+			_ = syncer.Stop()
+		}
+	}
+
+	return &WebsocketRoutineManager{
+		syncer:       syncer,
+		orderManager: om,
+	}, cleanup, nil
 }
 
 func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
+	exchangeName := "Bitstamp"
 	pair := currency.NewPair(currency.BTC, currency.USD)
 	now := time.Unix(0, 0)
 	baseTicker := &ticker.Price{
-		ExchangeName: "bench",
+		ExchangeName: exchangeName,
 		Pair:         pair,
 		AssetType:    asset.Spot,
 		LastUpdated:  now,
 	}
 	baseOrder := &order.Detail{
-		Exchange:  "bench",
+		Exchange:  exchangeName,
 		Pair:      pair,
 		AssetType: asset.Spot,
 		OrderID:   "1",
@@ -76,7 +105,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		Timestamp:    now,
 		CurrencyPair: pair,
 		AssetType:    asset.Spot,
-		Exchange:     "bench",
+		Exchange:     exchangeName,
 		Amount:       1,
 		Rate:         0.01,
 		Period:       8,
@@ -86,12 +115,12 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		Timestamp: now,
 		Pair:      pair,
 		AssetType: asset.Spot,
-		Exchange:  "bench",
+		Exchange:  exchangeName,
 		Interval:  "1m",
 	}
 	baseAccount := accounts.Change{AssetType: asset.Spot}
 	baseTrade := trade.Data{
-		Exchange:     "bench",
+		Exchange:     exchangeName,
 		AssetType:    asset.Spot,
 		CurrencyPair: pair,
 		Timestamp:    now,
@@ -99,7 +128,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		Amount:       1,
 	}
 	baseFill := fill.Data{
-		Exchange:     "bench",
+		Exchange:     exchangeName,
 		AssetType:    asset.Spot,
 		CurrencyPair: pair,
 		Price:        1,
@@ -110,16 +139,21 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		{name: "string", data: "ok"},
 		{name: "error", data: errors.New("bench")},
 		{name: "funding_data", data: baseFunding},
-		{name: "ticker_ptr", data: baseTicker, syncerRunning: true},
-		{name: "ticker_slice", data: []ticker.Price{*baseTicker}, syncerRunning: true},
-		{name: "err_use_pointer_ticker", data: ticker.Price{ExchangeName: "bench"}},
-		{name: "err_use_pointer_order", data: order.Detail{Exchange: "bench"}},
+		{name: "ticker_ptr-w-syncer", data: baseTicker, syncerRunning: true},
+		{name: "ticker_slice-w-syncer", data: []ticker.Price{*baseTicker}, syncerRunning: true},
+		{name: "ticker_ptr-no-syncer", data: baseTicker, syncerRunning: false},
+		{name: "ticker_slice-no-syncer", data: []ticker.Price{*baseTicker}, syncerRunning: false},
+		{name: "err_use_pointer_ticker", data: ticker.Price{ExchangeName: exchangeName}},
+		{name: "err_use_pointer_order", data: order.Detail{Exchange: exchangeName}},
 		{name: "err_use_pointer_orderbook", data: orderbook.Depth{}},
 		{name: "kline_data", data: baseKline},
 		{name: "kline_slice", data: []websocket.KlineData{baseKline}},
-		{name: "orderbook_ptr", data: baseDepth, syncerRunning: true},
-		{name: "order_detail_ptr", data: baseOrder, orderRunning: true},
-		{name: "order_detail_slice", data: []order.Detail{*baseOrder}, orderRunning: true},
+		{name: "orderbook_ptr-w-syncer", data: baseDepth, syncerRunning: true},
+		{name: "order_detail_ptr-w-syncer", data: baseOrder, orderRunning: true},
+		{name: "order_detail_slice-w-syncer", data: []order.Detail{*baseOrder}, orderRunning: true},
+		{name: "orderbook_ptr-no-syncer", data: baseDepth, syncerRunning: false},
+		{name: "order_detail_ptr-no-syncer", data: baseOrder, orderRunning: false},
+		{name: "order_detail_slice-no-syncer", data: []order.Detail{*baseOrder}, orderRunning: false},
 		{name: "unhandled_warning", data: websocket.UnhandledMessageWarning{Message: "bench"}},
 		{name: "accounts_change", data: baseAccount},
 		{name: "accounts_change_slice", data: []accounts.Change{baseAccount}},
@@ -131,11 +165,15 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 
 	for _, benchCase := range cases {
 		b.Run(benchCase.name, func(b *testing.B) {
-			m := newBenchHandlerManager(benchCase.syncerRunning, benchCase.orderRunning)
+			m, cleanup, err := newBenchHandlerManager(benchCase.syncerRunning, benchCase.orderRunning)
+			if err != nil {
+				b.Fatalf("failed to setup managers: %v", err)
+			}
+			defer cleanup()
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				if err := m.websocketDataHandler("bench", benchCase.data); err != nil {
+				if err := m.websocketDataHandler(exchangeName, benchCase.data); err != nil {
 					atomic.AddUint64(&benchErrSink, 1)
 				}
 			}

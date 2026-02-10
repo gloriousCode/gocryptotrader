@@ -49,4 +49,5 @@ type SyncManager struct {
 	exchangeManager          iExchangeManager
 	tickerSummaryCounters    sync.Map
 	orderbookSummaryCounters sync.Map
+	tickerStatsCounters      sync.Map
 }

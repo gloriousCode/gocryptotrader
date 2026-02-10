@@ -859,10 +859,9 @@ func (m *OrderManager) Add(o *order.Detail) error {
 	if atomic.LoadInt32(&m.started) == 0 {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
+
 	defer func() {
-		if m.printOrderSummaries {
-			m.printOrderSummary(o, false)
-		}
+		go m.printOrderSummary(o, false)
 	}()
 	return m.orderStore.add(o)
 }
@@ -886,6 +885,9 @@ func (m *OrderManager) DataHandlerUpsert(o *order.Detail) error {
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
 func (m *OrderManager) printOrderSummary(o *order.Detail, isUpdate bool) {
+	if !m.printOrderSummaries {
+		return
+	}
 	orderNotif := "New Order:"
 	if isUpdate {
 		orderNotif = "Order Change:"
@@ -928,9 +930,7 @@ func (m *OrderManager) UpdateExistingOrder(od *order.Detail) error {
 		return fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
-		if m.printOrderSummaries {
-			m.printOrderSummary(od, true)
-		}
+		go m.printOrderSummary(od, true)
 	}()
 	return m.orderStore.updateExisting(od)
 }
