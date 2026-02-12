@@ -5133,16 +5133,15 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	}
 
 	req := &margin.RateHistoryRequest{
-		Exchange:           exch.GetName(),
-		Asset:              a,
-		Currency:           c,
-		StartDate:          start,
-		EndDate:            end,
-		GetPredictedRate:   r.GetPredictedRate,
-		GetLendingPayments: r.GetLendingPayments,
-		GetBorrowRates:     r.GetBorrowRates,
-		GetBorrowCosts:     r.GetBorrowCosts,
-		CalculateOffline:   r.CalculateOffline,
+		Exchange:         exch.GetName(),
+		Asset:            a,
+		Currency:         c,
+		StartDate:        start,
+		EndDate:          end,
+		GetPredictedRate: r.GetPredictedRate,
+		GetBorrowRates:   r.GetBorrowRates,
+		GetBorrowCosts:   r.GetBorrowCosts,
+		CalculateOffline: r.CalculateOffline,
 	}
 	if req.CalculateOffline {
 		if r.TakerFeeRate == "" {
@@ -5209,13 +5208,11 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.LatestRate.HourlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].HourlyBorrowRate.String()
 		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
 	}
-	if r.GetBorrowRates || r.GetLendingPayments {
+	if r.GetBorrowRates {
 		resp.TakerFeeRate = lendingResp.TakerFeeRate.String()
 	}
-	if r.GetLendingPayments {
-		resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
-		resp.AvgLendingSize = lendingResp.AverageLendingSize.String()
-	}
+	resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
+	resp.AvgLendingSize = lendingResp.AverageLendingSize.String()
 	if r.GetBorrowCosts {
 		resp.SumBorrowCosts = lendingResp.SumBorrowCosts.String()
 		resp.AvgBorrowSize = lendingResp.AverageBorrowSize.String()
@@ -5250,11 +5247,9 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 					Size: lendingResp.Rates[i].BorrowCost.Size.String(),
 				}
 			}
-			if r.GetLendingPayments {
-				rate.LendingPayment = &gctrpc.LendingPayment{
-					Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
-					Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
-				}
+			rate.LendingPayment = &gctrpc.LendingPayment{
+				Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
+				Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
 			}
 			resp.Rates[i] = rate
 		}
