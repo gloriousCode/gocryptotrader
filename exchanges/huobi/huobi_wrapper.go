@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -2170,8 +2172,97 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+
+	var l []limits.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		symbols, err := e.GetSymbols(ctx)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(symbols))
+		for i := range symbols {
+			if !strings.EqualFold(symbols[i].State, "online") {
+				continue
+			}
+			p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, symbols[i].QuoteCurrency)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				PriceStepIncrementSize:  math.Pow10(-int(symbols[i].PricePrecision)),
+				AmountStepIncrementSize: math.Pow10(-int(symbols[i].AmountPrecision)),
+				MinimumBaseAmount:       symbols[i].MinOrderAmt,
+				MaximumBaseAmount:       symbols[i].MaxOrderAmt,
+				MinimumQuoteAmount:      symbols[i].MinOrderValue,
+			})
+		}
+	case asset.Futures:
+		contracts, err := e.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(contracts.Data))
+		for i := range contracts.Data {
+			cp, err := e.MatchSymbolWithAvailablePairs(contracts.Data[i].ContractCode, a, false)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				PriceStepIncrementSize:  contracts.Data[i].PriceTick,
+				AmountStepIncrementSize: contracts.Data[i].ContractSize,
+				MinimumBaseAmount:       contracts.Data[i].ContractSize,
+				Delisted:                contracts.Data[i].DeliveryTime.Time(),
+				Expiry:                  contracts.Data[i].SettlementTime.Time(),
+			})
+		}
+	case asset.CoinMarginedFutures:
+		contracts, err := e.GetSwapMarkets(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(contracts))
+		for i := range contracts {
+			cp, err := e.MatchSymbolWithAvailablePairs(contracts[i].ContractCode, a, false)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			var listed time.Time
+			if contracts[i].CreateDate != "" {
+				listed, err = time.Parse("20060102", contracts[i].CreateDate)
+				if err != nil {
+					return err
+				}
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				PriceStepIncrementSize:  contracts[i].PriceTick,
+				AmountStepIncrementSize: contracts[i].ContractSize,
+				MinimumBaseAmount:       contracts[i].ContractSize,
+				Listed:                  listed,
+				Delisted:                contracts[i].DeliveryTime.Time(),
+				Expiry:                  contracts[i].SettlementDate.Time(),
+			})
+		}
+	default:
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	if len(l) == 0 {
+		return common.ErrNoResponse
+	}
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

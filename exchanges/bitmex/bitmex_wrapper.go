@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1183,8 +1184,39 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	activeInstruments, err := e.GetActiveAndIndexInstruments(ctx)
+	if err != nil {
+		return err
+	}
+	l := make([]limits.MinMaxLevel, 0, len(activeInstruments))
+	for i := range activeInstruments {
+		p, enabled, err := e.MatchSymbolCheckEnabled(activeInstruments[i].Symbol, a, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
+		}
+		if !enabled {
+			continue
+		}
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+			PriceStepIncrementSize:  activeInstruments[i].TickSize,
+			AmountStepIncrementSize: activeInstruments[i].LotSize,
+			MinimumBaseAmount:       activeInstruments[i].LotSize,
+			MaximumBaseAmount:       activeInstruments[i].MaxOrderQty,
+			MaximumQuoteAmount:      activeInstruments[i].MaxPrice,
+			MultiplierDecimal:       activeInstruments[i].Multiplier,
+			Listed:                  activeInstruments[i].OpeningTimestamp,
+			Delisted:                activeInstruments[i].ClosingTimestamp,
+		})
+	}
+	if len(l) == 0 {
+		return common.ErrNoResponse
+	}
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

@@ -3948,6 +3948,10 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
+	result, err = e.GetFuturesContractDetails(t.Context(), asset.Options)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }

@@ -8,14 +8,16 @@ import (
 
 const (
 	// Bitfinex rate limits - Public
-	requestLimitInterval      = time.Minute
-	platformStatusReqRate     = 15
-	tickerBatchReqRate        = 30
-	tickerReqRate             = 30
-	tradeReqRate              = 30
-	orderbookReqRate          = 30
-	statsReqRate              = 90
-	candleReqRate             = 60
+	requestLimitInterval  = time.Minute
+	platformStatusReqRate = 15
+	tickerBatchReqRate    = 30
+	tickerReqRate         = 30
+	tradeReqRate          = 30
+	orderbookReqRate      = 30
+	statsReqRate          = 90
+	// Candle requests are prone to 429s under concurrent history backfills.
+	// Keep this conservative to avoid retry/deadline failures in downstream apps.
+	candleReqRate             = 15
 	configsReqRate            = 15
 	statusReqRate             = 15 // This is not specified just inputted WCS
 	liquidReqRate             = 15 // This is not specified just inputted WCS
@@ -46,7 +48,7 @@ const (
 	getPositionAuditReqRate           = 45
 	updateCollateralOnPositionReqRate = 45 // This is not specified just inputted above
 	// Margin funding -
-	getMarginInfoRate               = 90
+	getMarginInfoRate               = 60
 	getActiveFundingOffersReqRate   = 45
 	submitFundingOfferReqRate       = 45 // This is not specified just inputted above
 	cancelFundingOfferReqRate       = 45
@@ -56,11 +58,11 @@ const (
 	keepFundingReqRate              = 45 // This is not specified just inputted above
 	getOffersHistoryReqRate         = 45
 	getFundingLoansReqRate          = 45
-	getFundingLoanHistoryReqRate    = 45
+	getFundingLoanHistoryReqRate    = 30
 	getFundingCreditsReqRate        = 45
 	getFundingCreditsHistoryReqRate = 45
 	getFundingTradesReqRate         = 45
-	getFundingInfoReqRate           = 45
+	getFundingInfoReqRate           = 30
 	// Account actions
 	getUserInfoReqRate               = 45
 	transferBetweenWalletsReqRate    = 45 // This is not specified just inputted above
@@ -77,10 +79,10 @@ const (
 	// Account V1 endpoints
 	getAccountFeesReqRate    = 5
 	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = 5 // This is not specified just inputted above
-	newDepositAddressReqRate = 5 // This is not specified just inputted above
-	getKeyPermissionsReqRate = 5 // This is not specified just inputted above
-	getMarginInfoReqRate     = 5 // This is not specified just inputted above
+	getAccountSummaryReqRate = 5  // This is not specified just inputted above
+	newDepositAddressReqRate = 5  // This is not specified just inputted above
+	getKeyPermissionsReqRate = 5  // This is not specified just inputted above
+	getMarginInfoReqRate     = 5  // This is not specified just inputted above
 	getAccountBalanceReqRate = 10
 	walletTransferReqRate    = 10 // This is not specified just inputted above
 	withdrawV1ReqRate        = 10 // This is not specified just inputted above

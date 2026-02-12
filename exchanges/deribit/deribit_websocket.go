@@ -98,9 +98,26 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // Raw is available for authenticated users
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
+	{Enabled: true, Asset: asset.Options, Channel: incrementalTickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
+}
+
+// WSOptionGreeksUpdate is emitted for Deribit option incremental ticker updates.
+type WSOptionGreeksUpdate struct {
+	ExchangeName string
+	Pair         currency.Pair
+	AssetType    asset.Item
+	LastUpdated  time.Time
+	Delta        float64
+	Gamma        float64
+	Vega         float64
+	Theta        float64
+	Rho          float64
+	BidIV        float64
+	AskIV        float64
+	MarkIV       float64
 }
 
 // WsConnect starts a new connection with the websocket API
@@ -548,7 +565,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -561,6 +578,25 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
 		Ask:          incrementalTicker.ImpliedAsk,
 		Bid:          incrementalTicker.ImpliedBid,
+	}); err != nil {
+		return err
+	}
+	if a != asset.Options {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, &WSOptionGreeksUpdate{
+		ExchangeName: e.Name,
+		Pair:         cp,
+		AssetType:    a,
+		LastUpdated:  incrementalTicker.Timestamp.Time(),
+		Delta:        incrementalTicker.Greeks.Delta,
+		Gamma:        incrementalTicker.Greeks.Gamma,
+		Vega:         incrementalTicker.Greeks.Vega,
+		Theta:        incrementalTicker.Greeks.Theta,
+		Rho:          incrementalTicker.Greeks.Rho,
+		BidIV:        incrementalTicker.BidIv,
+		AskIV:        incrementalTicker.AskIv,
+		MarkIV:       incrementalTicker.MarkIv,
 	})
 }
 

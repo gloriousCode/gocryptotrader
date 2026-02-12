@@ -1143,7 +1143,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if item != asset.Futures {
+	if item != asset.Futures && item != asset.Options {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 	resp := []futures.Contract{}
@@ -1159,7 +1159,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			return nil, err
 		}
 		for _, inst := range marketSummary {
-			if inst.Kind != "future" && inst.Kind != "future_combo" {
+			validKind := false
+			switch item {
+			case asset.Futures:
+				validKind = inst.Kind == "future" || inst.Kind == "future_combo"
+			case asset.Options:
+				validKind = inst.Kind == "option" || inst.Kind == "option_combo"
+			}
+			if !validKind {
 				continue
 			}
 			cp, err := currency.NewPairFromString(inst.InstrumentName)
