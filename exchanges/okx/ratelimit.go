@@ -16,7 +16,7 @@ const (
 )
 
 const (
-	placeOrderEPL request.EndpointLimit = iota
+	placeOrderEPL request.EndpointLimit = iota + 1
 	placeMultipleOrdersEPL
 	cancelOrderEPL
 	cancelMultipleOrdersEPL
@@ -326,6 +326,8 @@ const (
 	getIndexCandlestickEPL
 	yeahWHATEVEREPL
 
+
+	websocketRequestEPL
 )
 
 var rateLimits = func() request.RateLimitDefinitions {
@@ -668,5 +670,8 @@ var rateLimits = func() request.RateLimitDefinitions {
 		createWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getFiatDepositPaymentMethodsEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+
+		// This will fallback to the websocket connection specific rate limit
+		websocketRequestEPL: request.RateLimitNotRequired,
 	}
 }()
