@@ -2117,7 +2117,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		return []fundingrate.LatestRateResponse{
-			contractToFundingRate(e.Name, r.Asset, fPair, contract),
+			contractToFundingRate(e.Name, r.Asset, fPair, contract, true),
 		}, nil
 	}
 
@@ -2135,7 +2135,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !pairs.Contains(contracts[i].Name, true) {
 			continue
 		}
-		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i]))
+		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i], true))
 	}
 
 	return slices.Clip(resp), nil
@@ -2214,7 +2214,6 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	}
 	return resp, nil
 }
-
 
 func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{

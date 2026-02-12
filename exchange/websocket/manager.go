@@ -495,7 +495,7 @@ func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
 
 		// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
 
-		conn := m.getConnectionFromSetup(m.connectionManager[i].setup)
+		conn := m.createConnectionFromSetup(m.connectionManager[i].setup)
 		err := m.connectionManager[i].setup.Connector(context.TODO(), conn)
 		if err != nil {
 			multiConnectFatalError = fmt.Errorf("%v Error connecting %w", m.exchangeName, err)
@@ -508,7 +508,7 @@ func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
 		}
 
 		m.connections[conn] = m.connectionManager[i]
-		m.connectionManager[i].connection = conn
+		m.connectionManager[i].connections = append(m.connectionManager[i].connections, conn)
 
 		m.Wg.Add(1)
 		go m.Reader(context.TODO(), conn, m.connectionManager[i].setup.Handler)
@@ -525,12 +525,13 @@ func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
 		for x := range m.connectionManager {
-			if m.connectionManager[x].connection != nil {
-				if err := m.connectionManager[x].connection.Shutdown(); err != nil {
+			for _, conn := range m.connectionManager[x].connections {
+				if err := conn.Shutdown(); err != nil {
 					log.Errorln(log.WebsocketMgr, err)
 				}
-				m.connectionManager[x].connection = nil
+				conn.Subscriptions().Clear()
 			}
+			m.connectionManager[x].connections = nil
 			m.connectionManager[x].subscriptions.Clear()
 		}
 		clear(m.connections)
