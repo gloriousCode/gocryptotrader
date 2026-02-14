@@ -5,7 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -55,4 +57,24 @@ func TestOptionsUnsubscribe(t *testing.T) {
 
 	err = e.OptionsUnsubscribe(t.Context(), &FixtureConnection{}, subs)
 	require.NoError(t, err, "OptionsUnsubscribe must not error")
+}
+
+func TestOptionsPublicTradeUsesBaseCoinTopic(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	subs := subscription.List{
+		&subscription.Subscription{
+			Channel: chanPublicTrade,
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("BTC", "USDT", "-")},
+			Asset:   asset.Options,
+		},
+	}
+
+	payloads, err := e.directSubscriptionPayload(asset.Options, "subscribe", subs)
+	require.NoError(t, err, "directSubscriptionPayload must not error")
+	require.Len(t, payloads, 1, "expected a single payload")
+	require.Equal(t, []string{"publicTrade.BTC"}, payloads[0].Arguments, "options publicTrade should use baseCoin topic")
 }

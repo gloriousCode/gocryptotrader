@@ -774,7 +774,18 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 		case chanOrderbook:
 			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pairFmt.Format(pair)))
 			arg.associatedSubs = append(arg.associatedSubs, s)
-		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
+		case chanPublicTrade:
+			// For options, Bybit expects public trades to be subscribed by baseCoin (e.g. "publicTrade.BTC").
+			if assetType == asset.Options {
+				if pair.Base.IsEmpty() {
+					return nil, currency.ErrCurrencyCodeEmpty
+				}
+				arg.Arguments = append(arg.Arguments, s.Channel+"."+pair.Base.Upper().String())
+			} else {
+				arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
+			}
+			arg.associatedSubs = append(arg.associatedSubs, s)
+		case chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanKline, chanLeverageTokenKline:
