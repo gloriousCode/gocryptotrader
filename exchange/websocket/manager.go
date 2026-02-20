@@ -662,6 +662,12 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 
 		if m.connectionManager[i].setup.SubscriptionsNotRequired && len(subs) == 0 {
+			if m.connectionManager[i].setup.Authenticate != nil && !m.CanUseAuthenticatedEndpoints() {
+				if m.verbose {
+					log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] skipping authenticated-only connection", m.exchangeName, m.connectionManager[i].setup.URL)
+				}
+				continue
+			}
 			if err := m.createConnectAndSubscribe(ctx, m.connectionManager[i], nil); err != nil {
 				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 				break
