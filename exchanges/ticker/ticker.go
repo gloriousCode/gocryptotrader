@@ -225,7 +225,6 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
 		return nil, common.ErrExchangeNameNotSet
 	}
-	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[exch]
 	if !ok {
 		var err error
@@ -235,8 +234,7 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 		}
 		s.Exchange[exch] = exchangeID
 	}
-	ids = append(ids, exchangeID)
-	return ids, nil
+	return []uuid.UUID{exchangeID}, nil
 }
 
 func (s *Service) getByExchangeAsset(exch string, item asset.Item) []*Price {
