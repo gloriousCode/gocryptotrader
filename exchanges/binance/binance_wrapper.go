@@ -2311,10 +2311,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 				HourlyRate: hourlyRate,
 				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
 			}
-			if req.GetBorrowRates {
-				mr.HourlyBorrowRate = hourlyRate
-				mr.YearlyBorrowRate = mr.YearlyRate
-			}
 			if req.GetBorrowCosts {
 				mr.BorrowCost = margin.BorrowCost{
 					Cost: decimal.NewFromFloat(history.Rows[i].Interest),
