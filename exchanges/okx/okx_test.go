@@ -37,6 +37,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -1539,13 +1540,13 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
+	data := MakerInstrumentSetting{MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInvalidUnderlying)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
+	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1557,8 +1558,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   10000,
-					MakerPriceBand: 5,
+					MaxBlockSize:   types.NumberFromFloat64(10000),
+					MakerPriceBand: types.NumberFromFloat64(5),
 				},
 				{
 					Underlying: mainPair.String(),
@@ -1977,13 +1978,13 @@ func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetLendingRate(contextGenerate(), &LendingRate{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
+	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: types.NumberFromFloat64(2)})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
 	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
+	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: types.NumberFromFloat64(2)})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2620,7 +2621,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		SimAsset: []SimulatedAsset{
 			{
 				Currency: "USDT",
-				Amount:   100,
+				Amount:   types.NumberFromFloat64(100),
 			},
 		},
 		SpotOffsetType: "1",
@@ -2981,7 +2982,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = 1234.5
+	arg.TakeProfitTriggerPrice = types.NumberFromFloat64(1234.5)
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -4216,16 +4217,16 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
+	assert.Equal(t, 125, int(i.MaxLeverage.Int64()), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, 1, int(i.LotSize))
+	assert.Equal(t, 1, int(i.LotSize.Int64()))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxStopSize))
+	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder.Int64()))
+	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder.Int64()))
+	assert.Equal(t, 85000, int(i.MaxStopSize.Int64()))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
-	assert.Equal(t, 1, int(i.MinimumOrderSize))
+	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder.Int64()), "expected empty max TWAP size")
+	assert.Equal(t, 1, int(i.MinimumOrderSize.Int64()))
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")

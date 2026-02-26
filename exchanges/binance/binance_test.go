@@ -668,16 +668,16 @@ func TestGetFuturesKlineData(t *testing.T) {
 		require.Equal(t, 5, len(r), "GetFuturesKlineData must return 5 items in mock test")
 		exp := FuturesCandleStick{
 			OpenTime:                types.Time(time.UnixMilli(1596240000000)),
-			Open:                    11785,
-			High:                    12513.6,
-			Low:                     11114.1,
-			Close:                   11663.5,
-			Volume:                  12155433,
+			Open:                    types.NumberFromFloat64(11785),
+			High:                    types.NumberFromFloat64(12513.6),
+			Low:                     types.NumberFromFloat64(11114.1),
+			Close:                   types.NumberFromFloat64(11663.5),
+			Volume:                  types.NumberFromFloat64(12155433),
 			CloseTime:               types.Time(time.UnixMilli(1598918399999)),
-			BaseAssetVolume:         104142.54608485,
+			BaseAssetVolume:         types.NumberFromFloat64(104142.54608485),
 			NumberOfTrades:          359100,
-			TakerBuyVolume:          6013546,
-			TakerBuyBaseAssetVolume: 51511.95826419,
+			TakerBuyVolume:          types.NumberFromFloat64(6013546),
+			TakerBuyBaseAssetVolume: types.NumberFromFloat64(51511.95826419),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {
@@ -1166,16 +1166,16 @@ func TestGetSpotKline(t *testing.T) {
 		require.Equal(t, 24, len(r), "GetSpotKline must return 24 items in mock test")
 		exp := CandleStick{
 			OpenTime:                 types.Time(time.UnixMilli(1577836800000)),
-			Open:                     7195.24,
-			High:                     7196.25,
-			Low:                      7178.64,
-			Close:                    7179.78,
-			Volume:                   95.509133,
+			Open:                     types.NumberFromFloat64(7195.24),
+			High:                     types.NumberFromFloat64(7196.25),
+			Low:                      types.NumberFromFloat64(7178.64),
+			Close:                    types.NumberFromFloat64(7179.78),
+			Volume:                   types.NumberFromFloat64(95.509133),
 			CloseTime:                types.Time(time.UnixMilli(1577837099999)),
-			QuoteAssetVolume:         686317.13625177,
+			QuoteAssetVolume:         types.NumberFromFloat64(686317.13625177),
 			TradeCount:               1127,
-			TakerBuyAssetVolume:      32.773245,
-			TakerBuyQuoteAssetVolume: 235537.29504531,
+			TakerBuyAssetVolume:      types.NumberFromFloat64(32.773245),
+			TakerBuyQuoteAssetVolume: types.NumberFromFloat64(235537.29504531),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {

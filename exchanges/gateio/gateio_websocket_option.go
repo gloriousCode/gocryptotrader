@@ -121,9 +121,30 @@ getEnabledPairs:
 	}
 
 	var subscriptions subscription.List
+	underlyingChannels := map[string]struct{}{
+		optionsUnderlyingTickersChannel:      {},
+		optionsUnderlyingTradesChannel:       {},
+		optionsUnderlyingPriceChannel:        {},
+		optionsUnderlyingCandlesticksChannel: {},
+	}
+	seenUnderlyingByChannel := make(map[string]map[string]struct{})
 	for i := range channelsToSubscribe {
 		for j := range pairs {
 			params := make(map[string]any)
+			if _, isUnderlyingChannel := underlyingChannels[channelsToSubscribe[i]]; isUnderlyingChannel {
+				uly, err := e.GetUnderlyingFromCurrencyPair(pairs[j])
+				if err != nil {
+					return nil, err
+				}
+				key := uly.String()
+				if seenUnderlyingByChannel[channelsToSubscribe[i]] == nil {
+					seenUnderlyingByChannel[channelsToSubscribe[i]] = make(map[string]struct{})
+				}
+				if _, exists := seenUnderlyingByChannel[channelsToSubscribe[i]][key]; exists {
+					continue
+				}
+				seenUnderlyingByChannel[channelsToSubscribe[i]][key] = struct{}{}
+			}
 			switch channelsToSubscribe[i] {
 			case optionsOrderbookChannel:
 				params["accuracy"] = "0"
@@ -132,7 +153,7 @@ getEnabledPairs:
 				params["interval"] = kline.FiveMin
 			case optionsOrderbookUpdateChannel:
 				params["interval"] = kline.HundredMilliseconds
-				params["level"] = strconv.FormatUint(optionOrderbookUpdateLimit, 10)
+				params["level"] = int(optionOrderbookUpdateLimit)
 			case optionsOrdersChannel,
 				optionsUserTradesChannel,
 				optionsLiquidatesChannel,

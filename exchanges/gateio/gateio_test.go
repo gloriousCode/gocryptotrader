@@ -200,12 +200,12 @@ func TestCandlestickUnmarshalJSON(t *testing.T) {
 	require.Len(t, targets, 3)
 	assert.Equal(t, Candlestick{
 		Timestamp:      types.Time(time.Unix(1738108800, 0)),
-		QuoteCcyVolume: 229534412.73508700,
-		ClosePrice:     103734.3,
-		HighestPrice:   104779.9,
-		LowestPrice:    101336.6,
-		OpenPrice:      101343.8,
-		BaseCcyAmount:  2232.94510000,
+		QuoteCcyVolume: types.NumberFromFloat64(229534412.73508700),
+		ClosePrice:     types.NumberFromFloat64(103734.3),
+		HighestPrice:   types.NumberFromFloat64(104779.9),
+		LowestPrice:    types.NumberFromFloat64(101336.6),
+		OpenPrice:      types.NumberFromFloat64(101343.8),
+		BaseCcyAmount:  types.NumberFromFloat64(2232.94510000),
 		WindowClosed:   true,
 	}, targets[0])
 }
@@ -240,16 +240,16 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
-			Amount:       0.001,
-			Price:        12349,
+			Amount:       types.NumberFromFloat64(0.001),
+			Price:        types.NumberFromFloat64(12349),
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
 		{
 			CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 			Side:         "buy",
-			Amount:       1,
-			Price:        1234567789,
+			Amount:       types.NumberFromFloat64(1),
+			Price:        types.NumberFromFloat64(1234567789),
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
@@ -283,8 +283,8 @@ func TestCreateSpotOrder(t *testing.T) {
 	_, err := e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
-		Amount:       1,
-		Price:        900000,
+		Amount:       types.NumberFromFloat64(1),
+		Price:        types.NumberFromFloat64(900000),
 		Account:      e.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	})
@@ -2339,6 +2339,50 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	}
 }
 
+func TestGenerateOptionsDefaultSubscriptionsDeduplicatesUnderlyingChannels(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	pairs := currency.Pairs{
+		currency.NewPairWithDelimiter("BTC", "USDT-20211231-59800-C", "_"),
+		currency.NewPairWithDelimiter("BTC", "USDT-20220131-60000-C", "_"),
+		currency.NewPairWithDelimiter("ETH", "USDT-20211231-4000-C", "_"),
+	}
+	require.NoError(t, ex.GetBase().SetPairs(pairs, asset.Options, true), "SetPairs must not error")
+
+	subs, err := ex.GenerateOptionsDefaultSubscriptions()
+	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
+
+	countByChannel := func(channel string) int {
+		count := 0
+		for i := range subs {
+			if subs[i].Channel == channel {
+				count++
+			}
+		}
+		return count
+	}
+
+	require.Equal(t, len(pairs), countByChannel(optionsContractTickersChannel), "contract ticker should subscribe once per options pair")
+	require.Equal(t, len(pairs), countByChannel(optionsTradesChannel), "contract trades should subscribe once per options pair")
+	require.Equal(t, len(pairs), countByChannel(optionsContractCandlesticksChannel), "contract candles should subscribe once per options pair")
+	require.Equal(t, len(pairs), countByChannel(optionsOrderbookUpdateChannel), "orderbook updates should subscribe once per options pair")
+
+	require.Equal(t, 2, countByChannel(optionsUnderlyingTickersChannel), "underlying tickers should subscribe once per underlying")
+	require.Equal(t, 2, countByChannel(optionsUnderlyingTradesChannel), "underlying trades should subscribe once per underlying")
+	require.Equal(t, 2, countByChannel(optionsUnderlyingCandlesticksChannel), "underlying candles should subscribe once per underlying")
+
+	for i := range subs {
+		if subs[i].Channel != optionsOrderbookUpdateChannel {
+			continue
+		}
+		level, ok := subs[i].Params["level"].(int)
+		require.True(t, ok, "orderbook update level should be stored as int")
+		require.Equal(t, int(optionOrderbookUpdateLimit), level, "orderbook update level should match configured default")
+	}
+}
+
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2794,13 +2838,13 @@ func BenchmarkNewButts(b *testing.B) {
 
 	for i := range b.N {
 		hello[i] = Candlestick{
-			Timestamp:      tn,
-			QuoteCcyVolume: 1337,
-			ClosePrice:     1337,
-			HighestPrice:   1337,
-			LowestPrice:    1337,
-			OpenPrice:      1337,
-			BaseCcyAmount:  1337,
+			Timestamp:      types.Time(tn),
+			QuoteCcyVolume: types.NumberFromFloat64(1337),
+			ClosePrice:     types.NumberFromFloat64(1337),
+			HighestPrice:   types.NumberFromFloat64(1337),
+			LowestPrice:    types.NumberFromFloat64(1337),
+			OpenPrice:      types.NumberFromFloat64(1337),
+			BaseCcyAmount:  types.NumberFromFloat64(1337),
 		}
 	}
 }
@@ -2811,13 +2855,13 @@ func BenchmarkNewButts2(b *testing.B) {
 	tn := time.Now()
 
 	for i := range b.N {
-		hello[i].Timestamp = tn
-		hello[i].QuoteCcyVolume = 1337
-		hello[i].ClosePrice = 1337
-		hello[i].HighestPrice = 1337
-		hello[i].LowestPrice = 1337
-		hello[i].OpenPrice = 1337
-		hello[i].BaseCcyAmount = 1337
+		hello[i].Timestamp = types.Time(tn)
+		hello[i].QuoteCcyVolume = types.NumberFromFloat64(1337)
+		hello[i].ClosePrice = types.NumberFromFloat64(1337)
+		hello[i].HighestPrice = types.NumberFromFloat64(1337)
+		hello[i].LowestPrice = types.NumberFromFloat64(1337)
+		hello[i].OpenPrice = types.NumberFromFloat64(1337)
+		hello[i].BaseCcyAmount = types.NumberFromFloat64(1337)
 	}
 }
 

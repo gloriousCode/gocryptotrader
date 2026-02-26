@@ -183,12 +183,12 @@ func TestKlineUnmarshalJSON(t *testing.T) {
 	require.Len(t, target, 12)
 	assert.Equal(t, Kline{
 		StartTime: types.Time(time.Unix(1746645900, 0)),
-		Open:      96248.3,
-		Close:     96060.4,
-		High:      96248.3,
-		Low:       95991.1,
-		Volume:    7.30387554,
-		Amount:    701787.956631596,
+		Open:      types.NumberFromFloat64(96248.3),
+		Close:     types.NumberFromFloat64(96060.4),
+		High:      types.NumberFromFloat64(96248.3),
+		Low:       types.NumberFromFloat64(95991.1),
+		Volume:    types.NumberFromFloat64(7.30387554),
+		Amount:    types.NumberFromFloat64(701787.956631596),
 	}, target[0])
 }
 

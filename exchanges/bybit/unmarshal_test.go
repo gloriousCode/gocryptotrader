@@ -15,10 +15,10 @@ func TestUnmarshalJSONKlineItem(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, time.UnixMilli(1691905800000), ki.StartTime.Time())
-	require.Equal(t, types.Number(0.000301), ki.Open)
-	require.Equal(t, types.Number(0.0003015), ki.High)
-	require.Equal(t, types.Number(0.0002995), ki.Low)
-	require.Equal(t, types.Number(0.0003), ki.Close)
-	require.Equal(t, types.Number(213303600), ki.TradeVolume)
-	require.Equal(t, types.Number(64084.7623), ki.Turnover)
+	require.Equal(t, types.NumberFromFloat64(0.000301), ki.Open)
+	require.Equal(t, types.NumberFromFloat64(0.0003015), ki.High)
+	require.Equal(t, types.NumberFromFloat64(0.0002995), ki.Low)
+	require.Equal(t, types.NumberFromFloat64(0.0003), ki.Close)
+	require.Equal(t, types.NumberFromFloat64(213303600), ki.TradeVolume)
+	require.Equal(t, types.NumberFromFloat64(64084.7623), ki.Turnover)
 }

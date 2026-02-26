@@ -332,6 +332,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
 func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
 	eval := e.getSpotMarginEvaluator(subs)
+	sentArgs := make(map[string]struct{})
 
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
@@ -350,8 +351,19 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err != nil {
 				return nil, err
 			}
+			argKey := ""
+			addedArgument := false
 			if isSubNeeded {
-				arguments = append(arguments, arg)
+				argKeyBytes, err := json.Marshal(arg)
+				if err != nil {
+					return nil, err
+				}
+				argKey = string(argKeyBytes)
+				if _, alreadyAdded := sentArgs[argKey]; !alreadyAdded {
+					arguments = append(arguments, arg)
+					sentArgs[argKey] = struct{}{}
+					addedArgument = true
+				}
 			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
@@ -361,7 +373,10 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if len(chunk) > maxConnByteLen {
 				// Remove last added channel and argument as they exceed max byte length
 				channels = channels[:len(channels)-1]
-				arguments = arguments[:len(arguments)-1]
+				if addedArgument {
+					arguments = arguments[:len(arguments)-1]
+					delete(sentArgs, argKey)
+				}
 				subs = subs[i:]
 				break
 			}

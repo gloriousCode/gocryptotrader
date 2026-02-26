@@ -76,7 +76,7 @@ func TestRequestQuote(t *testing.T) {
 		AccountType:   UTA,
 		FromCoin:      currency.XRP,
 		ToCoin:        currency.USDT,
-		RequestAmount: 0.0088,
+		RequestAmount: types.NumberFromFloat64(0.0088),
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, quote.QuoteTransactionID)
@@ -137,13 +137,13 @@ func TestGetConvertHistory(t *testing.T) {
 			UserID:                "74199870",
 			FromCoin:              currency.NewCode("UXLINK"),
 			FromCoinType:          "crypto",
-			FromAmount:            7.9952,
+			FromAmount:            types.NumberFromFloat64(7.9952),
 			ToCoin:                currency.USDT,
 			ToCoinType:            "crypto",
-			ToAmount:              2.84509740190888,
+			ToAmount:              types.NumberFromFloat64(2.84509740190888),
 			ExchangeStatus:        "success",
 			ExtendedInfo:          ExtendedInfoHistoryResponse{},
-			ConvertRate:           0.35585068565,
+			ConvertRate:           types.NumberFromFloat64(0.35585068565),
 			CreatedAt:             types.Time(time.UnixMilli(1754880224953)),
 		}
 		require.Equal(t, exp, history[0])

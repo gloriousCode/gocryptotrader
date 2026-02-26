@@ -33,6 +33,8 @@ var deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
 
 const (
 	rpcVersion = "2.0"
+	// maxSubscriptionChannelsPerRequest chunks large subscription sets to avoid oversize payloads.
+	maxSubscriptionChannelsPerRequest = 200
 
 	// public websocket channels
 	announcementsChannel                   = "announcements"
@@ -855,49 +857,52 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 	if err != nil || len(subs) == 0 {
 		return err
 	}
+	var errs error
+	for _, batch := range common.Batch(subs, maxSubscriptionChannelsPerRequest) {
+		r := WsSubscriptionInput{
+			JSONRPCVersion: rpcVersion,
+			ID:             e.MessageID(),
+			Method:         method,
+			Params:         map[string][]string{"channels": batch.QualifiedChannels()},
+		}
 
-	r := WsSubscriptionInput{
-		JSONRPCVersion: rpcVersion,
-		ID:             e.MessageID(),
-		Method:         method,
-		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
-	}
+		data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
 
-	data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
-	if err != nil {
-		return err
-	}
-
-	var response wsSubscriptionResponse
-	err = json.Unmarshal(data, &response)
-	if err != nil {
-		return fmt.Errorf("%v %v", e.Name, err)
-	}
-	subAck := map[string]bool{}
-	for _, c := range response.Result {
-		subAck[c] = true
-	}
-	if len(subAck) != len(subs) {
-		err = websocket.ErrSubscriptionFailure
-	}
-	for _, s := range subs {
-		if _, ok := subAck[s.QualifiedChannel]; ok {
-			delete(subAck, s.QualifiedChannel)
-			if !strings.Contains(method, "unsubscribe") {
-				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+		var response wsSubscriptionResponse
+		err = json.Unmarshal(data, &response)
+		if err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%v %v", e.Name, err))
+			continue
+		}
+		subAck := map[string]bool{}
+		for _, c := range response.Result {
+			subAck[c] = true
+		}
+		if len(subAck) != len(batch) {
+			errs = common.AppendError(errs, websocket.ErrSubscriptionFailure)
+		}
+		for _, s := range batch {
+			if _, ok := subAck[s.QualifiedChannel]; ok {
+				delete(subAck, s.QualifiedChannel)
+				if !strings.Contains(method, "unsubscribe") {
+					errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+				} else {
+					errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+				}
 			} else {
-				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+				errs = common.AppendError(errs, errors.New(s.String()+" failed to "+method))
 			}
-		} else {
-			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
+		}
+
+		for key := range subAck {
+			errs = common.AppendError(errs, fmt.Errorf("unexpected channel %q in result", key))
 		}
 	}
-
-	for key := range subAck {
-		err = common.AppendError(err, fmt.Errorf("unexpected channel %q in result", key))
-	}
-
-	return err
+	return errs
 }
 
 func channelName(s *subscription.Subscription) string {

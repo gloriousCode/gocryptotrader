@@ -31,6 +31,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your APIKeys here for better testing
@@ -695,7 +696,7 @@ func TestSendMoney(t *testing.T) {
 	)
 	for i := range wID.Data {
 		if wID.Data[i].Currency.Name == testCrypto.String() {
-			if wID.Data[i].Balance.Amount > testAmount*100 {
+			if wID.Data[i].Balance.Amount.Float64() > testAmount*100 {
 				fromID = wID.Data[i].ID
 			} else {
 				toID = wID.Data[i].ID
@@ -1303,7 +1304,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for i := range wallets.Data {
-		if wallets.Data[i].Currency.Name == testCrypto.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
+		if wallets.Data[i].Currency.Name == testCrypto.String() && wallets.Data[i].Balance.Amount.Float64() > testAmount*100 {
 			req.WalletID = wallets.Data[i].ID
 			break
 		}
@@ -1614,7 +1615,7 @@ func TestWsHandleData(t *testing.T) {
 
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
-	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
+	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: types.NumberFromFloat64(1.1), NewQuantity: types.NumberFromFloat64(2.2)}}, ProductID: currency.NewBTCUSD()}
 	err := e.ProcessSnapshot(&req, time.Time{})
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 	err = e.ProcessUpdate(&req, time.Time{})
@@ -1935,7 +1936,7 @@ func transferTestHelper(t *testing.T, wallets *GetAllWalletsResponse) (srcWallet
 	t.Helper()
 	var hasValidFunds bool
 	for i := range wallets.Data {
-		if wallets.Data[i].Currency.Code == testFiat.String() && wallets.Data[i].Balance.Amount > 10 {
+		if wallets.Data[i].Currency.Code == testFiat.String() && wallets.Data[i].Balance.Amount.Float64() > 10 {
 			hasValidFunds = true
 			srcWalletID = wallets.Data[i].ID
 		}
@@ -1985,7 +1986,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	}
 	req.WalletID = ""
 	for i := range wallets.Data {
-		if wallets.Data[i].Currency.Name == testFiat.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
+		if wallets.Data[i].Currency.Name == testFiat.String() && wallets.Data[i].Balance.Amount.Float64() > testAmount*100 {
 			req.WalletID = wallets.Data[i].ID
 			break
 		}

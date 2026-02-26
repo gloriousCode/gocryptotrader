@@ -11,6 +11,16 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
+func countByChannel(subs subscription.List, channel string) int {
+	count := 0
+	for i := range subs {
+		if subs[i].Channel == channel {
+			count++
+		}
+	}
+	return count
+}
+
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -28,6 +38,26 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	subs, err = e.GenerateOptionsDefaultSubscriptions()
 	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
 	assert.Empty(t, subs, "Subscriptions should be empty when asset is disabled")
+}
+
+func TestGenerateOptionsDefaultSubscriptionsPublicTradeByUniqueBase(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	pairs := currency.Pairs{
+		currency.NewPairWithDelimiter("BTC", "26NOV24-92000-C", "-"),
+		currency.NewPairWithDelimiter("BTC", "26NOV24-93000-C", "-"),
+		currency.NewPairWithDelimiter("ETH", "26NOV24-3500-C", "-"),
+	}
+	require.NoError(t, e.GetBase().SetPairs(pairs, asset.Options, true), "SetPairs must not error")
+
+	subs, err := e.GenerateOptionsDefaultSubscriptions()
+	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
+	require.Equal(t, len(pairs), countByChannel(subs, chanOrderbook), "must subscribe one orderbook topic per options pair")
+	require.Equal(t, len(pairs), countByChannel(subs, chanPublicTicker), "must subscribe one ticker topic per options pair")
+	require.Equal(t, 2, countByChannel(subs, chanPublicTrade), "must subscribe one public trade topic per unique base")
 }
 
 func TestOptionSubscribe(t *testing.T) {
