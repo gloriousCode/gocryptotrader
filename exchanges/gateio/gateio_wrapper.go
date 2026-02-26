@@ -983,6 +983,75 @@ func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyRes
 	return nil, common.ErrFunctionNotSupported
 }
 
+// WebsocketModifyOrder modifies an order through websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+
+	var err error
+	action.Pair, err = e.FormatExchangeCurrency(action.Pair, action.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	action.Pair = action.Pair.Upper()
+
+	switch action.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		resp, err := e.WebsocketSpotAmendOrder(ctx, &WebsocketAmendOrder{
+			OrderID:   action.OrderID,
+			Pair:      action.Pair,
+			Account:   e.assetTypeToString(action.AssetType),
+			AmendText: formatClientOrderID(action.ClientOrderID),
+			Price:     strconv.FormatFloat(action.Price, 'f', -1, 64),
+			Amount:    strconv.FormatFloat(action.Amount, 'f', -1, 64),
+		})
+		if err != nil {
+			return nil, err
+		}
+		derived, err := action.DeriveModifyResponse()
+		if err != nil {
+			return nil, err
+		}
+		derived.OrderID = resp.ID
+		derived.ClientOrderID = getClientOrderIDFromText(resp.Text)
+		derived.Amount = resp.Amount.Float64()
+		derived.Price = resp.Price.Float64()
+		derived.Date = resp.CreateTime.Time()
+		derived.LastUpdated = resp.UpdateTime.Time()
+		derived.RemainingAmount = resp.Left.Float64()
+		return derived, nil
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+		resp, err := e.WebsocketFuturesAmendOrder(ctx, &WebsocketFuturesAmendOrder{
+			OrderID:   action.OrderID,
+			Contract:  action.Pair,
+			Asset:     action.AssetType,
+			AmendText: formatClientOrderID(action.ClientOrderID),
+			Price:     strconv.FormatFloat(action.Price, 'f', -1, 64),
+			Size:      int64(action.Amount),
+		})
+		if err != nil {
+			return nil, err
+		}
+		derived, err := action.DeriveModifyResponse()
+		if err != nil {
+			return nil, err
+		}
+		derived.OrderID = strconv.FormatInt(resp.ID, 10)
+		derived.ClientOrderID = getClientOrderIDFromText(resp.Text)
+		derived.Amount = math.Abs(resp.Size)
+		derived.Price = resp.Price.Float64()
+		derived.Date = resp.CreateTime.Time()
+		derived.LastUpdated = resp.UpdateTime.Time()
+		derived.RemainingAmount = math.Abs(resp.Left)
+		return derived, nil
+	case asset.Options:
+		return nil, common.ErrFunctionNotSupported
+	default:
+		return nil, common.ErrNotYetImplemented
+	}
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
@@ -1010,6 +1079,30 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
+}
+
+// WebsocketCancelOrder cancels an order through websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	fPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+	if err != nil {
+		return err
+	}
+	fPair = fPair.Upper()
+	switch o.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		_, err = e.WebsocketSpotCancelOrder(ctx, o.OrderID, fPair, e.assetTypeToString(o.AssetType))
+		return err
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+		_, err = e.WebsocketFuturesCancelOrder(ctx, o.OrderID, fPair, o.AssetType)
+		return err
+	case asset.Options:
+		return common.ErrFunctionNotSupported
+	default:
+		return common.ErrNotYetImplemented
+	}
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
