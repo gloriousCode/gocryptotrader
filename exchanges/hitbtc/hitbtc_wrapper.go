@@ -844,27 +844,25 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
 	}
+
 	symbols, err := e.GetSymbolsDetailed(ctx)
 	if err != nil {
 		return err
 	}
 	l := make([]limits.MinMaxLevel, 0, len(symbols))
 	for i := range symbols {
-		p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, symbols[i].QuoteCurrency)
+		// s.QuoteCurrency is actually settlement currency, so trim the base currency to get the real quote currency
+		p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, strings.TrimPrefix(symbols[i].ID, symbols[i].BaseCurrency))
 		if err != nil {
 			return err
 		}
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, p),
-			PriceStepIncrementSize:  symbols[i].TickSize,
 			AmountStepIncrementSize: symbols[i].QuantityIncrement,
-			MinimumBaseAmount:       symbols[i].QuantityIncrement,
+			PriceStepIncrementSize:  symbols[i].TickSize,
 		})
-	}
-	if len(l) == 0 {
-		return common.ErrNoResponse
 	}
 	return limits.Load(l)
 }

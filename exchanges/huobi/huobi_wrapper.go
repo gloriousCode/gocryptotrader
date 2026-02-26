@@ -2006,18 +2006,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var s time.Time
-			s, err = time.Parse("20060102", result[x].CreateDate)
-			if err != nil {
-				return nil, err
-			}
 
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
 				Underlying:         underlying,
 				Asset:              item,
-				StartDate:          s,
+				StartDate:          result[x].CreateDate.Time(),
 				SettlementType:     futures.Inverse,
 				IsActive:           result[x].ContractStatus == 1,
 				Type:               futures.Perpetual,
@@ -2043,17 +2038,11 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var startTime, endTime time.Time
-			startTime, err = time.Parse("20060102", result.Data[x].CreateDate)
-			if err != nil {
-				return nil, err
-			}
-			if result.Data[x].DeliveryTime.Time().IsZero() {
-				endTime = result.Data[x].DeliveryTime.Time()
-			} else {
+			endTime := result.Data[x].DeliveryTime.Time()
+			if endTime.IsZero() {
 				endTime = result.Data[x].SettlementTime.Time()
 			}
-			contractLength := endTime.Sub(startTime)
+			contractLength := endTime.Sub(result.Data[x].CreateDate.Time())
 			var ct futures.ContractType
 			switch {
 			case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
@@ -2073,7 +2062,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Name:               cp,
 				Underlying:         underlying,
 				Asset:              item,
-				StartDate:          startTime,
+				StartDate:          result.Data[x].CreateDate.Time(),
 				EndDate:            endTime,
 				SettlementType:     futures.Linear,
 				IsActive:           result.Data[x].ContractStatus == 1,
@@ -2176,7 +2165,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	if !e.SupportsAsset(a) {
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-
 	var l []limits.MinMaxLevel
 	switch a {
 	case asset.Spot:
@@ -2186,20 +2174,25 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		l = make([]limits.MinMaxLevel, 0, len(symbols))
 		for i := range symbols {
-			if !strings.EqualFold(symbols[i].State, "online") {
+			if symbols[i].State != "online" {
 				continue
 			}
 			p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, symbols[i].QuoteCurrency)
 			if err != nil {
 				return err
 			}
+			minBaseAmt := symbols[i].LimitOrderMinOrderAmt
+			if minBaseAmt == 0 {
+				minBaseAmt = symbols[i].MinOrderAmt
+			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
-				PriceStepIncrementSize:  math.Pow10(-int(symbols[i].PricePrecision)),
-				AmountStepIncrementSize: math.Pow10(-int(symbols[i].AmountPrecision)),
-				MinimumBaseAmount:       symbols[i].MinOrderAmt,
-				MaximumBaseAmount:       symbols[i].MaxOrderAmt,
+				MinimumBaseAmount:       minBaseAmt,
+				MaximumBaseAmount:       symbols[i].LimitOrderMaxOrderAmt,
 				MinimumQuoteAmount:      symbols[i].MinOrderValue,
+				AmountStepIncrementSize: math.Pow10(-int(symbols[i].AmountPrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(symbols[i].PricePrecision)),
+				QuoteStepIncrementSize:  math.Pow10(-int(symbols[i].ValuePrecision)),
 			})
 		}
 	case asset.Futures:
@@ -2209,20 +2202,25 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		l = make([]limits.MinMaxLevel, 0, len(contracts.Data))
 		for i := range contracts.Data {
-			cp, err := e.MatchSymbolWithAvailablePairs(contracts.Data[i].ContractCode, a, false)
+			if contracts.Data[i].ContractStatus != 1 {
+				continue
+			}
+			p, err := e.MatchSymbolWithAvailablePairs(contracts.Data[i].ContractCode, a, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return err
 			}
+			endTime := contracts.Data[i].DeliveryTime.Time()
+			if endTime.IsZero() {
+				endTime = contracts.Data[i].SettlementTime.Time()
+			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				MinimumBaseAmount:       1,
+				AmountStepIncrementSize: 1, // orders are in number of contracts
 				PriceStepIncrementSize:  contracts.Data[i].PriceTick,
-				AmountStepIncrementSize: contracts.Data[i].ContractSize,
-				MinimumBaseAmount:       contracts.Data[i].ContractSize,
-				Delisted:                contracts.Data[i].DeliveryTime.Time(),
-				Expiry:                  contracts.Data[i].SettlementTime.Time(),
+				MultiplierDecimal:       contracts.Data[i].ContractSize,
+				Listed:                  contracts.Data[i].CreateDate.Time(),
+				Expiry:                  endTime,
 			})
 		}
 	case asset.CoinMarginedFutures:
@@ -2232,35 +2230,27 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		l = make([]limits.MinMaxLevel, 0, len(contracts))
 		for i := range contracts {
-			cp, err := e.MatchSymbolWithAvailablePairs(contracts[i].ContractCode, a, false)
+			if contracts[i].ContractStatus != 1 {
+				continue
+			}
+			p, err := e.MatchSymbolWithAvailablePairs(contracts[i].ContractCode, a, true)
 			if err != nil {
 				if errors.Is(err, currency.ErrPairNotFound) {
 					continue
 				}
 				return err
 			}
-			var listed time.Time
-			if contracts[i].CreateDate != "" {
-				listed, err = time.Parse("20060102", contracts[i].CreateDate)
-				if err != nil {
-					return err
-				}
-			}
+
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				MinimumBaseAmount:       1,
+				AmountStepIncrementSize: 1, // orders are in number of contracts
 				PriceStepIncrementSize:  contracts[i].PriceTick,
-				AmountStepIncrementSize: contracts[i].ContractSize,
-				MinimumBaseAmount:       contracts[i].ContractSize,
-				Listed:                  listed,
+				MultiplierDecimal:       contracts[i].ContractSize,
+				Listed:                  contracts[i].CreateDate.Time(),
 				Delisted:                contracts[i].DeliveryTime.Time(),
-				Expiry:                  contracts[i].SettlementDate.Time(),
 			})
 		}
-	default:
-		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
-	}
-	if len(l) == 0 {
-		return common.ErrNoResponse
 	}
 	return limits.Load(l)
 }
@@ -2411,16 +2401,20 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		cp.Delimiter = currency.UnderscoreDelimiter
 		return tradeBaseURL + tradeSpot + cp.Lower().String(), nil
 	case asset.Futures:
-		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
-			// todo: support long dated currencies
-			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		if slices.Contains(validContractExpiryCodes, strings.ToUpper(cp.Quote.String())) {
+			cp, err = e.pairFromContractExpiryCode(cp)
+			if err != nil {
+				return "", err
+			}
 		}
 		cp.Delimiter = currency.DashDelimiter
 		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
 	case asset.CoinMarginedFutures:
-		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
-			// todo: support long dated currencies
-			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		if slices.Contains(validContractExpiryCodes, strings.ToUpper(cp.Quote.String())) {
+			cp, err = e.pairFromContractExpiryCode(cp)
+			if err != nil {
+				return "", err
+			}
 		}
 		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
 	default:

@@ -296,7 +296,7 @@ const (
 	getEconomicCalendarEPL
 	getEstimatedDeliveryPriceEPL
 
-	getAffilateInviteesDetailEPL
+	getAffiliateInviteesDetailEPL
 	getUserAffiliateRebateInformationEPL
 
 	placeLendingOrderEPL
@@ -644,7 +644,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// Status Endpoints
 
 		getEventStatusEPL:                    request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
-		getAffilateInviteesDetailEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAffiliateInviteesDetailEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getUserAffiliateRebateInformationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		placeLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
