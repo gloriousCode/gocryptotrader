@@ -26,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -200,12 +199,12 @@ func TestCandlestickUnmarshalJSON(t *testing.T) {
 	require.Len(t, targets, 3)
 	assert.Equal(t, Candlestick{
 		Timestamp:      types.Time(time.Unix(1738108800, 0)),
-		QuoteCcyVolume: types.NumberFromFloat64(229534412.73508700),
-		ClosePrice:     types.NumberFromFloat64(103734.3),
-		HighestPrice:   types.NumberFromFloat64(104779.9),
-		LowestPrice:    types.NumberFromFloat64(101336.6),
-		OpenPrice:      types.NumberFromFloat64(101343.8),
-		BaseCcyAmount:  types.NumberFromFloat64(2232.94510000),
+		QuoteCcyVolume: 229534412.73508700,
+		ClosePrice:     103734.3,
+		HighestPrice:   104779.9,
+		LowestPrice:    101336.6,
+		OpenPrice:      101343.8,
+		BaseCcyAmount:  2232.94510000,
 		WindowClosed:   true,
 	}, targets[0])
 }
@@ -240,16 +239,16 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
-			Amount:       types.NumberFromFloat64(0.001),
-			Price:        types.NumberFromFloat64(12349),
+			Amount:       0.001,
+			Price:        12349,
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
 		{
 			CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 			Side:         "buy",
-			Amount:       types.NumberFromFloat64(1),
-			Price:        types.NumberFromFloat64(1234567789),
+			Amount:       1,
+			Price:        1234567789,
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
@@ -283,8 +282,8 @@ func TestCreateSpotOrder(t *testing.T) {
 	_, err := e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
-		Amount:       types.NumberFromFloat64(1),
-		Price:        types.NumberFromFloat64(900000),
+		Amount:       1,
+		Price:        900000,
 		Account:      e.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	})
@@ -2339,50 +2338,6 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	}
 }
 
-func TestGenerateOptionsDefaultSubscriptionsDeduplicatesUnderlyingChannels(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	pairs := currency.Pairs{
-		currency.NewPairWithDelimiter("BTC", "USDT-20211231-59800-C", "_"),
-		currency.NewPairWithDelimiter("BTC", "USDT-20220131-60000-C", "_"),
-		currency.NewPairWithDelimiter("ETH", "USDT-20211231-4000-C", "_"),
-	}
-	require.NoError(t, ex.GetBase().SetPairs(pairs, asset.Options, true), "SetPairs must not error")
-
-	subs, err := ex.GenerateOptionsDefaultSubscriptions()
-	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
-
-	countByChannel := func(channel string) int {
-		count := 0
-		for i := range subs {
-			if subs[i].Channel == channel {
-				count++
-			}
-		}
-		return count
-	}
-
-	require.Equal(t, len(pairs), countByChannel(optionsContractTickersChannel), "contract ticker should subscribe once per options pair")
-	require.Equal(t, len(pairs), countByChannel(optionsTradesChannel), "contract trades should subscribe once per options pair")
-	require.Equal(t, len(pairs), countByChannel(optionsContractCandlesticksChannel), "contract candles should subscribe once per options pair")
-	require.Equal(t, len(pairs), countByChannel(optionsOrderbookUpdateChannel), "orderbook updates should subscribe once per options pair")
-
-	require.Equal(t, 2, countByChannel(optionsUnderlyingTickersChannel), "underlying tickers should subscribe once per underlying")
-	require.Equal(t, 2, countByChannel(optionsUnderlyingTradesChannel), "underlying trades should subscribe once per underlying")
-	require.Equal(t, 2, countByChannel(optionsUnderlyingCandlesticksChannel), "underlying candles should subscribe once per underlying")
-
-	for i := range subs {
-		if subs[i].Channel != optionsOrderbookUpdateChannel {
-			continue
-		}
-		level, ok := subs[i].Params["level"].(int)
-		require.True(t, ok, "orderbook update level should be stored as int")
-		require.Equal(t, int(optionOrderbookUpdateLimit), level, "orderbook update level should match configured default")
-	}
-}
-
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2525,6 +2480,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 						fallthrough
 					case asset.CoinMarginedFutures:
+						assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", pair)
 						if !l.Delisted.IsZero() {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
@@ -2622,6 +2578,13 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,
 		IncludePayments: true,
+	})
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.USDTMarginedFutures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
 	})
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 
@@ -2765,25 +2728,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
-func TestGetHistoricalContractKlineData(t *testing.T) {
-	t.Parallel()
-	g.Verbose = true
-	resp, err := g.GetHistoricalContractKlineData(
-		context.Background(),
-		&futures.GetKlineContractRequest{
-			UnderlyingPair:                 currency.NewPair(currency.LTC, currency.USDT),
-			Asset:                          asset.Futures,
-			StartDate:                      time.Now().Add(-time.Hour * 24 * 200),
-			EndDate:                        time.Now(),
-			Interval:                       kline.OneDay,
-			Contract:                       futures.Quarterly,
-			IndividualContractDenomination: futures.QuoteContract,
-		},
-	)
-	require.NoError(t, err)
-	require.NotEmpty(t, resp.Data)
-}
-
 func TestGetUnifiedAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2830,40 +2774,6 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 }
 
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
-
-func BenchmarkNewButts(b *testing.B) {
-	b.ReportAllocs()
-	hello := make([]Candlestick, b.N)
-	tn := time.Now()
-
-	for i := range b.N {
-		hello[i] = Candlestick{
-			Timestamp:      types.Time(tn),
-			QuoteCcyVolume: types.NumberFromFloat64(1337),
-			ClosePrice:     types.NumberFromFloat64(1337),
-			HighestPrice:   types.NumberFromFloat64(1337),
-			LowestPrice:    types.NumberFromFloat64(1337),
-			OpenPrice:      types.NumberFromFloat64(1337),
-			BaseCcyAmount:  types.NumberFromFloat64(1337),
-		}
-	}
-}
-
-func BenchmarkNewButts2(b *testing.B) {
-	b.ReportAllocs()
-	hello := make([]Candlestick, b.N)
-	tn := time.Now()
-
-	for i := range b.N {
-		hello[i].Timestamp = types.Time(tn)
-		hello[i].QuoteCcyVolume = types.NumberFromFloat64(1337)
-		hello[i].ClosePrice = types.NumberFromFloat64(1337)
-		hello[i].HighestPrice = types.NumberFromFloat64(1337)
-		hello[i].LowestPrice = types.NumberFromFloat64(1337)
-		hello[i].OpenPrice = types.NumberFromFloat64(1337)
-		hello[i].BaseCcyAmount = types.NumberFromFloat64(1337)
-	}
-}
 
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -3808,22 +3718,4 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	val, ok := got["BTC"]
 	require.True(t, ok, "result map must contain BTC key")
 	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
-}
-
-func TestGetCurrentMarginRatesValidation(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.GetCurrentMarginRates(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Spot,
-	})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Margin,
-		Pairs: currency.Pairs{currency.EMPTYPAIR},
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }

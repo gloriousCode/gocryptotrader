@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -74,6 +75,7 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel:          tradesChannel,
 	subscription.MyTradesChannel:           userTradesChannel,
 	subscription.MyOrdersChannel:           userOrdersChannel,
+	subscription.MyAccountChannel:          userChangesInstrumentsChannel,
 	announcementsChannel:                   announcementsChannel,
 	priceIndexChannel:                      priceIndexChannel,
 	priceRankingChannel:                    priceRankingChannel,
@@ -100,26 +102,10 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // Raw is available for authenticated users
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel, Interval: kline.HundredMilliseconds},
-	{Enabled: true, Asset: asset.Options, Channel: incrementalTickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
-}
-
-// WSOptionGreeksUpdate is emitted for Deribit option incremental ticker updates.
-type WSOptionGreeksUpdate struct {
-	ExchangeName string
-	Pair         currency.Pair
-	AssetType    asset.Item
-	LastUpdated  time.Time
-	Delta        float64
-	Gamma        float64
-	Vega         float64
-	Theta        float64
-	Rho          float64
-	BidIV        float64
-	AskIV        float64
-	MarkIV       float64
+	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
 // WsConnect starts a new connection with the websocket API
@@ -488,7 +474,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -497,7 +483,10 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
 		AskSize:      quoteTicker.BestAskAmount,
-	})
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels []string) error {
@@ -586,7 +575,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	if a != asset.Options {
 		return nil
 	}
-	return e.Websocket.DataHandler.Send(ctx, &WSOptionGreeksUpdate{
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -833,6 +822,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
 		"fmt":             formatChannelPair,
+		"symbolSep":       symbolChannelSeparator,
 	}).
 		Parse(subTplText)
 }
@@ -954,11 +944,18 @@ func formatChannelPair(pair currency.Pair) string {
 	return pair.String()
 }
 
+func symbolChannelSeparator(s *subscription.Subscription) string {
+	if strings.HasSuffix(channelName(s), ".") {
+		return ""
+	}
+	return "."
+}
+
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- fmt $p }}
+			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

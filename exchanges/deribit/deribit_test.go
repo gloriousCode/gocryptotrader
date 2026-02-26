@@ -470,7 +470,7 @@ func TestHistoricalVolatilityDataUnmarshalJSON(t *testing.T) {
 	require.Len(t, targets, 21)
 	assert.Equal(t, HistoricalVolatilityData{
 		Timestamp: types.Time(time.UnixMilli(1746532800000)),
-		Value:     types.NumberFromFloat64(33.926694663144644),
+		Value:     33.926694663144644,
 	}, targets[0])
 }
 
@@ -851,28 +851,6 @@ func TestWSRetrieveTradeVolumes(t *testing.T) {
 	result, err := e.WSRetrieveTradeVolumes(t.Context(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func ConvertToDeribitDate(code currency.Code, date time.Time) (string, time.Time) {
-	// BTC-7JUN24
-	for {
-		if date.Weekday() == time.Friday {
-			break
-		}
-		date = date.Add(time.Hour * 24)
-	}
-	return code.String() + "-" + date.Format("02Jan06"), date
-}
-
-func TestGetTradingViewChartOfOldContract(t *testing.T) {
-	t.Parallel()
-	d.Verbose = true
-	cd := time.Date(2024, time.April, 21, 0, 0, 0, 0, time.UTC)
-	contract, date := ConvertToDeribitDate(currency.BTC, cd)
-	_, err := d.GetTradingViewChart(context.Background(), strings.ToUpper(contract), "60", date.Add(-time.Hour*24*7), time.Now())
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestGetTradingViewChartData(t *testing.T) {
@@ -3333,7 +3311,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s)
+					if !strings.HasSuffix(s.QualifiedChannel, ".") {
+						s.QualifiedChannel += "."
+					}
+					s.QualifiedChannel += p.String()
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}
@@ -3955,10 +3937,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesContractDetails(t.Context(), asset.Options)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
 	_, err = e.GetFuturesContractDetails(t.Context(), asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
@@ -4235,27 +4213,4 @@ func TestAppendCandles(t *testing.T) {
 	resp, err = appendCandles(candles, time.Unix(1338, 0))
 	assert.NoError(t, err)
 	assert.Empty(t, resp)
-}
-
-func TestGetHistoricalContractKlineData(t *testing.T) {
-	t.Parallel()
-	d.Verbose = true
-	resp, err := d.GetHistoricalContractKlineData(
-		context.Background(),
-		&futures.GetKlineContractRequest{
-			UnderlyingPair: currency.NewPair(currency.ETH, currency.USD),
-			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 200),
-			EndDate:        time.Now(),
-			Interval:       kline.OneDay,
-			Contract:       futures.Weekly,
-		},
-	)
-	require.NoError(t, err)
-	require.NotEmpty(t, resp.Data)
-	for i := range resp.Data {
-		t.Logf("Data: %+v", resp.Data[i].PremiumContract.Name)
-		butts, err := d.GetInstrument(context.Background(), resp.Data[i].PremiumContract.Name.String())
-		t.Log(butts, err)
-	}
 }

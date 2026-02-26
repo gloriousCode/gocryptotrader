@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -224,6 +225,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
+	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -511,8 +514,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
-		var response WsOptionSummary
-		return e.wsProcessPushData(ctx, respRaw, &response)
+		return e.wsProcessOptionSummary(ctx, respRaw)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -1322,6 +1324,38 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 	return nil
 }
 
+func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) error {
+	var response WsOptionSummary
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, &response); err != nil {
+		return err
+	}
+	for i := range response.Data {
+		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+			ExchangeName: e.Name,
+			Pair:         pair,
+			AssetType:    asset.Options,
+			LastUpdated:  response.Data[i].Timestamp.Time(),
+			Delta:        response.Data[i].Delta.Float64(),
+			Gamma:        response.Data[i].Gamma.Float64(),
+			Vega:         response.Data[i].Vega.Float64(),
+			Theta:        response.Data[i].Theta.Float64(),
+			BidIV:        response.Data[i].BidVolatility.Float64(),
+			AskIV:        response.Data[i].AskVolatility.Float64(),
+			MarkIV:       response.Data[i].MarkVolatility.Float64(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error) {
 	list, err := e.Features.Subscriptions.ExpandTemplates(e)
@@ -1337,12 +1371,10 @@ func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error)
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":         channelName,
-		"isSymbolChannel":     isSymbolChannel,
-		"isAssetChannel":      isAssetChannel,
-		"isInstFamilyChannel": isInstFamilyChannel,
-		"instType":            GetInstrumentTypeFromAssetItem,
-		"instFamily":          optionInstFamily,
+		"channelName":     channelName,
+		"isSymbolChannel": isSymbolChannel,
+		"isAssetChannel":  isAssetChannel,
+		"instType":        GetInstrumentTypeFromAssetItem,
 	}).Parse(subTplText)
 }
 
@@ -1413,9 +1445,6 @@ func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any)
 
 // channelName converts global subscription channel names to exchange specific names
 func channelName(s *subscription.Subscription) string {
-	if s.Channel == subscription.AllTradesChannel && s.Asset == asset.Options {
-		return channelOptionTrades
-	}
 	if s, ok := subscriptionNames[s.Channel]; ok {
 		return s
 	}
@@ -1430,33 +1459,10 @@ func isAssetChannel(s *subscription.Subscription) bool {
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
 	switch s.Channel {
-	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelOptionTrades, channelFundingRate:
+	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
 		return true
 	}
 	return false
-}
-
-// isInstFamilyChannel returns if the channel expects an options instrument family per subscription.
-func isInstFamilyChannel(s *subscription.Subscription) bool {
-	switch channelName(s) {
-	case channelOptionTrades, channelOptSummary:
-		return true
-	}
-	return false
-}
-
-// optionInstFamily derives an option instrument family (e.g. BTC-USD) from a pair or option instrument ID.
-func optionInstFamily(pair currency.Pair) string {
-	if pair.IsEmpty() {
-		return ""
-	}
-	pair.Delimiter = currency.DashDelimiter
-	instrument := strings.ToUpper(strings.ReplaceAll(pair.String(), "/", "-"))
-	parts := strings.Split(instrument, "-")
-	if len(parts) >= 2 {
-		return parts[0] + "-" + parts[1]
-	}
-	return instrument
 }
 
 const subTplText = `
@@ -1464,11 +1470,6 @@ const subTplText = `
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if isAssetChannel $.S -}}
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
-		{{- else if isInstFamilyChannel $.S -}}
-			{{- range $p := $pairs -}}
-				{"channel":"{{ $name }}","instFamily":"{{ instFamily $p }}"{{- if eq $name "option-trades" -}},"instType":"OPTION"{{- end -}}}
-				{{ $.PairSeparator }}
-			{{- end -}}
 		{{- else if isSymbolChannel $.S }}
 			{{- range $p := $pairs -}}
 				{"channel":"{{ $name }}","instID":"{{ $p }}"}

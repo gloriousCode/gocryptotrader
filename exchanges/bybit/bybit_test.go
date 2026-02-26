@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -105,15 +106,15 @@ func TestGetKlines(t *testing.T) {
 
 				switch tc.category {
 				case cSpot:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(29393.99), High: types.NumberFromFloat64(29399.76), Low: types.NumberFromFloat64(29393.98), Close: types.NumberFromFloat64(29399.76), TradeVolume: types.NumberFromFloat64(1.168988), Turnover: types.NumberFromFloat64(34363.5346739)}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
 				case cLinear:
 					if tc.pair == usdtMarginedTradablePair {
-						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.0003), High: types.NumberFromFloat64(0.0003), Low: types.NumberFromFloat64(0.0002995), Close: types.NumberFromFloat64(0.0003), TradeVolume: types.NumberFromFloat64(55102100), Turnover: types.NumberFromFloat64(16506.2427)}, r[0])
+						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
 						return
 					}
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(239.7), High: types.NumberFromFloat64(239.7), Low: types.NumberFromFloat64(239.7), Close: types.NumberFromFloat64(239.7)}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
 				case cInverse:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.2908), High: types.NumberFromFloat64(0.2912), Low: types.NumberFromFloat64(0.2908), Close: types.NumberFromFloat64(0.2912), TradeVolume: types.NumberFromFloat64(5131), Turnover: types.NumberFromFloat64(17626.40000346)}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
 				}
 			} else {
 				assert.NotEmpty(t, r)
@@ -1782,8 +1783,8 @@ func TestSetMMP(t *testing.T) {
 		BaseCoin:           "ETH",
 		TimeWindowMS:       5000,
 		FrozenPeriod:       100000,
-		TradeQuantityLimit: types.NumberFromFloat64(50),
-		DeltaLimit:         types.NumberFromFloat64(20),
+		TradeQuantityLimit: 50,
+		DeltaLimit:         20,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1934,25 +1935,25 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     types.NumberFromFloat64(123.456),
+		Amount:     123.456,
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
+		Coin:       currency.BTC, Amount: 123.456,
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
+		Coin:       currency.BTC, Amount: 123.456,
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2037,25 +2038,25 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     types.NumberFromFloat64(123.456),
+		Amount:     123.456,
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
+		Coin:       currency.BTC, Amount: 123.456,
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
+		Coin:       currency.BTC, Amount: 123.456,
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2067,7 +2068,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
+		Coin:       currency.BTC, Amount: 123.456,
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 		FromMemberID:    123,
@@ -3191,13 +3192,15 @@ func TestWsTicker(t *testing.T) {
 		return e.wsHandleData(t.Context(), nil, assetRouting[0], r)
 	})
 	e.Websocket.DataHandler.Close()
-	expected := 8
+	expected := 9
 	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	tickerSequence := 0
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
+			tickerSequence++
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(e.Websocket.DataHandler.C) {
+			switch tickerSequence {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3321,6 +3324,18 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
+		case *exchangeoptions.Option:
+			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
+			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
+			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
+			assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			assert.Equal(t, -0.37596534, v.Delta, "Delta should be correct")
+			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
+			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
+			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
+			assert.Equal(t, 0.5479, v.BidIV, "BidIV should be correct")
+			assert.Equal(t, 0.5534, v.AskIV, "AskIV should be correct")
+			assert.Equal(t, 0.0, v.MarkIV, "MarkIV should be correct")
 		case error:
 			t.Error(v)
 		default:

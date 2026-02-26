@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -37,7 +38,8 @@ const (
 	optionsTradesChannel                 = "options.trades"
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
-	optionsMarkPriceChannel              = "options.mark_price"
+	optionsMarkPriceChannel              = "options.mark_prices"
+	optionsMarkPriceLegacyChannel        = "options.mark_price"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -61,8 +63,10 @@ var defaultOptionsSubscriptions = []string{
 	optionsUnderlyingTickersChannel,
 	optionsTradesChannel,
 	optionsUnderlyingTradesChannel,
+	optionsMarkPriceChannel,
 	optionsContractCandlesticksChannel,
 	optionsUnderlyingCandlesticksChannel,
+	optionsOrderbookTickerChannel,
 	optionsOrderbookUpdateChannel,
 }
 
@@ -325,7 +329,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		return e.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
 		return e.processOptionsUnderlyingPricePushData(ctx, push.Result)
-	case optionsMarkPriceChannel:
+	case optionsMarkPriceChannel, optionsMarkPriceLegacyChannel:
 		return e.processOptionsMarkPrice(ctx, push.Result)
 	case optionsSettlementChannel:
 		return e.processOptionsSettlementPushData(ctx, push.Result)
@@ -369,16 +373,41 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
 		AskSize:      data.Ask1Size,
 		BidSize:      data.Bid1Size,
+		MarkPrice:    data.MarkPrice.Float64(),
+		IndexPrice:   data.IndexPrice.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
+	}); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+		ExchangeName: e.Name,
+		Pair:         data.Name,
+		AssetType:    asset.Options,
+		Delta:        parseOptionalFloat(data.Delta),
+		Gamma:        parseOptionalFloat(data.Gamma),
+		Vega:         parseOptionalFloat(data.Vega),
+		Theta:        parseOptionalFloat(data.Theta),
+		Rho:          parseOptionalFloat(data.Rho),
+		BidIV:        data.BidImpliedVolatility.Float64(),
+		AskIV:        data.AskImpliedVolatility.Float64(),
+		MarkIV:       data.MarkImpliedVolatility.Float64(),
 	})
+}
+
+func parseOptionalFloat(v string) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
 
 func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {

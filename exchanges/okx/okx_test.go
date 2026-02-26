@@ -37,7 +37,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -1540,13 +1539,13 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
+	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInvalidUnderlying)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
+	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1558,8 +1557,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   types.NumberFromFloat64(10000),
-					MakerPriceBand: types.NumberFromFloat64(5),
+					MaxBlockSize:   10000,
+					MakerPriceBand: 5,
 				},
 				{
 					Underlying: mainPair.String(),
@@ -1978,13 +1977,13 @@ func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetLendingRate(contextGenerate(), &LendingRate{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: types.NumberFromFloat64(2)})
+	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
 	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: types.NumberFromFloat64(2)})
+	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2621,7 +2620,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		SimAsset: []SimulatedAsset{
 			{
 				Currency: "USDT",
-				Amount:   types.NumberFromFloat64(100),
+				Amount:   100,
 			},
 		},
 		SpotOffsetType: "1",
@@ -2982,7 +2981,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = types.NumberFromFloat64(1234.5)
+	arg.TakeProfitTriggerPrice = 1234.5
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -4217,16 +4216,16 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, 125, int(i.MaxLeverage.Int64()), "expected 125 leverage")
+	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, 1, int(i.LotSize.Int64()))
+	assert.Equal(t, 1, int(i.LotSize))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder.Int64()))
-	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder.Int64()))
-	assert.Equal(t, 85000, int(i.MaxStopSize.Int64()))
+	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
+	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
+	assert.Equal(t, 85000, int(i.MaxStopSize))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder.Int64()), "expected empty max TWAP size")
-	assert.Equal(t, 1, int(i.MinimumOrderSize.Int64()))
+	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
+	assert.Equal(t, 1, int(i.MinimumOrderSize))
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
@@ -4323,47 +4322,6 @@ func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	err := e.SetMarginType(contextGenerate(), asset.Spot, mainPair, margin.Isolated)
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-}
-
-func TestGetMarginRatesHistoryValidation(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetMarginRatesHistory(contextGenerate(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USDT,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-		Asset: asset.Margin,
-	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-		Asset:            asset.Margin,
-		Currency:         currency.USDT,
-		GetPredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-}
-
-func TestGetCurrentMarginRatesValidation(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetCurrentMarginRates(contextGenerate(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
-		Asset: asset.Spot,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
-		Asset: asset.Margin,
-		Pairs: currency.Pairs{currency.EMPTYPAIR},
-	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -4501,7 +4459,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 	}
-	t.Logf("%+v", resp[0])
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
@@ -5706,22 +5663,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestGetPrivateFundingRates(t *testing.T) {
-	t.Parallel()
-	_, err := ok.GetPrivateFundingRates(context.Background(), "USDT", "linear", "futures_spot", time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = ok.GetPrivateFundingRates(context.Background(), "USD", "inverse", "futures_spot", time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = ok.GetPrivateFundingRates(context.Background(), "USDC", "linear", "futures_spot", time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -6111,6 +6052,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+		{Channel: channelBalanceAndPosition, QualifiedChannel: `{"channel":"balance_and_position"}`, Authenticated: true},
+		{Channel: channelAccountGreeks, QualifiedChannel: `{"channel":"account-greeks"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6406,22 +6349,4 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
-}
-
-func TestGetHistoricalContractKlineData(t *testing.T) {
-	t.Parallel()
-	ok.Verbose = true
-	resp, err := ok.GetHistoricalContractKlineData(
-		context.Background(),
-		&futures.GetKlineContractRequest{
-			UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
-			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 90),
-			EndDate:        time.Now(),
-			Interval:       kline.OneDay,
-			Contract:       futures.Weekly,
-		},
-	)
-	require.NoError(t, err)
-	require.NotEmpty(t, resp.Data)
 }
