@@ -938,6 +938,18 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 func formatChannelPair(pair currency.Pair) string {
+	if a, err := getAssetFromInstrument(pair.String()); err == nil {
+		switch a {
+		case asset.Futures:
+			return formatFuturesTradablePair(pair)
+		case asset.Options:
+			return optionPairToString(pair)
+		case asset.OptionCombo:
+			return optionComboPairToString(pair)
+		case asset.FutureCombo:
+			return futureComboPairToString(pair)
+		}
+	}
 	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
 		pair.Delimiter = "_"
 	}

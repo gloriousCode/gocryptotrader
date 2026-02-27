@@ -468,10 +468,9 @@ func TestHistoricalVolatilityDataUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(data, &targets)
 	require.NoError(t, err)
 	require.Len(t, targets, 21)
-	assert.Equal(t, HistoricalVolatilityData{
-		Timestamp: types.Time(time.UnixMilli(1746532800000)),
-		Value:     33.926694663144644,
-	}, targets[0])
+	assert.Equal(t, types.Time(time.UnixMilli(1746532800000)), targets[0].Timestamp)
+	assert.Equal(t, 33.926694663144644, targets[0].Value.Float64())
+	assert.Equal(t, "33.926694663144644", targets[0].Value.String())
 }
 
 func TestGetHistoricalVolatility(t *testing.T) {

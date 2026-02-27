@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -150,6 +151,24 @@ func TestSymbolChannelSeparator(t *testing.T) {
 
 	assert.Empty(t, symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
 	assert.Equal(t, ".", symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
+}
+
+func TestDeribitWebsocketAssetSupport(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	assert.True(t, ex.IsAssetWebsocketSupported(asset.Options))
+	assert.False(t, ex.IsAssetWebsocketSupported(asset.OptionCombo))
+	assert.False(t, ex.IsAssetWebsocketSupported(asset.FutureCombo))
+}
+
+func TestFormatChannelPairFormatsLinearInstruments(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "ETH_USDC-PERPETUAL", formatChannelPair(currency.NewPairWithDelimiter("ETH", "USDC-PERPETUAL", "-")))
+	assert.Equal(t, "SOL_USDC-31MAY24-162-P", formatChannelPair(currency.NewPairWithDelimiter("SOL", "USDC-31MAY24-162-P", "-")))
+	assert.Equal(t, "MATIC_USDC-8JUN24-0d99-P", formatChannelPair(currency.NewPairWithDelimiter("MATIC", "USDC-8JUN24-0D99-P", "-")))
 }
 
 func TestWebsocketSubmitOrderMocked(t *testing.T) {

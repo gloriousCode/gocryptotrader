@@ -137,7 +137,7 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	for _, assetType := range []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo} {
+	for _, assetType := range []asset.Item{asset.OptionCombo, asset.FutureCombo} {
 		if err = e.DisableAssetWebsocketSupport(assetType); err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
