@@ -14,6 +14,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -22,6 +23,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -641,7 +643,21 @@ func (e *Exchange) processMarginLendingTradeOrderEvent(ctx context.Context, resp
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	rate := &margin.WebsocketRateUpdate{
+		Exchange: e.Name,
+		Asset:    asset.MarginFunding,
+		Symbol:   resp.Currency,
+		Currency: currency.NewCode(resp.Currency),
+		Time:     resp.Timestamp.Time(),
+	}
+	if strings.EqualFold(resp.Side, "lend") {
+		rate.LendRate = decimal.NewFromFloat(resp.DailyIntRate)
+		rate.LendPeriod = float64(resp.Term)
+	} else {
+		rate.BorrowRate = decimal.NewFromFloat(resp.DailyIntRate)
+		rate.BorrowPeriod = float64(resp.Term)
+	}
+	return e.Websocket.DataHandler.Send(ctx, rate)
 }
 
 // processAccountBalanceChange processes an account balance change

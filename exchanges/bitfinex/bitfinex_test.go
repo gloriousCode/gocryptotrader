@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1621,6 +1622,32 @@ func TestWSFundingInfoUpdate(t *testing.T) {
 	const pressXToJSON = `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`
 	if err := e.wsHandleData(t.Context(), []byte(pressXToJSON)); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWSFundingInfoUpdateEmitsMarginRate(t *testing.T) {
+	t.Parallel()
+
+	localExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(localExchange), "Test instance Setup must not error")
+
+	const pressXToJSON = `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`
+	err := localExchange.wsHandleData(t.Context(), []byte(pressXToJSON))
+	require.NoError(t, err)
+
+	select {
+	case msg := <-localExchange.Websocket.DataHandler.C:
+		got, ok := msg.Data.(*margin.WebsocketRateUpdate)
+		require.True(t, ok, "expected *margin.WebsocketRateUpdate")
+		assert.Equal(t, localExchange.Name, got.Exchange)
+		assert.Equal(t, asset.MarginFunding, got.Asset)
+		assert.Equal(t, "tETHUSD", got.Symbol)
+		assert.False(t, got.BorrowRate.IsZero(), "borrow rate should be populated")
+		assert.False(t, got.LendRate.IsZero(), "lend rate should be populated")
+		assert.Equal(t, 830.0182168075556, got.BorrowPeriod)
+		assert.Equal(t, 895.0658432466332, got.LendPeriod)
+	default:
+		require.Fail(t, "expected websocket margin rate payload")
 	}
 }
 

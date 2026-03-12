@@ -4482,6 +4482,32 @@ func TestProcessFuturesKline(t *testing.T) {
 	}
 }
 
+func TestProcessMarginLendingTradeOrderEventEmitsMarginRate(t *testing.T) {
+	t.Parallel()
+
+	ku := new(Exchange)
+	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
+
+	data := []byte(`{"currency":"BTC","orderId":"ac928c66ca53498f9c13a127a60e8","dailyIntRate":0.0001,"term":7,"size":1,"side":"lend","ts":1553846081210005000}`)
+	err := ku.processMarginLendingTradeOrderEvent(t.Context(), data)
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ku.Websocket.DataHandler.C:
+		got, ok := msg.Data.(*margin.WebsocketRateUpdate)
+		require.True(t, ok, "expected *margin.WebsocketRateUpdate")
+		assert.Equal(t, ku.Name, got.Exchange)
+		assert.Equal(t, asset.MarginFunding, got.Asset)
+		assert.Equal(t, "BTC", got.Symbol)
+		assert.Equal(t, currency.BTC, got.Currency)
+		assert.False(t, got.LendRate.IsZero(), "lend rate should be populated for lend side")
+		assert.True(t, got.BorrowRate.IsZero(), "borrow rate should remain empty for lend side")
+		assert.Equal(t, float64(7), got.LendPeriod)
+	default:
+		require.Fail(t, "expected websocket margin rate payload")
+	}
+}
+
 func TestIntervalFromString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -18,6 +18,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -25,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -429,7 +431,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if fundingInfo.DurationLend, ok = symbolData[3].(float64); !ok {
 						return errors.New("unable to type assert funding info update duration lend")
 					}
-					return e.Websocket.DataHandler.Send(ctx, fundingInfo)
+					return e.Websocket.DataHandler.Send(ctx, &margin.WebsocketRateUpdate{
+						Exchange:     e.Name,
+						Asset:        asset.MarginFunding,
+						Symbol:       fundingInfo.Symbol,
+						BorrowRate:   decimal.NewFromFloat(fundingInfo.YieldLoan),
+						LendRate:     decimal.NewFromFloat(fundingInfo.YieldLend),
+						BorrowPeriod: fundingInfo.DurationLoan,
+						LendPeriod:   fundingInfo.DurationLend,
+						Time:         time.Now().UTC(),
+					})
 				}
 			}
 		case wsFundingTradeExecuted, wsFundingTradeUpdated:
@@ -868,6 +879,16 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
 			return errors.New("unable to type assert ticker flash return rate")
 		}
+	}
+	if c.Asset == asset.MarginFunding {
+		return e.Websocket.DataHandler.Send(ctx, &margin.WebsocketRateUpdate{
+			Exchange: e.Name,
+			Asset:    c.Asset,
+			Symbol:   c.Pairs[0].String(),
+			Pair:     c.Pairs[0],
+			LendRate: decimal.NewFromFloat(t.FlashReturnRate),
+			Time:     time.Now().UTC(),
+		})
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }
