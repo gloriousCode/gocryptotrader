@@ -367,7 +367,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
@@ -378,14 +378,51 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestCountdownCancelorder(t *testing.T) {
+func TestCountdownCancelSpotOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{
-		Timeout:      10,
-		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
-	}); err != nil {
-		t.Errorf("%s CountdownCancelorder() error %v", e.Name, err)
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		arg          CountdownCancelOrderParam
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			arg: CountdownCancelOrderParam{
+				Timeout:      10,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+		},
+		{
+			name: "timeout_zero",
+			arg: CountdownCancelOrderParam{
+				Timeout:      0,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+			expectedErr: errInvalidCountdown,
+		},
+		{
+			name: "timeout_negative",
+			arg: CountdownCancelOrderParam{
+				Timeout:      -1,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+			expectedErr: errInvalidCountdown,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelSpotOrders(t.Context(), tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
 	}
 }
 
@@ -831,7 +868,7 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubAccountFuturesBalances(t.Context(), "", currency.EMPTYCODE)
-	assert.Error(t, err, "GetSubAccountFuturesBalances should not error")
+	assert.NoError(t, err, "GetSubAccountFuturesBalances should not error")
 }
 
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
@@ -1028,7 +1065,7 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceDeliveryOrder(t.Context(), &ContractOrderCreateParams{
+	_, err := e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1181,7 +1218,7 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceFuturesOrder(t.Context(), &ContractOrderCreateParams{
+	_, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderCreateParams{
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1224,7 +1261,7 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []ContractOrderCreateParams{
+	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []FuturesOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
@@ -1291,13 +1328,53 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 	assert.NoError(t, err, "GetFuturesLiquidationHistory should not error")
 }
 
-func TestCountdownCancelOrders(t *testing.T) {
+func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CountdownCancelOrders(t.Context(), currency.BTC, CountdownParams{
-		Timeout: 8,
-	})
-	assert.NoError(t, err, "CountdownCancelOrders should not error")
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		settle       currency.Code
+		arg          CountdownParams
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			settle:       currency.BTC,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+		},
+		{
+			name:   "empty_settlement",
+			settle: currency.EMPTYCODE,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+			expectedErr: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			name:   "negative_timeout",
+			settle: currency.BTC,
+			arg: CountdownParams{
+				Timeout: -1,
+			},
+			expectedErr: errInvalidTimeout,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelFuturesOrders(t.Context(), tc.settle, tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
@@ -1891,20 +1968,120 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	type testCase struct {
+		name         string
+		requiresAuth bool
+		request      order.MultiOrderRequest
+		expectedErr  error
+	}
+
+	testCases := make([]testCase, 0, len(e.GetAssetTypes(false))*2+1)
 	for _, a := range e.GetAssetTypes(false) {
 		enabledPairs := getPairs(t, a)
-		if len(enabledPairs) > 4 {
-			enabledPairs = enabledPairs[:4]
+		enabledPairs = enabledPairs[:min(4, len(enabledPairs))]
+
+		withPairs := testCase{
+			name:         a.String() + "/with_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     enabledPairs,
+				AssetType: a,
+			},
 		}
-		multiOrderRequest := order.MultiOrderRequest{
+		testCases = append(testCases, withPairs)
+
+		noPairs := testCase{
+			name:         a.String() + "/without_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: a,
+			},
+		}
+		if a == asset.Options {
+			noPairs.requiresAuth = false
+			noPairs.expectedErr = currency.ErrCurrencyPairsEmpty
+		}
+		testCases = append(testCases, noPairs)
+	}
+
+	testCases = append(testCases, testCase{
+		name:         "unsupported/default_case_binary",
+		requiresAuth: false,
+		request: order.MultiOrderRequest{
 			Type:      order.AnyType,
 			Side:      order.Buy,
-			Pairs:     enabledPairs,
-			AssetType: a,
-		}
-		_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-		assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			AssetType: asset.Binary,
+		},
+		expectedErr: asset.ErrNotSupported,
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			orders, err := e.GetOrderHistory(t.Context(), &tc.request)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+			for j := range orders {
+				assert.Equal(t, tc.request.AssetType, orders[j].AssetType)
+				assert.Equal(t, e.Name, orders[j].Exchange)
+				assert.True(t, orders[j].Pair.IsPopulated(), "pair should be populated for order history response")
+			}
+		})
+	}
+}
+
+func TestGetOrderHistoryRequestImmutability(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	enabledPairs := getPairs(t, asset.Spot)
+	enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
+
+	type testCase struct {
+		name    string
+		request order.MultiOrderRequest
+	}
+
+	testCases := []testCase{
+		{
+			name: "nil_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: asset.Spot,
+			},
+		},
+		{
+			name: "provided_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     slices.Clone(enabledPairs),
+				AssetType: asset.Spot,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			expectedPairs := slices.Clone(tc.request.Pairs)
+			_, err := e.GetOrderHistory(t.Context(), &tc.request)
+			require.NoError(t, err)
+			assert.Equal(t, expectedPairs, tc.request.Pairs)
+		})
 	}
 }
 
@@ -1973,8 +2150,31 @@ const wsCandlestickPushDataJSON = `{"time": 1606292600,	"channel": "spot.candles
 
 func TestWsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)); err != nil {
-		t.Errorf("%s websocket candlestick push data error: %v", e.Name, err)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		require.NotEmpty(t, got, "expected at least one candle")
+		for _, item := range got {
+			assert.Equal(t, kline.OneMin, item.Interval)
+			assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "_"), item.Pair)
+			assert.Equal(t, ex.Name, item.Exchange)
+			require.Len(t, item.Candles, 1)
+			assert.Equal(t, kline.Candle{
+				Time:   time.Unix(1606292580, 0),
+				Open:   19128.1,
+				Close:  19128.1,
+				High:   19128.1,
+				Low:    19128.1,
+				Volume: 2362.32035,
+			}, item.Candles[0])
+		}
+	default:
+		require.Fail(t, "expected websocket candlestick payload")
 	}
 }
 
@@ -2071,11 +2271,42 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 14, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
+	}
+}
+
+func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	payload := []byte(`{"time":1606292600,"channel":"futures.candlesticks","event":"update","result":[{"t":1606292580,"v":"2362.32035","c":"19128.1","h":"19128.1","l":"19128.1","o":"19128.1","n":"1m_BTC_USDT"}]}`)
+	require.NoError(t, ex.processFuturesCandlesticks(t.Context(), payload, asset.CoinMarginedFutures))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Asset:    asset.CoinMarginedFutures,
+			Exchange: ex.Name,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1606292580, 0),
+				Open:   19128.1,
+				Close:  19128.1,
+				High:   19128.1,
+				Low:    19128.1,
+				Volume: 2362.32035,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected futures websocket candle payload")
 	}
 }
 
@@ -2160,11 +2391,37 @@ const (
 
 func TestOptionsCandlesticksPushData(t *testing.T) {
 	t.Parallel()
-	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options contracts candlestick push data error: %v", e.Name, err)
-	}
-	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options underlying candlestick push data error: %v", e.Name, err)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)))
+	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)))
+
+	for _, expPair := range []currency.Pair{
+		currency.NewPairWithDelimiter("BTC", "USDT-20211231-59800-C", "_"),
+		currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+	} {
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.([]kline.Item)
+			require.True(t, ok, "expected []kline.Item")
+			require.Len(t, got, 1)
+			assert.Equal(t, []kline.Item{{
+				Pair:     expPair,
+				Asset:    asset.Options,
+				Exchange: ex.Name,
+				Interval: kline.TenSecond,
+				Candles: []kline.Candle{{
+					Time:   time.Unix(1639039260, 0),
+					Open:   1041.4,
+					Close:  1041.4,
+					High:   1041.4,
+					Low:    1041.4,
+					Volume: 0,
+				}},
+			}}, got)
+		default:
+			require.Fail(t, "expected websocket options candle payload")
+		}
 	}
 }
 
@@ -2498,17 +2755,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestForceFileStandard(t *testing.T) {
-	t.Parallel()
-	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
-	if err != nil {
-		t.Error(err)
-	}
-	if t.Failed() {
-		t.Fatal("Please use types.Number type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }
 
@@ -3596,85 +3842,49 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidateContractOrderCreateParams(t *testing.T) {
+func TestValidateOrderCreateParams(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		params *ContractOrderCreateParams
-		isRest bool
-		err    error
-	}{
-		{
-			err: common.ErrNilPointer,
-		},
-		{
-			params: &ContractOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT},
-			err:    errInvalidOrderSize,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			err:    errInvalidTextPrefix,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
-			},
-			err: errInvalidAutoSize,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			err: errInvalidOrderSize,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			isRest: true,
-			err:    errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
-			},
-			err: errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
-			},
-		},
-	} {
-		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
-	}
-}
-
-func TestMarshalJSONNumber(t *testing.T) {
-	t.Parallel()
+	// Test nil pointer cases separately since they can't be constructed from shared fields.
+	assert.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil FuturesOrderCreateParams should error")
+	assert.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil DeliveryOrderCreateParams should error")
 
 	for _, tc := range []struct {
-		number   number
-		expected string
+		name        string
+		contract    currency.Pair
+		size        float64
+		timeInForce string
+		text        string
+		autoSize    string
+		settle      currency.Code
+		isRest      bool
+		err         error
 	}{
-		{number: 0, expected: `"0"`},
-		{number: 1, expected: `"1"`},
-		{number: 1.5, expected: `"1.5"`},
+		{name: "empty-contract", err: currency.ErrCurrencyPairEmpty},
+		{name: "invalid-order-size", contract: BTCUSDT, err: errInvalidOrderSize},
+		{name: "bad-time-in-force", contract: BTCUSDT, size: 1, timeInForce: "bad", err: order.ErrUnsupportedTimeInForce},
+		{name: "unsupported-poc-tif", contract: BTCUSDT, size: 1, timeInForce: pocTIF, err: order.ErrUnsupportedTimeInForce},
+		{name: "invalid-text-prefix", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "test", err: errInvalidTextPrefix},
+		{name: "invalid-auto-size", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "silly_billy", err: errInvalidAutoSize},
+		{name: "size-nonzero-with-auto-size", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", err: errInvalidOrderSize},
+		{name: "rest-missing-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", isRest: true, err: errEmptyOrInvalidSettlementCurrency},
+		{name: "ws-invalid-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.NewCode("Silly"), err: errEmptyOrInvalidSettlementCurrency},
+		{name: "valid", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.USDT},
 	} {
-		payload, err := tc.number.MarshalJSON()
-		require.NoError(t, err, "MarshalJSON must not error")
-		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fp := &FuturesOrderCreateParams{
+				Contract: tc.contract, Size: tc.size, TimeInForce: tc.timeInForce,
+				Text: tc.text, AutoSize: tc.autoSize, Settle: tc.settle,
+			}
+			assert.ErrorIs(t, fp.validate(tc.isRest), tc.err, "FuturesOrderCreateParams validate should return expected error")
+
+			dp := &DeliveryOrderCreateParams{
+				Contract: tc.contract, Size: tc.size, TimeInForce: tc.timeInForce,
+				Text: tc.text, AutoSize: tc.autoSize, Settle: tc.settle,
+			}
+			assert.ErrorIs(t, dp.validate(tc.isRest), tc.err, "DeliveryOrderCreateParams validate should return expected error")
+		})
 	}
 }
 

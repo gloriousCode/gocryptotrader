@@ -280,7 +280,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.Dial(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 	}
 	err = ws.Connect(t.Context())
 	require.ErrorIs(t, err, errDastardlyReason)
@@ -358,7 +358,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	ws.setup.URL = "ws" + server.URL[len("http"):] + "/ws"
 	ws.setup.Handler = func(context.Context, Connection, []byte) error { return nil }
 	ws.setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.Dial(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 	}
 	ws.setup.Authenticate = func(context.Context, Connection) error { return errConnectionFault }
 	mgr.SetCanUseAuthenticatedEndpoints(true)
@@ -445,6 +445,99 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
+}
+
+func TestSetSubscriptionsNotRequired(t *testing.T) {
+	t.Parallel()
+
+	singleConn := NewManager()
+	singleConn.GenerateSubs = func() (subscription.List, error) {
+		return subscription.List{{Channel: "single"}}, nil
+	}
+
+	singleConn.SetSubscriptionsNotRequired()
+
+	subs, err := singleConn.GenerateSubs()
+	require.NoError(t, err, "GenerateSubs must not error after subscriptions are disabled")
+	assert.Empty(t, subs, "GenerateSubs should return no subscriptions after subscriptions are disabled")
+
+	multiConn := NewManager()
+	multiConn.useMultiConnectionManagement = true
+	multiConn.connectionManager = []*websocket{
+		{setup: nil},
+		{setup: &ConnectionSetup{}},
+		{setup: &ConnectionSetup{SubscriptionsNotRequired: true}},
+	}
+
+	multiConn.SetSubscriptionsNotRequired()
+
+	for i := range multiConn.connectionManager {
+		require.NotNil(t,
+			multiConn.connectionManager[i].setup,
+			"connection setup should be initialised when missing")
+		assert.True(t,
+			multiConn.connectionManager[i].setup.SubscriptionsNotRequired,
+			"connection setup should not require subscriptions after override")
+	}
+}
+
+func TestSetAllConnectionURLs(t *testing.T) {
+	t.Parallel()
+
+	singleConn := NewManager()
+	singleConn.Conn = &connection{URL: "ws://old-public.example.com"}
+	singleConn.AuthConn = &connection{URL: "ws://old-auth.example.com"}
+
+	err := singleConn.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must not error for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.runningURL, "runningURL should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.runningURLAuth, "runningURLAuth should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.Conn.GetURL(), "Conn URL should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.AuthConn.GetURL(), "AuthConn URL should be updated for single-connection managers")
+
+	multiConn := NewManager()
+	multiConn.useMultiConnectionManagement = true
+	multiConn.connectionManager = []*websocket{
+		{setup: nil},
+		{setup: &ConnectionSetup{URL: "ws://first.example.com"}},
+		{setup: &ConnectionSetup{URL: "ws://second.example.com"}, connections: []Connection{&connection{URL: "ws://live.example.com"}}},
+	}
+
+	err = multiConn.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must not error for multi-connection managers")
+
+	for i := range multiConn.connectionManager {
+		require.NotNil(t,
+			multiConn.connectionManager[i].setup,
+			"connection setup should be initialised when missing")
+		assert.Equal(t,
+			"ws://mock.example.com/ws",
+			multiConn.connectionManager[i].setup.URL,
+			"connection setup URL should be updated for each multi-connection setup")
+	}
+	assert.Equal(t,
+		"ws://live.example.com",
+		multiConn.connectionManager[2].connections[0].GetURL(),
+		"existing live connection URL should not be mutated by the pre-connect helper")
+}
+
+func TestSetAllConnectionURLsErrorsAfterConnect(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+
+	err := ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must allow pre-connect configuration")
+
+	ws.setState(connectingState)
+	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.ErrorIs(t, err, errAlreadyReconnecting, "SetAllConnectionURLs must error once Connect has started")
+	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
+
+	ws.setState(connectedState)
+	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.ErrorIs(t, err, errAlreadyConnected, "SetAllConnectionURLs must error after connect")
+	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
 }
 
 func TestManager(t *testing.T) {
@@ -601,7 +694,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -653,7 +746,7 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
@@ -683,7 +776,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -808,7 +901,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 	wc.shutdown = make(chan struct{})
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -824,7 +917,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1051,7 +1144,7 @@ func TestConnectionShutdown(t *testing.T) {
 	err := wc.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error when connection.Connection is nil")
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
@@ -1059,7 +1152,7 @@ func TestConnectionShutdown(t *testing.T) {
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1087,7 +1180,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
@@ -1120,11 +1213,13 @@ func TestWriteToConn(t *testing.T) {
 	// No rate limits set
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
-	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
+	// Use a longer interval so the second call always requires delay and hits ctx deadline checks deterministically.
+	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Second)
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	ctx, cancel := context.WithTimeout(t.Context(), 0) // deadline exceeded
 	cancel()
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
+	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),

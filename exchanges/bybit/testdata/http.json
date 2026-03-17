@@ -25093,6 +25093,43 @@
      "queryString": "category=option\u0026endTime=1693080759395\u0026period=123\u0026startTime=1690488759395",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "category": "option",
+      "result": [
+       {
+        "period": 7,
+        "time": "1690491600000",
+        "value": "0.23699972"
+       },
+       {
+        "period": 7,
+        "time": "1690495200000",
+        "value": "0.23688048"
+       },
+       {
+        "period": 7,
+        "time": "1690498800000",
+        "value": "0.23691979"
+       },
+       {
+        "period": 7,
+        "time": "1690502400000",
+        "value": "0.23695018"
+       },
+       {
+        "period": 7,
+        "time": "1690506000000",
+        "value": "0.23630571"
+       }
+      ],
+      "retCode": 0,
+      "retMsg": "SUCCESS"
+     },
+     "queryString": "baseCoin=BTC\u0026category=option\u0026endTime=1693080759395\u0026period=7\u0026startTime=1690488759395",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -545139,7 +545176,7 @@
     }
    ]
   },
-  "/v5/spot-cross-margin-trade/data": {
+  "/v5/spot-margin-trade/data": {
    "GET": [
     {
      "data": {
@@ -545166,7 +545203,7 @@
       "retExtInfo": {},
       "time": 1692071381663
      },
-     "queryString": "coin=BTC",
+     "queryString": "currency=BTC",
      "bodyParams": "",
      "headers": {}
     },
@@ -553595,25 +553632,74 @@
     }
    ]
   },
-  "/v5/spot-cross-margin-trade/pledge-token": {
+  "/v5/spot-margin-trade/max-borrowable": {
    "GET": [
     {
      "data": {
       "result": {
        "list": [
         {
-         "coin": "BTC",
-         "conversionRate": "0.95",
-         "liquidationOrder": 2
+         "currency": "BTC",
+         "maxLoan": "5"
         }
        ]
       },
       "retCode": 0,
       "retExtInfo": null,
       "retMsg": "success",
+      "time": 1700077348237
+     },
+     "queryString": "currency=BTC",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ],
+      "X-Bapi-Api-Key": [
+       "sample-api-key"
+      ],
+      "X-Bapi-Recv-Window": [
+       "5000"
+      ],
+      "X-Bapi-Sign": [
+       "3e740e3bf427e4bce29ce4bf68cc51dcfa923eb227491eb470eb719ebcaaceff"
+      ],
+      "X-Bapi-Timestamp": [
+       "1700077347409"
+      ]
+     }
+    }
+   ]
+  },
+  "/v5/spot-margin-trade/collateral": {
+   "GET": [
+    {
+     "data": {
+      "result": {
+       "list": [
+        {
+         "currency": "BTC",
+         "collateralRatioList": [
+          {
+           "minQty": "0",
+           "maxQty": "1000000",
+           "collateralRatio": "0.95"
+          },
+          {
+           "minQty": "1000000",
+           "maxQty": "",
+           "collateralRatio": "0"
+          }
+         ]
+        }
+       ]
+      },
+      "retCode": 0,
+      "retExtInfo": "{}",
+      "retMsg": "OK",
       "time": 1693080764229
      },
-     "queryString": "coin=BTC",
+     "queryString": "currency=BTC",
      "bodyParams": "",
      "headers": {}
     }

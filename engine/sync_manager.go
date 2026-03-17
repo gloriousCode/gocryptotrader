@@ -40,8 +40,8 @@ const (
 var SyncItemList = []SyncItemType{SyncItemTicker, SyncItemOrderbook, SyncItemTrade, SyncItemFundingRate, SyncItemFuturesContract, SyncItemOpenInterest}
 
 var (
-	createdCounter         = 0
-	removedCounter         = 0
+	createdCounter         int64
+	removedCounter         int64
 	errNoSyncItemsEnabled  = errors.New("no sync items enabled")
 	errUnknownSyncItem     = errors.New("unknown sync item")
 	errCouldNotSyncNewData = errors.New("could not sync new data")
@@ -202,7 +202,7 @@ func (m *SyncManager) Start() error {
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr,
 				"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
-				createdCounter)
+				atomic.LoadInt64(&createdCounter))
 		}
 		m.initSyncStartTime = time.Now()
 	}
@@ -213,7 +213,7 @@ func (m *SyncManager) Start() error {
 			if m.config.LogInitialSyncEvents {
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync is complete.")
 				log.Debugf(log.SyncMgr, "Exchange CurrencyPairSyncer initial sync took %v [%v sync items].",
-					time.Since(m.initSyncStartTime), createdCounter)
+					time.Since(m.initSyncStartTime), atomic.LoadInt64(&createdCounter))
 			}
 
 			if !m.config.SynchronizeContinuously {
@@ -301,7 +301,7 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
 			m.initSyncWG.Add(1)
-			createdCounter++
+			atomic.AddInt64(&createdCounter, 1)
 		}
 	}
 
@@ -316,7 +316,7 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
 			m.initSyncWG.Add(1)
-			createdCounter++
+			atomic.AddInt64(&createdCounter, 1)
 		}
 	}
 
@@ -331,7 +331,7 @@ func (m *SyncManager) add(k key.ExchangeAssetPair, s syncBase) *currencyPairSync
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
 			m.initSyncWG.Add(1)
-			createdCounter++
+			atomic.AddInt64(&createdCounter, 1)
 		}
 	}
 
@@ -426,14 +426,14 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType SyncItemType, er
 	}
 	s.HaveData = true
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-		removedCounter++
+		removedCount := atomic.AddInt64(&removedCounter, 1)
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
 				c.Key.Exchange,
 				syncType,
 				m.FormatCurrency(c.Pair),
-				removedCounter,
-				createdCounter)
+				removedCount,
+				atomic.LoadInt64(&createdCounter))
 		}
 		m.initSyncWG.Done()
 	}
