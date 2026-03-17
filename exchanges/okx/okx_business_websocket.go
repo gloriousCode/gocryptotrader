@@ -41,6 +41,12 @@ var (
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business websocket.
 func (e *Exchange) GenerateDefaultBusinessSubscriptions() (subscription.List, error) {
+	// options-only deployments (for example optionsmm) do not require business
+	// websocket defaults and these channels can pollute data handlers with
+	// unrelated public structured block trade payloads.
+	if enabled := e.GetAssetTypes(true); len(enabled) == 1 && enabled[0] == asset.Options {
+		return nil, nil
+	}
 	var subs []string
 	var subscriptions []*subscription.Subscription
 	subs = append(subs, defaultBusinessSubscribedChannels...)

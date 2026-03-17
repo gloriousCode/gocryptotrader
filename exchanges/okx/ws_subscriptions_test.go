@@ -147,6 +147,30 @@ func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
 	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"instID"`), "option-trades should use instFamily instead of instID")
 }
 
+func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	require.NoError(t,
+		e.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, true),
+		"SetPairs must not error")
+	e.Features.Subscriptions = subscription.List{
+		{
+			Channel: subscription.TickerChannel,
+			Asset:   asset.Options,
+		},
+	}
+
+	subs, err := e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 1, "should generate one options ticker subscription")
+	require.Contains(t, subs[0].QualifiedChannel, `"channel":"opt-summary"`)
+	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
+	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
+	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"uly"`), "opt-summary should use instFamily instead of uly")
+}
+
 func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {
 	t.Parallel()
 

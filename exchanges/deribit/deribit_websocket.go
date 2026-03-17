@@ -854,7 +854,55 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 
 // generateSubscriptions returns a list of configured subscriptions
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+	list, err := e.Features.Subscriptions.ExpandTemplates(e)
+	if err != nil {
+		return nil, err
+	}
+	return normalizeOptionSubscriptions(list), nil
+}
+
+func normalizeOptionSubscriptions(list subscription.List) subscription.List {
+	normalized := make(subscription.List, 0, len(list))
+	seenOptionPairs := make(map[string]struct{})
+	hasOptionSubs := false
+	for i := range list {
+		if list[i] == nil {
+			continue
+		}
+		pair, ok := optionPairFromSubscription(list[i])
+		if !ok {
+			normalized = append(normalized, list[i])
+			continue
+		}
+		hasOptionSubs = true
+		key := pair.String()
+		if _, exists := seenOptionPairs[key]; exists {
+			continue
+		}
+		seenOptionPairs[key] = struct{}{}
+		normalized = append(normalized, &subscription.Subscription{
+			Enabled: true,
+			Channel: incrementalTickerChannel,
+			Asset:   asset.Options,
+			Pairs:   currency.Pairs{pair},
+		})
+	}
+	if !hasOptionSubs {
+		return list
+	}
+	return normalized
+}
+
+func optionPairFromSubscription(sub *subscription.Subscription) (currency.Pair, bool) {
+	if len(sub.Pairs) == 0 {
+		return currency.EMPTYPAIR, false
+	}
+	pair := sub.Pairs[0]
+	item, err := getAssetFromInstrument(pair.String())
+	if err != nil || item != asset.Options {
+		return currency.EMPTYPAIR, false
+	}
+	return pair, true
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -983,7 +1031,11 @@ func formatChannelPair(pair currency.Pair) string {
 	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
 		pair.Delimiter = "_"
 	}
-	return pair.String()
+	formatted := pair.String()
+	if strings.Contains(formatted, "/") {
+		return strings.ReplaceAll(formatted, "/", "_")
+	}
+	return formatted
 }
 
 func symbolChannelSeparator(s *subscription.Subscription) string {

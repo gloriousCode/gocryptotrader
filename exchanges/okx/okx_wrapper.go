@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -2164,7 +2165,11 @@ allOrders:
 				orderAmount := orderList[i].Size
 				if orderList[i].QuantityType == "quote_ccy" {
 					// Size is quote amount.
-					orderAmount /= orderList[i].AveragePrice
+					if orderList[i].AveragePrice.Float64() == 0 {
+						orderAmount = types.NumberFromFloat64(0)
+					} else {
+						orderAmount = types.NumberFromFloat64(orderAmount.Float64() / orderList[i].AveragePrice.Float64())
+					}
 				}
 
 				remainingAmount := float64(0)
@@ -2464,12 +2469,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		Time: fr.FundingTime.Time().Add(-fri),
 		Rate: fr.FundingRate.Decimal(),
 	}
-	if r.IncludePredictedRate {
-		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-fri),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time().Add(-fri),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
@@ -2543,11 +2546,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		Rate: fr.FundingRate.Decimal(),
 	}
 	pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
-	if r.IncludePredictedRate {
-		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
-			Rate: fr.NextFundingRate.Decimal(),
-		}
+	pairRate.PredictedUpcomingRate = fundingrate.Rate{
+		Time: fr.NextFundingTime.Time(),
+		Rate: fr.NextFundingRate.Decimal(),
 	}
 	if r.IncludePayments {
 		pairRate.PaymentCurrency = r.Pair.Base
@@ -2623,7 +2624,7 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (coll
 	if err != nil {
 		return 0, err
 	}
-	switch cfg.AccountLevel {
+	switch cfg.AccountLevel.Int64() {
 	case 1:
 		if item != asset.Spot {
 			return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
@@ -2636,7 +2637,7 @@ func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (coll
 	case 4:
 		return collateral.PortfolioMode, nil
 	default:
-		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel)
+		return collateral.UnknownMode, fmt.Errorf("%w %v", order.ErrCollateralInvalid, cfg.AccountLevel.Int64())
 	}
 }
 
@@ -2906,7 +2907,11 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 			orderAmount := positions[j].Size
 			if positions[j].QuantityType == "quote_ccy" {
 				// Size is quote amount.
-				orderAmount /= positions[j].AveragePrice
+				if positions[j].AveragePrice.Float64() == 0 {
+					orderAmount = types.NumberFromFloat64(0)
+				} else {
+					orderAmount = types.NumberFromFloat64(orderAmount.Float64() / positions[j].AveragePrice.Float64())
+				}
 			}
 
 			remainingAmount := float64(0)

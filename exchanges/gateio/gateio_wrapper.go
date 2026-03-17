@@ -973,8 +973,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	case asset.Options:
 		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
-			OrderSize:  types.Number(s.Amount),
-			Price:      types.Number(s.Price),
+			OrderSize:  types.NumberFromFloat64(s.Amount),
+			Price:      types.NumberFromFloat64(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1455,7 +1455,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	response, err := e.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
+			Amount:   withdrawRequest.Amount,
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -2085,8 +2085,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				}
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-					MinimumBaseAmount:       float64(contractInfo[x].OrderSizeMin),
-					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
+					MinimumBaseAmount:       contractInfo[x].OrderSizeMin.Float64(),
+					MaximumBaseAmount:       contractInfo[x].OrderSizeMax.Float64(),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
 					Expiry:                  contractInfo[x].ExpireTime.Time(),
@@ -2111,8 +2111,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
-					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					MinimumBaseAmount:       contracts[c].OrderSizeMin.Float64(),
+					MaximumBaseAmount:       contracts[c].OrderSizeMax.Float64(),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
 				})
@@ -2154,10 +2154,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
-	}
-
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
 	}
 
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
@@ -2231,7 +2227,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		return []fundingrate.LatestRateResponse{
-			contractToFundingRate(e.Name, r.Asset, fPair, contract, r.IncludePredictedRate),
+			contractToFundingRate(e.Name, r.Asset, fPair, contract),
 		}, nil
 	}
 
@@ -2249,13 +2245,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !pairs.Contains(contracts[i].Name, true) {
 			continue
 		}
-		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i], r.IncludePredictedRate))
+		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i]))
 	}
 
 	return slices.Clip(resp), nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
@@ -2266,12 +2262,10 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
 		TimeChecked:    time.Now(),
-	}
-	if includeUpcomingRate {
-		resp.PredictedUpcomingRate = fundingrate.Rate{
+		PredictedUpcomingRate: fundingrate.Rate{
 			Time: contract.FundingNextApply.Time(),
 			Rate: contract.FundingRateIndicative.Decimal(),
-		}
+		},
 	}
 	return resp
 }
@@ -2351,7 +2345,7 @@ type openInterestContract interface {
 }
 
 func (c *FuturesContract) openInterest() float64 {
-	i := float64(c.PositionSize) * c.IndexPrice.Float64()
+	i := c.PositionSize.Float64() * c.IndexPrice.Float64()
 	if q := c.QuantoMultiplier.Float64(); q != 0 {
 		i *= q
 	}
@@ -2363,7 +2357,7 @@ func (c *FuturesContract) contractName() string {
 }
 
 func (c *DeliveryContract) openInterest() float64 {
-	return c.QuantoMultiplier.Float64() * float64(c.PositionSize) * c.IndexPrice.Float64()
+	return c.QuantoMultiplier.Float64() * c.PositionSize.Float64() * c.IndexPrice.Float64()
 }
 
 func (c *DeliveryContract) contractName() string {
@@ -2627,7 +2621,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 
 		var cost float64
 		var purchased float64
-		if resp.AverageDealPrice != 0 {
+		if resp.AverageDealPrice.Float64() != 0 {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
@@ -2691,12 +2685,12 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		}
 
 		oType := order.Market
-		if resp.Price != 0 {
+		if resp.Price.Float64() != 0 {
 			oType = order.Limit
 		}
 
 		side := order.Long
-		if resp.Size < 0 {
+		if resp.Size.Float64() < 0 {
 			side = order.Short
 		}
 
@@ -2750,8 +2744,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		Side:         side,
 		Type:         s.Type.Lower(),
 		Account:      e.assetTypeToString(s.AssetType),
-		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),
-		Price:        types.Number(s.Price),
+		Amount:       types.NumberFromFloat64(s.GetTradeAmount(e.GetTradingRequirements())),
+		Price:        types.NumberFromFloat64(s.Price),
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,

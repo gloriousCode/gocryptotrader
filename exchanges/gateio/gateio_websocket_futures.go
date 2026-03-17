@@ -501,7 +501,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 		if !ok {
 			ab = [2][]orderbook.Level{}
 		}
-		if data[x].Amount > 0 {
+		if data[x].Amount.Float64() > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
 				Price:  data[x].Price.Float64(),
 				Amount: data[x].Amount.Float64(),

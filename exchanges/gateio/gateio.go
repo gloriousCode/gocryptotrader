@@ -2453,7 +2453,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
@@ -2939,10 +2939,10 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
-	if arg.Initial.Size <= 0 {
+	if arg.Initial.Size.Float64() <= 0 {
 		return nil, errors.New("invalid argument: initial.size out of range")
 	}
 	if arg.Initial.TimeInForce != "" &&
@@ -3227,17 +3227,17 @@ func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) 
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}
-	if arg.OrderSize == 0 {
+	if arg.OrderSize.Float64() == 0 {
 		return nil, errInvalidOrderSize
 	}
-	if arg.Iceberg < 0 {
-		arg.Iceberg = 0
+	if arg.Iceberg.Float64() < 0 {
+		arg.Iceberg = types.NumberFromFloat64(0)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF {
 		arg.TimeInForce = ""
 	}
-	if arg.TimeInForce == iocTIF || arg.Price < 0 {
-		arg.Price = 0
+	if arg.TimeInForce == iocTIF || arg.Price.Float64() < 0 {
+		arg.Price = types.NumberFromFloat64(0)
 	}
 	var response *OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSubmitOrderEPL, http.MethodPost, gateioOptionsOrders, nil, &arg, &response)
