@@ -863,7 +863,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatPairString,
+		"fmt":             formatChannelPair,
 		"symbolSep":       symbolChannelSeparator,
 	}).
 		Parse(subTplText)
@@ -980,18 +980,6 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 func formatChannelPair(pair currency.Pair) string {
-	if a, err := getAssetFromInstrument(pair.String()); err == nil {
-		switch a {
-		case asset.Futures:
-			return formatFuturesTradablePair(pair)
-		case asset.Options:
-			return optionPairToString(pair)
-		case asset.OptionCombo:
-			return optionComboPairToString(pair)
-		case asset.FutureCombo:
-			return futureComboPairToString(pair)
-		}
-	}
 	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
 		pair.Delimiter = "_"
 	}
@@ -1009,7 +997,7 @@ const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}}{{- symbolSep $.S -}}{{{- fmt $asset $p }}
+			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

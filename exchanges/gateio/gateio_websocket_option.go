@@ -38,6 +38,7 @@ const (
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
 	optionsMarkPriceChannel              = "options.mark_prices"
+	optionsMarkPriceLegacyChannel        = "options.mark_price"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -389,23 +390,15 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		ExchangeName: e.Name,
 		Pair:         data.Name,
 		AssetType:    asset.Options,
-		Delta:        parseOptionalFloat(data.Delta),
-		Gamma:        parseOptionalFloat(data.Gamma),
-		Vega:         parseOptionalFloat(data.Vega),
-		Theta:        parseOptionalFloat(data.Theta),
-		Rho:          parseOptionalFloat(data.Rho),
+		Delta:        data.Delta.Float64(),
+		Gamma:        data.Gamma.Float64(),
+		Vega:         data.Vega.Float64(),
+		Theta:        data.Theta.Float64(),
+		Rho:          data.Rho.Float64(),
 		BidIV:        data.BidImpliedVolatility.Float64(),
 		AskIV:        data.AskImpliedVolatility.Float64(),
 		MarkIV:       data.MarkImpliedVolatility.Float64(),
 	})
-}
-
-func parseOptionalFloat(v string) float64 {
-	f, err := strconv.ParseFloat(v, 64)
-	if err != nil {
-		return 0
-	}
-	return f
 }
 
 func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {
