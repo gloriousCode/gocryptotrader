@@ -178,6 +178,7 @@ func (e *Exchange) SetDefaults() {
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:                   apiURL,
+		exchange.RestSpotSupplementary:      supplementaryAPIURL,
 		exchange.WebsocketSpot:              apiWebsocketPublicURL,
 		exchange.WebsocketPrivate:           apiWebsocketPrivateURL,
 		exchange.WebsocketSpotSupplementary: okxBusinessWebsocketURL,

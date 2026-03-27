@@ -2509,6 +2509,7 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 func TestGetFixedLoanBorrowLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowLimit(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2530,6 +2531,7 @@ func TestGetFixedLoanBorrowQuote(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "123423423", 1, .4)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2612,6 +2614,7 @@ func TestReduceLiabilitiesForFixedLoan(t *testing.T) {
 func TestGetFixedLoanBorrowOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowOrderList(contextGenerate(), currency.USDT, "1231231", "8", "30D", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4652,6 +4655,7 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 func TestGetBorrowAndRepayHistoryInQuickMarginMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetBorrowAndRepayHistoryInQuickMarginMode(contextGenerate(), currency.EMPTYPAIR, currency.BTC, "borrow", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5842,6 +5846,7 @@ func TestAmendLendingOrder(t *testing.T) {
 func TestGetLendingOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetLendingOrders(contextGenerate(), "", "pending", currency.ETH, time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5853,6 +5858,7 @@ func TestGetLendingSubOrderList(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetLendingSubOrderList(contextGenerate(), "12345", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)

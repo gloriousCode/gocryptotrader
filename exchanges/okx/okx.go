@@ -38,8 +38,9 @@ type Exchange struct {
 }
 
 const (
-	baseURL = "https://www.okx.com/"
-	apiURL  = baseURL + apiPath
+	baseURL             = "https://www.okx.com/"
+	apiURL              = baseURL + apiPath
+	supplementaryAPIURL = "https://app.okx.com/" + apiPath
 
 	apiPath      = "api/v5/"
 	websocketURL = "wss://ws.okx.com:8443/ws/v5/"
@@ -56,7 +57,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 		return nil, err
 	}
 	var resp *OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -77,7 +78,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 		}
 	}
 	var resp []OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -103,7 +104,7 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -129,7 +130,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		}
 	}
 	var resp []*OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -160,7 +161,7 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
 	var resp *OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array
@@ -180,7 +181,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 		}
 	}
 	var resp []OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ClosePositions close all positions of an instrument via a market order
@@ -197,7 +198,7 @@ func (e *Exchange) ClosePositions(ctx context.Context, arg *ClosePositionsReques
 		return nil, margin.ErrMarginTypeUnsupported
 	}
 	var resp *ClosePositionResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, "trade/close-position", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, closePositionEPL, http.MethodPost, "trade/close-position", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetOrderDetail retrieves order details given instrument id and order identification
@@ -219,7 +220,7 @@ func (e *Exchange) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestPa
 	}
 	params.Set("instId", arg.InstrumentID)
 	var resp *OrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues("trade/order", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getOrderDetEPL, http.MethodGet, common.EncodeURLValues("trade/order", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetOrderList retrieves all incomplete orders under the current account
@@ -253,7 +254,7 @@ func (e *Exchange) GetOrderList(ctx context.Context, arg *OrderListRequestParams
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []OrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // Get7DayOrderHistory retrieves the completed order data for the last 7 days, and the incomplete orders that have been cancelled are only reserved for 2 hours
@@ -307,7 +308,7 @@ func (e *Exchange) getOrderHistory(ctx context.Context, arg *OrderHistoryRequest
 		params.Set("category", strings.ToLower(arg.Category))
 	}
 	var resp []OrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetTransactionDetailsLast3Days retrieves recently-filled transaction details in the last 3 day
@@ -356,7 +357,7 @@ func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDe
 		params.Set("before", arg.Before)
 	}
 	var resp []TransactionDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // PlaceAlgoOrder order includes trigger, oco, chase, conditional, iceberg, twap and trailing orders.
@@ -386,7 +387,7 @@ func (e *Exchange) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*A
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *AlgoOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodPost, "trade/order-algo", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeAlgoOrderEPL, http.MethodPost, "trade/order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
 // PlaceStopOrder places a stop order.
@@ -543,7 +544,7 @@ func (e *Exchange) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelPa
 		}
 	}
 	var resp *AlgoOrder
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, rateLimit, http.MethodPost, route, &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -566,7 +567,7 @@ func (e *Exchange) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam)
 		return nil, fmt.Errorf("%w either AlgoID or ClientSuppliedAlgoOrderID is required", order.ErrOrderIDNotSet)
 	}
 	var resp *AmendAlgoResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodPost, "trade/amend-algos", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendAlgoOrderEPL, http.MethodPost, "trade/amend-algos", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetAlgoOrderDetail retrieves algo order details
@@ -578,7 +579,7 @@ func (e *Exchange) GetAlgoOrderDetail(ctx context.Context, algoID, clientSupplie
 	params.Set("algoId", algoID)
 	params.Set("algoClOrdId", clientSuppliedAlgoID)
 	var resp *AlgoOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account
@@ -612,7 +613,7 @@ func (e *Exchange) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AlgoOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAlgoOrderListEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAlgoOrderHistory load a list of all algo orders under the current account in the last 3 months
@@ -647,7 +648,7 @@ func (e *Exchange) GetAlgoOrderHistory(ctx context.Context, orderType, state, al
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AlgoOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10
@@ -657,7 +658,7 @@ func (e *Exchange) GetEasyConvertCurrencyList(ctx context.Context, source string
 		params.Set("source", source)
 	}
 	var resp *EasyConvertDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getEasyConvertCurrencyListEPL, http.MethodGet,
 		common.EncodeURLValues("trade/easy-convert-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -670,7 +671,7 @@ func (e *Exchange) PlaceEasyConvert(ctx context.Context, arg PlaceEasyConvertPar
 		return nil, fmt.Errorf("%w, missing ToCurrency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []EasyConvertItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeEasyConvertEPL, http.MethodPost, "trade/easy-convert", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeEasyConvertEPL, http.MethodPost, "trade/easy-convert", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetEasyConvertHistory retrieves the history and status of easy convert trades
@@ -686,7 +687,7 @@ func (e *Exchange) GetEasyConvertHistory(ctx context.Context, after, before time
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EasyConvertItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertHistoryEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getEasyConvertHistoryEPL, http.MethodGet,
 		common.EncodeURLValues("trade/easy-convert-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -698,7 +699,7 @@ func (e *Exchange) GetOneClickRepayCurrencyList(ctx context.Context, debtType st
 		params.Set("debtType", debtType)
 	}
 	var resp []CurrencyOneClickRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, oneClickRepayCurrencyListEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, oneClickRepayCurrencyListEPL, http.MethodGet,
 		common.EncodeURLValues("trade/one-click-repay-currency-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -711,7 +712,7 @@ func (e *Exchange) TradeOneClickRepay(ctx context.Context, arg TradeOneClickRepa
 		return nil, fmt.Errorf("%w, missing 'repayCcy'", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp []CurrencyOneClickRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/one-click-repay", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tradeOneClickRepayEPL, http.MethodPost, "trade/one-click-repay", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetOneClickRepayHistory get the history and status of one-click repay trades
@@ -727,7 +728,7 @@ func (e *Exchange) GetOneClickRepayHistory(ctx context.Context, after, before ti
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []CurrencyOneClickRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOneClickRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/one-click-repay-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getOneClickRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("trade/one-click-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // CancelAllMMPOrders cancel all the MMP pending orders of an instrument family.
@@ -752,7 +753,7 @@ func (e *Exchange) CancelAllMMPOrders(ctx context.Context, instrumentType, instr
 		LockInterval:     lockInterval,
 	}
 	var resp *CancelMMPResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, "trade/mass-cancel", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, tradeOneClickRepayEPL, http.MethodPost, "trade/mass-cancel", arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelAllDelayed cancel all pending orders after the countdown timeout.
@@ -769,14 +770,14 @@ func (e *Exchange) CancelAllDelayed(ctx context.Context, timeout int64, orderTag
 		OrderTag: orderTag,
 	}
 	var resp *CancelResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelAllAfterCountdownEPL, http.MethodPost, "trade/cancel-all-after", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetTradeAccountRateLimit get account rate limit related information.
 // Only new order requests and amendment order requests will be counted towards this limit. For batch order requests consisting of multiple orders, each order will be counted individually
 func (e *Exchange) GetTradeAccountRateLimit(ctx context.Context) (*AccountRateLimit, error) {
 	var resp *AccountRateLimit
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradeAccountRateLimitEPL, http.MethodGet, "trade/account-rate-limit", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getTradeAccountRateLimitEPL, http.MethodGet, "trade/account-rate-limit", nil, &resp, request.AuthenticatedRequest)
 }
 
 // PreCheckOrder returns the account information before and after placing a potential order
@@ -801,7 +802,7 @@ func (e *Exchange) PreCheckOrder(ctx context.Context, arg *OrderPreCheckParams) 
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *OrderPreCheckResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, orderPreCheckEPL, http.MethodPost, "trade/order-precheck", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, orderPreCheckEPL, http.MethodPost, "trade/order-precheck", arg, &resp, request.AuthenticatedRequest)
 }
 
 /*************************************** Block trading ********************************/
@@ -809,7 +810,7 @@ func (e *Exchange) PreCheckOrder(ctx context.Context, arg *OrderPreCheckParams) 
 // GetCounterparties retrieves the list of counterparties that the user has permissions to trade with
 func (e *Exchange) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse, error) {
 	var resp []CounterpartiesResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getCounterpartiesEPL, http.MethodGet, "rfq/counterparties", nil, &resp, request.AuthenticatedRequest)
 }
 
 // CreateRFQ Creates a new RFQ
@@ -821,7 +822,7 @@ func (e *Exchange) CreateRFQ(ctx context.Context, arg *CreateRFQInput) (*RFQResp
 		return nil, errMissingLegs
 	}
 	var resp *RFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, createRFQEPL, http.MethodPost, "rfq/create-rfq", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelRFQ cancels a request for quotation
@@ -830,7 +831,7 @@ func (e *Exchange) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*C
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelRFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelRFQEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRFQRequestParam{
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelRFQEPL, http.MethodPost, "rfq/cancel-rfq", &CancelRFQRequestParam{
 		RFQID:       rfqID,
 		ClientRFQID: clientRFQID,
 	}, &resp, request.AuthenticatedRequest)
@@ -847,13 +848,13 @@ func (e *Exchange) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequest
 		return nil, errMaxRFQOrdersToCancel
 	}
 	var resp []CancelRFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRFQEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelMultipleRFQEPL, http.MethodPost, "rfq/cancel-batch-rfqs", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelAllRFQs cancels all active RFQs
 func (e *Exchange) CancelAllRFQs(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelAllRFQsEPL, http.MethodPost, "rfq/cancel-all-rfqs", nil, resp, request.AuthenticatedRequest)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
@@ -862,7 +863,7 @@ func (e *Exchange) ExecuteQuote(ctx context.Context, rfqID, quoteID string) (*Ex
 		return nil, errMissingRFQIDOrQuoteID
 	}
 	var resp *ExecuteQuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, "rfq/execute-quote", &ExecuteQuoteParams{
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, executeQuoteEPL, http.MethodPost, "rfq/execute-quote", &ExecuteQuoteParams{
 		RFQID:   rfqID,
 		QuoteID: quoteID,
 	}, &resp, request.AuthenticatedRequest)
@@ -871,7 +872,7 @@ func (e *Exchange) ExecuteQuote(ctx context.Context, rfqID, quoteID string) (*Ex
 // GetQuoteProducts retrieve the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
 func (e *Exchange) GetQuoteProducts(ctx context.Context) ([]QuoteProduct, error) {
 	var resp []QuoteProduct
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetQuoteProducts customise the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
@@ -897,13 +898,13 @@ func (e *Exchange) SetQuoteProducts(ctx context.Context, args []SetQuoteProductP
 		}
 	}
 	var resp *SetQuoteProductsResult
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setQuoteProductsEPL, http.MethodPost, "rfq/maker-instrument-settings", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ResetRFQMMPStatus reset the MMP status to be inactive
 func (e *Exchange) ResetRFQMMPStatus(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, resetRFQMMPEPL, http.MethodPost, "rfq/mmp-reset", nil, resp, request.AuthenticatedRequest)
 }
 
 // CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
@@ -934,7 +935,7 @@ func (e *Exchange) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*Qu
 		}
 	}
 	var resp *QuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, "rfq/create-quote", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, createQuoteEPL, http.MethodPost, "rfq/create-quote", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelQuote cancels an existing active quote you have created in response to an RFQ
@@ -943,7 +944,7 @@ func (e *Exchange) CancelQuote(ctx context.Context, quoteID, clientQuoteID strin
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *CancelQuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, "rfq/cancel-quote", &CancelQuoteRequestParams{
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelQuoteEPL, http.MethodPost, "rfq/cancel-quote", &CancelQuoteRequestParams{
 		QuoteID:       quoteID,
 		ClientQuoteID: clientQuoteID,
 	}, &resp, request.AuthenticatedRequest)
@@ -955,13 +956,13 @@ func (e *Exchange) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequ
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp []CancelQuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelMultipleQuotesEPL, http.MethodPost, "rfq/cancel-batch-quotes", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelAllRFQQuotes cancels all active quote orders
 func (e *Exchange) CancelAllRFQQuotes(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelAllQuotesEPL, http.MethodPost, "rfq/cancel-all-quotes", nil, resp, request.AuthenticatedRequest)
 }
 
 // GetRFQs retrieves details of RFQs where the user is a counterparty, either as the creator or the recipient
@@ -989,7 +990,7 @@ func (e *Exchange) GetRFQs(ctx context.Context, arg *RFQRequestParams) ([]RFQRes
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []RFQResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRFQsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getRFQsEPL, http.MethodGet, common.EncodeURLValues("rfq/rfqs", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetQuotes retrieves all Quotes where the user is a counterparty, either as the creator or the receiver
@@ -1023,7 +1024,7 @@ func (e *Exchange) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]Qu
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []QuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getQuotesEPL, http.MethodGet, common.EncodeURLValues("rfq/quotes", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetRFQTrades retrieves executed trades where the user is a counterparty, either as the creator or the receiver
@@ -1060,7 +1061,7 @@ func (e *Exchange) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []RFQTradeResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicRFQTrades retrieves recent executed block trades
@@ -1099,7 +1100,7 @@ func (e *Exchange) GetBalance(ctx context.Context, ccy currency.Code) ([]AssetBa
 		params.Set("ccy", ccy.String())
 	}
 	var resp []AssetBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBalanceEPL, http.MethodGet, common.EncodeURLValues("asset/balances", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBalanceEPL, http.MethodGet, common.EncodeURLValues("asset/balances", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetNonTradableAssets retrieves non tradable assets
@@ -1109,7 +1110,7 @@ func (e *Exchange) GetNonTradableAssets(ctx context.Context, ccy currency.Code) 
 		params.Set("ccy", ccy.String())
 	}
 	var resp []NonTradableAsset
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getNonTradableAssetsEPL, http.MethodGet, common.EncodeURLValues("asset/non-tradable-assets", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getNonTradableAssetsEPL, http.MethodGet, common.EncodeURLValues("asset/non-tradable-assets", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAccountAssetValuation view account asset valuation
@@ -1119,7 +1120,7 @@ func (e *Exchange) GetAccountAssetValuation(ctx context.Context, ccy currency.Co
 		params.Set("ccy", ccy.Upper().String())
 	}
 	var resp []AccountAssetValuation
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAssetValuationEPL, http.MethodGet, common.EncodeURLValues("asset/asset-valuation", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountAssetValuationEPL, http.MethodGet, common.EncodeURLValues("asset/asset-valuation", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // FundingTransfer transfer of funds between your funding account and trading account,
@@ -1141,7 +1142,7 @@ func (e *Exchange) FundingTransfer(ctx context.Context, arg *FundingTransferRequ
 		return nil, fmt.Errorf("%w, beneficiary account type 6: Funding account 18: Trading account", errAddressRequired)
 	}
 	var resp []FundingTransferResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fundsTransferEPL, http.MethodPost, "asset/transfer", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, fundsTransferEPL, http.MethodPost, "asset/transfer", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetFundsTransferState get funding rate response
@@ -1160,7 +1161,7 @@ func (e *Exchange) GetFundsTransferState(ctx context.Context, transferID, client
 		params.Set("type", strconv.FormatInt(transferType, 10))
 	}
 	var resp []TransferFundRateResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundsTransferStateEPL, http.MethodGet, common.EncodeURLValues("asset/transfer-state", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFundsTransferStateEPL, http.MethodGet, common.EncodeURLValues("asset/transfer-state", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAssetBillsDetails query the billing record, you can get the latest 1 month historical data
@@ -1186,7 +1187,7 @@ func (e *Exchange) GetAssetBillsDetails(ctx context.Context, ccy currency.Code, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AssetBillDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, assetBillsDetailsEPL, http.MethodGet, common.EncodeURLValues("asset/bills", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, assetBillsDetailsEPL, http.MethodGet, common.EncodeURLValues("asset/bills", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetLightningDeposits users can create up to 10 thousand different invoices within 24 hours.
@@ -1205,7 +1206,7 @@ func (e *Exchange) GetLightningDeposits(ctx context.Context, ccy currency.Code, 
 		params.Set("to", strconv.FormatInt(to, 10))
 	}
 	var resp []LightningDepositItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-lightning", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, lightningDepositsEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-lightning", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetCurrencyDepositAddress retrieve the deposit addresses of currencies, including previously-used addresses
@@ -1216,7 +1217,7 @@ func (e *Exchange) GetCurrencyDepositAddress(ctx context.Context, ccy currency.C
 	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	var resp []CurrencyDepositResponseItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositAddressEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-address", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getDepositAddressEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-address", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetCurrencyDepositHistory retrieves deposit records and withdrawal status information depending on the currency, timestamp, and chronological order.
@@ -1249,7 +1250,7 @@ func (e *Exchange) GetCurrencyDepositHistory(ctx context.Context, ccy currency.C
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []DepositHistoryResponseItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getDepositHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // Withdrawal to perform a withdrawal action. Sub-account does not support withdrawal
@@ -1268,7 +1269,7 @@ func (e *Exchange) Withdrawal(ctx context.Context, arg *WithdrawalInput) (*Withd
 		return nil, fmt.Errorf("%w, missing verified digital currency address \"toAddr\" information", errAddressRequired)
 	}
 	var resp *WithdrawalResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, "asset/withdrawal", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, withdrawalEPL, http.MethodPost, "asset/withdrawal", &arg, &resp, request.AuthenticatedRequest)
 }
 
 /*
@@ -1286,7 +1287,7 @@ func (e *Exchange) LightningWithdrawal(ctx context.Context, arg *LightningWithdr
 		return nil, errInvoiceTextMissing
 	}
 	var resp *LightningWithdrawalResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, lightningWithdrawalsEPL, http.MethodPost, "asset/withdrawal-lightning", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelWithdrawal cancels a normal withdrawal request but cannot be used to cancel Lightning withdrawals
@@ -1298,7 +1299,7 @@ func (e *Exchange) CancelWithdrawal(ctx context.Context, withdrawalID string) (s
 		WithdrawalID: withdrawalID,
 	}
 	var resp withdrawData
-	return resp.WithdrawalID, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &resp, request.AuthenticatedRequest)
+	return resp.WithdrawalID, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelWithdrawalEPL, http.MethodPost, "asset/cancel-withdrawal", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetWithdrawalHistory retrieves the withdrawal records according to the currency, withdrawal status, and time range in reverse chronological order.
@@ -1330,7 +1331,7 @@ func (e *Exchange) GetWithdrawalHistory(ctx context.Context, ccy currency.Code, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []WithdrawalHistoryResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/withdrawal-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getWithdrawalHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/withdrawal-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetDepositWithdrawalStatus retrieves the detailed status and estimated completion time for deposits and withdrawals
@@ -1356,13 +1357,13 @@ func (e *Exchange) GetDepositWithdrawalStatus(ctx context.Context, ccy currency.
 		params.Set("chain", chain)
 	}
 	var resp []DepositWithdrawStatus
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositWithdrawalStatusEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-withdraw-status", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getDepositWithdrawalStatusEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-withdraw-status", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours
 func (e *Exchange) SmallAssetsConvert(ctx context.Context, currencies []string) (*SmallAssetConvertResponse, error) {
 	var resp *SmallAssetConvertResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currencies}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, smallAssetsConvertEPL, http.MethodPost, "asset/convert-dust-assets", map[string][]string{"ccy": currencies}, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicExchangeList retrieves exchanges
@@ -1378,7 +1379,7 @@ func (e *Exchange) GetSavingBalance(ctx context.Context, ccy currency.Code) ([]S
 		params.Set("ccy", ccy.String())
 	}
 	var resp []SavingBalanceResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSavingBalanceEPL, http.MethodGet, common.EncodeURLValues("finance/savings/balance", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getSavingBalanceEPL, http.MethodGet, common.EncodeURLValues("finance/savings/balance", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SavingsPurchaseOrRedemption creates a purchase or redemption instance
@@ -1398,7 +1399,7 @@ func (e *Exchange) SavingsPurchaseOrRedemption(ctx context.Context, arg *Savings
 		return nil, fmt.Errorf("%w, the rate value range is between 0.01 and 3.65", errRateRequired)
 	}
 	var resp *SavingsPurchaseRedemptionResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, "finance/savings/purchase-redempt", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, savingsPurchaseRedemptionEPL, http.MethodPost, "finance/savings/purchase-redempt", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetLendingHistory lending history
@@ -1417,7 +1418,7 @@ func (e *Exchange) GetLendingHistory(ctx context.Context, ccy currency.Code, bef
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []LendingHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLendingHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/savings/lending-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getLendingHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/savings/lending-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetLendingRate sets an assets lending rate
@@ -1431,7 +1432,7 @@ func (e *Exchange) SetLendingRate(ctx context.Context, arg *LendingRate) (*Lendi
 		return nil, fmt.Errorf("%w, rate value range is between 1 percent (0.01) and 365 percent (3.65)", errRateRequired)
 	}
 	var resp *LendingRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setLendingRateEPL, http.MethodPost, "finance/savings/set-lending-rate", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetPublicBorrowInfo returns the public borrow info
@@ -1484,14 +1485,14 @@ func (e *Exchange) GetMonthlyStatement(ctx context.Context, month string) ([]Mon
 	params := url.Values{}
 	params.Set("month", month)
 	var resp []MonthlyStatement
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMonthlyStatementEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getMonthlyStatementEPL, http.MethodGet,
 		common.EncodeURLValues("asset/monthly-statement", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetConvertCurrencies retrieves the currency conversion information
 func (e *Exchange) GetConvertCurrencies(ctx context.Context) ([]ConvertCurrency, error) {
 	var resp []ConvertCurrency
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrenciesEPL, http.MethodGet, "asset/convert/currencies", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getConvertCurrenciesEPL, http.MethodGet, "asset/convert/currencies", nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetConvertCurrencyPair retrieves the currency conversion response detail given the 'currency from' and 'currency to'
@@ -1506,7 +1507,7 @@ func (e *Exchange) GetConvertCurrencyPair(ctx context.Context, fromCcy, toCcy cu
 	params.Set("fromCcy", fromCcy.String())
 	params.Set("toCcy", toCcy.String())
 	var resp *ConvertCurrencyPair
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, common.EncodeURLValues("asset/convert/currency-pair", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getConvertCurrencyPairEPL, http.MethodGet, common.EncodeURLValues("asset/convert/currency-pair", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // EstimateQuote retrieves quote estimation detail result given the base and quote currency
@@ -1533,7 +1534,7 @@ func (e *Exchange) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestI
 		return nil, fmt.Errorf("%w, missing RFQ currency", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp *EstimateQuoteResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, "asset/convert/estimate-quote", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, estimateQuoteEPL, http.MethodPost, "asset/convert/estimate-quote", arg, &resp, request.AuthenticatedRequest)
 }
 
 // ConvertTrade converts a base currency to quote currency
@@ -1563,7 +1564,7 @@ func (e *Exchange) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*C
 		return nil, fmt.Errorf("%w, quote id required", order.ErrOrderIDNotSet)
 	}
 	var resp *ConvertTradeResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, "asset/convert/trade", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, convertTradeEPL, http.MethodPost, "asset/convert/trade", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetConvertHistory gets the recent history
@@ -1582,7 +1583,7 @@ func (e *Exchange) GetConvertHistory(ctx context.Context, before, after time.Tim
 		params.Set("tag", tag)
 	}
 	var resp []ConvertHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getConvertHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/convert/history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getConvertHistoryEPL, http.MethodGet, common.EncodeURLValues("asset/convert/history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 /********************************** Account endpoints ***************************************************/
@@ -1619,7 +1620,7 @@ func (e *Exchange) GetAccountInstruments(ctx context.Context, instrumentType ass
 		params.Set("instId", instrumentID)
 	}
 	var resp []AccountInstrument
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountInstrumentsEPL, http.MethodGet, common.EncodeURLValues("account/instruments", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountInstrumentsEPL, http.MethodGet, common.EncodeURLValues("account/instruments", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
@@ -1630,7 +1631,7 @@ func (e *Exchange) AccountBalance(ctx context.Context, ccy currency.Code) ([]Acc
 		params.Set("ccy", ccy.String())
 	}
 	var resp []Account
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountBalanceEPL, http.MethodGet, common.EncodeURLValues("account/balance", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountBalanceEPL, http.MethodGet, common.EncodeURLValues("account/balance", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetPositions retrieves information on your positions. When the account is in net mode, net positions will be displayed, and when the account is in long/short mode, long or short positions will be displayed
@@ -1646,7 +1647,7 @@ func (e *Exchange) GetPositions(ctx context.Context, instrumentType, instrumentI
 		params.Set("posId", positionID)
 	}
 	var resp []AccountPosition
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPositionsEPL, http.MethodGet, common.EncodeURLValues("account/positions", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getPositionsEPL, http.MethodGet, common.EncodeURLValues("account/positions", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetPositionsHistory retrieves the updated position data for the last 3 months
@@ -1680,7 +1681,7 @@ func (e *Exchange) GetPositionsHistory(ctx context.Context, instrumentType, inst
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountPositionHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPositionsHistoryEPL, http.MethodGet, common.EncodeURLValues("account/positions-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getPositionsHistoryEPL, http.MethodGet, common.EncodeURLValues("account/positions-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAccountAndPositionRisk  get account and position risks
@@ -1690,7 +1691,7 @@ func (e *Exchange) GetAccountAndPositionRisk(ctx context.Context, instrumentType
 		params.Set("instType", strings.ToUpper(instrumentType))
 	}
 	var resp []AccountAndPositionRisk
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues("account/account-position-risk", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountAndPositionRiskEPL, http.MethodGet, common.EncodeURLValues("account/account-position-risk", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days
@@ -1716,7 +1717,7 @@ func (e *Exchange) ApplyBillDetails(ctx context.Context, year, quarter string) (
 		return nil, errQuarterValueRequired
 	}
 	var resp []BillsDetailResp
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, billHistoryArchiveEPL, http.MethodPost, "account/bills-history-archive", map[string]string{"year": year, "quarter": quarter}, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsHistoryArchive retrieves bill data archive
@@ -1731,7 +1732,7 @@ func (e *Exchange) GetBillsHistoryArchive(ctx context.Context, year, quarter str
 	params.Set("year", year)
 	params.Set("quarter", quarter)
 	var resp []BillsArchiveInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBillHistoryArchiveEPL, http.MethodGet, common.EncodeURLValues("account/bills-history-archive", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBillsDetail retrieves the bills of the account
@@ -1777,13 +1778,13 @@ func (e *Exchange) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryPara
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []BillsDetailResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAccountConfiguration retrieves current account configuration
 func (e *Exchange) GetAccountConfiguration(ctx context.Context) (*AccountConfigurationResponse, error) {
 	var resp *AccountConfigurationResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountConfigurationEPL, http.MethodGet, "account/config", nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
@@ -1793,7 +1794,7 @@ func (e *Exchange) SetPositionMode(ctx context.Context, positionMode string) (*P
 		return nil, errInvalidPositionMode
 	}
 	var resp *PositionMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setPositionModeEPL, http.MethodPost, "account/set-position-mode", &PositionMode{
 		PositionMode: positionMode,
 	}, &resp, request.AuthenticatedRequest)
 }
@@ -1814,7 +1815,7 @@ func (e *Exchange) SetLeverageRate(ctx context.Context, arg *SetLeverageInput) (
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
 	var resp *SetLeverageResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setLeverageEPL, http.MethodPost, "account/set-leverage", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for a sell id
@@ -1843,7 +1844,7 @@ func (e *Exchange) GetMaximumBuySellAmountOROpenAmount(ctx context.Context, ccy 
 		params.Set("unSpotOffset", "true")
 	}
 	var resp []MaximumBuyAndSell
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumBuyOrSellAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-size", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getMaximumBuyOrSellAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-size", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetMaximumAvailableTradableAmount retrieves the maximum tradable amount for specific instrument id, and/or currency
@@ -1874,7 +1875,7 @@ func (e *Exchange) GetMaximumAvailableTradableAmount(ctx context.Context, ccy cu
 		params.Set("upSpotOffset", "true")
 	}
 	var resp []MaximumTradableAmount
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumAvailableTradableAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-avail-size", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getMaximumAvailableTradableAmountEPL, http.MethodGet, common.EncodeURLValues("account/max-avail-size", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage
@@ -1895,7 +1896,7 @@ func (e *Exchange) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecr
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *IncreaseDecreaseMargin
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, "account/position/margin-balance", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, increaseOrDecreaseMarginEPL, http.MethodPost, "account/position/margin-balance", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetLeverageRate retrieves leverage data for different instrument id or margin mode
@@ -1915,7 +1916,7 @@ func (e *Exchange) GetLeverageRate(ctx context.Context, instrumentID, marginMode
 		params.Set("ccy", ccy.String())
 	}
 	var resp []LeverageResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeverageEPL, http.MethodGet, common.EncodeURLValues("account/leverage-info", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getLeverageEPL, http.MethodGet, common.EncodeURLValues("account/leverage-info", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetLeverageEstimatedInfo retrieves leverage estimated information.
@@ -1947,7 +1948,7 @@ func (e *Exchange) GetLeverageEstimatedInfo(ctx context.Context, instrumentType,
 		params.Set("posSide", positionSide)
 	}
 	var resp []LeverageEstimatedInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLeverateEstimatedInfoEPL, http.MethodGet, common.EncodeURLValues("account/adjust-leverage-info", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getLeverateEstimatedInfoEPL, http.MethodGet, common.EncodeURLValues("account/adjust-leverage-info", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetMaximumLoanOfInstrument returns list of maximum loan of instruments
@@ -1965,7 +1966,7 @@ func (e *Exchange) GetMaximumLoanOfInstrument(ctx context.Context, instrumentID,
 		params.Set("mgnCcy", mgnCurrency.String())
 	}
 	var resp []MaximumLoanInstrument
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getTheMaximumLoanOfInstrumentEPL, http.MethodGet, common.EncodeURLValues("account/max-loan", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getTheMaximumLoanOfInstrumentEPL, http.MethodGet, common.EncodeURLValues("account/max-loan", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetFee returns Cryptocurrency trade fee, and offline trade fee
@@ -2028,7 +2029,7 @@ func (e *Exchange) GetTradeFee(ctx context.Context, instrumentType, instrumentID
 		params.Set("ruleType", ruleType)
 	}
 	var resp []TradeFeeRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues("account/trade-fee", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFeeRatesEPL, http.MethodGet, common.EncodeURLValues("account/trade-fee", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetInterestAccruedData retrieves data on accrued interest
@@ -2056,7 +2057,7 @@ func (e *Exchange) GetInterestAccruedData(ctx context.Context, loanType, limit i
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []InterestAccruedData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/interest-accrued", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/interest-accrued", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetInterestRate get the user's current leveraged currency borrowing interest rate
@@ -2066,7 +2067,7 @@ func (e *Exchange) GetInterestRate(ctx context.Context, ccy currency.Code) ([]In
 		params.Set("ccy", ccy.String())
 	}
 	var resp []InterestRateResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getInterestRateEPL, http.MethodGet, common.EncodeURLValues("account/interest-rate", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getInterestRateEPL, http.MethodGet, common.EncodeURLValues("account/interest-rate", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetGreeks set the display type of Greeks. PA: Greeks in coins BS: Black-Scholes Greeks in dollars
@@ -2079,7 +2080,7 @@ func (e *Exchange) SetGreeks(ctx context.Context, greeksType string) (*GreeksTyp
 		GreeksType: greeksType,
 	}
 	var resp *GreeksType
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, "account/set-greeks", input, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setGreeksEPL, http.MethodPost, "account/set-greeks", input, &resp, request.AuthenticatedRequest)
 }
 
 // IsolatedMarginTradingSettings configures the currency margin and sets the isolated margin trading mode for futures or perpetual contracts
@@ -2097,7 +2098,7 @@ func (e *Exchange) IsolatedMarginTradingSettings(ctx context.Context, arg *Isola
 		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
 	}
 	var resp *IsolatedMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, "account/set-isolated-mode", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, isolatedMarginTradingSettingsEPL, http.MethodPost, "account/set-isolated-mode", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // ManualBorrowAndRepayInQuickMarginMode initiates a new manual borrow and repayment process in Quick Margin mode
@@ -2118,7 +2119,7 @@ func (e *Exchange) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, ar
 		return nil, errMissingInstrumentID
 	}
 	var resp *BorrowAndRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick margin mode
@@ -2149,7 +2150,7 @@ func (e *Exchange) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BorrowRepayHistoryItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetMaximumWithdrawals retrieves the maximum transferable amount from a trading account to a funding account for quick margin borrowing and repayment
@@ -2159,14 +2160,14 @@ func (e *Exchange) GetMaximumWithdrawals(ctx context.Context, ccy currency.Code)
 		params.Set("ccy", ccy.String())
 	}
 	var resp []MaximumWithdrawal
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMaximumWithdrawalsEPL, http.MethodGet, common.EncodeURLValues("account/max-withdrawal", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getMaximumWithdrawalsEPL, http.MethodGet, common.EncodeURLValues("account/max-withdrawal", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetAccountRiskState gets the account risk status.
 // only applicable to Portfolio margin account
 func (e *Exchange) GetAccountRiskState(ctx context.Context) ([]AccountRiskState, error) {
 	var resp []AccountRiskState
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAccountRiskStateEPL, http.MethodGet, "account/risk-state", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAccountRiskStateEPL, http.MethodGet, "account/risk-state", nil, &resp, request.AuthenticatedRequest)
 }
 
 // VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency
@@ -2184,7 +2185,7 @@ func (e *Exchange) VIPLoansBorrowAndRepay(ctx context.Context, arg *LoanBorrowAn
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *LoanBorrowAndReplay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, "account/borrow-repay", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, vipLoansBorrowAnsRepayEPL, http.MethodPost, "account/borrow-repay", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetBorrowAndRepayHistoryForVIPLoans retrieves borrow and repay history for VIP loans
@@ -2203,7 +2204,7 @@ func (e *Exchange) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, ccy 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BorrowRepayHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAnsRepayHistoryHistoryEPL, http.MethodGet, common.EncodeURLValues("account/borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBorrowAnsRepayHistoryHistoryEPL, http.MethodGet, common.EncodeURLValues("account/borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetVIPInterestAccruedData retrieves VIP interest accrued data
@@ -2225,7 +2226,7 @@ func (e *Exchange) GetVIPInterestAccruedData(ctx context.Context, ccy currency.C
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []VIPInterestData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-accrued", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getVIPInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-accrued", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetVIPInterestDeductedData retrieves a VIP interest deducted data
@@ -2247,7 +2248,7 @@ func (e *Exchange) GetVIPInterestDeductedData(ctx context.Context, ccy currency.
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []VIPInterestData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestDeductedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-deducted", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getVIPInterestDeductedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-deducted", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetVIPLoanOrderList retrieves VIP loan order list
@@ -2273,7 +2274,7 @@ func (e *Exchange) GetVIPLoanOrderList(ctx context.Context, orderID, state strin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []VIPLoanOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderListEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-list", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getVIPLoanOrderListEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetVIPLoanOrderDetail retrieves list of loan order details
@@ -2296,7 +2297,7 @@ func (e *Exchange) GetVIPLoanOrderDetail(ctx context.Context, orderID string, cc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *VIPLoanOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetBorrowInterestAndLimit borrow interest and limit
@@ -2309,13 +2310,13 @@ func (e *Exchange) GetBorrowInterestAndLimit(ctx context.Context, loanType int64
 		params.Set("ccy", ccy.String())
 	}
 	var resp []BorrowInterestAndLimitResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetFixedLoanBorrowLimit retrieves a fixed loadn borrow limit information
 func (e *Exchange) GetFixedLoanBorrowLimit(ctx context.Context) (*FixedLoanBorrowLimitInformation, error) {
 	var resp *FixedLoanBorrowLimitInformation
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowLimitEPL, http.MethodGet, "account/fixed-loan/borrowing-limit", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFixedLoanBorrowLimitEPL, http.MethodGet, "account/fixed-loan/borrowing-limit", nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetFixedLoanBorrowQuote retrieves a fixed loan borrow quote information
@@ -2362,7 +2363,7 @@ func (e *Exchange) GetFixedLoanBorrowQuote(ctx context.Context, borrowingCurrenc
 		params.Set("ordId", orderID)
 	}
 	var resp *FixedLoanBorrowQuote
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowQuoteEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-quote", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFixedLoanBorrowQuoteEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-quote", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // PlaceFixedLoanBorrowingOrder for new borrowing orders, they belong to the IOC (immediately close and cancel the remaining) type. For renewal orders, they belong to the FOK (Fill-or-kill) type
@@ -2395,7 +2396,7 @@ func (e *Exchange) PlaceFixedLoanBorrowingOrder(ctx context.Context, ccy currenc
 		ReborrowRate: reborrowRate,
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/borrowing-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/borrowing-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendFixedLoanBorrowingOrder amends a fixed loan borrowing order
@@ -2413,7 +2414,7 @@ func (e *Exchange) AmendFixedLoanBorrowingOrder(ctx context.Context, orderID str
 		RenewMaxRate: renewMaxRate,
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendFixedLaonBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/amend-borrowing-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendFixedLaonBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/amend-borrowing-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // ManualRenewFixedLoanBorrowingOrder manual renew fixed loan borrowing order
@@ -2432,7 +2433,7 @@ func (e *Exchange) ManualRenewFixedLoanBorrowingOrder(ctx context.Context, order
 		MaxRate: maxRate,
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, manualRenewFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/manual-reborrow", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, manualRenewFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/manual-reborrow", arg, &resp, request.AuthenticatedRequest)
 }
 
 // RepayFixedLoanBorrowingOrder repays fixed loan borrowing order
@@ -2441,7 +2442,7 @@ func (e *Exchange) RepayFixedLoanBorrowingOrder(ctx context.Context, orderID str
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, repayFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/repay-borrowing-order", map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, repayFixedLoanBorrowingOrderEPL, http.MethodPost, "account/fixed-loan/repay-borrowing-order", map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
 }
 
 // ConvertFixedLoanToMarketLoan converts fixed loan to market loan
@@ -2450,7 +2451,7 @@ func (e *Exchange) ConvertFixedLoanToMarketLoan(ctx context.Context, orderID str
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, convertFixedLoanToMarketLoanEPL, http.MethodPost, "account/fixed-loan/convert-to-market-loan", nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, convertFixedLoanToMarketLoanEPL, http.MethodPost, "account/fixed-loan/convert-to-market-loan", nil, &resp, request.AuthenticatedRequest)
 }
 
 // ReduceLiabilitiesForFixedLoan provide the function of "setting pending repay state / canceling pending repay state" for fixed loan order
@@ -2466,7 +2467,7 @@ func (e *Exchange) ReduceLiabilitiesForFixedLoan(ctx context.Context, orderID st
 		PendingRepayment: pendingRepay,
 	}
 	var resp *ReduceLiabilities
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, reduceLiabilitiesForFixedLoanEPL, http.MethodPost, "account/fixed-loan/reduce-liabilities", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, reduceLiabilitiesForFixedLoanEPL, http.MethodPost, "account/fixed-loan/reduce-liabilities", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetFixedLoanBorrowOrderList retrieves fixed loan borrow order list
@@ -2497,7 +2498,7 @@ func (e *Exchange) GetFixedLoanBorrowOrderList(ctx context.Context, ccy currency
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FixedLoanBorrowOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFixedLoanBorrowOrderListEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-orders-list", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFixedLoanBorrowOrderListEPL, http.MethodGet, common.EncodeURLValues("account/fixed-loan/borrowing-orders-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // ManualBorrowOrRepay borrow or repay assets. only applicable to Spot mode (enabled borrowing)
@@ -2521,7 +2522,7 @@ func (e *Exchange) ManualBorrowOrRepay(ctx context.Context, ccy currency.Code, s
 		Amount:   amount,
 	}
 	var resp *BorrowOrRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowOrRepayEPL, http.MethodPost, "account/spot-manual-borrow-repay", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, manualBorrowOrRepayEPL, http.MethodPost, "account/spot-manual-borrow-repay", arg, &resp, request.AuthenticatedRequest)
 }
 
 // SetAutoRepay represents an auto-repay. Only applicable to Spot mode (enabled borrowing)
@@ -2530,7 +2531,7 @@ func (e *Exchange) SetAutoRepay(ctx context.Context, autoRepay bool) (*AutoRepay
 		AutoRepay: autoRepay,
 	}
 	var resp *AutoRepay
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setAutoRepayEPL, http.MethodPost, "account/set-auto-repay", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setAutoRepayEPL, http.MethodPost, "account/set-auto-repay", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetBorrowRepayHistory retrieve the borrow/repay history under Spot mode
@@ -2554,7 +2555,7 @@ func (e *Exchange) GetBorrowRepayHistory(ctx context.Context, ccy currency.Code,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BorrowRepayItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/spot-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBorrowRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/spot-borrow-repay-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // NewPositionBuilder calculates portfolio margin information for virtual position/assets or current position of the user.
@@ -2564,7 +2565,7 @@ func (e *Exchange) NewPositionBuilder(ctx context.Context, arg *PositionBuilderP
 		return nil, common.ErrNilPointer
 	}
 	var resp *PositionBuilderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, newPositionBuilderEPL, http.MethodPost, "account/position-builder", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, newPositionBuilderEPL, http.MethodPost, "account/position-builder", arg, &resp, request.AuthenticatedRequest)
 }
 
 // SetRiskOffsetAmount set risk offset amount. This does not represent the actual spot risk offset amount. Only applicable to Portfolio Margin Mode
@@ -2583,7 +2584,7 @@ func (e *Exchange) SetRiskOffsetAmount(ctx context.Context, ccy currency.Code, c
 		ClientSpotInUseAmount: clientSpotInUseAmount,
 	}
 	var resp *RiskOffsetAmount
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetAmountEPL, http.MethodPost, "account/set-riskOffset-amt", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setRiskOffsetAmountEPL, http.MethodPost, "account/set-riskOffset-amt", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetGreeks retrieves a greeks list of all assets in the account
@@ -2593,7 +2594,7 @@ func (e *Exchange) GetGreeks(ctx context.Context, ccy currency.Code) ([]GreeksIt
 		params.Set("ccy", ccy.String())
 	}
 	var resp []GreeksItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGreeksEPL, http.MethodGet, common.EncodeURLValues("account/greeks", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getGreeksEPL, http.MethodGet, common.EncodeURLValues("account/greeks", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode
@@ -2613,7 +2614,7 @@ func (e *Exchange) GetPMPositionLimitation(ctx context.Context, instrumentType, 
 		params.Set("instFamily", instrumentFamily)
 	}
 	var resp []PMLimitationResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues("account/position-tiers", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues("account/position-tiers", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetRiskOffsetType configure the risk offset type in portfolio margin mode.
@@ -2626,26 +2627,26 @@ func (e *Exchange) SetRiskOffsetType(ctx context.Context, riskOffsetType string)
 		return nil, errors.New("missing risk offset type")
 	}
 	var resp *RiskOffsetType
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, request.AuthenticatedRequest)
 }
 
 // ActivateOption activates option
 func (e *Exchange) ActivateOption(ctx context.Context) (types.Time, error) {
 	resp := &tsResp{}
-	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, resp, request.AuthenticatedRequest)
+	return resp.Timestamp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, activateOptionEPL, http.MethodPost, "account/activate-option", nil, resp, request.AuthenticatedRequest)
 }
 
 // SetAutoLoan only applicable to Multi-currency margin and Portfolio margin
 func (e *Exchange) SetAutoLoan(ctx context.Context, autoLoan bool) (*AutoLoan, error) {
 	var resp *AutoLoan
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setAutoLoanEPL, http.MethodPost, "account/set-auto-loan", &AutoLoan{AutoLoan: autoLoan}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setAutoLoanEPL, http.MethodPost, "account/set-auto-loan", &AutoLoan{AutoLoan: autoLoan}, &resp, request.AuthenticatedRequest)
 }
 
 // SetAccountMode to set on the Web/App for the first set of every account mode.
 // Account mode 1: Simple mode 2: Single-currency margin mode  3: Multi-currency margin code  4: Portfolio margin mode
 func (e *Exchange) SetAccountMode(ctx context.Context, accountLevel string) (*AccountMode, error) {
 	var resp *AccountMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", &map[string]string{"acctLv": accountLevel}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setAccountLevelEPL, http.MethodPost, "account/set-account-level", &map[string]string{"acctLv": accountLevel}, &resp, request.AuthenticatedRequest)
 }
 
 // ResetMMPStatus reset the MMP status to be inactive.
@@ -2663,7 +2664,7 @@ func (e *Exchange) ResetMMPStatus(ctx context.Context, instrumentType, instrumen
 		InstrumentFamily: instrumentFamily,
 	}
 	var resp *MMPStatusResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, resetMMPStatusEPL, http.MethodPost, "account/mmp-reset", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, resetMMPStatusEPL, http.MethodPost, "account/mmp-reset", arg, &resp, request.AuthenticatedRequest)
 }
 
 // SetMMP set MMP configure
@@ -2679,7 +2680,7 @@ func (e *Exchange) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, erro
 		return nil, errInvalidQuantityLimit
 	}
 	var resp *MMPConfig
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setMMPEPL, http.MethodPost, "account/mmp-config", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setMMPEPL, http.MethodPost, "account/mmp-config", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetMMPConfig retrieves MMP configure information
@@ -2690,7 +2691,7 @@ func (e *Exchange) GetMMPConfig(ctx context.Context, instrumentFamily string) ([
 		params.Set("instFamily", instrumentFamily)
 	}
 	var resp []MMPConfigDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getMMPConfigEPL, http.MethodGet, common.EncodeURLValues("account/mmp-config", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getMMPConfigEPL, http.MethodGet, common.EncodeURLValues("account/mmp-config", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 /********************************** Subaccount Endpoints ***************************************************/
@@ -2714,7 +2715,7 @@ func (e *Exchange) ViewSubAccountList(ctx context.Context, enable bool, subaccou
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubaccountInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, viewSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/subaccount/list", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, viewSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/subaccount/list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses
@@ -2745,7 +2746,7 @@ func (e *Exchange) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPI
 		return nil, errInvalidAPIKeyPermission
 	}
 	var resp *SubAccountAPIKeyResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, "users/subaccount/modify-apikey", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, resetSubAccountAPIKeyEPL, http.MethodPost, "users/subaccount/modify-apikey", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetSubaccountTradingBalance query detailed balance info of Trading Account of a sub-account via the master account (applies to master accounts only)
@@ -2756,7 +2757,7 @@ func (e *Exchange) GetSubaccountTradingBalance(ctx context.Context, subaccountNa
 	params := url.Values{}
 	params.Set("subAcct", subaccountName)
 	var resp []SubaccountBalanceResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccountTradingBalanceEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/balances", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getSubaccountTradingBalanceEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/balances", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSubaccountFundingBalance query detailed balance info of Funding Account of a sub-account via the master account (applies to master accounts only)
@@ -2770,7 +2771,7 @@ func (e *Exchange) GetSubaccountFundingBalance(ctx context.Context, subaccountNa
 		params.Set("ccy", ccy.String())
 	}
 	var resp []FundingBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccountFundingBalanceEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getSubaccountFundingBalanceEPL, http.MethodGet,
 		common.EncodeURLValues("asset/subaccount/balances", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -2785,7 +2786,7 @@ func (e *Exchange) GetSubAccountMaximumWithdrawal(ctx context.Context, subAccoun
 		params.Set("ccy", ccy.String())
 	}
 	var resp []SubAccountMaximumWithdrawal
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountMaxWithdrawalEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getSubAccountMaxWithdrawalEPL, http.MethodGet,
 		common.EncodeURLValues("account/subaccount/max-withdrawal", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -2812,7 +2813,7 @@ func (e *Exchange) HistoryOfSubaccountTransfer(ctx context.Context, ccy currency
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubaccountBillItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, historyOfSubaccountTransferEPL, http.MethodGet, common.EncodeURLValues("asset/subaccount/bills", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, historyOfSubaccountTransferEPL, http.MethodGet, common.EncodeURLValues("asset/subaccount/bills", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetHistoryOfManagedSubAccountTransfer retrieves managed sub-account transfers.
@@ -2841,7 +2842,7 @@ func (e *Exchange) GetHistoryOfManagedSubAccountTransfer(ctx context.Context, cc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubAccountTransfer
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, managedSubAccountTransferEPL, http.MethodGet, common.EncodeURLValues("asset/subaccount/managed-subaccount-bills", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, managedSubAccountTransferEPL, http.MethodGet, common.EncodeURLValues("asset/subaccount/managed-subaccount-bills", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
@@ -2868,7 +2869,7 @@ func (e *Exchange) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.C
 		return nil, errInvalidSubAccountName
 	}
 	var resp []TransferIDInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodPost, "asset/subaccount/transfer", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, masterAccountsManageTransfersBetweenSubaccountEPL, http.MethodPost, "asset/subaccount/transfer", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // SetPermissionOfTransferOut set permission of transfer out for sub-account(only applicable to master account). Sub-account can transfer out to master account by default
@@ -2880,7 +2881,7 @@ func (e *Exchange) SetPermissionOfTransferOut(ctx context.Context, arg *Permissi
 		return nil, errInvalidSubAccountName
 	}
 	var resp []PermissionOfTransfer
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, setPermissionOfTransferOutEPL, http.MethodPost, "users/subaccount/set-transfer-out", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setPermissionOfTransferOutEPL, http.MethodPost, "users/subaccount/set-transfer-out", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetCustodyTradingSubaccountList the trading team uses this interface to view the list of sub-accounts currently under escrow
@@ -2891,7 +2892,7 @@ func (e *Exchange) GetCustodyTradingSubaccountList(ctx context.Context, subaccou
 		params.Set("setAcct", subaccountName)
 	}
 	var resp []SubaccountName
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/entrust-subaccount-list", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues("users/entrust-subaccount-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SetSubAccountVIPLoanAllocation set the VIP loan allocation of sub-accounts. Only Applicable to master account API keys with Trade access
@@ -2913,7 +2914,7 @@ func (e *Exchange) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubA
 	resp := &struct {
 		Result bool `json:"result"`
 	}{}
-	return resp.Result, e.SendHTTPRequest(ctx, exchange.RestSpot, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, resp, request.AuthenticatedRequest)
+	return resp.Result, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, resp, request.AuthenticatedRequest)
 }
 
 // GetSubAccountBorrowInterestAndLimit retrieves sub-account borrow interest and limit
@@ -2928,7 +2929,7 @@ func (e *Exchange) GetSubAccountBorrowInterestAndLimit(ctx context.Context, subA
 		params.Set("ccy", ccy.String())
 	}
 	var resp []SubAccounBorrowInterestAndLimit
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getSubAccountBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/interest-limits", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 /*************************************** Grid Trading Endpoints ***************************************************/
@@ -2968,7 +2969,7 @@ func (e *Exchange) PlaceGridAlgoOrder(ctx context.Context, arg *GridAlgoOrder) (
 		}
 	}
 	var resp *GridAlgoOrderIDResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, gridTradingEPL, http.MethodPost, "tradingBot/grid/order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -2990,7 +2991,7 @@ func (e *Exchange) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAme
 		return nil, errMissingInstrumentID
 	}
 	var resp *GridAlgoOrderIDResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/amend-order-algo", &arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if resp != nil && resp.StatusMessage == "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -3025,7 +3026,7 @@ func (e *Exchange) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrde
 		}
 	}
 	var resp []GridAlgoOrderIDResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, stopGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, stopGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -3056,7 +3057,7 @@ func (e *Exchange) ClosePositionForContractID(ctx context.Context, arg *ClosePos
 		return nil, limits.ErrPriceBelowMin
 	}
 	var resp *ClosePositionContractGridResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelClosePositionOrderForContractGrid cancels close position order for contract grid
@@ -3071,13 +3072,13 @@ func (e *Exchange) CancelClosePositionOrderForContractGrid(ctx context.Context, 
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *ClosePositionContractGridResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelClosePositionOrderForContractGridEPL, http.MethodPost, "tradingBot/grid/cancel-close-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelClosePositionOrderForContractGridEPL, http.MethodPost, "tradingBot/grid/cancel-close-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // InstantTriggerGridAlgoOrder triggers grid algo order
 func (e *Exchange) InstantTriggerGridAlgoOrder(ctx context.Context, algoID string) (*TriggeredGridAlgoOrderInfo, error) {
 	var resp *TriggeredGridAlgoOrderInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, request.AuthenticatedRequest)
 }
 
 // GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data
@@ -3134,7 +3135,7 @@ func (e *Exchange) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 		epl = getGridAlgoOrderHistoryEPL
 	}
 	var resp []GridAlgoOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetGridAlgoOrderDetails retrieves grid algo order details
@@ -3150,7 +3151,7 @@ func (e *Exchange) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, a
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	var resp *GridAlgoOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderDetailsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getGridAlgoOrderDetailsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetGridAlgoSubOrders retrieves grid algo sub orders
@@ -3182,7 +3183,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []GridAlgoOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetGridAlgoOrderPositions retrieves grid algo order positions
@@ -3197,7 +3198,7 @@ func (e *Exchange) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType,
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	var resp []AlgoOrderPosition
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/positions", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getGridAlgoOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/positions", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id
@@ -3211,7 +3212,7 @@ func (e *Exchange) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*
 		AlgoID: algoID,
 	}
 	var resp *AlgoOrderWithdrawalProfit
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, spotGridWithdrawIncomeEPL, http.MethodPost, "tradingBot/grid/withdraw-income", input, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, spotGridWithdrawIncomeEPL, http.MethodPost, "tradingBot/grid/withdraw-income", input, &resp, request.AuthenticatedRequest)
 }
 
 // ComputeMarginBalance computes margin balance with 'add' and 'reduce' balance type
@@ -3223,7 +3224,7 @@ func (e *Exchange) ComputeMarginBalance(ctx context.Context, arg MarginBalancePa
 		return nil, errInvalidMarginTypeAdjust
 	}
 	var resp *ComputeMarginBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, computeMarginBalanceEPL, http.MethodPost, "tradingBot/grid/compute-margin-balance", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, computeMarginBalanceEPL, http.MethodPost, "tradingBot/grid/compute-margin-balance", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // AdjustMarginBalance retrieves adjust margin balance with 'add' and 'reduce' balance type
@@ -3241,7 +3242,7 @@ func (e *Exchange) AdjustMarginBalance(ctx context.Context, arg *MarginBalancePa
 		return nil, fmt.Errorf("%w, either percentage or amount is required", order.ErrAmountIsInvalid)
 	}
 	var resp *AdjustMarginBalanceResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, adjustMarginBalanceEPL, http.MethodPost, "tradingBot/grid/margin-balance", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, adjustMarginBalanceEPL, http.MethodPost, "tradingBot/grid/margin-balance", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetGridAIParameter retrieves grid AI parameter
@@ -3359,7 +3360,7 @@ func (e *Exchange) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, a
 	params.Set("algoId", algoID)
 	params.Set("algoOrdType", algoOrderType)
 	var resp *SignalBotOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderDetailsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, signalBotOrderDetailsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSignalOrderPositions retrieves signal bot order positions
@@ -3374,7 +3375,7 @@ func (e *Exchange) GetSignalOrderPositions(ctx context.Context, algoOrderType, a
 	params.Set("algoId", algoID)
 	params.Set("algoOrdType", algoOrderType)
 	var resp *SignalBotPosition
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/positions", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, signalBotOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/positions", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSignalBotSubOrders retrieves historical filled sub orders and designated sub orders
@@ -3412,7 +3413,7 @@ func (e *Exchange) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderT
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, signalBotSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, signalBotSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetSignalBotEventHistory retrieves signal bot event history
@@ -3432,7 +3433,7 @@ func (e *Exchange) GetSignalBotEventHistory(ctx context.Context, algoID string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SignalBotEventHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, signalBotEventHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/event-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, signalBotEventHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/event-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // ****************************************** Recurring Buy *****************************************
@@ -3465,7 +3466,7 @@ func (e *Exchange) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurri
 		return nil, errInvalidTradeModeValue
 	}
 	var resp *RecurringOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/order-algo", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendRecurringBuyOrder amends recurring order
@@ -3480,7 +3481,7 @@ func (e *Exchange) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurri
 		return nil, errStrategyNameRequired
 	}
 	var resp *RecurringOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
 // StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request
@@ -3494,7 +3495,7 @@ func (e *Exchange) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurrin
 		}
 	}
 	var resp []RecurringOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, stopRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/stop-order-algo", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetRecurringBuyOrderList retrieves recurring buy order list
@@ -3516,7 +3517,7 @@ func (e *Exchange) GetRecurringBuyOrderList(ctx context.Context, algoID, algoOrd
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []RecurringOrderItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetRecurringBuyOrderHistory retrieves recurring buy order history
@@ -3535,7 +3536,7 @@ func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID strin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []RecurringOrderItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getRecurringBuyOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetRecurringOrderDetails retrieves a single recurring order detail
@@ -3549,7 +3550,7 @@ func (e *Exchange) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrd
 		params.Set("state", algoOrderState)
 	}
 	var resp *RecurringOrderDeail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getRecurringBuyOrderDetailEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-details", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetRecurringSubOrders retrieves recurring buy sub orders
@@ -3572,7 +3573,7 @@ func (e *Exchange) GetRecurringSubOrders(ctx context.Context, algoID, orderID st
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []RecurringBuySubOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuySubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getRecurringBuySubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // ****************************************** Earn **************************************************
@@ -4019,7 +4020,7 @@ func (e *Exchange) GetOffers(ctx context.Context, productID, protocolType string
 		params.Set("ccy", ccy.String())
 	}
 	var resp []Offer
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOfferEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/offers", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getOfferEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/offers", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // Purchase invest on specific product
@@ -4039,7 +4040,7 @@ func (e *Exchange) Purchase(ctx context.Context, arg *PurchaseRequestParam) (*Or
 		}
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, purchaseEPL, http.MethodPost, "finance/staking-defi/purchase", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, purchaseEPL, http.MethodPost, "finance/staking-defi/purchase", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // Redeem redemption of investment
@@ -4054,7 +4055,7 @@ func (e *Exchange) Redeem(ctx context.Context, arg *RedeemRequestParam) (*OrderI
 		return nil, errInvalidProtocolType
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, redeemEPL, http.MethodPost, "finance/staking-defi/redeem", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, redeemEPL, http.MethodPost, "finance/staking-defi/redeem", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // CancelPurchaseOrRedemption cancels Purchases or Redemptions
@@ -4070,7 +4071,7 @@ func (e *Exchange) CancelPurchaseOrRedemption(ctx context.Context, arg *CancelFu
 		return nil, errInvalidProtocolType
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, "finance/staking-defi/cancel", &arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelPurchaseOrRedemptionEPL, http.MethodPost, "finance/staking-defi/cancel", &arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetEarnActiveOrders retrieves active orders
@@ -4094,7 +4095,7 @@ func (e *Exchange) GetEarnActiveOrders(ctx context.Context, productID, protocolT
 		params.Set("state", state)
 	}
 	var resp []ActiveFundingOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getEarnActiveOrdersEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/orders-active", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getEarnActiveOrdersEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/orders-active", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetFundingOrderHistory retrieves funding order history
@@ -4120,7 +4121,7 @@ func (e *Exchange) GetFundingOrderHistory(ctx context.Context, productID, protoc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ActiveFundingOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundingOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/orders-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFundingOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/orders-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // **************************************************************** ETH Staking ****************************************************************
@@ -4128,7 +4129,7 @@ func (e *Exchange) GetFundingOrderHistory(ctx context.Context, productID, protoc
 // GetProductInfo retrieves ETH staking products
 func (e *Exchange) GetProductInfo(ctx context.Context) (*ProductInfo, error) {
 	var resp *ProductInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getProductInfoEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getProductInfoEPL, http.MethodGet,
 		"finance/staking-defi/eth/product-info", nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -4139,7 +4140,7 @@ func (e *Exchange) PurchaseETHStaking(ctx context.Context, amount float64) error
 		return limits.ErrAmountBelowMin
 	}
 	var resp []string
-	return e.SendHTTPRequest(ctx, exchange.RestSpot, purchaseETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/purchase", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
+	return e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, purchaseETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/purchase", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
 }
 
 // RedeemETHStaking only the assets in the funding account can be used. If your BETH is in your trading account, you can make funding transfer first
@@ -4148,14 +4149,14 @@ func (e *Exchange) RedeemETHStaking(ctx context.Context, amount float64) error {
 		return limits.ErrAmountBelowMin
 	}
 	var resp []string
-	return e.SendHTTPRequest(ctx, exchange.RestSpot, redeemETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/redeem",
+	return e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, redeemETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/redeem",
 		map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
 }
 
 // GetBETHAssetsBalance balance is a snapshot summarised all BETH assets in trading and funding accounts. Also, the snapshot updates hourly
 func (e *Exchange) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, error) {
 	var resp *BETHAssetsBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getBETHBalanceEPL, http.MethodGet,
 		"finance/staking-defi/eth/balance", nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -4181,7 +4182,7 @@ func (e *Exchange) GetPurchaseAndRedeemHistory(ctx context.Context, kind, status
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []PurchaseRedeemHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getPurchaseRedeemHistoryEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getPurchaseRedeemHistoryEPL, http.MethodGet,
 		common.EncodeURLValues("finance/staking-defi/eth/purchase-redeem-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -5484,7 +5485,7 @@ func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*Affiliat
 		return nil, errUserIDRequired
 	}
 	var resp *AffiliateInviteesDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getAffiliateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate
@@ -5493,7 +5494,7 @@ func (e *Exchange) GetUserAffiliateRebateInformation(ctx context.Context, apiKey
 		return nil, errInvalidAPIKey
 	}
 	var resp *AffiliateRebateInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
 }
 
 // Status
@@ -5529,7 +5530,7 @@ func (e *Exchange) PlaceLendingOrder(ctx context.Context, arg *LendingOrderParam
 		return nil, errLendingTermIsRequired
 	}
 	var resp *LendingOrderResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, placeLendingOrderEPL, http.MethodPost, "finance/fixed-loan/lending-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // AmendLendingOrder amends a lending order
@@ -5549,7 +5550,7 @@ func (e *Exchange) AmendLendingOrder(ctx context.Context, orderID string, change
 		AutoRenewal:  autoRenewal,
 	}
 	var resp OrderIDResponse
-	return resp.OrderID, e.SendHTTPRequest(ctx, exchange.RestSpot, amendLendingOrderEPL, http.MethodPost, "finance/fixed-loan/amend-lending-order", arg, &resp, request.AuthenticatedRequest)
+	return resp.OrderID, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, amendLendingOrderEPL, http.MethodPost, "finance/fixed-loan/amend-lending-order", arg, &resp, request.AuthenticatedRequest)
 }
 
 // Note: the documentation for Amending lending order has similar url, request method, and parameters to the placing order. Therefore, the implementation is skipped for now.
@@ -5579,7 +5580,7 @@ func (e *Exchange) GetLendingOrders(ctx context.Context, orderID, state string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []LendingOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lendingOrderListEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, lendingOrderListEPL, http.MethodGet,
 		common.EncodeURLValues("finance/fixed-loan/lending-orders-list", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -5605,7 +5606,7 @@ func (e *Exchange) GetLendingSubOrderList(ctx context.Context, orderID, state st
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []LendingSubOrder
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, lendingSubOrderListEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-sub-orders", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, lendingSubOrderListEPL, http.MethodGet, common.EncodeURLValues("finance/fixed-loan/lending-sub-orders", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // Trading Statistics endpoints
@@ -5630,7 +5631,7 @@ func (e *Exchange) GetFuturesContractsOpenInterestHistory(ctx context.Context, i
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ContractOpenInterestHistoryItem
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rubikGetContractOpenInterestHistoryEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, rubikGetContractOpenInterestHistoryEPL, http.MethodGet,
 		common.EncodeURLValues("rubik/stat/contracts/open-interest-history", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
@@ -5737,7 +5738,7 @@ func (e *Exchange) GetDepositOrderDetail(ctx context.Context, orderID string) (*
 	params := url.Values{}
 	params.Set("ordID", orderID)
 	var resp *FiatOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getDepositOrderDetailEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetFiatDepositOrderHistory retrieves fiat deposit order history
@@ -5764,7 +5765,7 @@ func (e *Exchange) GetFiatDepositOrderHistory(ctx context.Context, ccy currency.
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FiatOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit-order-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getDepositOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/deposit-order-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetWithdrawalOrderDetail retrieves fiat withdrawal order detail
@@ -5775,7 +5776,7 @@ func (e *Exchange) GetWithdrawalOrderDetail(ctx context.Context, orderID string)
 	params := url.Values{}
 	params.Set("ordId", orderID)
 	var resp *FiatOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalOrderDetailEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getWithdrawalOrderDetailEPL, http.MethodGet,
 		common.EncodeURLValues("fiat/withdrawal", params), &map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
 }
 
@@ -5803,7 +5804,7 @@ func (e *Exchange) GetFiatWithdrawalOrderHistory(ctx context.Context, ccy curren
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FiatOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFiatWithdrawalOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/withdrawal-order-history", params), nil, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFiatWithdrawalOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("fiat/withdrawal-order-history", params), nil, &resp, request.AuthenticatedRequest)
 }
 
 // CancelWithdrawalOrder cancel a pending fiat withdrawal order, currently only applicable to TRY
@@ -5812,7 +5813,7 @@ func (e *Exchange) CancelWithdrawalOrder(ctx context.Context, orderID string) (*
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp *OrderIDAndState
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelWithdrawalOrderEPL, http.MethodPost, "fiat/cancel-withdrawal", &map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, cancelWithdrawalOrderEPL, http.MethodPost, "fiat/cancel-withdrawal", &map[string]string{"ordId": orderID}, &resp, request.AuthenticatedRequest)
 }
 
 // CreateWithdrawalOrder initiate a fiat withdrawal request (Authenticated endpoint, Only for API keys with "Withdrawal" access)
@@ -5846,7 +5847,7 @@ func (e *Exchange) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code,
 		Currency:      ccy.String(),
 	}
 	var resp *FiatOrderDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createWithdrawalOrderEPL, http.MethodPost, "fiat/create-withdrawal", arg, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, createWithdrawalOrderEPL, http.MethodPost, "fiat/create-withdrawal", arg, &resp, request.AuthenticatedRequest)
 }
 
 // GetFiatWithdrawalPaymentMethods to display all the available fiat withdrawal payment methods
@@ -5857,7 +5858,7 @@ func (e *Exchange) GetFiatWithdrawalPaymentMethods(ctx context.Context, ccy curr
 	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	var resp *FiatWithdrawalPaymentMethods
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalPaymentMethodsEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getWithdrawalPaymentMethodsEPL, http.MethodGet,
 		common.EncodeURLValues("fiat/withdrawal-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -5869,7 +5870,7 @@ func (e *Exchange) GetFiatDepositPaymentMethods(ctx context.Context, ccy currenc
 	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	var resp *FiatDepositPaymentMethods
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFiatDepositPaymentMethodsEPL, http.MethodGet,
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, getFiatDepositPaymentMethodsEPL, http.MethodGet,
 		common.EncodeURLValues("fiat/deposit-payment-methods", params), nil, &resp, request.AuthenticatedRequest)
 }
 
@@ -5884,12 +5885,11 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if err != nil {
 		return err
 	}
-	var resp struct {
+	newRequest := func(endpointURL string, resp *struct {
 		Code types.Number    `json:"code"`
 		Msg  string          `json:"msg"`
 		Data json.RawMessage `json:"data"`
-	}
-	newRequest := func() (*request.Item, error) {
+	}) (*request.Item, error) {
 		var payload []byte
 		if data != nil {
 			payload, err = json.Marshal(data)
@@ -5920,7 +5920,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		}
 		return &request.Item{
 			Method:                 strings.ToUpper(httpMethod),
-			Path:                   endpoint + requestPath,
+			Path:                   endpointURL + requestPath,
 			Headers:                headers,
 			Body:                   bytes.NewBuffer(payload),
 			Result:                 &resp,
@@ -5930,7 +5930,13 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if err := e.SendPayload(ctx, f, newRequest, requestType); err != nil {
+	var resp struct {
+		Code types.Number    `json:"code"`
+		Msg  string          `json:"msg"`
+		Data json.RawMessage `json:"data"`
+	}
+	req := func() (*request.Item, error) { return newRequest(endpoint, &resp) }
+	if err := e.SendPayload(ctx, f, req, requestType); err != nil {
 		return err
 	}
 	if resp.Code.Int64() != 0 {
