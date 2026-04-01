@@ -6436,6 +6436,9 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), common.ErrNilPointer)
 	p = &PlaceOrderRequestParam{}
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
+	p.InstrumentIDCode = 123
+	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
+	p.InstrumentIDCode = 0
 	p.InstrumentID = mainPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()

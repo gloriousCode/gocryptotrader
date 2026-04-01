@@ -4907,7 +4907,7 @@ func (e *Exchange) GetInstruments(ctx context.Context, arg *InstrumentsFetchPara
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
 	}
 	if arg.InstrumentType == instTypeOption &&
-		arg.InstrumentFamily == "" && arg.Underlying == "" {
+		arg.InstrumentFamily == "" && arg.Underlying == "" && arg.InstrumentID == "" {
 		return nil, errInstrumentFamilyOrUnderlyingRequired
 	}
 	params := url.Values{}

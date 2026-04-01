@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -22,6 +23,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testpath "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func loadOKXExchangeConfig(t *testing.T, exchangeName string) *config.Exchange {
@@ -323,4 +325,78 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		})
 		require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	})
+}
+
+func TestLookupInstrumentIDCode(t *testing.T) {
+	t.Parallel()
+
+	t.Run("exact instrument match", func(t *testing.T) {
+		t.Parallel()
+		code := lookupInstrumentIDCode([]Instrument{
+			{
+				InstrumentID:     mainPair,
+				InstrumentIDCode: types.NumberFromFloat64(123456),
+			},
+		}, mainPair.String())
+		require.Equal(t, int64(123456), code)
+	})
+
+	t.Run("single instrument fallback", func(t *testing.T) {
+		t.Parallel()
+		code := lookupInstrumentIDCode([]Instrument{
+			{
+				InstrumentID:     currency.NewPair(currency.BTC, currency.USDT),
+				InstrumentIDCode: types.NumberFromFloat64(654321),
+			},
+		}, "NON-MATCHING")
+		require.Equal(t, int64(654321), code)
+	})
+
+	t.Run("returns zero when unresolved", func(t *testing.T) {
+		t.Parallel()
+		code := lookupInstrumentIDCode([]Instrument{
+			{
+				InstrumentID:     currency.NewPair(currency.BTC, currency.USDT),
+				InstrumentIDCode: types.NumberFromFloat64(0),
+			},
+			{
+				InstrumentID:     currency.NewPair(currency.ETH, currency.USDT),
+				InstrumentIDCode: types.NumberFromFloat64(0),
+			},
+		}, "UNKNOWN")
+		require.Equal(t, int64(0), code)
+	})
+}
+
+func TestOptionInstrumentSelectors(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name            string
+		instrumentID    string
+		expectedULY     string
+		expectedInstFam string
+	}{
+		{
+			name:            "option instrument id",
+			instrumentID:    "BTC-USD-260403-70000-C",
+			expectedULY:     "BTC-USD",
+			expectedInstFam: "BTC-USD",
+		},
+		{
+			name:            "too short",
+			instrumentID:    "BTC",
+			expectedULY:     "",
+			expectedInstFam: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotULY, gotInstFam := optionInstrumentSelectors(tc.instrumentID)
+			require.Equal(t, tc.expectedULY, gotULY)
+			require.Equal(t, tc.expectedInstFam, gotInstFam)
+		})
+	}
 }

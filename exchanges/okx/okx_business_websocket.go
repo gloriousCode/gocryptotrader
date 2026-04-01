@@ -3,6 +3,7 @@ package okx
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -45,6 +46,12 @@ func (e *Exchange) GenerateDefaultBusinessSubscriptions() (subscription.List, er
 	// websocket defaults and these channels can pollute data handlers with
 	// unrelated public structured block trade payloads.
 	if enabled := e.GetAssetTypes(true); len(enabled) == 1 && enabled[0] == asset.Options {
+		return nil, nil
+	}
+	enabled := e.GetAssetTypes(true)
+	// Options-led deployments that don't use spread subscriptions should not
+	// require a business websocket connection by default.
+	if slices.Contains(enabled, asset.Options) && !slices.Contains(enabled, asset.Spread) {
 		return nil, nil
 	}
 	var subs []string

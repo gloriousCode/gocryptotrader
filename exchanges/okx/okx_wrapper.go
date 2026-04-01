@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -43,6 +44,8 @@ import (
 const (
 	websocketResponseMaxLimit = time.Second * 3
 )
+
+var okxInstrumentIDCodeCache sync.Map
 
 // SetDefaults sets the basic defaults for Okx
 func (e *Exchange) SetDefaults() {
@@ -951,6 +954,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TargetCurrency: targetCurrency,
 			AssetType:      s.AssetType,
 		}
+		orderRequest.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, s.AssetType, orderRequest.InstrumentID)
+		if err != nil {
+			return nil, err
+		}
 		switch s.Type.Lower() {
 		case orderLimit, orderPostOnly, orderFOK, orderIOC:
 			orderRequest.Price = s.Price
@@ -1613,11 +1620,106 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
+	arg.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
+	}
 	resp, err := e.WSPlaceOrder(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
 	return s.DeriveSubmitResponse(resp.OrderID)
+}
+
+func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, instrumentID string) (int64, error) {
+	if instrumentID == "" {
+		return 0, errMissingInstrumentID
+	}
+	instType := GetInstrumentTypeFromAssetItem(ai)
+	if instType == "" {
+		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
+	}
+	cacheKey := fmt.Sprintf("%s|%s", instType, instrumentID)
+	if cached, ok := okxInstrumentIDCodeCache.Load(cacheKey); ok {
+		code, ok := cached.(int64)
+		if ok && code > 0 {
+			return code, nil
+		}
+	}
+	fetchParams := make([]InstrumentsFetchParams, 0, 4)
+	if ai == asset.Options {
+		underlying, family := optionInstrumentSelectors(instrumentID)
+		if underlying != "" || family != "" {
+			fetchParams = append(fetchParams, InstrumentsFetchParams{
+				InstrumentType:   instType,
+				Underlying:       underlying,
+				InstrumentFamily: family,
+				InstrumentID:     instrumentID,
+			})
+		}
+		if underlying != "" {
+			fetchParams = append(fetchParams, InstrumentsFetchParams{
+				InstrumentType: instType,
+				Underlying:     underlying,
+				InstrumentID:   instrumentID,
+			})
+		}
+		if family != "" {
+			fetchParams = append(fetchParams, InstrumentsFetchParams{
+				InstrumentType:   instType,
+				InstrumentFamily: family,
+				InstrumentID:     instrumentID,
+			})
+		}
+	}
+	fetchParams = append(fetchParams, InstrumentsFetchParams{
+		InstrumentType: instType,
+		InstrumentID:   instrumentID,
+	})
+
+	var fetchErr error
+	for i := range fetchParams {
+		instruments, err := e.GetInstruments(ctx, &fetchParams[i])
+		if err != nil {
+			fetchErr = err
+			continue
+		}
+		instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID)
+		if instrumentIDCode <= 0 {
+			continue
+		}
+		okxInstrumentIDCodeCache.Store(cacheKey, instrumentIDCode)
+		return instrumentIDCode, nil
+	}
+	if fetchErr != nil {
+		return 0, fetchErr
+	}
+	return 0, fmt.Errorf("instrument ID code not found for %s", instrumentID)
+}
+
+func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
+	for i := range instruments {
+		if !strings.EqualFold(instruments[i].InstrumentID.String(), instrumentID) {
+			continue
+		}
+		instrumentIDCode := instruments[i].InstrumentIDCode.Int64()
+		if instrumentIDCode > 0 {
+			return instrumentIDCode
+		}
+	}
+	if len(instruments) == 1 {
+		return instruments[0].InstrumentIDCode.Int64()
+	}
+	return 0
+}
+
+func optionInstrumentSelectors(instrumentID string) (string, string) {
+	parts := strings.Split(instrumentID, currency.DashDelimiter)
+	if len(parts) < 2 {
+		return "", ""
+	}
+	underlying := strings.Join(parts[:2], currency.DashDelimiter)
+	return underlying, underlying
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
