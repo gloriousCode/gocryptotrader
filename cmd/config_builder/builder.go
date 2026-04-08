@@ -18,14 +18,14 @@ func main() {
 		log.Fatalf("Failed to initialise engine. Err: %s", err)
 	}
 
-	log.Printf("Loading exchanges..")
+	log.Println("Loading exchanges..")
 	var wg sync.WaitGroup
 	for i := range exchange.Exchanges {
 		wg.Add(1)
 		go func(name string) {
 			defer wg.Done()
 			if err = engine.Bot.LoadExchange(name); err != nil {
-				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+				log.Println("Failed to load exchange " + name + ". Err: " + err.Error())
 			}
 		}(exchange.Exchanges[i])
 	}
@@ -38,10 +38,10 @@ func main() {
 		var cfg *config.Exchange
 		cfg, err = exchange.GetDefaultConfig(context.Background(), exchanges[x])
 		if err != nil {
-			log.Printf("Failed to get exchanges default config. Err: %s", err)
+			log.Println("Failed to get exchanges default config. Err: " + err.Error())
 			continue
 		}
-		log.Printf("Adding %s", exchanges[x].GetName())
+		log.Println("Adding " + exchanges[x].GetName())
 		cfgs = append(cfgs, *cfg)
 	}
 

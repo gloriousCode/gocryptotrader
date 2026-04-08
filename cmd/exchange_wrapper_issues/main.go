@@ -76,7 +76,7 @@ func main() {
 		if shouldLoadExchange(name) {
 			wg.Go(func() {
 				if err = bot.LoadExchange(name); err != nil {
-					log.Printf("Failed to load exchange %s. Err: %s", name, err)
+					log.Println("Failed to load exchange " + name + ". Err: " + err.Error())
 				}
 			})
 		}
@@ -207,7 +207,7 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 
 	creds, ok := keys[lowerExchangeName]
 	if !ok {
-		log.Printf("%s credentials not found in keys map\n", name)
+		log.Println(name + " credentials not found in keys map")
 		return false
 	}
 
@@ -1115,7 +1115,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 				log.Printf("Function:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Function)
 				log.Printf("AssetType:\t%v", exchangeResponses[i].AssetPairResponses[j].AssetType)
 				log.Printf("Currency:\t%v\n", exchangeResponses[i].AssetPairResponses[j].Pair)
-				log.Printf("Wrapper Params:\t%s\n", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams)
+				log.Println("Wrapper Params:\t" + string(exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].SentParams))
 				if exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error != "" {
 					totalErrors++
 					log.Printf("Error:\t%v", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Error)
@@ -1123,7 +1123,7 @@ func outputToConsole(exchangeResponses []ExchangeResponses) {
 					log.Print("Error:\tnone")
 				}
 				if verboseOverride {
-					log.Printf("Wrapper Response:\t%s", exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Response)
+					log.Println("Wrapper Response:\t" + fmt.Sprint(exchangeResponses[i].AssetPairResponses[j].EndpointResponses[k].Response))
 				}
 				log.Println()
 			}

@@ -75,7 +75,7 @@ func main() {
 
 	b, err := x509.MarshalECPrivateKey(privKey)
 	if err != nil {
-		log.Printf("failed to marshal ECDSA private key: %s", err)
+		log.Println("failed to marshal ECDSA private key: " + err.Error())
 	}
 
 	keyData := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
@@ -87,19 +87,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to write key.pem file %s", err)
 	}
-	log.Printf("wrote key.pem file")
+	log.Println("wrote key.pem file")
 
 	err = file.Write("cert.pem", certData)
 	if err != nil {
 		log.Fatalf("failed to write cert.pem file %s", err)
 	}
-	log.Printf("wrote cert.pem file")
+	log.Println("wrote cert.pem file")
 
-	log.Printf("testing tls.LoadX509Keypair..")
+	log.Println("testing tls.LoadX509Keypair..")
 	_, err = tls.LoadX509KeyPair("cert.pem", "key.pem")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("ok!")
+	log.Println("ok!")
 }

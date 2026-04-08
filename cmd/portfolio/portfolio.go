@@ -165,7 +165,7 @@ func main() {
 	log.Println("OFFLINE COIN SUMMARY:")
 	var totals float64
 	for x, y := range result.OfflineSummary {
-		log.Printf("\t%s:", x)
+		log.Println("\t" + x.String() + ":")
 		totals = 0
 		for z := range y {
 			value := priceMap[x.Item] * y[z].Balance
@@ -178,7 +178,7 @@ func main() {
 
 	log.Println("ONLINE COINS SUMMARY:")
 	for x, y := range result.OnlineSummary {
-		log.Printf("\t%s:", x)
+		log.Println("\t" + x + ":")
 		totals = 0
 		for z, w := range y {
 			value := priceMap[z.Item] * w.Balance

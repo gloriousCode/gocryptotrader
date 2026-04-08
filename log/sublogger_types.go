@@ -1,5 +1,7 @@
 package log
 
+import "go.uber.org/zap"
+
 // Global vars related to the logger package
 var (
 	SubLoggers = map[string]*SubLogger{}
@@ -40,6 +42,11 @@ type SubLogger struct {
 	output            *multiWriterHolder
 	botName           string
 	structuredLogging bool
+	zapLogger         *zap.Logger
+	infoPrefix        string
+	warnPrefix        string
+	debugPrefix       string
+	errorPrefix       string
 }
 
 // fields is used to store data in a non-global and thread-safe manner
@@ -54,5 +61,10 @@ type fields struct {
 	output            *multiWriterHolder
 	logger            Logger
 	botName           string
+	zapLogger         *zap.Logger
+	infoPrefix        string
+	warnPrefix        string
+	debugPrefix       string
+	errorPrefix       string
 	structuredFields  ExtraFields
 }

@@ -62,9 +62,11 @@ func GenDefaultSettings() *Config {
 			Rotate:   convert.BoolPtr(false),
 		},
 		AdvancedSettings: advancedSettings{
-			ShowLogSystemName: convert.BoolPtr(false),
-			Spacer:            spacer,
-			TimeStampFormat:   timestampFormat,
+			ShowLogSystemName:       convert.BoolPtr(false),
+			Spacer:                  spacer,
+			TimeStampFormat:         timestampFormat,
+			LoggerBackend:           zapBackend,
+			DropDebugLogsOnOverflow: false,
 			Headers: headers{
 				Info:  "[INFO]",
 				Warn:  "[WARN]",
@@ -80,6 +82,12 @@ func SetGlobalLogConfig(incoming *Config) error {
 	if incoming == nil {
 		return errConfigNil
 	}
+	backend, err := normaliseLoggerBackend(incoming.AdvancedSettings.LoggerBackend)
+	if err != nil {
+		return err
+	}
+	incoming.AdvancedSettings.LoggerBackend = backend
+
 	var fileConf loggerFileConfig
 	if incoming.LoggerFileConfig != nil {
 		fileConf = *incoming.LoggerFileConfig
@@ -126,6 +134,9 @@ func configureSubLogger(subLogger, levels string, output *multiWriterHolder) err
 		return err
 	}
 	logPtr.setLevels(splitLevel(levels))
+	if err := setupSubLoggerBackend(logPtr); err != nil {
+		return err
+	}
 	SubLoggers[subLogger] = logPtr
 	return nil
 }
@@ -165,6 +176,7 @@ func SetupGlobalLogger(botName string, structuredOutput bool) error {
 	if err != nil {
 		return err
 	}
+	logger = newLogger(globalLogConfig, botName)
 
 	for _, subLogger := range SubLoggers {
 		subLogger.setLevels(splitLevel(globalLogConfig.Level))
@@ -174,8 +186,10 @@ func SetupGlobalLogger(botName string, structuredOutput bool) error {
 			return err
 		}
 		subLogger.botName = botName
+		if err := setupSubLoggerBackend(subLogger); err != nil {
+			return err
+		}
 	}
-	logger = newLogger(globalLogConfig, botName)
 	return nil
 }
 
@@ -222,6 +236,9 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 		levels:            splitLevel("INFO|WARN|DEBUG|ERROR"),
 		botName:           logger.botName,
 		structuredLogging: globalLogConfig != nil && globalLogConfig.AdvancedSettings.StructuredLogging,
+	}
+	if err := setupSubLoggerBackend(temp); err != nil {
+		return nil
 	}
 	SubLoggers[subLogger] = temp
 	return temp

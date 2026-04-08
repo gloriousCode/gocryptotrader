@@ -128,7 +128,7 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loading config file %s..\n", filePath)
+	log.Println("Loading config file " + filePath + "..")
 
 	conf := &config.Config{}
 	err = conf.ReadConfigFromFile(filePath, settings.EnableDryRun)

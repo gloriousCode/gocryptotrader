@@ -40,7 +40,7 @@ func main() {
 		for {
 			log.Println("Please enter in your OTP secret:")
 			if _, err = fmt.Scanln(&input); err != nil {
-				log.Printf("Failed to read input. Err: %s\n", err)
+				log.Println("Failed to read input. Err: " + err.Error())
 				continue
 			}
 			if input != "" {
@@ -53,7 +53,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("Unable to generate OTP code. Err: %s", err)
 			}
-			log.Printf("OTP code: %s\n", code)
+			log.Println("OTP code: " + code)
 			time.Sleep(defaultSleepTime)
 		}
 	}
@@ -75,10 +75,10 @@ func main() {
 			if cfg.Exchanges[x].API.Credentials.OTPSecret != "" {
 				code, err = totp.GenerateCode(cfg.Exchanges[x].API.Credentials.OTPSecret, time.Now())
 				if err != nil {
-					log.Printf("Exchange %s: Failed to generate OTP code. Err: %s\n", cfg.Exchanges[x].Name, err)
+					log.Println("Exchange " + cfg.Exchanges[x].Name + ": Failed to generate OTP code. Err: " + err.Error())
 					continue
 				}
-				log.Printf("%s: %s\n", cfg.Exchanges[x].Name, code)
+				log.Println(cfg.Exchanges[x].Name + ": " + code)
 			}
 		}
 		time.Sleep(defaultSleepTime)

@@ -30,20 +30,20 @@ func main() {
 	engine.Bot.Config.PurgeExchangeAPICredentials()
 	engine.Bot.ExchangeManager = engine.NewExchangeManager()
 
-	log.Printf("Loading exchanges..")
+	log.Println("Loading exchanges..")
 	var wg sync.WaitGroup
 	for i := range exchange.Exchanges {
 		name := exchange.Exchanges[i]
 		wg.Go(func() {
 			if err := engine.Bot.LoadExchange(name); err != nil {
-				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+				log.Println("Failed to load exchange " + name + ". Err: " + err.Error())
 			}
 		})
 	}
 	wg.Wait()
 	log.Println("Done.")
 
-	log.Printf("Testing exchange wrappers..")
+	log.Println("Testing exchange wrappers..")
 	results := make(map[string][]string)
 	var mtx sync.Mutex
 
@@ -53,7 +53,7 @@ func main() {
 		go func(exch exchange.IBotExchange) {
 			strResults, err := testWrappers(exch)
 			if err != nil {
-				log.Printf("Failed to test wrappers for %s. Err: %s", exch.GetName(), err)
+				log.Println("Failed to test wrappers for " + exch.GetName() + ". Err: " + err.Error())
 			}
 			mtx.Lock()
 			results[exch.GetName()] = strResults
@@ -75,10 +75,10 @@ func main() {
 			totalWrappers,
 			pct,
 			len(funcs))
-		log.Printf("\t Wrappers not implemented:")
+		log.Println("\t Wrappers not implemented:")
 
 		for x := range funcs {
-			log.Printf("\t - %s", funcs[x])
+			log.Println("\t - " + funcs[x])
 		}
 		log.Println()
 	}
