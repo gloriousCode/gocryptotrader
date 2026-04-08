@@ -1,5 +1,7 @@
 package log
 
+import "go.uber.org/zap"
+
 // Global vars related to the logger package
 var (
 	SubLoggers = map[string]*SubLogger{}
@@ -19,18 +21,17 @@ var (
 	WebsocketMgr     *SubLogger
 	EventMgr         *SubLogger
 	DispatchMgr      *SubLogger
-	RequestSys       *SubLogger
-	ExchangeSys      *SubLogger
-	GRPCSys          *SubLogger
-	RESTSys          *SubLogger
-	Ticker           *SubLogger
-	OrderBook        *SubLogger
-	Trade            *SubLogger
-	Fill             *SubLogger
-	Currency         *SubLogger
-	QuickData        *SubLogger
-	LinkSys  *SubLogger
-	SpyVsSpy *SubLogger
+
+	RequestSys  *SubLogger
+	ExchangeSys *SubLogger
+	GRPCSys     *SubLogger
+	RESTSys     *SubLogger
+
+	Ticker    *SubLogger
+	OrderBook *SubLogger
+	Trade     *SubLogger
+	Fill      *SubLogger
+	Currency  *SubLogger
 )
 
 // SubLogger defines a sub logger can be used externally for packages wanted to
@@ -41,6 +42,11 @@ type SubLogger struct {
 	output            *multiWriterHolder
 	botName           string
 	structuredLogging bool
+	zapLogger         *zap.Logger
+	infoPrefix        string
+	warnPrefix        string
+	debugPrefix       string
+	errorPrefix       string
 }
 
 // fields is used to store data in a non-global and thread-safe manner
@@ -55,5 +61,10 @@ type fields struct {
 	output            *multiWriterHolder
 	logger            Logger
 	botName           string
+	zapLogger         *zap.Logger
+	infoPrefix        string
+	warnPrefix        string
+	debugPrefix       string
+	errorPrefix       string
 	structuredFields  ExtraFields
 }

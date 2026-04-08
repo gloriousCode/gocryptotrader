@@ -14,6 +14,10 @@ var (
 )
 
 func newLogger(c *Config, botName string) Logger {
+	backend, err := normaliseLoggerBackend(c.AdvancedSettings.LoggerBackend)
+	if err != nil {
+		backend = zapBackend
+	}
 	return Logger{
 		TimestampFormat:               c.AdvancedSettings.TimeStampFormat,
 		Spacer:                        c.AdvancedSettings.Spacer,
@@ -23,6 +27,8 @@ func newLogger(c *Config, botName string) Logger {
 		DebugHeader:                   c.AdvancedSettings.Headers.Debug,
 		ShowLogSystemName:             c.AdvancedSettings.ShowLogSystemName != nil && *c.AdvancedSettings.ShowLogSystemName,
 		BypassJobChannelFilledWarning: c.AdvancedSettings.BypassJobChannelFilledWarning,
+		Backend:                       backend,
+		DropDebugLogsOnOverflow:       c.AdvancedSettings.DropDebugLogsOnOverflow,
 		botName:                       botName,
 	}
 }
@@ -35,6 +41,11 @@ func CloseLogger() error {
 	globalLogConfig.Enabled = convert.BoolPtr(false)
 	jobsChannel <- &job{Passback: ch}
 	<-ch
+	for _, subLogger := range SubLoggers {
+		if subLogger != nil && subLogger.zapLogger != nil {
+			_ = subLogger.zapLogger.Sync()
+		}
+	}
 	return globalLogFile.Close()
 }
 
@@ -58,5 +69,8 @@ func SetLevel(s, level string) (Levels, error) {
 		return Levels{}, fmt.Errorf("sub logger %v not found", s)
 	}
 	subLogger.setLevels(splitLevel(level))
+	if err := setupSubLoggerBackend(subLogger); err != nil {
+		return Levels{}, err
+	}
 	return subLogger.levels, nil
 }

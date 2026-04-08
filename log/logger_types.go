@@ -8,6 +8,7 @@ import (
 const (
 	timestampFormat = " 02/01/2006 15:04:05 "
 	spacer          = " | "
+	zapBackend      = "zap"
 	// DefaultMaxFileSize for logger rotation file
 	DefaultMaxFileSize int64 = 100
 
@@ -15,6 +16,8 @@ const (
 	// instances where it was 3/4 of this. This size so as to not need a resize.
 	defaultBufferCapacity     = 200000
 	defaultJobChannelCapacity = 10000
+	adaptiveBatchTrigger      = 128
+	adaptiveBatchMaxJobs      = 32
 )
 
 var (
@@ -44,6 +47,7 @@ type job struct {
 	Writers           []io.Writer
 	fn                deferral
 	Header            string
+	Prefix            string
 	SubLoggerName     string
 	Spacer            string
 	TimestampFormat   string
@@ -71,6 +75,8 @@ type advancedSettings struct {
 	Headers                       headers `json:"headers"`
 	BypassJobChannelFilledWarning bool    `json:"bypassJobChannelFilledWarning"`
 	StructuredLogging             bool    `json:"structuredLogging"`
+	LoggerBackend                 string  `json:"loggerBackend,omitempty"`
+	DropDebugLogsOnOverflow       bool    `json:"dropDebugLogsOnOverflow,omitempty"`
 }
 
 type headers struct {
@@ -101,6 +107,8 @@ type Logger struct {
 	InfoHeader, ErrorHeader, DebugHeader, WarnHeader string
 	Spacer                                           string
 	Level                                            string
+	Backend                                          string
+	DropDebugLogsOnOverflow                          bool
 	botName                                          string
 }
 

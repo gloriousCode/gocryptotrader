@@ -109,6 +109,15 @@ func TestSetGlobalLogConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetGlobalLogConfigInvalidBackend(t *testing.T) {
+	t.Parallel()
+
+	cfg := GenDefaultSettings()
+	cfg.AdvancedSettings.LoggerBackend = "not-a-backend"
+	err := SetGlobalLogConfig(cfg)
+	require.ErrorIs(t, err, errUnsupportedLoggerBackend)
+}
+
 func TestSetLogPath(t *testing.T) {
 	t.Parallel()
 	err := SetLogPath("")
@@ -196,18 +205,18 @@ func TestMultiWriterWrite(t *testing.T) {
 	require.NoError(t, err, "multiWriter must not error")
 
 	payload := "woooooooooooooooooooooooooooooooooooow"
-	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil)
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", "", false, false, false, false, nil)
 
 	<-buff.Finished
 	assert.Contains(t, buff.Read(), payload, "buffer should contain the payload")
 
 	f.output, err = multiWriter(&WriteShorter{}, io.Discard)
 	require.NoError(t, err, "multiWriter must not error")
-	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", "", false, false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
 
 	f.output, err = multiWriter(&WriteError{}, io.Discard)
 	require.NoError(t, err, "multiWriter must not error")
-	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
+	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", "", false, false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
 }
 
 func TestGetWriters(t *testing.T) {
@@ -320,7 +329,7 @@ func TestStageNewLogEvent(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	f := &fields{output: mw}
-	f.output.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", " space ", "", "", "", false, false, false, nil)
+	f.output.StageLogEvent(func() string { return "out" }, "header", "header space ", "SUBLOGGER", " space ", "", "", "", false, false, false, false, nil)
 
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
@@ -537,14 +546,14 @@ func TestSubLoggerName(t *testing.T) {
 	w := newTestBuffer()
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", "", "", time.RFC3339, true, false, false, nil)
+	mw.StageLogEvent(func() string { return "out" }, "header", "header||SUBLOGGER||", "SUBLOGGER", "||", "", "", time.RFC3339, true, false, false, false, nil)
 	<-w.Finished
 	contents := w.Read()
 	if !strings.Contains(contents, "SUBLOGGER") {
 		t.Error("Expected SUBLOGGER in output")
 	}
 
-	mw.StageLogEvent(func() string { return "out" }, "header", "SUBLOGGER", "||", "", "", time.RFC3339, false, false, false, nil)
+	mw.StageLogEvent(func() string { return "out" }, "header", "header||", "SUBLOGGER", "||", "", "", time.RFC3339, false, false, false, false, nil)
 	<-w.Finished
 	contents = w.Read()
 	if strings.Contains(contents, "SUBLOGGER") {
@@ -639,7 +648,7 @@ func newTestBuffer() *testBuffer {
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
 	for b.Loop() {
-		mw.StageLogEvent(func() string { return "somedata" }, "header", "sublog", "||", "", "", time.RFC3339, true, false, false, nil)
+		mw.StageLogEvent(func() string { return "somedata" }, "header", "header||sublog", "sublog", "||", "", "", time.RFC3339, true, false, false, false, nil)
 	}
 }
 
