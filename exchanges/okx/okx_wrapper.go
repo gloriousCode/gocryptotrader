@@ -520,11 +520,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-		pairs, err := e.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-
 		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
@@ -539,34 +534,25 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			for i := range pairs {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], assetType)
-				if err != nil {
-					return err
-				}
-				if !pair.Equal(pairFmt) {
-					continue
-				}
-				baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].HighestPrice24Hour.Float64(),
-					Low:          ticks[y].LowestPrice24Hour.Float64(),
-					Bid:          ticks[y].BestBidPrice.Float64(),
-					BidSize:      ticks[y].BestBidSize.Float64(),
-					Ask:          ticks[y].BestAskPrice.Float64(),
-					AskSize:      ticks[y].BestAskSize.Float64(),
-					BaseVolume:   baseVolume,
-					QuoteVolume:  quoteVolume,
-					Open:         ticks[y].OpenPrice24Hour.Float64(),
-					LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
+			baseVolume, quoteVolume := tickerVolumes(&ticks[y], assetType)
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[y].LastTradePrice.Float64(),
+				High:         ticks[y].HighestPrice24Hour.Float64(),
+				Low:          ticks[y].LowestPrice24Hour.Float64(),
+				Bid:          ticks[y].BestBidPrice.Float64(),
+				BidSize:      ticks[y].BestBidSize.Float64(),
+				Ask:          ticks[y].BestAskPrice.Float64(),
+				AskSize:      ticks[y].BestAskSize.Float64(),
+				BaseVolume:   baseVolume,
+				QuoteVolume:  quoteVolume,
+				Open:         ticks[y].OpenPrice24Hour.Float64(),
+				LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	default:

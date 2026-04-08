@@ -94,7 +94,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	}
 
 	loadLeadTraderOnce.Do(func() {
-		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
+		result, err := e.GetLeadTradersRanks(request.WithVerbose(contextGenerate()), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
 			HasVacancy:     true,
