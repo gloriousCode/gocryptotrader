@@ -13,13 +13,19 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	if name == "" {
 		return nil, errEmptyLoggerName
 	}
+	displayName := name
 	name = strings.ToUpper(name)
 	mu.Lock()
 	defer mu.Unlock()
 	if _, ok := SubLoggers[name]; ok {
 		return nil, fmt.Errorf("'%v' %w", name, ErrSubLoggerAlreadyRegistered)
 	}
-	return registerNewSubLogger(name), nil
+	subLogger := registerNewSubLogger(name)
+	if subLogger != nil {
+		subLogger.name = displayName
+		SubLoggers[name] = subLogger
+	}
+	return subLogger, nil
 }
 
 // setOutput overrides the default output with a new writer
