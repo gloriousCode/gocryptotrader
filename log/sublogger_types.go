@@ -32,6 +32,9 @@ var (
 	Trade     *SubLogger
 	Fill      *SubLogger
 	Currency  *SubLogger
+	QuickData *SubLogger
+	SpyVsSpy  *SubLogger
+	LinkSys   *SubLogger
 )
 
 // SubLogger defines a sub logger can be used externally for packages wanted to
