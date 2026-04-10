@@ -148,6 +148,9 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 	}
 
 	path := common.EncodeURLValues(c.URL, values)
+	if err := configureInterfaceDialer(dialer); err != nil {
+		return err
+	}
 	conn, resp, err := dialer.DialContext(ctx, path, headers)
 	if err != nil {
 		if resp != nil {
