@@ -547,17 +547,31 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 		return nil
 	}
 	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
-		ExchangeName: e.Name,
-		Pair:         p,
-		AssetType:    assetType,
-		LastUpdated:  resp.PushTimestamp.Time(),
-		Delta:        tickResp.Delta.Float64(),
-		Gamma:        tickResp.Gamma.Float64(),
-		Vega:         tickResp.Vega.Float64(),
-		Theta:        tickResp.Theta.Float64(),
-		BidIV:        tickResp.BidIv.Float64(),
-		AskIV:        tickResp.AskIv.Float64(),
-		MarkIV:       tickResp.MarkIv.Float64(),
+		ExchangeName:      e.Name,
+		Pair:              p,
+		AssetType:         assetType,
+		InstrumentID:      tickResp.Symbol,
+		LastUpdated:       resp.PushTimestamp.Time(),
+		ExchangeTimestamp: resp.PushTimestamp.Time(),
+		ReceivedAt:        time.Now().UTC(),
+		Sequence:          resp.CrossSequence,
+		Delta:             tickResp.Delta.Float64(),
+		Gamma:             tickResp.Gamma.Float64(),
+		Vega:              tickResp.Vega.Float64(),
+		Theta:             tickResp.Theta.Float64(),
+		BidIV:             tickResp.BidIv.Float64(),
+		AskIV:             tickResp.AskIv.Float64(),
+		MarkIV:            tickResp.MarkIv.Float64(),
+		Bid:               tickResp.BidPrice.Float64(),
+		Ask:               tickResp.AskPrice.Float64(),
+		BidSize:           tickResp.BidSize.Float64(),
+		AskSize:           tickResp.AskSize.Float64(),
+		MarkPrice:         tickResp.MarkPrice.Float64(),
+		IndexPrice:        tickResp.IndexPrice.Float64(),
+		UnderlyingPrice:   tickResp.UnderlyingPrice.Float64(),
+		LastTradePrice:    tickResp.LastPrice.Float64(),
+		OpenInterest:      tickResp.OpenInterest.Float64(),
+		Volume24h:         tickResp.Volume24H.Float64(),
 	})
 }
 
@@ -625,6 +639,7 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 		return err
 	}
 	tradeDatas := make([]trade.Data, len(result))
+	optionTrades := make([]*exchangeoptions.Trade, 0, len(result))
 	for x := range result {
 		cp, err := e.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
@@ -644,8 +659,31 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 			Side:         side,
 			TID:          result[x].TradeID,
 		}
+		if assetType == asset.Options {
+			optionTrades = append(optionTrades, &exchangeoptions.Trade{
+				ExchangeName:      e.Name,
+				Pair:              cp,
+				AssetType:         asset.Options,
+				InstrumentID:      result[x].Symbol,
+				TradeID:           result[x].TradeID,
+				Side:              side,
+				Price:             result[x].Price.Float64(),
+				Size:              result[x].Size.Float64(),
+				ExchangeTimestamp: result[x].OrderFillTimestamp.Time(),
+				ReceivedAt:        time.Now().UTC(),
+				Sequence:          resp.CrossSequence,
+			})
+		}
 	}
-	return trade.AddTradesToBuffer(tradeDatas...)
+	if err := trade.AddTradesToBuffer(tradeDatas...); err != nil {
+		return err
+	}
+	for i := range optionTrades {
+		if err := e.Websocket.DataHandler.Send(context.Background(), optionTrades[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
@@ -660,7 +698,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	}
 
 	if resp.Type == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         cp,
 			Exchange:     e.Name,
 			Asset:        assetType,
@@ -670,17 +708,48 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 			Asks:         result.Asks.Levels(),
 			Bids:         result.Bids.Levels(),
 		})
+	} else {
+		err = e.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:       cp,
+			Asks:       result.Asks.Levels(),
+			Bids:       result.Bids.Levels(),
+			Asset:      assetType,
+			UpdateID:   result.UpdateID,
+			UpdateTime: resp.OrderbookLastUpdated.Time(),
+			LastPushed: resp.PushTimestamp.Time(),
+			AllowEmpty: true,
+		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
-		Pair:       cp,
-		Asks:       result.Asks.Levels(),
-		Bids:       result.Bids.Levels(),
-		Asset:      assetType,
-		UpdateID:   result.UpdateID,
-		UpdateTime: resp.OrderbookLastUpdated.Time(),
-		LastPushed: resp.PushTimestamp.Time(),
-		AllowEmpty: true,
+	if err != nil {
+		return err
+	}
+	if assetType != asset.Options {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
+		ExchangeName:      e.Name,
+		Pair:              cp,
+		AssetType:         asset.Options,
+		InstrumentID:      result.Symbol,
+		IsSnapshot:        resp.Type == "snapshot",
+		Bids:              toOptionsOrderbookLevels(result.Bids.Levels()),
+		Asks:              toOptionsOrderbookLevels(result.Asks.Levels()),
+		ExchangeTimestamp: resp.OrderbookLastUpdated.Time(),
+		ReceivedAt:        time.Now().UTC(),
+		Sequence:          result.Sequence,
+		PrevSequence:      resp.CrossSequence,
 	})
+}
+
+func toOptionsOrderbookLevels(levels orderbook.Levels) []exchangeoptions.OrderbookLevel {
+	out := make([]exchangeoptions.OrderbookLevel, len(levels))
+	for i := range levels {
+		out[i] = exchangeoptions.OrderbookLevel{
+			Price:  levels[i].Price,
+			Amount: levels[i].Amount,
+		}
+	}
+	return out
 }
 
 // channelName converts global channel names to exchange specific names

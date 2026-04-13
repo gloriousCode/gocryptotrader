@@ -882,6 +882,23 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		if err != nil {
 			return err
 		}
+		if assets[x] == asset.Options {
+			if err := e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
+				ExchangeName:      e.Name,
+				Pair:              resp.Argument.InstrumentID,
+				AssetType:         asset.Options,
+				InstrumentID:      resp.Argument.InstrumentID.String(),
+				IsSnapshot:        true,
+				Bids:              toOptionsOrderbookLevels(append([]orderbook.Level(nil), bids...)),
+				Asks:              toOptionsOrderbookLevels(append([]orderbook.Level(nil), asks...)),
+				ExchangeTimestamp: resp.Data[0].Timestamp.Time(),
+				ReceivedAt:        time.Now().UTC(),
+				Sequence:          resp.Data[0].SequenceID,
+				PrevSequence:      0,
+			}); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -894,6 +911,7 @@ func (e *Exchange) wsProcessOptionTrades(data []byte) error {
 		return err
 	}
 	trades := make([]trade.Data, len(resp.Data))
+	optionsTrades := make([]*exchangeoptions.Trade, 0, len(resp.Data))
 	for i := range resp.Data {
 		var pair currency.Pair
 		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
@@ -914,8 +932,29 @@ func (e *Exchange) wsProcessOptionTrades(data []byte) error {
 			TID:          resp.Data[i].TradeID,
 			Price:        resp.Data[i].Price.Float64(),
 		}
+		optionsTrades = append(optionsTrades, &exchangeoptions.Trade{
+			ExchangeName:      e.Name,
+			Pair:              pair,
+			AssetType:         asset.Options,
+			InstrumentID:      resp.Data[i].InstrumentID,
+			TradeID:           resp.Data[i].TradeID,
+			Side:              oSide,
+			Price:             resp.Data[i].Price.Float64(),
+			Size:              resp.Data[i].Size.Float64(),
+			ExchangeTimestamp: resp.Data[i].Timestamp.Time(),
+			ReceivedAt:        time.Now().UTC(),
+			Sequence:          0,
+		})
 	}
-	return trade.AddTradesToBuffer(trades...)
+	if err := trade.AddTradesToBuffer(trades...); err != nil {
+		return err
+	}
+	for i := range optionsTrades {
+		if err := e.Websocket.DataHandler.Send(context.Background(), optionsTrades[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
@@ -964,6 +1003,23 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 					return err
 				}
 			} else {
+				return err
+			}
+		}
+		if slices.Contains(assets, asset.Options) {
+			if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Orderbook{
+				ExchangeName:      e.Name,
+				Pair:              response.Argument.InstrumentID,
+				AssetType:         asset.Options,
+				InstrumentID:      response.Argument.InstrumentID.String(),
+				IsSnapshot:        response.Action == wsOrderbookSnapshot,
+				Bids:              toOptionsOrderbookItems(response.Data[i].Bids),
+				Asks:              toOptionsOrderbookItems(response.Data[i].Asks),
+				ExchangeTimestamp: response.Data[i].Timestamp.Time(),
+				ReceivedAt:        time.Now().UTC(),
+				Sequence:          response.Data[i].SequenceID,
+				PrevSequence:      response.Data[i].PreviousSequenceID,
+			}); err != nil {
 				return err
 			}
 		}
@@ -1379,22 +1435,49 @@ func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) e
 			return err
 		}
 		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
-			ExchangeName: e.Name,
-			Pair:         pair,
-			AssetType:    asset.Options,
-			LastUpdated:  response.Data[i].Timestamp.Time(),
-			Delta:        response.Data[i].Delta.Float64(),
-			Gamma:        response.Data[i].Gamma.Float64(),
-			Vega:         response.Data[i].Vega.Float64(),
-			Theta:        response.Data[i].Theta.Float64(),
-			BidIV:        response.Data[i].BidVolatility.Float64(),
-			AskIV:        response.Data[i].AskVolatility.Float64(),
-			MarkIV:       response.Data[i].MarkVolatility.Float64(),
+			ExchangeName:      e.Name,
+			Pair:              pair,
+			AssetType:         asset.Options,
+			InstrumentID:      response.Data[i].InstrumentID,
+			LastUpdated:       response.Data[i].Timestamp.Time(),
+			ExchangeTimestamp: response.Data[i].Timestamp.Time(),
+			ReceivedAt:        time.Now().UTC(),
+			Sequence:          0,
+			Delta:             response.Data[i].Delta.Float64(),
+			Gamma:             response.Data[i].Gamma.Float64(),
+			Vega:              response.Data[i].Vega.Float64(),
+			Theta:             response.Data[i].Theta.Float64(),
+			BidIV:             response.Data[i].BidVolatility.Float64(),
+			AskIV:             response.Data[i].AskVolatility.Float64(),
+			MarkIV:            response.Data[i].MarkVolatility.Float64(),
+			UnderlyingPrice:   response.Data[i].ForwardPrice.Float64(),
 		}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func toOptionsOrderbookItems(entries [][4]types.Number) []exchangeoptions.OrderbookLevel {
+	items := make([]exchangeoptions.OrderbookLevel, len(entries))
+	for i := range entries {
+		items[i] = exchangeoptions.OrderbookLevel{
+			Price:  entries[i][0].Float64(),
+			Amount: entries[i][1].Float64(),
+		}
+	}
+	return items
+}
+
+func toOptionsOrderbookLevels(levels []orderbook.Level) []exchangeoptions.OrderbookLevel {
+	items := make([]exchangeoptions.OrderbookLevel, len(levels))
+	for i := range levels {
+		items[i] = exchangeoptions.OrderbookLevel{
+			Price:  levels[i].Price,
+			Amount: levels[i].Amount,
+		}
+	}
+	return items
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
