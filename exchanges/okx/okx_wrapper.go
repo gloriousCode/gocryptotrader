@@ -1176,6 +1176,10 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			amendRequest.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID)
+			if err != nil {
+				return nil, err
+			}
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1276,6 +1280,10 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err != nil {
 		return nil, err
 	}
+	arg.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
+	}
 	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
 		return nil, err
 	}
@@ -1312,6 +1320,10 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			req.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID)
+			if err != nil {
+				return err
+			}
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
@@ -1496,6 +1508,10 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
+	arg.InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID)
+	if err != nil {
+		return err
+	}
 	_, err = e.WSCancelOrder(ctx, arg)
 	return err
 }
@@ -1533,6 +1549,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
 			})
+			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				cancelOrderParams[len(cancelOrderParams)-1].InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrderParams[len(cancelOrderParams)-1].InstrumentID)
+				if err != nil {
+					return nil, err
+				}
+			}
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1778,6 +1800,7 @@ ordersLoop:
 			if myOrders[x].OrderID == orderCancellation.OrderID ||
 				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
 				}
@@ -1786,6 +1809,7 @@ ordersLoop:
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
 			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+					InstrumentID:  myOrders[x].InstrumentID,
 					OrderID:       myOrders[x].OrderID,
 					ClientOrderID: myOrders[x].ClientOrderID,
 				}
@@ -1793,12 +1817,24 @@ ordersLoop:
 			}
 		default:
 			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
+				InstrumentID:  myOrders[x].InstrumentID,
 				OrderID:       myOrders[x].OrderID,
 				ClientOrderID: myOrders[x].ClientOrderID,
 			}
 		}
 	}
 	remaining := cancelAllOrdersRequestParams
+	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() && orderCancellation.AssetType.IsValid() {
+		for i := range remaining {
+			if remaining[i].InstrumentID == "" {
+				continue
+			}
+			remaining[i].InstrumentIDCode, err = e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID)
+			if err != nil {
+				return cancelAllResponse, err
+			}
+		}
+	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))
 	for range loop {
 		var response []*OrderData

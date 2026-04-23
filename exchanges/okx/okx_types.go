@@ -855,9 +855,10 @@ func (r *ResponseResult) Error() error {
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
-	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	InstrumentID     string `json:"instId"`
+	InstrumentIDCode int64  `json:"instIdCode,omitempty"`
+	OrderID          string `json:"ordId"`
+	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
 
 // CancelMassReqParam holds MMP batch cancel request parameters
@@ -868,13 +869,14 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string  `json:"instId"`
-	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
-	OrderID         string  `json:"ordId,omitempty"`
-	ClientOrderID   string  `json:"clOrdId,omitempty"`
-	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,omitempty,string"`
-	NewPrice        float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string  `json:"instId"`
+	InstrumentIDCode int64   `json:"instIdCode,omitempty"`
+	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
+	OrderID          string  `json:"ordId,omitempty"`
+	ClientOrderID    string  `json:"clOrdId,omitempty"`
+	ClientRequestID  string  `json:"reqId,omitempty"`
+	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
