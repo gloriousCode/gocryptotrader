@@ -3084,10 +3084,10 @@
      "requiresClientID": true
     },
     "urlEndpoints": {
-     "RestSpotURL": "https://www.okx.com/api/v5/",
-     "WebsocketPrivateURL": "wss://ws.okx.com:8443/ws/v5/private",
-     "WebsocketSpotSupplementaryURL": "wss://ws.okx.com:8443/ws/v5/business",
-     "WebsocketSpotURL": "wss://ws.okx.com:8443/ws/v5/public"
+     "RestSpotURL": "https://us.okx.com/api/v5/",
+     "WebsocketPrivateURL": "wss://wsus.okx.com:8443/ws/v5/private",
+     "WebsocketSpotSupplementaryURL": "wss://wsus.okx.com:8443/ws/v5/business",
+     "WebsocketSpotURL": "wss://wsus.okx.com:8443/ws/v5/public"
     }
    },
    "features": {

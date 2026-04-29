@@ -80,6 +80,29 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestSetDefaultsEndpoints(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+
+	restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX REST")
+	require.Equal(t, "https://us.okx.com/api/v5/", restURL)
+
+	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/public", publicURL)
+
+	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/private", privateURL)
+
+	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/business", businessURL)
+}
+
 func syncLeadTraderUniqueID(t *testing.T) error {
 	t.Helper()
 
@@ -407,13 +430,13 @@ func TestGetInstrument(t *testing.T) {
 
 	resp, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
-		Underlying:     "SOL-USD",
+		Underlying:     optionsPair.String(),
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
+	require.NotEmpty(t, resp, "GetInstruments must return live instruments for BTC-USD futures")
 	for i := range resp {
 		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
-		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
+		assert.Equal(t, optionsPair.String(), resp[i].Underlying, "Underlying should be correct")
 		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
 		assert.NotEmpty(t, resp[i].State, "State should not be empty")
 	}
@@ -3388,6 +3411,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				switch a {
+				case asset.Spot, asset.Margin:
+					assert.Positive(t, l.MaximumQuoteAmount, "MaximumQuoteAmount should be positive")
+				case asset.Futures, asset.PerpetualSwap, asset.Options:
+					assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				case asset.Spread:
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				}
 			}
 		})
 	}
@@ -6227,8 +6260,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6242,14 +6281,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			case isInstFamilyChannel(s):
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6261,7 +6308,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
@@ -6332,8 +6379,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	var subs subscription.List
-	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+	channels := []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H}
+	subs := make(subscription.List, 0, len(channels))
+	for i, ch := range channels {
 		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 

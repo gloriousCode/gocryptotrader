@@ -42,7 +42,7 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJSON = []byte(`notjson`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
-	errInvalidChar := "invalid char"
+	errInvalidChar := "invalid literal"
 	assert.ErrorContains(t, err, errInvalidChar)
 	mockJSON = []byte(`{"event":"subscribe"}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)

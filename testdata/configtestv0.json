@@ -2289,8 +2289,8 @@
      "requiresClientID": true
     },
     "urlEndpoints": {
-     "RestSpotURL": "https://www.okx.com/api/v5/",
-     "WebsocketSpotURL": "wss://ws.okx.com:8443/ws/v5/public"
+     "RestSpotURL": "https://us.okx.com/api/v5/",
+     "WebsocketSpotURL": "wss://wsus.okx.com:8443/ws/v5/public"
     }
    },
    "features": {
