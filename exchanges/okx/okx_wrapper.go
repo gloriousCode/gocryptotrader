@@ -166,7 +166,7 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.SixMonth},
 					kline.IntervalCapacity{Interval: kline.OneYear},
 				),
-				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
+				GlobalResultLimit: 200, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
 		},
 		Subscriptions: defaultSubscriptions.Clone(),
@@ -2432,12 +2432,12 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	for y := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Spread:
-			candles, err := e.GetSpreadCandlesticksHistory(ctx,
-				req.RequestFormatted.String(),
-				req.ExchangeInterval,
-				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
-				req.RangeHolder.Ranges[y].End.Time,
-				100)
+				candles, err := e.GetSpreadCandlesticksHistory(ctx,
+					req.RequestFormatted.String(),
+					req.ExchangeInterval,
+					req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+					req.RangeHolder.Ranges[y].End.Time,
+					200)
 			if err != nil {
 				return nil, err
 			}
@@ -2457,7 +2457,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				req.ExchangeInterval,
 				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
 				req.RangeHolder.Ranges[y].End.Time,
-				100)
+				200)
 			if err != nil {
 				return nil, err
 			}
