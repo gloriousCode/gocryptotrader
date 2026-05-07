@@ -2432,12 +2432,12 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	for y := range req.RangeHolder.Ranges {
 		switch a {
 		case asset.Spread:
-				candles, err := e.GetSpreadCandlesticksHistory(ctx,
-					req.RequestFormatted.String(),
-					req.ExchangeInterval,
-					req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
-					req.RangeHolder.Ranges[y].End.Time,
-					200)
+			candles, err := e.GetSpreadCandlesticksHistory(ctx,
+				req.RequestFormatted.String(),
+				req.ExchangeInterval,
+				req.RangeHolder.Ranges[y].Start.Time.Add(-time.Nanosecond), // Start time not inclusive of candle.
+				req.RangeHolder.Ranges[y].End.Time,
+				200)
 			if err != nil {
 				return nil, err
 			}

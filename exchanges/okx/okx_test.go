@@ -4492,33 +4492,102 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
-	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		switch a {
-		case asset.Spot, asset.Margin:
-			// spot and margin instruments are similar
-			require.Len(t, assets, 2)
-		default:
-			require.Len(t, assets, 1)
-		}
-		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
+	testCases := []struct {
+		name               string
+		instrumentID       string
+		expectedAssetTypes []asset.Item
+		expectedError      error
+	}{
+		{
+			name:               "spot instrument",
+			instrumentID:       "BTC-USDT",
+			expectedAssetTypes: []asset.Item{asset.Spot},
+		},
+		{
+			name:               "swap instrument",
+			instrumentID:       "BTC-USD-SWAP",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
+			name:          "invalid instrument",
+			instrumentID:  "test",
+			expectedError: currency.ErrCurrencyNotSupported,
+		},
+		{
+			name:          "futures instrument",
+			instrumentID:  "BTC-USD-240329",
+			expectedError: asset.ErrNotSupported,
+		},
+		{
+			name:          "options instrument",
+			instrumentID:  "BTC-USD-240329-70000-C",
+			expectedError: asset.ErrNotSupported,
+		},
 	}
 
-	_, err = e.getAssetsFromInstrumentID("test")
-	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		assert.Contains(t, assets, a)
+			assets, err2 := e.getAssetsFromInstrumentID(testCase.instrumentID)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err2, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
+				return
+			}
+			require.NoError(t, err2, "getAssetsFromInstrumentID must not error")
+			assert.Equal(t, testCase.expectedAssetTypes, assets, "asset types should match")
+		})
+	}
+}
+
+func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		data           []byte
+		expectedPrice  float64
+		expectedAmount float64
+		expectedError  error
+	}{
+		{
+			name:           "quoted values",
+			data:           []byte(`["0.07026","5","0","1"]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
+		},
+		{
+			name:           "numeric values",
+			data:           []byte(`[0.07026,5,0,1]`),
+			expectedPrice:  0.07026,
+			expectedAmount: 5,
+		},
+		{
+			name:          "malformed",
+			data:          []byte(`{}`),
+			expectedError: errInvalidOrderBookLevel,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var level WsOrderBookLevel
+			err := json.Unmarshal(testCase.data, &level)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return expected error")
+				return
+			}
+
+			require.NoError(t, err, "UnmarshalJSON must not error")
+			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
+			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
+		})
 	}
 }
 

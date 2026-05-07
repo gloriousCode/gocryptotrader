@@ -160,6 +160,7 @@ var (
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
 	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
+	errInvalidOrderBookLevel                = errors.New("invalid orderbook level")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -3692,12 +3693,70 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks               [][4]types.Number `json:"asks"`
-	Bids               [][4]types.Number `json:"bids"`
-	Timestamp          types.Time        `json:"ts"`
-	Checksum           int32             `json:"checksum"`
-	PreviousSequenceID int64             `json:"prevSeqId"`
-	SequenceID         int64             `json:"seqId"`
+	Asks               []WsOrderBookLevel `json:"asks"`
+	Bids               []WsOrderBookLevel `json:"bids"`
+	Timestamp          types.Time         `json:"ts"`
+	Checksum           int32              `json:"checksum"`
+	PreviousSequenceID int64              `json:"prevSeqId"`
+	SequenceID         int64              `json:"seqId"`
+}
+
+// WsOrderBookLevel contains the price and amount from an OKX orderbook level.
+type WsOrderBookLevel struct {
+	Price  types.Number
+	Amount types.Number
+}
+
+// UnmarshalJSON deserialises the price and amount from an OKX orderbook level.
+func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
+	pos := 0
+	for pos < len(data) && data[pos] == ' ' {
+		pos++
+	}
+	if pos >= len(data) || data[pos] != '[' {
+		return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+	}
+	pos++
+
+	var values [2]types.Number
+	for valueIndex := range values {
+		for pos < len(data) && (data[pos] == ' ' || data[pos] == ',') {
+			pos++
+		}
+		if pos >= len(data) {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+
+		start := pos
+		if data[pos] == '"' {
+			pos++
+			start = pos
+			for pos < len(data) && data[pos] != '"' {
+				pos++
+			}
+			if pos >= len(data) {
+				return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+			}
+		} else {
+			for pos < len(data) && data[pos] != ',' && data[pos] != ']' {
+				pos++
+			}
+		}
+
+		value, err := strconv.ParseFloat(string(data[start:pos]), 64)
+		if err != nil {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+		values[valueIndex] = types.Number(value)
+
+		if pos < len(data) && data[pos] == '"' {
+			pos++
+		}
+	}
+
+	w.Price = values[0]
+	w.Amount = values[1]
+	return nil
 }
 
 // WsOptionSummary represents option summary
