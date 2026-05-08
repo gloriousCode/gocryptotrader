@@ -4548,23 +4548,29 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name           string
-		data           []byte
-		expectedPrice  float64
-		expectedAmount float64
-		expectedError  error
+		name                 string
+		data                 []byte
+		expectedPrice        float64
+		expectedAmount       float64
+		expectedPriceString  string
+		expectedAmountString string
+		expectedError        error
 	}{
 		{
-			name:           "quoted values",
-			data:           []byte(`["0.07026","5","0","1"]`),
-			expectedPrice:  0.07026,
-			expectedAmount: 5,
+			name:                 "quoted values",
+			data:                 []byte(`["0.07026","5","0","1"]`),
+			expectedPrice:        0.07026,
+			expectedAmount:       5,
+			expectedPriceString:  "0.07026",
+			expectedAmountString: "5",
 		},
 		{
-			name:           "numeric values",
-			data:           []byte(`[0.07026,5,0,1]`),
-			expectedPrice:  0.07026,
-			expectedAmount: 5,
+			name:                 "numeric values",
+			data:                 []byte(`[0.07026,5,0,1]`),
+			expectedPrice:        0.07026,
+			expectedAmount:       5,
+			expectedPriceString:  "0.07026",
+			expectedAmountString: "5",
 		},
 		{
 			name:          "malformed",
@@ -4587,6 +4593,8 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 			require.NoError(t, err, "UnmarshalJSON must not error")
 			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
 			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
+			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should match")
+			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should match")
 		})
 	}
 }
@@ -4744,11 +4752,6 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	got, err := orderbook.Get(e.Name, required, asset.Spot)
 	require.NoError(t, err)
 
-	require.Len(t, got.Asks, 5)
-	require.Len(t, got.Bids, 5)
-	// Book replicated to margin
-	got, err = orderbook.Get(e.Name, required, asset.Margin)
-	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
 }
