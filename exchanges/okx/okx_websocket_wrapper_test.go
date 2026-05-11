@@ -286,6 +286,21 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		assert.True(t, arg.ReduceOnly)
 	})
 
+	t.Run("futures plain sell omits position side", func(t *testing.T) {
+		t.Parallel()
+		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Futures,
+			Side:      order.Sell,
+			Type:      order.Market,
+			Amount:    1,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, order.Sell.Lower(), arg.Side)
+		assert.Empty(t, arg.PositionSide)
+	})
+
 	t.Run("options side is set", func(t *testing.T) {
 		t.Parallel()
 		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
@@ -397,7 +412,7 @@ func TestDerivePositionSide(t *testing.T) {
 				Side:       order.Buy,
 				ReduceOnly: true,
 			},
-			want: positionSideShort,
+			want: "",
 		},
 		{
 			name: "futures reduce only sell",
@@ -406,7 +421,7 @@ func TestDerivePositionSide(t *testing.T) {
 				Side:       order.Sell,
 				ReduceOnly: true,
 			},
-			want: positionSideLong,
+			want: "",
 		},
 		{
 			name: "futures buy",
@@ -414,7 +429,7 @@ func TestDerivePositionSide(t *testing.T) {
 				AssetType: asset.Futures,
 				Side:      order.Buy,
 			},
-			want: positionSideLong,
+			want: "",
 		},
 		{
 			name: "futures sell",
@@ -422,7 +437,7 @@ func TestDerivePositionSide(t *testing.T) {
 				AssetType: asset.Futures,
 				Side:      order.Sell,
 			},
-			want: positionSideShort,
+			want: "",
 		},
 	}
 

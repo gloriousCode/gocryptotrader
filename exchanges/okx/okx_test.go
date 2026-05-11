@@ -6616,6 +6616,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
+	p.PositionSide = "moo"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -6644,4 +6646,35 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
+}
+
+func TestDeriveDelistingWindow(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.May, 11, 16, 0, 0, 0, time.UTC)
+	expiry := now.Add(2 * time.Hour)
+
+	t.Run("expiry takes precedence", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := deriveDelistingWindow(Instrument{
+			State:   "suspend",
+			ExpTime: types.Time(expiry),
+		}, now)
+		require.Equal(t, expiry, delistingAt)
+		require.Equal(t, expiry, delistedAt)
+	})
+
+	t.Run("live state has no delisting", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := deriveDelistingWindow(Instrument{State: "live"}, now)
+		require.True(t, delistingAt.IsZero())
+		require.True(t, delistedAt.IsZero())
+	})
+
+	t.Run("non live state maps to delisted window", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := deriveDelistingWindow(Instrument{State: "suspend"}, now)
+		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
+		require.Equal(t, now, delistedAt)
+	})
 }

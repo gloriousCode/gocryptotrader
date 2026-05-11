@@ -383,6 +383,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		if insts[i].State != instrumentStateLive || insts[i].InstrumentID.IsEmpty() {
 			continue
 		}
+		delistingAt, delistedAt := deriveDelistingWindow(insts[i], time.Now().UTC())
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
 			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
@@ -393,6 +394,8 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 			MarketMaxQty:            insts[i].MaxQuantityOfMarketLimitOrder.Float64(),
 			MultiplierDecimal:       insts[i].ContractValue.Float64(),
 			Listed:                  insts[i].ListTime.Time(),
+			Delisting:               delistingAt,
+			Delisted:                delistedAt,
 			Expiry:                  insts[i].ExpTime.Time(),
 		})
 	}
@@ -400,6 +403,17 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		return common.ErrInvalidResponse
 	}
 	return limits.Load(l)
+}
+
+func deriveDelistingWindow(inst Instrument, now time.Time) (time.Time, time.Time) {
+	if !inst.ExpTime.Time().IsZero() {
+		return inst.ExpTime.Time(), inst.ExpTime.Time()
+	}
+	if strings.EqualFold(inst.State, "live") || inst.State == "" {
+		return time.Time{}, time.Time{}
+	}
+	delistedAt := now
+	return delistedAt.Add(-30 * time.Minute), delistedAt
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -1413,6 +1427,11 @@ func deriveOrderSide(side order.Side) (string, error) {
 
 func derivePositionSide(s *order.Submit) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
+		return ""
+	}
+	if s.Side == order.Buy || s.Side == order.Sell {
+		// In one-way/net mode, plain buy/sell futures orders must not force
+		// a directional posSide, including reduce-only closes.
 		return ""
 	}
 	switch s.Side {
