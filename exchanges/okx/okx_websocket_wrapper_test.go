@@ -14,8 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
-	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -569,44 +567,4 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 	require.Equal(t, "BTC-USDT", arg.InstrumentID)
 	require.Equal(t, "1", arg.OrderID)
 	require.Equal(t, "abc", arg.ClientOrderID)
-}
-
-func TestWSProcessOptionSummary(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-
-	err := ex.wsProcessOptionSummary(t.Context(), []byte("{"))
-	require.ErrorIs(t, err, errOptionSummaryUnmarshal)
-
-	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"0.1","gamma":"0.2","theta":"-0.3","vega":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
-	require.NoError(t, err)
-
-	select {
-	case got := <-ex.Websocket.DataHandler.C:
-		opt, ok := got.Data.(*exchangeoptions.Greeks)
-		require.True(t, ok)
-		require.Equal(t, ex.Name, opt.ExchangeName)
-		require.Equal(t, asset.Options, opt.AssetType)
-		require.Equal(t, "BTC-USD-230224-18000-C", opt.Pair.String())
-		require.Equal(t, 0.1, opt.Delta)
-		require.Equal(t, 0.2, opt.Gamma)
-		require.Equal(t, -0.3, opt.Theta)
-		require.Equal(t, 0.4, opt.Vega)
-		require.Equal(t, 0.5, opt.BidImpliedVolatility)
-		require.Equal(t, 0.6, opt.AskImpliedVolatility)
-		require.Equal(t, 0.55, opt.MarkImpliedVolatility)
-	default:
-		t.Fatal("expected option payload on data handler")
-	}
-
-	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"AB"}]}`))
-	require.ErrorIs(t, err, errOptionSummaryPairParse)
-	require.ErrorIs(t, err, currency.ErrCreatingPair)
-
-	ex.Websocket.DataHandler = stream.NewRelay(1)
-	require.NoError(t, ex.Websocket.DataHandler.Send(t.Context(), "saturate"))
-	err = ex.wsProcessOptionSummary(t.Context(), []byte(`{"data":[{"instId":"BTC-USD-230224-18000-C","delta":"0.1","gamma":"0.2","theta":"-0.3","vega":"0.4","bidVol":"0.5","askVol":"0.6","markVol":"0.55","ts":"1700000000000"}]}`))
-	require.ErrorIs(t, err, errOptionSummaryDispatch)
 }

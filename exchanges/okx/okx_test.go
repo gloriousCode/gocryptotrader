@@ -88,19 +88,19 @@ func TestSetDefaultsEndpoints(t *testing.T) {
 
 	restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
 	require.NoError(t, err, "GetURL must not fail for OKX REST")
-	require.Equal(t, "https://us.okx.com/api/v5/", restURL)
+	require.Equal(t, "https://www.okx.com/api/v5/", restURL)
 
 	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/public", publicURL)
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/public", publicURL)
 
 	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
 	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/private", privateURL)
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/private", privateURL)
 
 	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/business", businessURL)
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/business", businessURL)
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {
@@ -4505,7 +4505,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		{
 			name:               "spot instrument",
 			instrumentID:       "BTC-USDT",
-			expectedAssetTypes: []asset.Item{asset.Spot},
+			expectedAssetTypes: []asset.Item{asset.Spot, asset.Margin},
 		},
 		{
 			name:               "swap instrument",
@@ -4518,14 +4518,14 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 			expectedError: currency.ErrCurrencyNotSupported,
 		},
 		{
-			name:          "futures instrument",
-			instrumentID:  "BTC-USD-240329",
-			expectedError: asset.ErrNotSupported,
+			name:               "futures instrument",
+			instrumentID:       "BTC-USD-240329",
+			expectedAssetTypes: []asset.Item{asset.Futures},
 		},
 		{
-			name:          "options instrument",
-			instrumentID:  "BTC-USD-240329-70000-C",
-			expectedError: asset.ErrNotSupported,
+			name:               "options instrument",
+			instrumentID:       "BTC-USD-240329-70000-C",
+			expectedAssetTypes: []asset.Item{asset.Options},
 		},
 	}
 
@@ -6656,7 +6656,7 @@ func TestDeriveDelistingWindow(t *testing.T) {
 
 	t.Run("expiry takes precedence", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(Instrument{
+		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
 			State:   "suspend",
 			ExpTime: types.Time(expiry),
 		}, now)
@@ -6666,14 +6666,14 @@ func TestDeriveDelistingWindow(t *testing.T) {
 
 	t.Run("live state has no delisting", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(Instrument{State: "live"}, now)
+		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "live"}, now)
 		require.True(t, delistingAt.IsZero())
 		require.True(t, delistedAt.IsZero())
 	})
 
 	t.Run("non live state maps to delisted window", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(Instrument{State: "suspend"}, now)
+		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "suspend"}, now)
 		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
 		require.Equal(t, now, delistedAt)
 	})

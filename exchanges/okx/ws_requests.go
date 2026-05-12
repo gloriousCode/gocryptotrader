@@ -72,7 +72,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	}
 
 	epl := batchEndpointLimit(len(args), placeOrderEPL, placeMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
 	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-orders", args, &resp)
 }
@@ -123,7 +123,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	}
 
 	epl := batchEndpointLimit(len(args), cancelOrderEPL, cancelMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
 	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-cancel-orders", args, &resp)
 }
@@ -185,7 +185,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 	}
 
 	epl := batchEndpointLimit(len(args), amendOrderEPL, amendMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
 	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-amend-orders", args, &resp)
 }

@@ -40,11 +40,11 @@ type Exchange struct {
 }
 
 const (
-	baseURL = "https://us.okx.com/"
+	baseURL = "https://www.okx.com/"
 	apiURL  = baseURL + apiPath
 
 	apiPath      = "api/v5/"
-	websocketURL = "wss://wsus.okx.com:8443/ws/v5/"
+	websocketURL = "wss://ws.okx.com:8443/ws/v5/"
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
@@ -95,7 +95,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 		return nil, err
 	}
 	epl := batchEndpointLimit(len(args), placeOrderEPL, placeMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
@@ -159,7 +159,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		return nil, err
 	}
 	epl := batchEndpointLimit(len(args), cancelOrderEPL, cancelMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
 	if err != nil {
@@ -228,7 +228,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 		return nil, err
 	}
 	epl := batchEndpointLimit(len(args), amendOrderEPL, amendMultipleOrdersEPL)
-	ctx = request.WithRateLimitWeight(ctx, uint8(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []OrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }

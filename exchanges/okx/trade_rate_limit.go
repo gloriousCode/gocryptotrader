@@ -3,6 +3,7 @@ package okx
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -29,7 +30,7 @@ func (e *Exchange) applyTradeScopeRateLimit(ctx context.Context, class tradeRate
 			continue
 		}
 		rl := e.getOrCreateTradeScopedLimiter(class, scope)
-		if err := rl.RateLimit(request.WithRateLimitWeight(ctx, uint8(weight))); err != nil {
+		if err := rl.RateLimit(request.WithRateLimitWeight(ctx, toRateLimitWeight(weight))); err != nil {
 			return fmt.Errorf("trade rate limit class=%s scope=%s: %w", class, scope, err)
 		}
 	}
@@ -48,7 +49,7 @@ func (e *Exchange) applyTradeSubAccountRateLimit(ctx context.Context, orderCount
 	if !ok {
 		return fmt.Errorf("invalid subaccount limiter type: %T", rlAny)
 	}
-	return rl.RateLimit(request.WithRateLimitWeight(ctx, uint8(orderCount)))
+	return rl.RateLimit(request.WithRateLimitWeight(ctx, toRateLimitWeight(orderCount)))
 }
 
 func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
@@ -133,4 +134,14 @@ func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) map[string]
 
 func countByOrder[T any](args []T) int {
 	return len(args)
+}
+
+func toRateLimitWeight(value int) uint8 {
+	if value <= 0 {
+		return 0
+	}
+	if value > math.MaxUint8 {
+		return math.MaxUint8
+	}
+	return uint8(value)
 }

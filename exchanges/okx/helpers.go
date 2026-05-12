@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	spotAssetType          = []asset.Item{asset.Spot}
+	spotAssetType          = []asset.Item{asset.Spot, asset.Margin}
 	perpetualSwapAssetType = []asset.Item{asset.PerpetualSwap}
+	futuresAssetType       = []asset.Item{asset.Futures}
+	optionsAssetType       = []asset.Item{asset.Options}
 )
 
 // orderTypeFromString returns the order Type and TimeInForce for okx order type strings
@@ -103,20 +105,25 @@ func (*Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, e
 		}
 	}
 
-	dashCount := 0
-	for i := range len(instrumentID) {
-		if instrumentID[i] != '-' {
-			continue
+	splitInstrumentID := strings.Split(instrumentID, "-")
+	switch len(splitInstrumentID) {
+	case 2:
+		return spotAssetType, nil
+	case 3:
+		return futuresAssetType, nil
+	case 5:
+		switch strings.ToUpper(splitInstrumentID[len(splitInstrumentID)-1]) {
+		case "C", "P":
+			return optionsAssetType, nil
+		default:
+			return nil, fmt.Errorf("%w: unsupported option instrument ID %q", asset.ErrNotSupported, instrumentID)
 		}
-		dashCount++
-		if dashCount > 1 {
-			return nil, fmt.Errorf("%w: unsupported OKX instrument ID %q", asset.ErrNotSupported, instrumentID)
+	default:
+		if len(splitInstrumentID) < 2 {
+			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
 		}
+		return nil, fmt.Errorf("%w: unsupported OKX instrument ID %q", asset.ErrNotSupported, instrumentID)
 	}
-	if dashCount == 0 {
-		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
-	}
-	return spotAssetType, nil
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

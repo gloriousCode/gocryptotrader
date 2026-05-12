@@ -794,7 +794,7 @@ type PlaceOrderRequestParam struct {
 
 // MarshalJSON ensures small numeric values are sent as plain decimal strings
 // instead of scientific notation for websocket order submission.
-func (arg PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
+func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
 	type payload struct {
 		InstrumentID     string `json:"instId"`
 		InstrumentIDCode int64  `json:"instIdCode,omitempty"`

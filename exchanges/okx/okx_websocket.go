@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -36,12 +35,9 @@ import (
 )
 
 var (
-	pingMsg                   = []byte("ping")
-	pongMsg                   = []byte("pong")
-	errOptionSummaryUnmarshal = errors.New("option summary unmarshal failed")
-	errOptionSummaryPairParse = errors.New("option summary pair parse failed")
-	errOptionSummaryDispatch  = errors.New("option summary dispatch failed")
-	wsOrderbookLevelsPool     = sync.Pool{
+	pingMsg               = []byte("ping")
+	pongMsg               = []byte("pong")
+	wsOrderbookLevelsPool = sync.Pool{
 		New: func() any {
 			levels := make(orderbook.Levels, 0, 64)
 			return &levels
@@ -527,7 +523,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
-		return e.wsProcessOptionSummary(ctx, respRaw)
+		var response WsOptionSummary
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -823,7 +820,6 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 
 // wsProcessSpreadOrderbook process spread orderbook data.
 func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
-	rca := time.Now()
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -839,13 +835,12 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 	}
 	for x := range extractedResponse.Data {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Bids:              extractedResponse.Data[x].Bids,
-			Asks:              extractedResponse.Data[x].Asks,
-			Exchange:          e.Name,
-			Pair:              pair,
 			Asset:             asset.Spread,
+			Asks:              extractedResponse.Data[x].Asks,
+			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       resp.Data[x].Timestamp.Time(),
-			ReachedCodeAt:     rca,
+			Pair:              pair,
+			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
 		})
 		if err != nil {
@@ -857,7 +852,6 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 
 // wsProcessOrderbook5 processes orderbook data
 func (e *Exchange) wsProcessOrderbook5(data []byte) error {
-	rca := time.Now()
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -890,7 +884,6 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
-			ReachedCodeAt:     rca,
 			LastUpdated:       resp.Data[0].Timestamp.Time(),
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
@@ -1008,7 +1001,6 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       lastUpdated,
-			LastPushed:        lastUpdated,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -1027,12 +1019,11 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	rca := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
-		obu := &orderbook.Update{
+		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			UpdateID:         data.SequenceID,
 			Pair:             pair,
 			Asset:            assets[i],
@@ -1042,13 +1033,8 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
-			ReachedCodeAt:    rca,
 			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
-		}
-		cst := time.Since(rca)
-		butts := rca.Add(cst)
-		obu.ChecksumDoneAt = butts
-		if err := e.Websocket.Orderbook.Update(obu); err != nil {
+		}); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)
 			return err
@@ -1463,39 +1449,6 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
 				return err
 			}
-		}
-	}
-	return nil
-}
-
-func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) error {
-	var response WsOptionSummary
-	if err := json.Unmarshal(respRaw, &response); err != nil {
-		return fmt.Errorf("%w: %w", errOptionSummaryUnmarshal, err)
-	}
-	for i := range response.Data {
-		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
-		if err != nil {
-			return fmt.Errorf("%w: %w", errOptionSummaryPairParse, err)
-		}
-		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-			ExchangeName:          e.Name,
-			Pair:                  pair,
-			AssetType:             asset.Options,
-			InstrumentID:          response.Data[i].InstrumentID,
-			LastUpdated:           response.Data[i].Timestamp.Time(),
-			ExchangeTimestamp:     response.Data[i].Timestamp.Time(),
-			ReceivedAt:            time.Now().UTC(),
-			Delta:                 response.Data[i].Delta.Float64(),
-			Gamma:                 response.Data[i].Gamma.Float64(),
-			Vega:                  response.Data[i].Vega.Float64(),
-			Theta:                 response.Data[i].Theta.Float64(),
-			UnderlyingPrice:       response.Data[i].ForwardPrice.Float64(),
-			BidImpliedVolatility:  response.Data[i].BidVolatility.Float64(),
-			AskImpliedVolatility:  response.Data[i].AskVolatility.Float64(),
-			MarkImpliedVolatility: response.Data[i].MarkVolatility.Float64(),
-		}); err != nil {
-			return fmt.Errorf("%w: %w", errOptionSummaryDispatch, err)
 		}
 	}
 	return nil

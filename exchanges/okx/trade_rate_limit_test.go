@@ -9,7 +9,7 @@ import (
 func TestTradeScopeFromInstrumentID(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, "", tradeScopeFromInstrumentID(""))
+	require.Empty(t, tradeScopeFromInstrumentID(""))
 	require.Equal(t, "BTC-USDT", tradeScopeFromInstrumentID("btc-usdt"))
 	require.Equal(t, "BTC-USD", tradeScopeFromInstrumentID("BTC-USD-241227-50000-C"))
 }
