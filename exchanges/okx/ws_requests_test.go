@@ -61,6 +61,13 @@ func TestWSPlaceOrder(t *testing.T) {
 	require.NotEmpty(t, got)
 }
 
+func TestBatchEndpointLimit(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, placeOrderEPL, batchEndpointLimit(1, placeOrderEPL, placeMultipleOrdersEPL))
+	require.Equal(t, placeMultipleOrdersEPL, batchEndpointLimit(2, placeOrderEPL, placeMultipleOrdersEPL))
+}
+
 func TestWSPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
 

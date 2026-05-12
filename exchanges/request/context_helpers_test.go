@@ -50,3 +50,21 @@ func TestWithRetryNotAllowed(t *testing.T) {
 	assert.False(t, hasRetryNotAllowed(t.Context()))
 	assert.False(t, hasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
 }
+
+func TestWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	weight, ok := getRateLimitWeight(t.Context())
+	assert.False(t, ok)
+	assert.Zero(t, weight)
+
+	ctx := WithRateLimitWeight(t.Context(), 0)
+	weight, ok = getRateLimitWeight(ctx)
+	assert.False(t, ok)
+	assert.Zero(t, weight)
+
+	ctx = WithRateLimitWeight(t.Context(), 7)
+	weight, ok = getRateLimitWeight(ctx)
+	assert.True(t, ok)
+	assert.Equal(t, Weight(7), weight)
+}
