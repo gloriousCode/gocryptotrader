@@ -102,6 +102,12 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
+	// ReachedCodeAt is to determine when it reaches GCT, before its been processed
+	ReachedCodeAt time.Time
+
+	// ChecksumDoneAt is when checksum validation finished for this update
+	ChecksumDoneAt time.Time
+
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -139,6 +145,8 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
+	reachedCodeAt          time.Time
+	checksumDoneAt         time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
