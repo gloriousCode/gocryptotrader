@@ -102,11 +102,13 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
-	// ReachedCodeAt is to determine when it reaches GCT, before its been processed
-	ReachedCodeAt time.Time
+	// ReachedGCTAt is to determine when it reaches GCT, before its been processed into
+	// the orderbook package. Use a time.Now at the start of the function that will process
+	// the websocket orderbook json
+	ReachedGCTAt time.Time
 
-	// ChecksumDoneAt is when checksum validation finished for this update
-	ChecksumDoneAt time.Time
+	// ChecksumCompletedAt is when checksum validation finished for this update.
+	ChecksumCompletedAt time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
@@ -145,8 +147,8 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
-	reachedCodeAt          time.Time
-	checksumDoneAt         time.Time
+	reachedGCTAt           time.Time
+	checksumCompletedAt    time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
