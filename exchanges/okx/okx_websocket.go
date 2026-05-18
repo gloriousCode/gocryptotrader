@@ -1008,6 +1008,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
