@@ -252,8 +252,8 @@ func (d *Depth) updateAndAlert(update *Update) {
 	d.lastUpdateID = update.UpdateID
 	d.lastUpdated = update.UpdateTime
 	d.lastPushed = update.LastPushed
-	d.reachedCodeAt = update.ReachedCodeAt
-	d.checksumDoneAt = update.ChecksumDoneAt
+	d.reachedCodeAt = update.ReachedGCTAt
+	d.checksumDoneAt = update.ChecksumCompletedAt
 	d.insertedAt = time.Now()
 	d.Alert()
 }

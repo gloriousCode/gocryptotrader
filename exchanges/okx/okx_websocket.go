@@ -835,7 +835,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       resp.Data[x].Timestamp.Time(),
-			ReachedGCTAt:      reachedGCTAt,
+			ReachedCodeAt:     reachedGCTAt,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -882,7 +882,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
-			ReachedGCTAt:      reachedGCTAt,
+			ReachedCodeAt:     reachedGCTAt,
 			LastUpdated:       resp.Data[0].Timestamp.Time(),
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
@@ -968,16 +968,16 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			LastUpdateID:        data.SequenceID,
-			Asset:               assets[i],
-			Asks:                asks,
-			Bids:                bids,
-			LastUpdated:         lastUpdated,
-			ReachedGCTAt:        reachedGCTAt,
-			ChecksumCompletedAt: checksumCompletedAt,
-			Pair:                pair,
-			Exchange:            e.Name,
-			ValidateOrderbook:   e.ValidateOrderbook,
+			LastUpdateID:      data.SequenceID,
+			Asset:             assets[i],
+			Asks:              asks,
+			Bids:              bids,
+			LastUpdated:       lastUpdated,
+			ReachedCodeAt:     reachedGCTAt,
+			ChecksumDoneAt:    checksumCompletedAt,
+			Pair:              pair,
+			Exchange:          e.Name,
+			ValidateOrderbook: e.ValidateOrderbook,
 		}); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)
