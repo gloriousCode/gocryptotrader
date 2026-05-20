@@ -92,15 +92,15 @@ func TestSetDefaultsEndpoints(t *testing.T) {
 
 	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
-	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/public", publicURL)
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/public", publicURL)
 
 	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
 	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
-	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/private", privateURL)
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/private", privateURL)
 
 	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
-	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/business", businessURL)
+	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/business", businessURL)
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {

@@ -44,7 +44,7 @@ const (
 	apiURL  = baseURL + apiPath
 
 	apiPath      = "api/v5/"
-	websocketURL = "wss://ws.okx.com:8443/ws/v5/"
+	websocketURL = "wss://wsus.okx.com:8443/ws/v5/"
 
 	apiWebsocketPublicURL  = websocketURL + "public"
 	apiWebsocketPrivateURL = websocketURL + "private"
