@@ -4789,12 +4789,12 @@ func (e *Exchange) spotOrderHelper(ctx context.Context, path string, vals url.Va
 	return resp, nil
 }
 
-// UnmarshalJSON deserializes kline data from a JSON array into OneSpotCandle fields
+// UnmarshalJSON deserialises kline data from a JSON array into OneSpotCandle fields
 func (c *OneSpotCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[8]any{&c.Timestamp, &c.Open, &c.High, &c.Low, &c.Close, &c.BaseVolume, &c.QuoteVolume, &c.USDTVolume})
 }
 
-// UnmarshalJSON deserializes kline data from a JSON array into OneFuturesCandle fields
+// UnmarshalJSON deserialises kline data from a JSON array into OneFuturesCandle fields
 func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.Entry, &c.High, &c.Low, &c.Exit, &c.BaseVolume, &c.QuoteVolume})
 }

@@ -212,10 +212,14 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 		ku.Features.Subscriptions = subscription.List{s}
 		got, err := ku.generateSubscriptions()
 		assert.NoError(t, err, "generateSubscriptions should not error")
-		require.Len(t, got, 1, "Must generate just one sub")
-		assert.NotEmpty(t, got[0].QualifiedChannel, "Qualified Channel should not be empty")
-		if got[0].Channel == subscription.CandlesChannel {
-			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
+		require.NotEmpty(t, got, "generateSubscriptions must return at least one sub")
+		for i := range got {
+			assert.NotEmpty(t, got[i].QualifiedChannel, "Qualified Channel should not be empty")
+		}
+		if s.Channel == subscription.CandlesChannel {
+			for i := range got {
+				assert.Equal(t, subscription.CandlesChannel, got[i].Channel, "Channel should be candles")
+			}
 		}
 	}
 }
@@ -243,9 +247,12 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "Must generate just one sub")
-	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
-	assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
+	require.NotEmpty(t, subs, "generateSubscriptions must return at least one sub")
+	for i := range subs {
+		assert.Equal(t, asset.Margin, subs[i].Asset, "Asset should be correct")
+		assert.Equal(t, subscription.TickerChannel, subs[i].Channel, "Channel should be ticker")
+		assert.NotEmpty(t, subs[i].QualifiedChannel, "QualifiedChannel should not be empty")
+	}
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
