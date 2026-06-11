@@ -314,6 +314,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Ask:          val.Ask,
 			Volume:       val.Volume,
 			Pair:         pair,
+			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
 			ExchangeName: e.Name,
 		}); err != nil {
@@ -644,7 +645,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return err
 }
 
-// CancelBatchOrders cancels an orders by their corresponding ID numbers
+// CancelBatchOrders cancels orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
 	// While bitfinex supports cancelling multiple orders, it is
 	// done in a way that is not helpful for GCT, and it would be better instead

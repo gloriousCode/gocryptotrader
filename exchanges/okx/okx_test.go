@@ -433,7 +433,13 @@ func TestGetInstrument(t *testing.T) {
 		Underlying:     optionsPair.String(),
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, resp)
+	require.NotEmpty(t, resp, "GetInstruments must return live instruments for selected futures")
+	for i := range resp {
+		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
+		assert.Equal(t, optionsPair.String(), resp[i].Underlying, "Underlying should be correct")
+		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
+		assert.NotEmpty(t, resp[i].State, "State should not be empty")
+	}
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
@@ -478,12 +484,13 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
-	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
+	instrumentID := p[0].String()
+	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
-	family, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
+	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, "", "")
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
