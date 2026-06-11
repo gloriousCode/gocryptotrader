@@ -603,7 +603,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
-		var orderType, stopOrderType, stopOrderBoundary string
+		var orderType, stopOrderType, stopOrderBoundary, timeInForce string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
 			orderType = "limit"
@@ -641,6 +641,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			return nil, order.ErrUnsupportedOrderType
 		}
+		if s.TimeInForce != 0 {
+			timeInForce = s.TimeInForce.String()
+		}
 		o, err = e.PostFuturesOrder(ctx, &FuturesOrderParam{
 			ClientOrderID: s.ClientOrderID,
 			Side:          sideString,
@@ -649,6 +652,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
+			TimeInForce:   timeInForce,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),

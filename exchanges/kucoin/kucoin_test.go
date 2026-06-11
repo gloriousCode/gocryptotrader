@@ -2515,9 +2515,17 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := e.SubmitOrder(t.Context(), orderSubmission)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	orderSubmission.AssetType = asset.Futures
+	orderSubmission.Pair = futuresTradablePair
+	orderSubmission.Amount = 0
+	orderSubmission.TimeInForce = order.FillOrKill
+	_, err = e.SubmitOrder(t.Context(), orderSubmission)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderSubmission.AssetType = asset.Futures
 	orderSubmission.Pair = futuresTradablePair
+	orderSubmission.Amount = 100000
 	result, err := e.SubmitOrder(t.Context(), orderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
