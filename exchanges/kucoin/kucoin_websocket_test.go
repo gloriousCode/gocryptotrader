@@ -5,10 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -37,6 +41,10 @@ type ConnectionFixture struct {
 	messageError    error
 	sendFn          func(any) ([]byte, error)
 	sentRequests    []WsSubscriptionInput
+	endpointURL     string
+	dialValues      url.Values
+	dialled         bool
+	pingHandler     websocket.PingHandler
 }
 
 func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
@@ -50,6 +58,24 @@ func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ reque
 		return c.sendFn(req)
 	}
 	return []byte(c.messageResponse), nil
+}
+
+func (c *ConnectionFixture) Dial(_ context.Context, _ *gws.Dialer, _ http.Header, values url.Values) error {
+	c.dialValues = values
+	c.dialled = true
+	return nil
+}
+
+func (c *ConnectionFixture) SetupPingHandler(_ request.EndpointLimit, p websocket.PingHandler) {
+	c.pingHandler = p
+}
+
+func (c *ConnectionFixture) SetURL(endpointURL string) {
+	c.endpointURL = endpointURL
+}
+
+func (c *ConnectionFixture) GetURL() string {
+	return c.endpointURL
 }
 
 func expectedPerPairSubscriptions(channel string, a asset.Item, pairs currency.Pairs, qualifiedPrefix string, interval kline.Interval, suffixFn func(currency.Pair) string) subscription.List {
@@ -196,6 +222,170 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSpotWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	got := spotWebsocketSubscriptions(subs)
+	require.NotEmpty(t, got, "spotWebsocketSubscriptions must return subscriptions")
+	for _, sub := range got {
+		require.NotEqual(t, asset.Futures, sub.Asset, "spot subscription generator must exclude futures assets")
+		require.False(t, strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "spot subscription generator must exclude futures topics")
+	}
+}
+
+func TestSplitWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs := subscription.List{
+		{Channel: subscription.TickerChannel, Asset: asset.Spot},
+		{Channel: subscription.TickerChannel, Asset: asset.Futures},
+		{Channel: subscription.TickerChannel, Asset: asset.Margin},
+		{Channel: futuresTradeOrderChannel, Asset: asset.Empty},
+		{Channel: accountBalanceChannel, Asset: asset.Empty},
+	}
+
+	spot, futures := splitWebsocketSubscriptions(subs)
+	require.Len(t, spot, 3, "splitWebsocketSubscriptions must return spot-family subscriptions")
+	assert.Equal(t, asset.Spot, spot[0].Asset, "first spot-family asset should be correct")
+	assert.Equal(t, asset.Margin, spot[1].Asset, "second spot-family asset should be correct")
+	assert.Equal(t, accountBalanceChannel, spot[2].Channel, "spot-family subscriptions should include account balance")
+
+	require.Len(t, futures, 2, "splitWebsocketSubscriptions must return futures-family subscriptions")
+	assert.Equal(t, asset.Futures, futures[0].Asset, "first futures-family asset should be correct")
+	assert.Equal(t, futuresTradeOrderChannel, futures[1].Channel, "futures-family subscriptions should include contract channels")
+}
+
+func TestKucoinWebsocketRateLimiter(t *testing.T) {
+	t.Parallel()
+
+	require.NotNil(t, kucoinWebsocketRateLimiter(), "kucoinWebsocketRateLimiter must return a limiter")
+}
+
+func TestFuturesWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	got := futuresWebsocketSubscriptions(subs)
+	require.NotEmpty(t, got, "futuresWebsocketSubscriptions must return subscriptions")
+	for _, sub := range got {
+		require.True(t, sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "futures subscription generator must exclude spot and margin topics")
+	}
+}
+
+func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name            string
+		authenticated   bool
+		connectionURL   string
+		wantSpotHits    int
+		wantFuturesHits int
+		wantToken       string
+		wantEndpoint    string
+	}{
+		{
+			name:          "public_spot",
+			connectionURL: kucoinWebsocketSpotURL,
+			wantSpotHits:  1,
+			wantToken:     "spot-public-token",
+			wantEndpoint:  "wss://spot-public.example.test/endpoint",
+		},
+		{
+			name:            "public_futures",
+			connectionURL:   kucoinWebsocketFuturesURL,
+			wantFuturesHits: 1,
+			wantToken:       "futures-public-token",
+			wantEndpoint:    "wss://futures-public.example.test/endpoint",
+		},
+		{
+			name:          "authenticated_spot",
+			authenticated: true,
+			connectionURL: kucoinWebsocketSpotURL,
+			wantSpotHits:  1,
+			wantToken:     "spot-private-token",
+			wantEndpoint:  "wss://spot-private.example.test/endpoint",
+		},
+		{
+			name:            "authenticated_futures",
+			authenticated:   true,
+			connectionURL:   kucoinWebsocketFuturesURL,
+			wantFuturesHits: 1,
+			wantToken:       "futures-private-token",
+			wantEndpoint:    "wss://futures-private.example.test/endpoint",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials("key", "secret", "passphrase", "", "", "")
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(tt.authenticated)
+
+			spotHits := 0
+			spotServer := newKucoinBulletServer(t, "spot", &spotHits)
+			futuresHits := 0
+			futuresServer := newKucoinBulletServer(t, "futures", &futuresHits)
+			require.NoError(t, ku.SetHTTPClient(spotServer.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), spotServer.URL+"/api"), "SetRunningURL must not error for spot REST")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), futuresServer.URL+"/api"), "SetRunningURL must not error for futures REST")
+
+			conn := &ConnectionFixture{endpointURL: tt.connectionURL}
+			err := ku.WsConnect(t.Context(), conn)
+			require.NoError(t, err, "WsConnect must not error")
+
+			assert.Equal(t, tt.wantSpotHits, spotHits, "spot bullet endpoint hit count should be correct")
+			assert.Equal(t, tt.wantFuturesHits, futuresHits, "futures bullet endpoint hit count should be correct")
+			assert.Equal(t, tt.wantEndpoint, conn.GetURL(), "WsConnect should switch to the instance endpoint")
+			assert.True(t, conn.dialled, "WsConnect should dial the websocket")
+			assert.Equal(t, tt.wantToken, conn.dialValues.Get("token"), "WsConnect should dial with the returned token")
+			assert.Equal(t, time.Second*18, conn.pingHandler.Delay, "WsConnect should use the returned ping interval")
+		})
+	}
+}
+
+func newKucoinBulletServer(t *testing.T, family string, hits *int) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		*hits++
+		assert.Equal(t, http.MethodPost, r.Method, "bullet request method should be correct")
+		endpointType := "public"
+		if strings.HasSuffix(r.URL.Path, privateBullets) {
+			endpointType = "private"
+		}
+		assert.Contains(t, []string{"/api" + publicBullets, "/api" + privateBullets}, r.URL.Path, "bullet request path should be correct")
+		_, err := fmt.Fprintf(w, `{"code":"200000","data":{"token":"%[1]s-%[2]s-token","instanceServers":[{"endpoint":"wss://%[1]s-%[2]s.example.test/endpoint","encrypt":true,"protocol":"websocket","pingInterval":18000,"pingTimeout":10000}]}}`, family, endpointType)
+		assert.NoError(t, err, "writing bullet response should not error")
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestSetupCreatesSeparateWebsocketConnections(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+
+	spotConn, err := ku.Websocket.CreateTestConnection(wsSpotConnection)
+	require.NoError(t, err, "CreateTestConnection must find spot websocket connection")
+	require.Equal(t, kucoinWebsocketSpotURL, spotConn.GetURL(), "spot websocket connection URL must be set")
+
+	futuresConn, err := ku.Websocket.CreateTestConnection(wsFuturesConnection)
+	require.NoError(t, err, "CreateTestConnection must find futures websocket connection")
+	require.Equal(t, kucoinWebsocketFuturesURL, futuresConn.GetURL(), "futures websocket connection URL must be set")
 }
 
 func TestGenerateTickerAllSub(t *testing.T) {
