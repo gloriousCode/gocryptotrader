@@ -830,11 +830,13 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
+		lastUpdated := resp.Data[x].Timestamp.Time()
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             asset.Spread,
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
-			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
 			ReachedGCTAt:      reachedGCTAt,
 			Pair:              pair,
 			Exchange:          e.Name,
@@ -877,13 +879,15 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
+	lastUpdated := resp.Data[0].Timestamp.Time()
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
 			ReachedGCTAt:      reachedGCTAt,
-			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			LastUpdated:       lastUpdated,
+			LastPushed:        lastUpdated,
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -929,7 +933,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
-			if errors.Is(err, errInvalidChecksum) {
+			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) {
 				err = e.Subscribe(ctx, conn, subscription.List{
 					{
 						Channel: response.Argument.Channel,
@@ -954,14 +958,17 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	reachedGCTAt := time.Now()
-	signedChecksum, err := e.CalculateOrderbookChecksum(data)
-	if err != nil {
-		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %w", errInvalidChecksum, pair, err)
+	var checksumCompletedAt time.Time
+	if data.Checksum != 0 {
+		signedChecksum, err := e.CalculateOrderbookChecksum(data)
+		if err != nil {
+			return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %w", errInvalidChecksum, pair, err)
+		}
+		if signedChecksum != uint32(data.Checksum) {
+			return fmt.Errorf("%w %v", errInvalidChecksum, pair)
+		}
+		checksumCompletedAt = time.Now()
 	}
-	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
-		return fmt.Errorf("%w %v", errInvalidChecksum, pair)
-	}
-	checksumCompletedAt := time.Now()
 
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
@@ -973,6 +980,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Asks:                asks,
 			Bids:                bids,
 			LastUpdated:         lastUpdated,
+			LastPushed:          lastUpdated,
 			ReachedGCTAt:        reachedGCTAt,
 			ChecksumCompletedAt: checksumCompletedAt,
 			Pair:                pair,
@@ -998,18 +1006,36 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
+		if data.PreviousSequenceID != 0 {
+			lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
+			if err != nil {
+				putWsOrderbookLevels(asksPoolItem)
+				putWsOrderbookLevels(bidsPoolItem)
+				return err
+			}
+			if data.SequenceID != 0 && data.SequenceID <= lastUpdateID {
+				continue
+			}
+			if lastUpdateID != data.PreviousSequenceID {
+				putWsOrderbookLevels(asksPoolItem)
+				putWsOrderbookLevels(bidsPoolItem)
+				return fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
+			}
+		}
 		obu := &orderbook.Update{
-			UpdateID:         data.SequenceID,
-			Pair:             pair,
-			Asset:            assets[i],
-			UpdateTime:       updateTime,
-			LastPushed:       updateTime,
-			GenerateChecksum: generateOrderbookChecksum,
-			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
-			Asks:             asks,
-			Bids:             bids,
-			ReachedGCTAt:     reachedCodeAt,
-			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
+			UpdateID:     data.SequenceID,
+			Pair:         pair,
+			Asset:        assets[i],
+			UpdateTime:   updateTime,
+			LastPushed:   updateTime,
+			Asks:         asks,
+			Bids:         bids,
+			ReachedGCTAt: reachedCodeAt,
+			AllowEmpty:   true, // Allow empty levels to push forward sequence ID
+		}
+		if data.Checksum != 0 {
+			obu.GenerateChecksum = generateOrderbookChecksum
+			obu.ExpectedChecksum = uint32(data.Checksum) //nolint:gosec // Requires type casting
 		}
 		checksumCompletedAt := time.Now()
 		obu.ChecksumCompletedAt = checksumCompletedAt
