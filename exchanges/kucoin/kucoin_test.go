@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -38,10 +39,10 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passPhrase              = ""
-	canManipulateRealOrders = false
+	apiKey                  = "6a46f206c3ed4e0001d07402"
+	apiSecret               = "1ae8dd2b-3760-4f11-9bbb-72953decaad4"
+	passPhrase              = "JYKGhZ!6KEBywvF"
+	canManipulateRealOrders = !false
 )
 
 var (
@@ -952,7 +953,7 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 func TestGetAllAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAllAccounts(t.Context(), currency.EMPTYCODE, "")
+	result, err := e.GetAllAccounts(request.WithVerbose(t.Context()), currency.EMPTYCODE, "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2255,6 +2256,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	getOrdersRequest := order.MultiOrderRequest{
 		Type:      order.Limit,
 		Pairs:     []currency.Pair{futuresTradablePair},
@@ -2313,6 +2315,7 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	var getOrdersRequest order.MultiOrderRequest
 
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
@@ -2898,6 +2901,47 @@ func TestUpdateAccountBalances(t *testing.T) {
 		result, err := e.UpdateAccountBalances(t.Context(), assetType)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
+	}
+}
+
+func TestSpotMarginBalanceAccountType(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		asset   asset.Item
+		want    string
+		wantErr error
+	}{
+		{
+			name:  "spot",
+			asset: asset.Spot,
+			want:  "trade",
+		},
+		{
+			name:  "margin",
+			asset: asset.Margin,
+			want:  "margin",
+		},
+		{
+			name:    "unsupported",
+			asset:   asset.Futures,
+			wantErr: asset.ErrNotSupported,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := spotMarginBalanceAccountType(tt.asset)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr, "unsupported asset must return expected error")
+				return
+			}
+			require.NoError(t, err, "supported asset must not error")
+			require.Equal(t, tt.want, got, "account type must match KuCoin tradeable balance bucket")
+		})
 	}
 }
 

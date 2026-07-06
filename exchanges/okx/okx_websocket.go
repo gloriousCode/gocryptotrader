@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -934,6 +935,22 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) {
+				reason := "checksum"
+				if errors.Is(err, errInvalidOrderbookSequence) {
+					reason = "sequence_gap"
+				}
+				for x := range assets {
+					metrics.RecordOrderbookDesync(&metrics.OrderbookSyncEvent{
+						Exchange:      e.Name,
+						Pair:          response.Argument.InstrumentID,
+						Asset:         assets[x],
+						Channel:       response.Argument.Channel,
+						Reason:        reason,
+						LastUpdateID:  response.Data[i].PreviousSequenceID,
+						FirstUpdateID: response.Data[i].SequenceID,
+						UpdateID:      response.Data[i].SequenceID,
+					})
+				}
 				err = e.Subscribe(ctx, conn, subscription.List{
 					{
 						Channel: response.Argument.Channel,
@@ -942,7 +959,27 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 					},
 				})
 				if err != nil {
+					for x := range assets {
+						metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
+							Exchange: e.Name,
+							Pair:     response.Argument.InstrumentID,
+							Asset:    assets[x],
+							Channel:  response.Argument.Channel,
+							Reason:   reason,
+							Result:   "request_failed",
+						})
+					}
 					return err
+				}
+				for x := range assets {
+					metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
+						Exchange: e.Name,
+						Pair:     response.Argument.InstrumentID,
+						Asset:    assets[x],
+						Channel:  response.Argument.Channel,
+						Reason:   reason,
+						Result:   "requested",
+					})
 				}
 			} else {
 				return err
