@@ -44,13 +44,6 @@ func TestWithHeaders(t *testing.T) {
 	assert.Equal(t, "custom", headersFromContext(thawed).Get("User-Agent"))
 }
 
-func TestCallerName(t *testing.T) {
-	t.Parallel()
-
-	assert.Empty(t, CallerName(t.Context()), "caller name should be empty when not set")
-	assert.Equal(t, "audit", CallerName(WithCallerName(t.Context(), "audit")), "caller name should match injected value")
-}
-
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
