@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,7 +32,8 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kucoin
 type Exchange struct {
 	exchange.Base
-	wsOBUpdateMgr *buffer.UpdateManager
+	wsOBUpdateMgr       *buffer.UpdateManager
+	futuresPositionMode atomic.Uint32
 }
 
 const (

@@ -3,11 +3,13 @@ package kucoin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2522,9 +2524,62 @@ func TestSubmitOrder(t *testing.T) {
 	_, err := e.SubmitOrder(t.Context(), orderSubmission)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	orderSubmission.AssetType = asset.Futures
+	orderSubmission.Pair = futuresTradablePair
+	_, err = e.SubmitOrder(t.Context(), orderSubmission)
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
+
+	t.Run("futures request includes current position parameters", func(t *testing.T) {
+		t.Parallel()
+
+		ku := testInstance(t)
+		ku.SkipAuthCheck = true
+		ku.SetCredentials("key", "secret", "passphrase", "", "", "")
+
+		var payload map[string]any
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var response string
+			switch r.URL.Path {
+			case "/api/v2/position/getPositionMode":
+				assert.Equal(t, http.MethodGet, r.Method, "position mode request method should be correct")
+				response = `{"code":"200000","data":{"positionMode":0}}`
+			case "/api/v1/orders":
+				assert.Equal(t, http.MethodPost, r.Method, "futures order request method should be correct")
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "ReadAll should not error")
+				assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
+				response = `{"code":"200000","data":{"orderId":"order-id"}}`
+			default:
+				assert.Fail(t, "unexpected request path", r.URL.Path)
+			}
+			_, err := w.Write([]byte(response))
+			assert.NoError(t, err, "writing futures order response should not error")
+		}))
+		t.Cleanup(server.Close)
+		require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+		require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+		result, err := ku.SubmitOrder(t.Context(), &order.Submit{
+			Side:          order.Short,
+			AssetType:     asset.Futures,
+			Pair:          futuresTradablePair,
+			Type:          order.Market,
+			Amount:        3,
+			Leverage:      1,
+			MarginType:    margin.Isolated,
+			ClientOrderID: "client-order-id",
+		})
+		require.NoError(t, err, "SubmitOrder must not error")
+		require.NotNil(t, result, "SubmitOrder must return a response")
+		assert.Equal(t, "order-id", result.OrderID, "OrderID should be correct")
+		assert.Equal(t, "ISOLATED", payload["marginMode"], "payload should select isolated margin")
+		assert.Equal(t, "BOTH", payload["positionSide"], "payload should select one-way position mode")
+	})
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	orderSubmission.AssetType = asset.Futures
 	orderSubmission.Pair = futuresTradablePair
+	orderSubmission.MarginType = margin.Isolated
 	result, err := e.SubmitOrder(t.Context(), orderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2594,6 +2649,115 @@ func TestSubmitOrder(t *testing.T) {
 	result, err = e.SubmitOrder(t.Context(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetFuturesPositionMode(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		responseMode int
+		expected     FuturesPositionMode
+		expectedErr  error
+	}{
+		{name: "one-way", responseMode: kucoinOneWayPositionMode, expected: FuturesPositionModeOneWay},
+		{name: "hedge", responseMode: kucoinHedgePositionMode, expected: FuturesPositionModeHedge},
+		{name: "invalid", responseMode: 2, expectedErr: errInvalidFuturesPositionMode},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials("key", "secret", "passphrase", "", "", "")
+			var requestCount atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestCount.Add(1)
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, "/api/v2/position/getPositionMode", r.URL.Path)
+				_, err := fmt.Fprintf(w, `{"code":"200000","data":{"positionMode":%d}}`, tc.responseMode)
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+			require.NoError(t, ku.SetHTTPClient(server.Client()))
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL+"/api"))
+
+			mode, err := ku.GetFuturesPositionMode(t.Context())
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr)
+				require.Equal(t, FuturesPositionModeUnknown, mode)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, mode)
+
+			cached, err := ku.GetFuturesPositionMode(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, cached)
+			require.EqualValues(t, 1, requestCount.Load(), "position mode must be cached")
+		})
+	}
+}
+
+func TestFuturesPositionModeString(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		mode     FuturesPositionMode
+		expected string
+	}{
+		{mode: FuturesPositionModeUnknown, expected: "unknown"},
+		{mode: FuturesPositionModeOneWay, expected: "one-way"},
+		{mode: FuturesPositionModeHedge, expected: "hedge"},
+		{mode: FuturesPositionMode(99), expected: "unknown"},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.expected, tc.mode.String())
+	}
+}
+
+func TestFuturesPositionSide(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		mode        FuturesPositionMode
+		side        order.Side
+		reduceOnly  bool
+		expected    string
+		expectedErr error
+	}{
+		{name: "one-way short", mode: FuturesPositionModeOneWay, side: order.Short, expected: "BOTH"},
+		{name: "hedge increase short", mode: FuturesPositionModeHedge, side: order.Short, expected: "SHORT"},
+		{name: "hedge increase long", mode: FuturesPositionModeHedge, side: order.Long, expected: "LONG"},
+		{name: "hedge reduce short", mode: FuturesPositionModeHedge, side: order.Long, reduceOnly: true, expected: "SHORT"},
+		{name: "hedge reduce long", mode: FuturesPositionModeHedge, side: order.Short, reduceOnly: true, expected: "LONG"},
+		{name: "unknown mode", side: order.Short, expectedErr: errInvalidFuturesPositionMode},
+		{name: "invalid side", mode: FuturesPositionModeHedge, expectedErr: order.ErrSideIsInvalid},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			actual, err := futuresPositionSide(tc.mode, tc.side, tc.reduceOnly)
+			require.ErrorIs(t, err, tc.expectedErr)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func BenchmarkFuturesPositionSide(b *testing.B) {
+	for b.Loop() {
+		side, err := futuresPositionSide(FuturesPositionModeHedge, order.Short, false)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if side != "SHORT" {
+			b.Fatalf("unexpected position side %q", side)
+		}
+	}
 }
 
 func TestSubmitOrderMarginAutoRepay(t *testing.T) {

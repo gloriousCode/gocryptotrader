@@ -232,7 +232,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if resp.Type == "pong" || resp.Type == "welcome" {
 		return nil
 	}
-	if resp.ID != "" {
+	if resp.ID != "" && resp.Topic == "" {
 		return conn.RequireMatchWithData(resp.ID, respData)
 	}
 
@@ -680,7 +680,11 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Futures, "")}
+	accountAsset := accountBalanceAsset(resp.RelationEvent)
+	if accountAsset == asset.Empty {
+		return e.Websocket.DataHandler.Send(ctx, &resp)
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(accountAsset, "")}
 	subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
 		Total:     resp.Total,
 		Hold:      resp.Hold,
@@ -691,6 +695,18 @@ func (e *Exchange) processAccountBalanceChange(ctx context.Context, respData []b
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, subAccts)
+}
+
+func accountBalanceAsset(relationEvent string) asset.Item {
+	accountType, _, _ := strings.Cut(relationEvent, ".")
+	switch {
+	case accountType == "trade", accountType == "trade_hf":
+		return asset.Spot
+	case accountType == "margin", accountType == "marginV2", strings.HasPrefix(accountType, "isolated"):
+		return asset.Margin
+	default:
+		return asset.Empty
+	}
 }
 
 // processOrderChangeEvent processes order update events.

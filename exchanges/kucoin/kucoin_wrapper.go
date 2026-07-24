@@ -673,6 +673,18 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
+		marginMode := strings.ToUpper(MarginModeToString(s.MarginType))
+		if marginMode == "" {
+			return nil, fmt.Errorf("%w: KuCoin futures orders require isolated or cross margin", margin.ErrInvalidMarginType)
+		}
+		positionMode, err := e.GetFuturesPositionMode(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting KuCoin futures position mode: %w", err)
+		}
+		positionSide, err := futuresPositionSide(positionMode, s.Side, s.ReduceOnly)
+		if err != nil {
+			return nil, err
+		}
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
@@ -719,6 +731,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
+			MarginMode:    marginMode,
+			PositionSide:  positionSide,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
@@ -863,6 +877,26 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+func futuresPositionSide(mode FuturesPositionMode, side order.Side, reduceOnly bool) (string, error) {
+	if mode == FuturesPositionModeOneWay {
+		return "BOTH", nil
+	}
+	if mode != FuturesPositionModeHedge {
+		return "", fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, mode)
+	}
+	isLong := side.IsLong()
+	if !isLong && !side.IsShort() {
+		return "", fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
+	}
+	if reduceOnly {
+		isLong = !isLong
+	}
+	if isLong {
+		return "LONG", nil
+	}
+	return "SHORT", nil
 }
 
 // MarginModeToString returns a string representation of a MarginMode

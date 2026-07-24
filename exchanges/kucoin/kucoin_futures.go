@@ -27,7 +27,44 @@ const (
 
 	kucoinFuturesOrder     = "/v1/orders"
 	kucoinFuturesStopOrder = "/v1/stopOrders"
+
+	kucoinOneWayPositionMode = 0
+	kucoinHedgePositionMode  = 1
 )
+
+// GetFuturesPositionMode returns and caches the account-level KuCoin futures
+// position mode.
+func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionMode, error) {
+	if cached := FuturesPositionMode(e.futuresPositionMode.Load()); cached != FuturesPositionModeUnknown {
+		return cached, nil
+	}
+	var resp *FuturesPositionModeResponse
+	if err := e.SendAuthHTTPRequest(
+		ctx,
+		exchange.RestFutures,
+		futuresPositionModeEPL,
+		http.MethodGet,
+		"/v2/position/getPositionMode",
+		nil,
+		&resp,
+	); err != nil {
+		return FuturesPositionModeUnknown, err
+	}
+	if resp == nil {
+		return FuturesPositionModeUnknown, common.ErrNoResponse
+	}
+	var mode FuturesPositionMode
+	switch resp.PositionMode.Int64() {
+	case kucoinOneWayPositionMode:
+		mode = FuturesPositionModeOneWay
+	case kucoinHedgePositionMode:
+		mode = FuturesPositionModeHedge
+	default:
+		return FuturesPositionModeUnknown, fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, resp.PositionMode)
+	}
+	e.futuresPositionMode.Store(uint32(mode))
+	return mode, nil
+}
 
 // GetFuturesOpenContracts gets all open futures contract with its details
 func (e *Exchange) GetFuturesOpenContracts(ctx context.Context) ([]Contract, error) {
