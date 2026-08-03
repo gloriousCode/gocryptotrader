@@ -224,4 +224,3 @@ func GetCredentialsFromContext(ctx context.Context) *Credentials {
 
 	return ctxCredStore.Get()
 }
-

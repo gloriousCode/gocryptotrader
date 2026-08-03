@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -26,17 +28,18 @@ const (
 
 // WebsocketRoutineManager is used to process websocket updates from a unified location
 type WebsocketRoutineManager struct {
-	state           int32
-	verbose         bool
-	exchangeManager iExchangeManager
-	orderManager    iOrderManager
-	syncer          ICurrencyPairSyncer
-	currencyConfig  *currency.Config
-	currencyFormat  *currency.PairFormat
-	shutdown        chan struct{}
-	dataHandlers    []WebsocketDataHandler
-	wg              sync.WaitGroup
-	mu              sync.RWMutex
+	state            atomic.Int32
+	verbose          bool
+	exchangeManager  iExchangeManager
+	orderManager     iOrderManager
+	syncer           ICurrencyPairSyncer
+	currencyConfig   *currency.Config
+	currencyFormat   *currency.PairFormat
+	shutdown         chan struct{}
+	connectionCancel context.CancelFunc
+	dataHandlers     []WebsocketDataHandler
+	wg               sync.WaitGroup
+	mu               sync.RWMutex
 }
 
 // WebsocketDataHandler defines a function signature for a function that handles

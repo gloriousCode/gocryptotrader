@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -73,18 +72,18 @@ func SetupDataHistoryManager(em iExchangeManager, dcm iDatabaseConnectionManager
 }
 
 // Start runs the subsystem
-func (m *DataHistoryManager) Start() error {
+func (m *DataHistoryManager) Start(ctx context.Context) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
 	if m.databaseConnectionInstance == nil {
 		return errNilDatabaseConnectionManager
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(false, true) {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
-	m.run()
+	m.run(ctx)
 	log.Debugf(log.DataHistory, "Data history manager %v", MsgSubSystemStarted)
 
 	return nil
@@ -95,7 +94,7 @@ func (m *DataHistoryManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load()
 }
 
 // Stop stops the subsystem
@@ -103,7 +102,7 @@ func (m *DataHistoryManager) Stop() error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(true, false) {
 		return ErrSubSystemNotStarted
 	}
 	close(m.shutdown)
@@ -116,7 +115,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
@@ -148,7 +147,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	jobs, err := m.retrieveJobs()
@@ -173,7 +172,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	var err error
@@ -233,7 +232,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	return nil
 }
 
-func (m *DataHistoryManager) run() {
+func (m *DataHistoryManager) run(ctx context.Context) {
 	go func() {
 		for {
 			select {
@@ -242,7 +241,7 @@ func (m *DataHistoryManager) run() {
 			case <-m.interval.C:
 				if m.databaseConnectionInstance != nil && m.databaseConnectionInstance.IsConnected() {
 					go func() {
-						if err := m.runJobs(); err != nil {
+						if err := m.runJobs(ctx); err != nil {
 							log.Errorln(log.DataHistory, err)
 						}
 					}()
@@ -252,18 +251,18 @@ func (m *DataHistoryManager) run() {
 	}()
 }
 
-func (m *DataHistoryManager) runJobs() error {
+func (m *DataHistoryManager) runJobs(ctx context.Context) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 
-	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+	if !m.processing.CompareAndSwap(false, true) {
 		return fmt.Errorf("cannot process jobs, %w", ErrSubSystemAlreadyStarted)
 	}
-	defer atomic.StoreInt32(&m.processing, 0)
+	defer m.processing.Store(false)
 
 	validJobs, err := m.PrepareJobs()
 	if err != nil {
@@ -278,8 +277,14 @@ func (m *DataHistoryManager) runJobs() error {
 
 	log.Infof(log.DataHistory, "processing data history jobs")
 	for i := 0; (i < int(m.maxJobsPerCycle) || m.maxJobsPerCycle == -1) && i < len(validJobs); i++ {
-		err := m.runJob(validJobs[i])
+		err := m.runJob(ctx, validJobs[i])
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+				if m.verbose {
+					log.Debugf(log.DataHistory, "stopping data history run due to cancelled context")
+				}
+				return nil
+			}
 			log.Errorln(log.DataHistory, err)
 		}
 		if m.verbose {
@@ -293,11 +298,11 @@ func (m *DataHistoryManager) runJobs() error {
 
 // runJob processes an active job, retrieves candle or trade data
 // for a given date range and saves all results to the database
-func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
+func (m *DataHistoryManager) runJob(ctx context.Context, job *DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if job == nil {
@@ -329,12 +334,12 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 
 	if job.DataType == dataHistoryCandleValidationDataType ||
 		job.DataType == dataHistoryCandleValidationSecondarySourceType {
-		err = m.runValidationJob(job, exch)
+		err = m.runValidationJob(ctx, job, exch)
 		if err != nil {
 			return err
 		}
 	} else {
-		err = m.runDataJob(job, exch)
+		err = m.runDataJob(ctx, job, exch)
 		if err != nil {
 			return err
 		}
@@ -356,7 +361,7 @@ func (m *DataHistoryManager) runJob(job *DataHistoryJob) error {
 
 // runDataJob will fetch data from an API endpoint or convert existing database data
 // into a new candle type
-func (m *DataHistoryManager) runDataJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+func (m *DataHistoryManager) runDataJob(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange) error {
 	if !m.IsRunning() {
 		return ErrSubSystemNotStarted
 	}
@@ -449,9 +454,9 @@ ranges:
 		// processing the job
 		switch job.DataType {
 		case dataHistoryCandleDataType:
-			result, err = m.processCandleData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
+			result, err = m.processCandleData(ctx, job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
 		case dataHistoryTradeDataType:
-			result, err = m.processTradeData(job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
+			result, err = m.processTradeData(ctx, job, exch, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time, int64(i))
 		case dataHistoryConvertTradesDataType:
 			result, err = m.convertTradesToCandles(job, job.rangeHolder.Ranges[i].Start.Time, job.rangeHolder.Ranges[i].End.Time)
 		case dataHistoryConvertCandlesDataType:
@@ -505,7 +510,7 @@ completionCheck:
 
 // runValidationJob verifies existing database candle data against
 // the original API's data, or a secondary exchange source
-func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange.IBotExchange) error {
+func (m *DataHistoryManager) runValidationJob(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange) error {
 	if !m.IsRunning() {
 		return ErrSubSystemNotStarted
 	}
@@ -560,7 +565,7 @@ timesToFetch:
 				job.DataType)
 		}
 		intervalsProcessed++
-		result, err := m.validateCandles(job, exch, intervalsToCheck[i], requestEnd)
+		result, err := m.validateCandles(ctx, job, exch, intervalsToCheck[i], requestEnd)
 		if err != nil {
 			return err
 		}
@@ -690,7 +695,7 @@ func (m *DataHistoryManager) saveCandlesInBatches(job *DataHistoryJob, candles *
 	return nil
 }
 
-func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) processCandleData(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
@@ -716,16 +721,19 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		Status:            dataHistoryStatusComplete,
 		Date:              time.Now(),
 	}
-	candles, err := exch.GetHistoricCandlesExtended(context.TODO(),
+	candles, err := exch.GetHistoricCandlesExtended(ctx,
 		job.Pair,
 		job.Asset,
 		job.Interval,
 		startRange,
 		endRange)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+			return nil, err
+		}
 		r.Result += "could not get candles: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return r, nil //nolint:nilerr // error is returned in the job result
+		return r, nil
 	}
 	err = job.rangeHolder.SetHasDataFromCandles(candles.Candles)
 	if err != nil {
@@ -744,7 +752,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 	return r, err
 }
 
-func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) processTradeData(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time, intervalIndex int64) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
@@ -769,15 +777,18 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		Status:            dataHistoryStatusComplete,
 		Date:              time.Now(),
 	}
-	trades, err := exch.GetHistoricTrades(context.TODO(),
+	trades, err := exch.GetHistoricTrades(ctx,
 		job.Pair,
 		job.Asset,
 		startRange,
 		endRange)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+			return nil, err
+		}
 		r.Result += "could not get trades: " + err.Error() + ". "
 		r.Status = dataHistoryStatusFailed
-		return r, nil //nolint:nilerr // error is returned in the job result
+		return r, nil
 	}
 	candles, err := trade.ConvertTradesToCandles(job.Interval, trades...)
 	if err != nil {
@@ -899,7 +910,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 	return r, err
 }
 
-func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
+func (m *DataHistoryManager) validateCandles(ctx context.Context, job *DataHistoryJob, exch exchange.IBotExchange, startRange, endRange time.Time) (*DataHistoryJobResult, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted
 	}
@@ -925,16 +936,19 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		Date:              time.Now(),
 	}
 
-	apiCandles, err := exch.GetHistoricCandlesExtended(context.TODO(),
+	apiCandles, err := exch.GetHistoricCandlesExtended(ctx,
 		job.Pair,
 		job.Asset,
 		job.Interval,
 		startRange,
 		endRange)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil && errors.Is(err, ctxErr) {
+			return nil, err
+		}
 		r.Result = "could not get API candles: " + err.Error()
 		r.Status = dataHistoryStatusFailed
-		return r, nil //nolint:nilerr // error is returned in the job result
+		return r, nil
 	}
 	apiCandles.ValidationJobID = job.ID
 	dbCandles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
@@ -1041,7 +1055,7 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	if m == nil {
 		return ErrNilSubsystem.Error(), false
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted.Error(), false
 	}
 	if job == nil {
@@ -1080,7 +1094,7 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if jobNickname == "" {
@@ -1286,7 +1300,7 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	if id == uuid.Nil {
@@ -1310,7 +1324,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	if fullDetails {
@@ -1345,7 +1359,7 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return nil, ErrSubSystemNotStarted
 	}
 	if err := common.StartEndTimeCheck(start, end); err != nil {
@@ -1371,7 +1385,7 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if !m.started.Load() {
 		return ErrSubSystemNotStarted
 	}
 	if nickname == "" && id == "" {

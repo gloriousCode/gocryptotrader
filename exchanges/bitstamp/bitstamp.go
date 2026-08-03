@@ -165,6 +165,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string, hourly bool) (*
 	return &response, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
+// AllCurrencyPairTickers returns the latest ticker for every available market.
 func (e *Exchange) AllCurrencyPairTickers(ctx context.Context) ([]TickerFromBatch, error) {
 	var response []TickerFromBatch
 	tickerEndpoint := bitstampAPITicker

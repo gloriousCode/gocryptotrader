@@ -53,15 +53,17 @@ func (f *Number) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data) // We don't use err; We know it's not valid and errInvalidNumberValue is clearer
 	}
 
-	*f = Number{f: val, s: s, d: decimal.RequireFromString(s)}
+	*f = Number{f: val, s: s, d: decimal.NewFromFloat(val)}
 
 	return nil
 }
 
+// IsEmpty reports whether the number has no value.
 func (f Number) IsEmpty() bool {
 	return f.isEmpty
 }
 
+// NumberFromString parses a decimal string without losing its original representation.
 func NumberFromString(s string) (Number, error) {
 	if s == "" {
 		return Number{isEmpty: true}, nil
@@ -71,11 +73,13 @@ func NumberFromString(s string) (Number, error) {
 		return Number{}, fmt.Errorf("%w: %s", errInvalidNumberValue, s)
 	}
 
-	return Number{f: val, s: s}, nil
+	return Number{f: val, s: s, d: decimal.NewFromFloat(val)}, nil
 }
 
+// NumberFromFloat64 creates a Number from a floating-point value.
 func NumberFromFloat64(f float64) Number {
-	return Number{f: f, s: strconv.FormatFloat(f, 'f', -1, 64)}
+	s := strconv.FormatFloat(f, 'f', -1, 64)
+	return Number{f: f, s: s, d: decimal.NewFromFloat(f)}
 }
 
 // MarshalJSON implements json.Marshaler by formatting to a json string

@@ -333,6 +333,7 @@ func (k *Item) RemoveDuplicates() {
 	k.Candles = k.Candles[:target]
 }
 
+// RemoveZeroes removes candles with no price or volume information.
 func (k *Item) RemoveZeroes() {
 	lookup := make(map[int64]bool)
 	target := 0
@@ -348,7 +349,6 @@ func (k *Item) RemoveZeroes() {
 	}
 	k.Candles = k.Candles[:target]
 }
-
 
 // RemoveOutsideRange removes any candles outside the start and end date.
 // NOTE: Filter-in-place is used in this function for optimisation and to keep

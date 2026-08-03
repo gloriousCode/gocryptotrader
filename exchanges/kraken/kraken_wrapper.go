@@ -1754,7 +1754,7 @@ func (e *Exchange) calculateContractExpiryPair(pair currency.Pair, tt time.Time,
 		}
 	case futures.Quarterly:
 		year, quarter := tt.Year(), (tt.Month()-1)/3+1
-		nextQuarter := time.Date(year, time.Month((quarter-1)*3+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 3, 0)
+		nextQuarter := time.Date(year, (quarter-1)*3+1, 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 3, 0)
 		for i := 0; i >= -7; i-- {
 			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
 				tt = nextQuarter.AddDate(0, 0, i)
@@ -1763,7 +1763,7 @@ func (e *Exchange) calculateContractExpiryPair(pair currency.Pair, tt time.Time,
 		}
 	case futures.SemiAnnually:
 		year, quarter := tt.Year(), (tt.Month()-1)/6+1
-		nextQuarter := time.Date(year, time.Month((quarter-1)*6+1), 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 6, 0)
+		nextQuarter := time.Date(year, (quarter-1)*6+1, 1, 0, 0, 0, 0, tt.Location()).AddDate(0, 6, 0)
 		for i := 0; i >= -7; i-- {
 			if nextQuarter.AddDate(0, 0, i).Weekday() == time.Friday {
 				tt = nextQuarter.AddDate(0, 0, i)
@@ -1777,6 +1777,7 @@ func (e *Exchange) calculateContractExpiryPair(pair currency.Pair, tt time.Time,
 	return pair, tt, nil
 }
 
+// ContractAndExpiry associates a contract symbol with its expiry timestamp.
 type ContractAndExpiry struct {
 	Contract currency.Pair
 	Expiry   time.Time
@@ -1826,6 +1827,7 @@ func (e *Exchange) GetLongDatedContractsFromDate(_ context.Context, item asset.I
 	return resp, nil
 }
 
+// GetHistoricalContractKlineData returns aligned contract and underlying candle data.
 func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer

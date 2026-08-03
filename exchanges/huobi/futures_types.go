@@ -863,5 +863,5 @@ type FTriggerOrderHistoryData struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-type ExpiredContractData struct {
-}
+// ExpiredContractData represents an expired-contract response with no additional payload.
+type ExpiredContractData struct{}

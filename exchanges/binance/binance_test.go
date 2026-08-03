@@ -37,8 +37,6 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -389,7 +387,8 @@ func TestUCompositeIndexInfo(t *testing.T) {
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UFuturesNewOrder(t.Context(),
+	_, err := e.UFuturesNewOrder(
+		t.Context(),
 		&UFuturesNewOrderRequest{
 			Symbol:      currency.NewBTCUSDT(),
 			Side:        "BUY",
@@ -1500,7 +1499,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1012, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1513,7 +1513,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1001, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1526,7 +1527,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 3, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -2466,12 +2468,12 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = e.obm.fetchBookViaREST(p)
+	err = e.obm.fetchBookViaREST(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = e.obm.cleanup(p)
+	err = e.obm.cleanup(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3329,11 +3331,11 @@ func TestGetFuturesContractDetails(t *testing.T) {
 
 func TestConvertContractShortHandToExpiry(t *testing.T) {
 	t.Parallel()
-	ct, _, _, err := e.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	ct, _, _, err := e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
 	require.NoError(t, err)
 	t.Log(ct)
 
-	ct, _, _, err = e.convertContractShortHandToExpiry(currency.NewPair(currency.BTC, currency.USDT), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	ct, _, _, err = e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
 	require.NoError(t, err)
 	t.Log(ct)
 }
@@ -3341,10 +3343,9 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 func TestGetExpiredContractsFromDate(t *testing.T) {
 	t.Parallel()
 	e.Verbose = true
-	resp, err := e.GetLongDatedContractsFromDate(t.Context(), asset.USDTMarginedFutures, currency.NewPair(currency.BTC, currency.USDT), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
+	resp, err := e.GetLongDatedContractsFromDate(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
-
 }
 
 func TestGetFundingRateInfo(t *testing.T) {
@@ -3389,9 +3390,9 @@ func TestSpotFutures(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.NewCode("BTCUSD"), currency.NewCode("231229"))
 	cp.Delimiter = "_"
-	b.Verbose = true
-	interval := b.FormatExchangeKlineInterval(kline.OneDay)
-	resp, err := b.GetFuturesKlineData(context.Background(), cp, interval, 0, time.Time{}, time.Time{})
+	e.Verbose = true
+	interval := e.FormatExchangeKlineInterval(kline.OneDay)
+	resp, err := e.GetFuturesKlineData(t.Context(), cp, interval, 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -3413,8 +3414,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGetHistoricalContractKlineData(t *testing.T) {
 	t.Parallel()
-	resp, err := b.GetHistoricalContractKlineData(context.Background(), &futures.GetKlineContractRequest{
-		UnderlyingPair: currency.NewPair(currency.BTC, currency.USDT),
+	resp, err := e.GetHistoricalContractKlineData(t.Context(), &futures.GetKlineContractRequest{
+		UnderlyingPair: currency.NewBTCUSDT(),
 		Asset:          asset.USDTMarginedFutures,
 		StartDate:      time.Now().Add(-time.Hour * 24 * 365),
 		EndDate:        time.Now(),
@@ -3426,7 +3427,8 @@ func TestGetHistoricalContractKlineData(t *testing.T) {
 }
 
 func TestFetchUSDTMarginExchangeLimits(t *testing.T) {
-	resp, err := b.FetchUSDTMarginExchangeLimits(context.Background())
+	t.Parallel()
+	resp, err := e.FetchUSDTMarginExchangeLimits(t.Context())
 	require.NoError(t, err)
 	t.Log(resp)
 }

@@ -453,6 +453,7 @@ func (m *Manager) Connect(ctx context.Context) error {
 	return m.connect(ctx)
 }
 
+// EnableAndConnect enables the websocket and establishes its subscriptions.
 func (m *Manager) EnableAndConnect(ctx context.Context) error {
 	if !m.IsEnabled() {
 		_ = m.Enable(ctx)
@@ -462,6 +463,7 @@ func (m *Manager) EnableAndConnect(ctx context.Context) error {
 	return m.connect(ctx)
 }
 
+// EnableAndConnectNoSubs enables and connects the websocket without subscribing.
 func (m *Manager) EnableAndConnectNoSubs(ctx context.Context) error {
 	if !m.IsEnabled() {
 		_ = m.EnableAndConnect(ctx)

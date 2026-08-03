@@ -141,14 +141,15 @@ func (r *Request) GetRanges(limit uint64) (*IntervalRangeHolder, error) {
 	return CalculateCandleDateRanges(r.Start, r.End, r.ExchangeInterval, limit)
 }
 
-func (i *Item) ClearEmpty() {
-	 newCandles := make([]Candle, 0, len(i.Candles))
-	for j := range i.Candles {
-		if i.Candles[j].Close != 0 {
-			newCandles = append(newCandles, i.Candles[j])
+// ClearEmpty removes candles that do not contain usable market data.
+func (k *Item) ClearEmpty() {
+	newCandles := make([]Candle, 0, len(k.Candles))
+	for j := range k.Candles {
+		if k.Candles[j].Close != 0 {
+			newCandles = append(newCandles, k.Candles[j])
 		}
 	}
-	i.Candles = newCandles
+	k.Candles = newCandles
 }
 
 // ProcessResponse converts time series candles into a kline.Item type. This
@@ -249,6 +250,7 @@ func (r *ExtendedRequest) ProcessResponse(timeSeries []Candle) (*Item, error) {
 	return holder, nil
 }
 
+// ClearEmpty removes empty candles from each response range.
 func (r *ExtendedRequest) ClearEmpty() {
 	if r == nil || r.RangeHolder == nil {
 		return

@@ -274,11 +274,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			tSide, err := order.StringToOrderSide(result.Side)
-			if err != nil {
-				return err
-			}
-
 			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
@@ -308,7 +303,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return nil
 			}
 
-			tSide, err = order.StringToOrderSide(result.Side)
+			tSide, err := order.StringToOrderSide(result.Side)
 			if err != nil {
 				return err
 			}

@@ -258,8 +258,8 @@ type Ticker struct {
 
 // MarketMarketIOC is a sub-struct used in the type OrderConfiguration
 type MarketMarketIOC struct {
-	QuoteSize   types.Number `json:"quote_size,omitempty"`
-	BaseSize    types.Number `json:"base_size,omitempty"`
+	QuoteSize   types.Number `json:"quote_size,omitzero"`
+	BaseSize    types.Number `json:"base_size,omitzero"`
 	RFQDisabled bool         `json:"rfq_disabled"`
 	RFQEnabled  *bool        `json:"rfq_enabled,omitempty"`
 	ReduceOnly  *bool        `json:"reduce_only,omitempty"`
@@ -267,16 +267,16 @@ type MarketMarketIOC struct {
 
 // QuoteBaseLimit is a sub-struct used in the type OrderConfiguration
 type QuoteBaseLimit struct {
-	QuoteSize   types.Number `json:"quote_size,omitempty"`
-	BaseSize    types.Number `json:"base_size,omitempty"`
+	QuoteSize   types.Number `json:"quote_size,omitzero"`
+	BaseSize    types.Number `json:"base_size,omitzero"`
 	LimitPrice  types.Number `json:"limit_price"`
 	RFQDisabled bool         `json:"rfq_disabled"`
 }
 
 // LimitLimitGTC is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTC struct {
-	BaseSize    types.Number `json:"base_size,omitempty"`
-	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	BaseSize    types.Number `json:"base_size,omitzero"`
+	QuoteSize   types.Number `json:"quote_size,omitzero"`
 	LimitPrice  types.Number `json:"limit_price"`
 	PostOnly    bool         `json:"post_only"`
 	RFQDisabled bool         `json:"rfq_disabled"`
@@ -285,8 +285,8 @@ type LimitLimitGTC struct {
 
 // LimitLimitGTD is a sub-struct used in the type OrderConfiguration
 type LimitLimitGTD struct {
-	BaseSize    types.Number `json:"base_size,omitempty"`
-	QuoteSize   types.Number `json:"quote_size,omitempty"`
+	BaseSize    types.Number `json:"base_size,omitzero"`
+	QuoteSize   types.Number `json:"quote_size,omitzero"`
 	LimitPrice  types.Number `json:"limit_price"`
 	EndTime     time.Time    `json:"end_time"`
 	PostOnly    bool         `json:"post_only"`
@@ -296,8 +296,8 @@ type LimitLimitGTD struct {
 
 // TWAPLimitGTD is a sub-struct used in the type OrderConfiguration
 type TWAPLimitGTD struct {
-	QuoteSize      types.Number `json:"quote_size,omitempty"`
-	BaseSize       types.Number `json:"base_size,omitempty"`
+	QuoteSize      types.Number `json:"quote_size,omitzero"`
+	BaseSize       types.Number `json:"base_size,omitzero"`
 	StartTime      time.Time    `json:"start_time"`
 	EndTime        time.Time    `json:"end_time"`
 	LimitPrice     types.Number `json:"limit_price"`
@@ -308,8 +308,8 @@ type TWAPLimitGTD struct {
 
 // StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTC struct {
-	BaseSize      types.Number `json:"base_size,omitempty"`
-	QuoteSize     types.Number `json:"quote_size,omitempty"`
+	BaseSize      types.Number `json:"base_size,omitzero"`
+	QuoteSize     types.Number `json:"quote_size,omitzero"`
 	LimitPrice    types.Number `json:"limit_price"`
 	StopPrice     types.Number `json:"stop_price"`
 	StopDirection string       `json:"stop_direction"`
@@ -317,8 +317,8 @@ type StopLimitStopLimitGTC struct {
 
 // StopLimitStopLimitGTD is a sub-struct used in the type OrderConfiguration
 type StopLimitStopLimitGTD struct {
-	BaseSize      types.Number `json:"base_size,omitempty"`
-	QuoteSize     types.Number `json:"quote_size,omitempty"`
+	BaseSize      types.Number `json:"base_size,omitzero"`
+	QuoteSize     types.Number `json:"quote_size,omitzero"`
 	LimitPrice    types.Number `json:"limit_price"`
 	StopPrice     types.Number `json:"stop_price"`
 	EndTime       time.Time    `json:"end_time"`
@@ -327,14 +327,14 @@ type StopLimitStopLimitGTD struct {
 
 // TriggerBracketGTC is a sub-struct used in the type OrderConfiguration
 type TriggerBracketGTC struct {
-	BaseSize         types.Number `json:"base_size,omitempty"`
+	BaseSize         types.Number `json:"base_size,omitzero"`
 	LimitPrice       types.Number `json:"limit_price"`
 	StopTriggerPrice types.Number `json:"stop_trigger_price"`
 }
 
 // TriggerBracketGTD is a sub-struct used in the type OrderConfiguration
 type TriggerBracketGTD struct {
-	BaseSize         types.Number `json:"base_size,omitempty"`
+	BaseSize         types.Number `json:"base_size,omitzero"`
 	LimitPrice       types.Number `json:"limit_price"`
 	StopTriggerPrice types.Number `json:"stop_trigger_price"`
 	EndTime          time.Time    `json:"end_time"`

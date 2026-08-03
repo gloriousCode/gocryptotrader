@@ -4998,22 +4998,23 @@ func (e *Exchange) GetSingleFundingRate(ctx context.Context, instrumentID string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
+// FundingRateData contains an arbitrage opportunity and its funding-rate metadata.
 type FundingRateData struct {
 	Acc3DFundingRate types.Number `json:"acc3dFundingRate"`
 	Apy              types.Number `json:"apy"`
-	ArbitrageId      string       `json:"arbitrageId"`
-	BuyInstId        string       `json:"buyInstId"`
+	ArbitrageID      string       `json:"arbitrageId"`
+	BuyInstID        string       `json:"buyInstId"`
 	BuyInstType      string       `json:"buyInstType"`
 	Ccy              string       `json:"ccy"`
 	FundingRate      types.Number `json:"fundingRate"`
 	FundingTime      types.Time   `json:"fundingTime"`
 	NextFundingRate  types.Number `json:"nextFundingRate"`
 	NotionalUsd      types.Number `json:"notionalUsd"`
-	SellInstId       string       `json:"sellInstId"`
+	SellInstID       string       `json:"sellInstId"`
 	SellInstType     string       `json:"sellInstType"`
 	Spread           string       `json:"spread"`
 	State            string       `json:"state"`
-	Ts               types.Time   `json:"ts"`
+	TS               types.Time   `json:"ts"`
 	Yield3DPer10K    types.Number `json:"yield3dPer10K"`
 }
 
@@ -5034,7 +5035,7 @@ func (e *Exchange) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, 
 		arbitrageType = "futures_spot"
 	}
 	params.Set("arbitrageType", arbitrageType)
-	params.Set("t", fmt.Sprint(snapshotTime.UnixMilli()))
+	params.Set("t", strconv.FormatInt(snapshotTime.UnixMilli(), 10))
 
 	var resp []FundingRateData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, request.UnauthenticatedRequest)
@@ -5931,7 +5932,8 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		Code types.Number    `json:"code"`
 		Msg  string          `json:"msg"`
 		Data json.RawMessage `json:"data"`
-	}) (*request.Item, error) {
+	},
+	) (*request.Item, error) {
 		var payload []byte
 		if data != nil {
 			payload, err = json.Marshal(data)

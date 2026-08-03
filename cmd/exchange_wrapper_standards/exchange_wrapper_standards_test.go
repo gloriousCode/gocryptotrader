@@ -539,11 +539,6 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Asset: argGenerator.AssetParams.Asset,
 			Pair:  argGenerator.AssetParams.Pair,
 		})
-	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
-		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
-			Asset: argGenerator.AssetParams.Asset,
-			Pair:  argGenerator.AssetParams.Pair,
-		})
 	default:
 		input = reflect.Zero(argGenerator.MethodInputType)
 	}

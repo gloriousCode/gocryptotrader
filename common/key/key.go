@@ -75,6 +75,7 @@ type SubAccountAsset struct {
 	Asset      asset.Item
 }
 
+// ExchangePairAssetUnderlyingContractExpiry identifies a dated contract and its underlying market.
 type ExchangePairAssetUnderlyingContractExpiry struct {
 	Exchange         string
 	Base             *currency.Item
@@ -82,11 +83,12 @@ type ExchangePairAssetUnderlyingContractExpiry struct {
 	Asset            asset.Item
 	Contract         string
 	ContractDecimals float64
-	Expiry           time.Time `json:"Expiry,omitempty"`
+	Expiry           time.Time `json:"Expiry,omitzero"`
 	UnderlyingBase   *currency.Item
 	UnderlyingQuote  *currency.Item
 }
 
+// OrderKey identifies an order independently of its mutable state.
 type OrderKey struct {
 	Exchange  string
 	Base      *currency.Item
@@ -98,6 +100,7 @@ type OrderKey struct {
 	OrderSize float64
 }
 
+// ToEPA returns the exchange, pair and asset portion of the contract key.
 func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangeAssetPair {
 	return ExchangeAssetPair{
 		Exchange: k.Exchange,

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -31,9 +32,11 @@ func (b benchSyncer) PrintTickerSummary(_ *ticker.Price, _ string, _ error) {}
 
 func (b benchSyncer) PrintOrderbookSummary(_ *orderbook.Book, _ string, _ error) {}
 
-func (b benchSyncer) WebsocketUpdate(_ string, _ currency.Pair, _ asset.Item, _ syncItemType, _ error) error {
+func (b benchSyncer) WebsocketUpdate(_ string, _ currency.Pair, _ asset.Item, _ SyncItemType, _ error) error {
 	return nil
 }
+
+func (b benchSyncer) WebsocketUpdateTicker(_ *ticker.Price) error { return nil }
 
 type benchOrderManager struct {
 	running bool
@@ -47,7 +50,7 @@ func (b benchOrderManager) Add(_ *order.Detail) error { return nil }
 
 func (b benchOrderManager) Cancel(_ context.Context, _ *order.Cancel) error { return nil }
 
-func (b benchOrderManager) GetByExchangeAndID(_ string, _ string) (*order.Detail, error) {
+func (b benchOrderManager) GetByExchangeAndID(_, _ string) (*order.Detail, error) {
 	return &order.Detail{}, nil
 }
 
@@ -68,7 +71,7 @@ func newBenchHandlerManager(syncerRunning, orderRunning bool) *WebsocketRoutineM
 }
 
 func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
-	pair := currency.NewPair(currency.BTC, currency.USD)
+	pair := currency.NewBTCUSD()
 	now := time.Unix(0, 0)
 	baseTicker := &ticker.Price{
 		ExchangeName: "bench",
@@ -93,12 +96,11 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		Period:       8,
 		Side:         order.Buy,
 	}
-	baseKline := websocket.KlineData{
-		Timestamp: now,
-		Pair:      pair,
-		AssetType: asset.Spot,
-		Exchange:  "bench",
-		Interval:  "1m",
+	baseKline := kline.Item{
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Exchange: "bench",
+		Interval: kline.OneMin,
 	}
 	baseAccount := accounts.Change{AssetType: asset.Spot}
 	baseTrade := trade.Data{
@@ -127,7 +129,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		{name: "err_use_pointer_order", data: order.Detail{Exchange: "bench"}},
 		{name: "err_use_pointer_orderbook", data: orderbook.Depth{}},
 		{name: "kline_data", data: baseKline},
-		{name: "kline_slice", data: []websocket.KlineData{baseKline}},
+		{name: "kline_slice", data: []kline.Item{baseKline}},
 		{name: "orderbook_ptr", data: baseDepth, syncerRunning: true},
 		{name: "order_detail_ptr", data: baseOrder, orderRunning: true},
 		{name: "order_detail_slice", data: []order.Detail{*baseOrder}, orderRunning: true},
@@ -145,7 +147,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 			m := newBenchHandlerManager(benchCase.syncerRunning, benchCase.orderRunning)
 			b.ReportAllocs()
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				if err := m.websocketDataHandler("bench", benchCase.data); err != nil {
 					atomic.AddUint64(&benchErrSink, 1)
 				}

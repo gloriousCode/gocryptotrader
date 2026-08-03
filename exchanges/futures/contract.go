@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// Butts pairs premium and underlying candles for the same timestamp.
 type Butts struct {
 	PremiumCandle kline.Candle
 	BaseCandle    kline.Candle
@@ -19,9 +20,10 @@ var (
 	ErrContractNotSupported          = errors.New("unsupported contract")
 )
 
-// ContractSettlementType holds the various style of contracts offered by futures exchanges
+// Butteroo indexes paired premium and underlying candles by timestamp.
 type Butteroo map[time.Time]*Butts
 
+// Analyse derives contango and price-difference analytics from aligned candle data.
 func (c *HistoricalContractKline) Analyse() {
 	if len(c.Data) == 0 {
 		return
@@ -141,6 +143,7 @@ func StringToContractSettlementType(cstype string) (ContractSettlementType, erro
 	}
 }
 
+// IsLongDated reports whether the contract type has a fixed expiry.
 func (c ContractType) IsLongDated() bool {
 	return c == LongDated ||
 		c == Quarterly ||
@@ -190,10 +193,11 @@ func (c ContractType) String() string {
 	case Unknown:
 		return "unknown"
 	default:
-		return "unset/undefined contract type"
+		return "unset"
 	}
 }
 
+// Duration returns the nominal duration represented by the contract type.
 func (c ContractType) Duration() time.Duration {
 	switch c {
 	case Daily:

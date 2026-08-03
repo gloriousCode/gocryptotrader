@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
 )
@@ -1290,7 +1292,7 @@ func TestGetOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1345,7 +1347,7 @@ func TestGetOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	b.API.AuthenticatedSupport = true
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{
@@ -1385,7 +1387,7 @@ func TestGetOrder(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	assert.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
@@ -1805,7 +1807,7 @@ func TestGetManagedOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -2079,7 +2081,7 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 
 	s := RPCServer{Engine: &Engine{
 		ExchangeManager:      em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
+		currencyStateManager: getDummyStateManager(em),
 	}}
 
 	_, err = s.CurrencyStateTradingPair(t.Context(),
@@ -2089,6 +2091,12 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 			Asset:    "spot",
 		})
 	require.NoError(t, err)
+}
+
+func getDummyStateManager(em *ExchangeManager) *CurrencyStateManager {
+	csm := &CurrencyStateManager{iExchangeManager: em}
+	csm.started.Store(true)
+	return csm
 }
 
 func TestGetFuturesPositionsOrders(t *testing.T) {
@@ -2134,15 +2142,12 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2207,10 +2212,8 @@ func TestGetCollateral(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2275,6 +2278,45 @@ func TestShutdown(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestShutdownConcurrentRequestsDoNotBlock(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{
+		Settings: Settings{CoreSettings: CoreSettings{
+			EnableGRPCShutdown: true,
+		}},
+		GRPCShutdownSignal: make(chan struct{}, 1),
+	}}
+
+	const callers = 2
+	errCh := make(chan error, callers)
+	var wg sync.WaitGroup
+	wg.Add(callers)
+	for range callers {
+		go func() {
+			defer wg.Done()
+			_, err := s.Shutdown(t.Context(), &gctrpc.ShutdownRequest{})
+			errCh <- err
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent Shutdown calls blocked")
+	}
+
+	for range callers {
+		require.NoError(t, <-errCh)
+	}
+	assert.LessOrEqual(t, len(s.Engine.GRPCShutdownSignal), 1)
+}
+
 func TestGetTechnicalAnalysis(t *testing.T) {
 	t.Parallel()
 
@@ -2310,11 +2352,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2544,10 +2583,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 	_, err = s.GetMarginRatesHistory(t.Context(), nil)
@@ -2682,15 +2719,12 @@ func TestGetFundingRates(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2778,15 +2812,12 @@ func TestGetLatestFundingRate(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2868,15 +2899,12 @@ func TestGetManagedPosition(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetManagedPosition(t.Context(), nil)
@@ -2906,7 +2934,7 @@ func TestGetManagedPosition(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(true)
 	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrPositionNotFound)
@@ -2992,15 +3020,12 @@ func TestGetAllManagedPositions(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(true)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetAllManagedPositions(t.Context(), nil)
@@ -3010,7 +3035,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour, ActivelyTrackFuturesPositions: true})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(true)
 	_, err = s.GetAllManagedPositions(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrNoPositionsFound)
 
@@ -3715,7 +3740,9 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	fakeTime := time.Now().Add(-time.Hour)
 	e.uptime = fakeTime
 
-	StartRPCServer(e)
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	StartRPCServer(rpcCtx, e)
 
 	// Give the proxy time to start
 	time.Sleep(time.Millisecond * 500)
@@ -3815,6 +3842,47 @@ func TestRPCProxyAuthClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+	tempDirTLS := utils.GetTLSDir(tempDir)
+	require.NoError(t, os.MkdirAll(tempDirTLS, os.ModePerm), "MkdirAll must not error")
+	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
+
+	listenConfig := net.ListenConfig{}
+	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Listen must not error")
+	listenAddress := portListener.Addr().String()
+	require.NoError(t, portListener.Close(), "Close must not error")
+
+	e := &Engine{
+		Config: &config.Config{RemoteControl: config.RemoteControlConfig{
+			GRPC: config.GRPCConfig{
+				Enabled:       true,
+				ListenAddress: listenAddress,
+			},
+		}},
+		Settings: Settings{DataDir: tempDir},
+	}
+
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	StartRPCServer(rpcCtx, e)
+
+	canDial := func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
+		if dialErr != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}
+
+	assert.Eventually(t, canDial, 5*time.Second, 100*time.Millisecond, "gRPC listener should accept TCP connections after startup")
+	cancel()
+	assert.Eventually(t, func() bool { return !canDial() }, 5*time.Second, 100*time.Millisecond, "gRPC listener should close after context cancellation")
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

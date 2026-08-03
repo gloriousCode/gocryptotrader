@@ -104,9 +104,7 @@ func dialWithLocalAddress(ctx context.Context, network, address string, ip net.I
 }
 
 // interfaceIPsFromAddrs selects the first usable IPv4 and global IPv6 addresses.
-func interfaceIPsFromAddrs(addrs []net.Addr) (net.IP, net.IP) {
-	var ipv4 net.IP
-	var ipv6 net.IP
+func interfaceIPsFromAddrs(addrs []net.Addr) (ipv4, ipv6 net.IP) {
 	for i := range addrs {
 		ip := parseInterfaceAddressIP(addrs[i])
 		if ip == nil || ip.IsLoopback() {

@@ -145,20 +145,17 @@ func (e *Exchange) WsConnect() error {
 				e.Name,
 				err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		e.Websocket.Wg.Add(1)
-		go e.wsReadData(ctx, e.Websocket.AuthConn)
-		err = e.WsSendAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			e.Websocket.Wg.Add(1)
+			go e.wsReadData(ctx, e.Websocket.AuthConn)
+			err = e.WsSendAuth(ctx)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%v - authentication failed: %v", e.Name, err)
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
 		}
 	}
 
-	e.Websocket.Wg.Add(1)
 	return e.ConfigureWS(ctx)
 }
 
@@ -434,15 +431,15 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if err := e.Websocket.DataHandler.Send(ctx, fundingInfo); err != nil {
 						return err
 					}
-					if strings.HasPrefix(fundingInfo.Symbol, "f") {
-						ccy := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
+					if after, ok0 := strings.CutPrefix(fundingInfo.Symbol, "f"); ok0 {
+						ccy := currency.NewCode(after)
 						currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
 						predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
-						return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, margin.Rate{
+						return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
 							Time:       time.Now().UTC(),
 							HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
 							YearlyRate: currentYearly,
-						}, margin.Rate{
+						}, &margin.Rate{
 							Time:       time.Now().UTC(),
 							HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
 							YearlyRate: predictedYearly,
@@ -486,14 +483,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				if err := e.Websocket.DataHandler.Send(ctx, wsFundingTrade); err != nil {
 					return err
 				}
-				if strings.HasPrefix(wsFundingTrade.Symbol, "f") {
-					ccy := currency.NewCode(strings.TrimPrefix(wsFundingTrade.Symbol, "f"))
+				if after, ok0 := strings.CutPrefix(wsFundingTrade.Symbol, "f"); ok0 {
+					ccy := currency.NewCode(after)
 					yearlyRate := decimal.NewFromFloat(wsFundingTrade.Rate)
-					return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, margin.Rate{
+					return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
 						Time:       wsFundingTrade.MTSCreated,
 						HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
 						YearlyRate: yearlyRate,
-					}, margin.Rate{})
+					}, &margin.Rate{})
 				}
 				return nil
 			}
@@ -506,10 +503,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset.Item, c currency.Code, current, predicted margin.Rate) error {
+func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset.Item, c currency.Code, current, predicted *margin.Rate) error {
 	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return nil
+		return err
 	}
 	timeChecked := time.Now().UTC()
 	resp := make([]margin.CurrentRateResponse, 0, len(pairs))
@@ -521,8 +518,8 @@ func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset
 			Exchange:      e.Name,
 			Asset:         a,
 			Pair:          pairs[i],
-			CurrentRate:   current,
-			PredictedRate: predicted,
+			CurrentRate:   *current,
+			PredictedRate: *predicted,
 			TimeChecked:   timeChecked,
 		})
 	}
@@ -868,7 +865,22 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		ExchangeName: e.Name,
 	}
 
-	if len(tickerData) == 10 {
+	switch len(tickerData) {
+	case 11, 17:
+		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
+		// timestamp. The docs note this field may be null.
+		if last := tickerData[len(tickerData)-1]; last != nil {
+			firstTradeTimestamp, firstTradeTimestampOK := last.(float64)
+			if !firstTradeTimestampOK {
+				return errTickerInvalidFirstTradeTime
+			}
+			t.LastUpdated = time.UnixMilli(int64(firstTradeTimestamp))
+		}
+		tickerData = tickerData[:len(tickerData)-1]
+	}
+
+	switch len(tickerData) {
+	case 10:
 		if t.Bid, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker bid")
 		}
@@ -887,7 +899,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Low, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker low")
 		}
-	} else {
+	case 16:
 		if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker flash return rate")
 		}
@@ -922,8 +934,10 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker low")
 		}
 		if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-			return errors.New("unable to type assert ticker flash return rate")
+			return errors.New("unable to type assert ticker flash return rate amount")
 		}
+	default:
+		return fmt.Errorf("%w for websocket ticker payload: %v", errTickerInvalidFieldCount, tickerData)
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }

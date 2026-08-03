@@ -1621,7 +1621,7 @@ func isInstFamilyChannel(s *subscription.Subscription) bool {
 	return (s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel) || channelName(s) == channelOptSummary
 }
 
-func isUlyChannel(s *subscription.Subscription) bool {
+func isUlyChannel(_ *subscription.Subscription) bool {
 	return false
 }
 

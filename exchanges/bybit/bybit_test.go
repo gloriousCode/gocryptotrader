@@ -45,12 +45,15 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e *Exchange
@@ -108,15 +111,15 @@ func TestGetKlines(t *testing.T) {
 
 				switch tc.category {
 				case cSpot:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(29393.99), High: types.NumberFromFloat64(29399.76), Low: types.NumberFromFloat64(29393.98), Close: types.NumberFromFloat64(29399.76), TradeVolume: types.NumberFromFloat64(1.168988), Turnover: types.NumberFromFloat64(34363.5346739)}, r[0])
 				case cLinear:
 					if tc.pair == usdtMarginedTradablePair {
-						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
+						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.0003), High: types.NumberFromFloat64(0.0003), Low: types.NumberFromFloat64(0.0002995), Close: types.NumberFromFloat64(0.0003), TradeVolume: types.NumberFromFloat64(55102100), Turnover: types.NumberFromFloat64(16506.2427)}, r[0])
 						return
 					}
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(239.7), High: types.NumberFromFloat64(239.7), Low: types.NumberFromFloat64(239.7), Close: types.NumberFromFloat64(239.7)}, r[0])
 				case cInverse:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.2908), High: types.NumberFromFloat64(0.2912), Low: types.NumberFromFloat64(0.2908), Close: types.NumberFromFloat64(0.2912), TradeVolume: types.NumberFromFloat64(5131), Turnover: types.NumberFromFloat64(17626.40000346)}, r[0])
 				}
 			} else {
 				assert.NotEmpty(t, r)
@@ -1784,8 +1787,8 @@ func TestSetMMP(t *testing.T) {
 		BaseCoin:           "ETH",
 		TimeWindowMS:       5000,
 		FrozenPeriod:       100000,
-		TradeQuantityLimit: 50,
-		DeltaLimit:         20,
+		TradeQuantityLimit: types.NumberFromFloat64(50),
+		DeltaLimit:         types.NumberFromFloat64(20),
 	})
 	if err != nil {
 		t.Error(err)
@@ -1936,25 +1939,25 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2039,25 +2042,25 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2069,7 +2072,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 		FromMemberID:    123,
@@ -2542,12 +2545,12 @@ func TestGetMarginCoinInfo(t *testing.T) {
 	if mockTests {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
-		assert.Equal(t, types.Number(0.95), resp[0].ConversionRate)
+		assert.Equal(t, types.NumberFromFloat64(0.95), resp[0].ConversionRate)
 		require.Len(t, resp[0].CollateralRatioList, 2)
-		assert.Equal(t, types.Number(0), resp[0].CollateralRatioList[0].MinQuantity)
-		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[0].MaxQuantity)
-		assert.Equal(t, types.Number(0.95), resp[0].CollateralRatioList[0].CollateralRatio)
-		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[1].MinQuantity)
+		assert.Equal(t, types.NumberFromFloat64(0), resp[0].CollateralRatioList[0].MinQuantity)
+		assert.Equal(t, types.NumberFromFloat64(1000000), resp[0].CollateralRatioList[0].MaxQuantity)
+		assert.Equal(t, types.NumberFromFloat64(0.95), resp[0].CollateralRatioList[0].CollateralRatio)
+		assert.Equal(t, types.NumberFromFloat64(1000000), resp[0].CollateralRatioList[1].MinQuantity)
 		assert.Zero(t, resp[0].CollateralRatioList[1].MaxQuantity)
 		assert.Zero(t, resp[0].CollateralRatioList[1].CollateralRatio)
 		assert.Zero(t, resp[0].LiquidationOrder)
@@ -2563,7 +2566,7 @@ func TestGetVIPMarginData(t *testing.T) {
 		require.NotEmpty(t, resp.VipCoinList[0].List)
 		assert.Equal(t, "No VIP", resp.VipCoinList[0].VipLevel)
 		assert.Equal(t, "USDT", resp.VipCoinList[0].List[0].Currency)
-		assert.Equal(t, types.Number(1), resp.VipCoinList[0].List[0].CollateralRatio)
+		assert.Equal(t, types.NumberFromFloat64(1), resp.VipCoinList[0].List[0].CollateralRatio)
 	}
 }
 
@@ -2580,7 +2583,7 @@ func TestGetMaxBorrowableAmount(t *testing.T) {
 	if mockTests {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
-		assert.Equal(t, types.Number(5), resp[0].MaxLoan)
+		assert.Equal(t, types.NumberFromFloat64(5), resp[0].MaxLoan)
 	}
 }
 
@@ -3065,7 +3068,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("test", "test", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {

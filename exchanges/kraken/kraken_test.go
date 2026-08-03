@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -21,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -45,20 +45,21 @@ var (
 )
 
 // Please add your own APIkeys to do correct due diligence testing.
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Kraken Setup error: %s", err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	os.Exit(m.Run())
 }
@@ -124,26 +125,26 @@ func TestUpdateTicker(t *testing.T) {
 func TestNewPairFromSymbol(t *testing.T) {
 	t.Parallel()
 	symbol := "XXBTZUSD"
-	cp, err := k.newPairFromSymbol(symbol, asset.Spot)
+	cp, err := e.newPairFromSymbol(symbol, asset.Spot)
 	assert.NoError(t, err)
 	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
 
 	symbol = "XBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Spot)
+	cp, err = e.newPairFromSymbol(symbol, asset.Spot)
 	assert.NoError(t, err)
 	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
 
 	symbol = "WIFBONK"
-	_, err = k.newPairFromSymbol(symbol, asset.Spot)
+	_, err = e.newPairFromSymbol(symbol, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	symbol = "PF_XBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
+	cp, err = e.newPairFromSymbol(symbol, asset.Futures)
 	assert.NoError(t, err)
 	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
 
 	symbol = "PFXBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
+	cp, err = e.newPairFromSymbol(symbol, asset.Futures)
 	assert.NoError(t, err)
 	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
 }
@@ -337,8 +338,8 @@ func TestGetFuturesMarkets(t *testing.T) {
 
 func TestGetInstrumentStatus(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
-	_, err := k.GetInstrumentStatus(context.Background(), "FI_ETHUSD_220930")
+	e.Verbose = true
+	_, err := e.GetInstrumentStatus(t.Context(), "FI_ETHUSD_220930")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1522,7 +1523,6 @@ func TestGetTheDataRanges(t *testing.T) {
 		start, end time.Time
 	}
 	symbols := []hello{
-
 		{
 			cp:    currency.NewPairWithDelimiter("FI", "XBTUSD_220128", "_"),
 			start: time.Time{},
@@ -1588,17 +1588,17 @@ func TestGetTheDataRanges(t *testing.T) {
 	var helloClose []float64
 	for x := range symbols {
 		tt := x
-		resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", symbols[tt].cp, symbols[tt].start, symbols[tt].end)
+		resp, err := e.GetFuturesCharts(t.Context(), "1d", "spot", symbols[tt].cp, symbols[tt].start, symbols[tt].end)
 		if err != nil {
 			t.Error(err)
 		}
 		if len(resp.Candles) > 0 {
-			t.Log(symbols[tt].cp.String(), resp.Candles[len(resp.Candles)-1].Close, time.UnixMilli(resp.Candles[len(resp.Candles)-1].Time))
-			helloDates = append(helloDates, time.UnixMilli(resp.Candles[len(resp.Candles)-1].Time))
+			t.Log(symbols[tt].cp.String(), resp.Candles[len(resp.Candles)-1].Close, resp.Candles[len(resp.Candles)-1].Time.Time())
+			helloDates = append(helloDates, resp.Candles[len(resp.Candles)-1].Time.Time())
 			helloClose = append(helloClose, resp.Candles[len(resp.Candles)-1].Close)
 		}
 	}
-	yo, err := k.GetOHLC(context.Background(), currency.NewPair(currency.XBT, currency.USDT), "1440", time.Date(2021, 12, 30, 0, 0, 0, 0, time.UTC).Unix())
+	yo, err := e.GetOHLC(t.Context(), currency.NewPair(currency.XBT, currency.USDT), "1440")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1608,7 +1608,7 @@ func TestGetTheDataRanges(t *testing.T) {
 	for i := range yo {
 		for j := range helloDates {
 			if yo[i].Time.Equal(helloDates[j]) {
-				t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v", yo[i].Time, yo[i].Close, helloClose[j], math.CalculatePercentageGainOrLoss(helloClose[j], yo[i].Close))
+				t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v", yo[i].Time, yo[i].Close, helloClose[j], math.PercentageDifference(helloClose[j], yo[i].Close))
 			}
 		}
 	}
@@ -1633,7 +1633,7 @@ func TestKrakenKontractKollector(t *testing.T) {
 		t.Log(iter.Format(df))
 		ec := fmt.Sprintf("XBTUSD_%v", iter.Format(df))
 		cp := currency.NewPairWithDelimiter("FI", ec, "_")
-		resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", cp, time.Time{}, iter)
+		resp, err := e.GetFuturesCharts(t.Context(), "1d", "spot", cp, time.Time{}, iter)
 		if err != nil {
 			t.Error(err)
 		}
@@ -1649,7 +1649,7 @@ func TestKrakenKontractKollector(t *testing.T) {
 		iter = iter.Add(time.Hour * 24)
 	}
 	for i := range foundContracts {
-		spotCandles, err := k.GetOHLC(context.Background(), foundContracts[i].SpotPair, "1440", foundContracts[i].EndDate.Unix())
+		spotCandles, err := e.GetOHLC(t.Context(), foundContracts[i].SpotPair, "1440")
 		if err != nil {
 			t.Error(err)
 			continue
@@ -1659,7 +1659,7 @@ func TestKrakenKontractKollector(t *testing.T) {
 
 	for i := range foundContracts {
 		t.Logf("Time: %v SPOT close: %v FUTURES close: %v DIFF: %v",
-			foundContracts[i].EndDate, foundContracts[i].SpotClose, foundContracts[i].FuturesClose, math.CalculatePercentageGainOrLoss(foundContracts[i].FuturesClose, foundContracts[i].SpotClose))
+			foundContracts[i].EndDate, foundContracts[i].SpotClose, foundContracts[i].FuturesClose, math.PercentageDifference(foundContracts[i].FuturesClose, foundContracts[i].SpotClose))
 	}
 }
 
@@ -1849,18 +1849,17 @@ func TestGetTheSymbols(t *testing.T) {
 
 		*/
 	}
-	for x := range symbols {
-		tt := x
-		t.Run(symbols[tt].cp.String(), func(t *testing.T) {
-			resp, err := k.GetFuturesCharts(context.Background(), "1d", "spot", symbols[tt].cp, symbols[tt].start, symbols[tt].end)
+	for _, symbol := range symbols {
+		t.Run(symbol.cp.String(), func(t *testing.T) {
+			t.Parallel()
+			resp, err := e.GetFuturesCharts(t.Context(), "1d", "spot", symbol.cp, symbol.start, symbol.end)
 			if err != nil {
 				t.Error(err)
 			}
 			if resp.MoreCandles {
-				t.Log(symbols[tt].cp.String(), resp)
+				t.Log(symbol.cp.String(), resp)
 			}
 		})
-
 	}
 }
 
@@ -2050,7 +2049,7 @@ func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 
 func TestCalculateContractDates(t *testing.T) {
 	t.Parallel()
-	dates, err := k.CalculateContractDates(time.Date(2021, 1, 22, 8, 0, 0, 0, time.UTC), time.Date(2021, 12, 31, 0, 0, 0, 0, time.UTC))
+	dates, err := e.CalculateContractDates(time.Date(2021, 1, 22, 8, 0, 0, 0, time.UTC), time.Date(2021, 12, 31, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2075,19 +2074,19 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
 func TestGetHistoricalContractKlineData(t *testing.T) {
 	t.Parallel()
-	k.Verbose = true
-	resp, err := k.GetHistoricalContractKlineData(
-		context.Background(),
+	e.Verbose = true
+	resp, err := e.GetHistoricalContractKlineData(
+		t.Context(),
 		&futures.GetKlineContractRequest{
-			UnderlyingPair:                 currency.NewPair(currency.SOL, currency.USD),
-			Asset:                          asset.Futures,
-			StartDate:                      time.Now().Add(-time.Hour * 24 * 200),
-			EndDate:                        time.Now(),
-			Interval:                       kline.OneDay,
-			Contract:                       futures.SemiAnnually,
-			IndividualContractDenomination: futures.QuoteContract,
+			UnderlyingPair: currency.NewPair(currency.SOL, currency.USD),
+			Asset:          asset.Futures,
+			StartDate:      time.Now().Add(-time.Hour * 24 * 200),
+			EndDate:        time.Now(),
+			Interval:       kline.OneDay,
+			Contract:       futures.SemiAnnually,
 		},
 	)
 	require.NoError(t, err)

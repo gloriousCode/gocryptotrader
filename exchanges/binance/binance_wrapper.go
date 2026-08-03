@@ -38,6 +38,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+const (
+	currentQuarterContract = "CURRENT_QUARTER"
+	nextQuarterContract    = "NEXT_QUARTER"
+)
+
 var defaultAssetPairStores = map[asset.Item]currency.PairStore{
 	asset.Spot: {
 		AssetEnabled:  true,
@@ -1771,6 +1776,7 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 	return resp
 }
 
+// GetOrderExecutionLimits returns the cached order limits for an instrument.
 func (e *Exchange) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
 	if a == asset.USDTMarginedFutures {
 		doesIt := cp.Quote.String()
@@ -2891,10 +2897,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			case "NEXT_MONTH":
 				ct = futures.BiMonthly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			case "CURRENT_QUARTER":
+			case currentQuarterContract:
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			case "NEXT_QUARTER":
+			case nextQuarterContract:
 				ct = futures.BiQuarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
@@ -2955,10 +2961,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			case "NEXT_MONTH":
 				ct = futures.BiMonthly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			case "CURRENT_QUARTER":
+			case currentQuarterContract:
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
-			case "NEXT_QUARTER":
+			case nextQuarterContract:
 				ct = futures.BiQuarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
@@ -3052,9 +3058,9 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 					continue
 				}
 				switch ei.Symbols[i].ContractType {
-				case "CURRENT_QUARTER":
+				case currentQuarterContract:
 					ct = "_QUARTER"
-				case "NEXT_QUARTER":
+				case nextQuarterContract:
 					ct = "_BI-QUARTER"
 				}
 				symbol = ei.Symbols[i].Pair
@@ -3074,9 +3080,9 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 					continue
 				}
 				switch ei.Symbols[i].ContractType {
-				case "CURRENT_QUARTER":
+				case currentQuarterContract:
 					ct = "_QUARTER"
-				case "NEXT_QUARTER":
+				case nextQuarterContract:
 					ct = "_BI-QUARTER"
 				}
 				symbol = ei.Symbols[i].Pair
@@ -3093,6 +3099,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 	}
 }
 
+// GetLongDatedContractsFromDate returns dated contracts available from the requested date.
 func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
@@ -3119,20 +3126,17 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			case "NEXT_MONTH":
 				respCt = futures.BiMonthly
 				backwardsInterval = kline.OneMonth.Duration() * 2
-			case "CURRENT_QUARTER":
+			case currentQuarterContract:
 				respCt = futures.Quarterly
 				backwardsInterval = kline.OneMonth.Duration() * 3
-			case "NEXT_QUARTER":
+			case nextQuarterContract:
 				respCt = futures.BiQuarterly
 				backwardsInterval = kline.OneMonth.Duration() * 6
 			}
 			if respCt != ct {
 				continue
 			}
-			for {
-				if t.After(time.Now()) {
-					break
-				}
+			for !t.After(time.Now()) {
 				oldContract, csd, ced, err := e.convertContractShortHandToExpiry(underlyingPair, ct, t)
 				if err != nil {
 					return nil, err
@@ -3174,20 +3178,17 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			case "NEXT_MONTH":
 				respCt = futures.BiMonthly
 				backwardsInterval = kline.OneMonth.Duration() * 2
-			case "CURRENT_QUARTER":
+			case currentQuarterContract:
 				respCt = futures.Quarterly
 				backwardsInterval = kline.OneMonth.Duration() * 3
-			case "NEXT_QUARTER":
+			case nextQuarterContract:
 				respCt = futures.BiQuarterly
 				backwardsInterval = kline.OneMonth.Duration() * 6
 			}
 			if respCt != ct {
 				continue
 			}
-			for {
-				if t.After(time.Now()) {
-					break
-				}
+			for !t.After(time.Now()) {
 				oldContract, csd, ced, err := e.convertContractShortHandToExpiry(underlyingPair, ct, t)
 				if err != nil {
 					return nil, err
@@ -3229,10 +3230,7 @@ func (e *Exchange) convertContractShortHandToExpiry(underlyingPair currency.Pair
 		if duration == 0 {
 			duration = kline.OneMonth.Duration()
 		}
-		for {
-			if tt.Weekday() == time.Friday {
-				break
-			}
+		for tt.Weekday() != time.Friday {
 			tt = tt.AddDate(0, 0, 1)
 		}
 	case futures.BiQuarterly:
@@ -3244,7 +3242,7 @@ func (e *Exchange) convertContractShortHandToExpiry(underlyingPair currency.Pair
 			duration = kline.OneMonth.Duration() * 3
 		}
 		// Find the next quarter end
-		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+		for tt.Month() != time.March && tt.Month() != time.June && tt.Month() != time.September && tt.Month() != time.December {
 			tt = tt.AddDate(0, 1, 0)
 		}
 		// Find the last day of the quarter
@@ -3263,6 +3261,7 @@ func (e *Exchange) convertContractShortHandToExpiry(underlyingPair currency.Pair
 		nil
 }
 
+// GetHistoricalContractKlineData returns aligned contract and underlying candle data.
 func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
 	if req == nil {
 		return nil, common.ErrNilPointer
@@ -3270,7 +3269,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 	if !req.Asset.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if req.EndDate.IsZero() || req.EndDate == time.Unix(0, 0) {
+	if req.EndDate.IsZero() || req.EndDate.Equal(time.Unix(0, 0)) {
 		req.EndDate = time.Now()
 	}
 	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
@@ -3317,7 +3316,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 		if err != nil {
 			return nil, err
 		}
-		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		spotCandles := make([]kline.Candle, 0, spotUnderlyingReq.Size())
 		for j := range spotUnderlyingReq.RangeHolder.Ranges {
 			candles, err := e.GetSpotKline(ctx, &KlinesRequestParams{
 				Symbol:    req.UnderlyingPair,
@@ -3348,31 +3347,6 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 			PremiumKline:    contractKlineItem,
 			BaseKline:       spotKlineItem,
 		}
-	}
-	spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, req.StartDate, req.EndDate)
-	if err != nil {
-		return nil, err
-	}
-	spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
-	for i := range spotUnderlyingReq.RangeHolder.Ranges {
-		candles, err := e.GetSpotKline(ctx, &KlinesRequestParams{
-			Symbol:    req.UnderlyingPair,
-			Interval:  e.FormatExchangeKlineInterval(req.Interval),
-			Limit:     spotUnderlyingReq.RequestLimit,
-			StartTime: spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time,
-			EndTime:   spotUnderlyingReq.RangeHolder.Ranges[i].End.Time,
-		})
-		if err != nil {
-			return nil, err
-		}
-		spotCandles = append(spotCandles, kline.Candle{
-			Time:   candles[i].OpenTime.Time(),
-			Open:   candles[i].Open.Float64(),
-			High:   candles[i].High.Float64(),
-			Low:    candles[i].Low.Float64(),
-			Close:  candles[i].Close.Float64(),
-			Volume: candles[i].Volume.Float64(),
-		})
 	}
 	return &resp, nil
 }

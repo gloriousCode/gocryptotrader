@@ -52,8 +52,8 @@ type SubLogger struct {
 	errorPrefix       string
 }
 
-// fields is used to store data in a non-global and thread-safe manner
-// so logs cannot be modified mid-log causing a data-race issue
+// fields stores per-call data while logger references configuration protected
+// by mu. Callers hold mu's read lock for the lifetime of a checked-out value.
 type fields struct {
 	info              bool
 	warn              bool
@@ -62,7 +62,7 @@ type fields struct {
 	structuredLogging bool
 	name              string
 	output            *multiWriterHolder
-	logger            Logger
+	logger            *Logger
 	botName           string
 	zapLogger         *zap.Logger
 	infoPrefix        string

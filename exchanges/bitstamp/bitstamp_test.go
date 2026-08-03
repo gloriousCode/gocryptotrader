@@ -23,12 +23,7 @@ import (
 )
 
 // Please add your private keys and customerID for better tests
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	customerID              = "" // This is the customer id you use to log in
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
 
 var (
 	e          *Exchange
@@ -194,9 +189,8 @@ func TestGetTicker(t *testing.T) {
 
 func TestAllCurrencyPairTickers(t *testing.T) {
 	t.Parallel()
-	//b.HTTPRecording = true
-	b.Verbose = true
-	_, err := b.AllCurrencyPairTickers(context.Background())
+	e.Verbose = true
+	_, err := e.AllCurrencyPairTickers(t.Context())
 	if err != nil {
 		t.Error("AllCurrencyPairTickers() error", err)
 	}
@@ -1035,7 +1029,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: wibble",
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",

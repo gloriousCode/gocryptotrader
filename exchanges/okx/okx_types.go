@@ -2871,19 +2871,19 @@ type GridAlgoOrderResponse struct {
 	// Added in Detail
 
 	EquityOfStrength    string       `json:"eq,omitempty"`
-	PerMaxProfitRate    types.Number `json:"perMaxProfitRate,omitempty"`
-	PerMinProfitRate    types.Number `json:"perMinProfitRate,omitempty"`
-	Profit              types.Number `json:"profit,omitempty"`
+	PerMaxProfitRate    types.Number `json:"perMaxProfitRate,omitzero"`
+	PerMinProfitRate    types.Number `json:"perMinProfitRate,omitzero"`
+	Profit              types.Number `json:"profit,omitzero"`
 	Runpx               string       `json:"runpx,omitempty"`
-	SingleAmt           types.Number `json:"singleAmt,omitempty"`
-	TotalAnnualizedRate types.Number `json:"totalAnnualizedRate,omitempty"`
+	SingleAmt           types.Number `json:"singleAmt,omitzero"`
+	TotalAnnualizedRate types.Number `json:"totalAnnualizedRate,omitzero"`
 	TradeNumber         string       `json:"tradeNum,omitempty"`
 
 	// Suborders Detail
 
-	AnnualizedRate types.Number `json:"annualizedRate,omitempty"`
-	CurBaseSize    types.Number `json:"curBaseSz,omitempty"`
-	CurQuoteSize   types.Number `json:"curQuoteSz,omitempty"`
+	AnnualizedRate types.Number `json:"annualizedRate,omitzero"`
+	CurBaseSize    types.Number `json:"curBaseSz,omitzero"`
+	CurQuoteSize   types.Number `json:"curQuoteSz,omitzero"`
 }
 
 // AlgoOrderPosition represents algo order position detailed data
@@ -5192,14 +5192,14 @@ type OrderPreCheckParams struct {
 // AlgoOrderInfo represents an algo order info
 type AlgoOrderInfo struct {
 	AttachAlgoClientOrderID  string       `json:"attachAlgoClOrdId,omitempty"`
-	TPTriggerPrice           types.Number `json:"tpTriggerPx,omitempty"`
-	TPOrderPrice             types.Number `json:"tpOrdPx,omitempty"`
+	TPTriggerPrice           types.Number `json:"tpTriggerPx,omitzero"`
+	TPOrderPrice             types.Number `json:"tpOrdPx,omitzero"`
 	TPOrderKind              string       `json:"tpOrdKind,omitempty"`
-	StopLossTriggerPrice     types.Number `json:"slTriggerPx,omitempty"`
-	StopLossOrderPrice       types.Number `json:"slOrdPx,omitempty"`
+	StopLossTriggerPrice     types.Number `json:"slTriggerPx,omitzero"`
+	StopLossOrderPrice       types.Number `json:"slOrdPx,omitzero"`
 	TPTriggerPriceType       string       `json:"tpTriggerPxType,omitempty"`
 	StopLossTriggerPriceType string       `json:"slTriggerPxType,omitempty"`
-	Size                     types.Number `json:"sz,omitempty"`
+	Size                     types.Number `json:"sz,omitzero"`
 }
 
 // OrderPreCheckResponse represents an order pre-checks response of account information for placing orders

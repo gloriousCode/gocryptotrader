@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -207,6 +208,15 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 	}
 }
 
+func TestSetSubsystemEnableDeniedAfterShutdownRequest(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{Config: &config.Config{}}
+	bot.RequestShutdown()
+
+	err := bot.SetSubsystem(ConnectionManagerName, true)
+	require.ErrorIs(t, err, errRuntimeShutdownRequest)
+}
+
 func TestGetExchangeOTPs(t *testing.T) {
 	t.Parallel()
 	bot := CreateTestBot(t)
@@ -288,7 +298,7 @@ func TestGetAuthAPISupportedExchanges(t *testing.T) {
 
 	b := exch.GetBase()
 	b.API.AuthenticatedWebsocketSupport = true
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	if result := e.GetAuthAPISupportedExchanges(); len(result) != 1 {
 		t.Fatal("Unexpected result", result)
 	}

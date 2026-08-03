@@ -253,6 +253,7 @@ func (s *Service) getByExchangeAsset(exch string, item asset.Item) []*Price {
 	return prices
 }
 
+// GetByExchangeAsset returns all cached tickers for an exchange and asset type.
 func GetByExchangeAsset(exch string, item asset.Item) []*Price {
 	return service.getByExchangeAsset(exch, item)
 }

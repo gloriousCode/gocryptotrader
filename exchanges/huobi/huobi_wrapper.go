@@ -547,11 +547,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		if err != nil {
-			log.Warnf(log.ExchangeSys, "can't get last trade for %s %s - err: %s", p, a, err)
-		} else {
-			lastPrice = last.Tick.Data[0].Price
-		}
+		lastPrice = last.Tick.Data[0].Price
 		err = ticker.ProcessTicker(&ticker.Price{
 			High:         marketData.Tick.High,
 			Low:          marketData.Tick.Low,
@@ -2422,11 +2418,13 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	}
 }
 
-var cannotGetExpired = errors.New("cannot get expired contracts")
-var fContractDateFormat = "060102"
-var validContractShortTypes = []string{
-	"cw", "nw", "cq", "nq",
-}
+var (
+	errCannotGetExpired     = errors.New("cannot get expired contracts")
+	fContractDateFormat     = "060102"
+	validContractShortTypes = []string{
+		"cw", "nw", "cq", "nq",
+	}
+)
 
 func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
 	loc, err := time.LoadLocation("Asia/Singapore")
@@ -2439,10 +2437,7 @@ func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.
 		tt = tt.AddDate(0, 0, 7)
 		fallthrough
 	case "CW":
-		for {
-			if tt.Weekday() == time.Friday {
-				break
-			}
+		for tt.Weekday() != time.Friday {
 			tt = tt.AddDate(0, 0, 1)
 		}
 	case "NQ":
@@ -2450,7 +2445,7 @@ func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.
 		fallthrough
 	case "CQ":
 		// Find the next quarter end
-		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+		for tt.Month() != time.March && tt.Month() != time.June && tt.Month() != time.September && tt.Month() != time.December {
 			tt = tt.AddDate(0, 1, 0)
 		}
 		// Find the last day of the quarter
@@ -2467,12 +2462,12 @@ func (e *Exchange) convertContractShortHandToExpiry(pair currency.Pair, tt time.
 }
 
 // GetExpiredContractCandles returns previous expired contracts for a given pair
-func (e *Exchange) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, interval kline.Interval) ([]currency.Pair, error) {
+func (e *Exchange) GetExpiredContractCandles(ctx context.Context, k key.PairAsset, earliestExpiry time.Time, _ kline.Interval) ([]currency.Pair, error) {
 	if k.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}
 	if common.StringSliceCompareInsensitive(validContractShortTypes, k.Quote.String()) {
-		return nil, fmt.Errorf("%w for %v, accepted quotes: %v", cannotGetExpired, k.Quote, validContractShortTypes)
+		return nil, fmt.Errorf("%w for %v, accepted quotes: %v", errCannotGetExpired, k.Quote, validContractShortTypes)
 	}
 	latestExpiry := earliestExpiry
 	var contractNames []currency.Pair

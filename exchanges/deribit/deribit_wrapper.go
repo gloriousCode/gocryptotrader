@@ -1184,11 +1184,9 @@ func appendCandles(tradingViewData *TVChartData, start time.Time) ([]kline.Candl
 	return listCandles, nil
 }
 
+// GetContractFromCurrencyAndDate derives a dated futures instrument name.
 func (e *Exchange) GetContractFromCurrencyAndDate(code currency.Code, date time.Time) (string, time.Time, error) {
-	for {
-		if date.Weekday() == time.Friday {
-			break
-		}
+	for date.Weekday() != time.Friday {
 		date = date.Add(time.Hour * 24)
 	}
 	return strings.ToUpper(code.String() + "-" + date.Format("02Jan06")), date, nil
@@ -1669,6 +1667,7 @@ func formatPairString(assetType asset.Item, pair currency.Pair) string {
 	return pair.String()
 }
 
+// GetLongDatedContractsFromDate returns dated contracts available from the requested date.
 func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
 	if item != asset.Futures {
 		return nil, futures.ErrNotFuturesAsset
@@ -1718,11 +1717,7 @@ func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset
 			contractType = futures.Perpetual
 		}
 		var contractSettlementType futures.ContractSettlementType
-		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency {
-			contractSettlementType = futures.Inverse
-
-		}
-		if marketSummary.InstrumentType == "reversed" {
+		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency || marketSummary.InstrumentType == "reversed" {
 			contractSettlementType = futures.Inverse
 		} else {
 			contractSettlementType = futures.Linear
@@ -1804,7 +1799,7 @@ func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futu
 		if req.UnderlyingPair.Quote.Equal(currency.USD) {
 			req.UnderlyingPair.Quote = currency.USDT
 		}
-		spotCandles := make([]kline.Candle, spotUnderlyingReq.Size())
+		spotCandles := make([]kline.Candle, 0, spotUnderlyingReq.Size())
 		up, err := e.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
 		if err != nil {
 			return nil, err

@@ -36,6 +36,7 @@ type Contract struct {
 	AdditionalSettlementCurrencies currency.Currencies
 }
 
+// HistoricalContractKline contains aligned contract and underlying candle history and its analytics.
 type HistoricalContractKline struct {
 	RequestKey              key.PairAsset   `json:"-"`
 	Data                    []ContractKline `json:"-"`
@@ -48,6 +49,7 @@ type HistoricalContractKline struct {
 	PositiveOutcomePercent  float64
 }
 
+// ContractKlineAnalytics summarises the relative performance of a dated contract and its underlying.
 type ContractKlineAnalytics struct {
 	PremiumCurrency           currency.Pair
 	BaseCurrency              currency.Pair
@@ -64,6 +66,7 @@ type ContractKlineAnalytics struct {
 	ContagoTimes              []ContangoTime
 }
 
+// ContangoTime records a timestamp at which the contract traded below its underlying.
 type ContangoTime struct {
 	Time         time.Time
 	Gain         float64
@@ -71,6 +74,7 @@ type ContangoTime struct {
 	PremiumPrice float64
 }
 
+// ContractKline pairs a contract's candles with the corresponding underlying candles.
 type ContractKline struct {
 	PremiumContract *Contract
 	BaseContract    *Contract
@@ -79,6 +83,7 @@ type ContractKline struct {
 	BaseKline       *kline.Item
 }
 
+// GetKlineContractRequest defines a historical dated-contract candle query.
 type GetKlineContractRequest struct {
 	ContractPair currency.Pair
 	// used for okx
@@ -91,6 +96,7 @@ type GetKlineContractRequest struct {
 	SettlementType ContractSettlementType
 }
 
+// ErrUnderlyingPairRequired is returned when a contract query omits its underlying market.
 var ErrUnderlyingPairRequired = errors.New("underlying pair required")
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges

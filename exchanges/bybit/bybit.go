@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -31,10 +29,7 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-	instrumentInfoMutex sync.Mutex
-	instrumentInfoCache map[asset.Item]*IICH
-	messageIDSeq        common.Counter
-	account             accountTypeHolder
+	account accountTypeHolder
 }
 
 const (

@@ -84,6 +84,7 @@ func TestRetrieve(t *testing.T) {
 		idAligned:              true,
 		maxDepth:               10,
 		checksumStringRequired: true,
+		contractDecimals:       8,
 	}
 
 	// If we add anymore options to the options struct later this will complain
@@ -112,6 +113,7 @@ func TestRetrieve(t *testing.T) {
 	assert.True(t, ob.IDAlignment, "Should have correct IDAligned")
 	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
 	assert.True(t, ob.ChecksumStringRequired, "Should have correct ChecksumStringRequired")
+	assert.Equal(t, 8.0, ob.ContractDecimals, "Should have correct ContractDecimals")
 }
 
 func TestTotalAmounts(t *testing.T) {

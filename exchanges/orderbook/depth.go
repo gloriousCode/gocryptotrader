@@ -86,6 +86,7 @@ func (d *Depth) Retrieve() (*Book, error) {
 		ChecksumStringRequired: d.checksumStringRequired,
 		RestSnapshot:           d.restSnapshot,
 		IDAlignment:            d.idAligned,
+		ContractDecimals:       d.contractDecimals,
 	}, nil
 }
 
@@ -150,6 +151,7 @@ func (d *Depth) AssignOptions(b *Book) {
 		idAligned:              b.IDAlignment,
 		maxDepth:               b.MaxDepth,
 		checksumStringRequired: b.ChecksumStringRequired,
+		contractDecimals:       b.ContractDecimals,
 	}
 	d.m.Unlock()
 }
@@ -644,6 +646,7 @@ func (d *Depth) GetLevels(count int) (ask, bid []Level, err error) {
 	return d.askLevels.retrieve(count), d.bidLevels.retrieve(count), nil
 }
 
+// GetTranche returns a copied tranche from one side of the orderbook.
 func (d *Depth) GetTranche(count int, isBid bool) ([]Level, error) {
 	if count < 0 {
 		return nil, errInvalidBookDepth

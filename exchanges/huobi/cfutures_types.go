@@ -420,17 +420,18 @@ type LastTradeData struct {
 	} `json:"tick"`
 }
 
+// BatchTicker contains the latest trades returned by the batch ticker channel.
 type BatchTicker struct {
 	Ch     string `json:"ch"`
 	Status string `json:"status"`
-	Ts     int64  `json:"ts"`
+	TS     int64  `json:"ts"`
 	Tick   struct {
-		Id   int64 `json:"id"`
-		Ts   int64 `json:"ts"`
+		ID   int64 `json:"id"`
+		TS   int64 `json:"ts"`
 		Data []struct {
-			Id        float64 `json:"id"`
-			Ts        int64   `json:"ts"`
-			TradeId   int64   `json:"trade-id"`
+			ID        float64 `json:"id"`
+			TS        int64   `json:"ts"`
+			TradeID   int64   `json:"trade-id"`
 			Amount    float64 `json:"amount"`
 			Price     float64 `json:"price"`
 			Direction string  `json:"direction"`

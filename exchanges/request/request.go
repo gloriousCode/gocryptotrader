@@ -39,7 +39,6 @@ var (
 )
 
 var (
-	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
@@ -183,9 +182,6 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		}
 
 		start := time.Now()
-		//hi := r.limiter[endpoint]
-		//fmt.Println(&r.name, "MAKING REQUEST:", p.Path, "WEIGHT:", hi.Weight)
-
 		resp, err := r._HTTPClient.do(req)
 
 		if r.reporter != nil && err == nil {
@@ -203,9 +199,10 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 		// Even in the case of an erroneous condition below, yield the parsed
-		// response to caller.
+		// response to caller. Skip unmarshalling if there is no body content
+		// (e.g. HTTP 204 No Content) to avoid a spurious syntax error.
 		var unmarshallError error
-		if p.Result != nil {
+		if p.Result != nil && resp.StatusCode != http.StatusNoContent {
 			unmarshallError = json.Unmarshal(contents, p.Result)
 		}
 
@@ -291,7 +288,11 @@ func (r *Requester) evaluateRetry(ctx context.Context, resp *http.Response, inco
 	}
 
 	if verbose {
-		log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d", r.name, delay, attempt)
+		if incomingErr != nil {
+			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, cause: %s", r.name, delay, attempt, incomingErr)
+		} else {
+			log.Errorf(log.RequestSys, "%s request has failed. Retrying request in %s, attempt %d, status: %q", r.name, delay, attempt, resp.Status)
+		}
 	}
 
 	if delay > 0 {

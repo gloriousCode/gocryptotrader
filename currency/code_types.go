@@ -44,9 +44,23 @@ type Code struct {
 	upperCase bool
 }
 
+// Item defines a sub type containing the main attributes of a designated
+// currency code pointer
+type Item struct {
+	ID       int64  `json:"id,omitempty"`
+	FullName string `json:"fullName,omitempty"`
+	Symbol   string `json:"symbol"`
+	// Lower is the lower case symbol for optimization purposes so no need to
+	// rely on the strings package to upper and lower strings when it is not
+	// needed
+	Lower      string `json:"-"`
+	Role       Role   `json:"role"`
+	AssocChain string `json:"associatedBlockchain,omitempty"`
+}
+
+// UnmarshalJSON converts a JSON currency symbol into its canonical currency item.
 func (i *Item) UnmarshalJSON(b []byte) error {
-	rawJSON := string(b)
-	rawJSON = strings.Replace(rawJSON, "\"", "", -1)
+	rawJSON := strings.ReplaceAll(string(b), "\"", "")
 	c := NewCode(rawJSON)
 	*i = Item{
 		ID:         c.Item.ID,
@@ -57,20 +71,6 @@ func (i *Item) UnmarshalJSON(b []byte) error {
 		AssocChain: c.Item.AssocChain,
 	}
 	return nil
-}
-
-// Item defines a sub type containing the main attributes of a designated
-// currency code pointer
-type Item struct {
-	ID       int    `json:"id,omitempty"`
-	FullName string `json:"fullName,omitempty"`
-	Symbol   string `json:"symbol"`
-	// Lower is the lower case symbol for optimization purposes so no need to
-	// rely on the strings package to upper and lower strings when it is not
-	// needed
-	Lower      string `json:"-"`
-	Role       Role   `json:"role"`
-	AssocChain string `json:"associatedBlockchain,omitempty"`
 }
 
 // Lock implements the sync.Locker interface and forces a govet check nocopy
@@ -1601,7 +1601,7 @@ var (
 	MYR              = NewCode("MYR")
 	AFN              = NewCode("AFN")
 	ARS              = NewCode("ARS")
-	GRASS              = NewCode("GRASS")
+	GRASS            = NewCode("GRASS")
 	AWG              = NewCode("AWG")
 	AZN              = NewCode("AZN")
 	BSD              = NewCode("BSD")

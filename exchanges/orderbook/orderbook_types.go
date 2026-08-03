@@ -86,9 +86,9 @@ type Book struct {
 	Bids Levels
 	Asks Levels
 
-	Exchange string
-	Pair     currency.Pair
-	Asset    asset.Item
+	Exchange         string
+	Pair             currency.Pair
+	Asset            asset.Item
 	ContractDecimals float64
 
 	// LastUpdated is the time when a change occurred on the exchange books.
@@ -182,12 +182,13 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket update
 	FullBookSideConsumed bool
-	Trades []Trade
+	Trades               []Trade
 }
 
+// Trade describes an orderbook traversal and its resulting purchase amounts.
 type Trade struct {
 	Price           float64
-	PurchaseSize float64
+	PurchaseSize    float64
 	TrancheSize     float64
 	ConsumedTranche bool
 }

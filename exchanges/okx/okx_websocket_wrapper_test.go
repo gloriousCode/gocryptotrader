@@ -345,7 +345,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		t.Parallel()
 		code := lookupInstrumentIDCode([]Instrument{
 			{
-				InstrumentID:     currency.NewPair(currency.BTC, currency.USDT),
+				InstrumentID:     currency.NewBTCUSDT(),
 				InstrumentIDCode: types.NumberFromFloat64(654321),
 			},
 		}, "NON-MATCHING")
@@ -356,7 +356,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		t.Parallel()
 		code := lookupInstrumentIDCode([]Instrument{
 			{
-				InstrumentID:     currency.NewPair(currency.BTC, currency.USDT),
+				InstrumentID:     currency.NewBTCUSDT(),
 				InstrumentIDCode: types.NumberFromFloat64(0),
 			},
 			{

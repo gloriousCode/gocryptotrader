@@ -2,7 +2,6 @@ package okx
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -373,11 +372,11 @@ func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
 
 	subs, err := e.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "should generate one options all-trades subscription")
+	require.Len(t, subs, 1, "must generate one options all-trades subscription")
 	require.Contains(t, subs[0].QualifiedChannel, `"channel":"option-trades"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"instID"`), "option-trades should use instFamily instead of instID")
+	require.NotContains(t, subs[0].QualifiedChannel, `"instID"`, "option-trades must use instFamily instead of instID")
 }
 
 func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
@@ -397,11 +396,11 @@ func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
 
 	subs, err := e.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "should generate one options ticker subscription")
+	require.Len(t, subs, 1, "must generate one options ticker subscription")
 	require.Contains(t, subs[0].QualifiedChannel, `"channel":"opt-summary"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"uly"`), "opt-summary should use instFamily instead of uly")
+	require.NotContains(t, subs[0].QualifiedChannel, `"uly"`, "opt-summary must use instFamily instead of uly")
 }
 
 func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {
@@ -422,11 +421,11 @@ func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {
 	}
 	subs, err := ex.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 2, "template expansion should still track each input options pair")
+	require.Len(t, subs, 2, "template expansion must still track each input options pair")
 
 	requests, err := ex.chunkRequests(subs, operationSubscribe)
 	require.NoError(t, err, "chunkRequests must not error")
 	require.NotEmpty(t, requests, "chunkRequests must return at least one request")
-	require.Equal(t, 1, len(requests[0].Arguments), "only one outbound instFamily argument should be sent")
-	require.Equal(t, 2, len(requests[0].subs), "all pair subscriptions should remain tracked")
+	require.Equal(t, 1, len(requests[0].Arguments), "only one outbound instFamily argument must be sent")
+	require.Equal(t, 2, len(requests[0].subs), "all pair subscriptions must remain tracked")
 }

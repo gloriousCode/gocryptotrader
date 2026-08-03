@@ -612,6 +612,7 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 	}, nil
 }
 
+// DeriveSubmit converts an exchange submission response into its normalised request details.
 func (s *SubmitResponse) DeriveSubmit() (*Submit, error) {
 	if s == nil {
 		return nil, errOrderSubmitResponseIsNil
@@ -1252,6 +1253,19 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
+}
+
+// Error returns the order classification failure with exchange and order context.
+func (o *ClassificationError) Error() string {
+	if o.OrderID != "" {
+		return fmt.Sprintf("Exchange %s: OrderID: %s classification error: %v",
+			o.Exchange,
+			o.OrderID,
+			o.Err)
+	}
+	return fmt.Sprintf("Exchange %s: classification error: %v",
+		o.Exchange,
+		o.Err)
 }
 
 // StandardCancel defines an option in the validator to make sure an ID is set

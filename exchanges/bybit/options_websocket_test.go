@@ -106,5 +106,5 @@ func TestOptionsPublicTradeUsesBaseCoinTopic(t *testing.T) {
 	payloads, err := e.directSubscriptionPayload(asset.Options, "subscribe", subs)
 	require.NoError(t, err, "directSubscriptionPayload must not error")
 	require.Len(t, payloads, 1, "expected a single payload")
-	require.Equal(t, []string{"publicTrade.BTC"}, payloads[0].Arguments, "options publicTrade should use baseCoin topic")
+	require.Equal(t, []string{"publicTrade.BTC"}, payloads[0].Arguments, "options publicTrade must use baseCoin topic")
 }

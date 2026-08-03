@@ -40,9 +40,11 @@ var (
 	// ErrGetFundingDataRequired is returned when requesting funding rate data without the prerequisite
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
-	ErrOrderHistoryTooLarge     = errors.New("order history start date too long ago")
+	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
+	// ErrContractTypeNotSupported is returned when an exchange cannot service a contract type.
 	ErrContractTypeNotSupported = errors.New("contract type not supported")
-	ErrContractMismatch         = errors.New("contract mismatch")
+	// ErrContractMismatch is returned when a requested contract does not match the expected type.
+	ErrContractMismatch = errors.New("contract mismatch")
 
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")

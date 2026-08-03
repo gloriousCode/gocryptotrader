@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,19 +19,19 @@ import (
 )
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
-	_, err := setupWebsocketRoutineManager(nil, nil, nil, nil, false)
+	_, err := SetupWebsocketRoutineManager(nil, nil, nil, nil, false)
 	assert.ErrorIs(t, err, errNilExchangeManager)
 
-	_, err = setupWebsocketRoutineManager(NewExchangeManager(), (*OrderManager)(nil), nil, nil, false)
+	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), (*OrderManager)(nil), nil, nil, false)
 	assert.ErrorIs(t, err, errNilCurrencyPairSyncer)
 
-	_, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, nil, false)
+	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, nil, false)
 	assert.ErrorIs(t, err, errNilCurrencyConfig)
 
-	_, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{}, true)
+	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{}, true)
 	assert.ErrorIs(t, err, errNilCurrencyPairFormat)
 
-	m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	if m == nil {
@@ -42,21 +41,24 @@ func TestWebsocketRoutineManagerSetup(t *testing.T) {
 
 func TestWebsocketRoutineManagerStart(t *testing.T) {
 	var m *WebsocketRoutineManager
-	err := m.Start()
+	err := m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{
 		Uppercase: false,
 		Delimiter: "-",
 	}}
-	m, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, true)
+	m, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, true)
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
+
+	err = m.Stop()
+	assert.NoError(t, err)
 }
 
 func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
@@ -65,17 +67,17 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
-	for atomic.LoadInt32(&m.state) == startingState {
+	for m.state.Load() == startingState {
 		<-time.After(time.Second / 100)
 	}
 	if !m.IsRunning() {
@@ -88,17 +90,42 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 	err := m.Stop()
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
-	m, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	err = m.Stop()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
 	err = m.Stop()
 	assert.NoError(t, err)
+}
+
+func TestWebsocketRoutineManagerConcurrentStartStop(t *testing.T) {
+	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}
+	for range 128 {
+		m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, false)
+		require.NoError(t, err)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_ = m.Start(t.Context())
+		}()
+		go func() {
+			defer wg.Done()
+			_ = m.Stop()
+		}()
+		wg.Wait()
+
+		if m.state.Load() != stoppedState {
+			require.NoError(t, m.Stop())
+		}
+		assert.Nil(t, m.connectionCancel)
+	}
 }
 
 func TestWebsocketRoutineManagerHandleData(t *testing.T) {
@@ -115,17 +142,17 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	err = om.Start()
+	err = om.Start(t.Context())
 	assert.NoError(t, err)
 
 	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{
 		Uppercase: false,
 		Delimiter: "-",
 	}}
-	m, err := setupWebsocketRoutineManager(em, om, &SyncManager{}, cfg, true)
+	m, err := SetupWebsocketRoutineManager(em, om, &SyncManager{}, cfg, true)
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
 	orderID := "1337"
@@ -257,7 +284,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	mock := websocket.NewManager()
-	m.state = readyState
+	m.state.Store(readyState)
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)

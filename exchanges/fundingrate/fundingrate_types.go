@@ -25,10 +25,11 @@ type HistoricalRatesRequest struct {
 	// PaymentCurrency is an optional parameter depending on exchange API
 	// if you are paid in a currency that isn't easily inferred from the Pair,
 	// eg BTCUSD-PERP use this field
-	PaymentCurrency currency.Code
-	StartDate       time.Time
-	EndDate         time.Time
-	IncludePayments bool
+	PaymentCurrency      currency.Code
+	StartDate            time.Time
+	EndDate              time.Time
+	IncludePayments      bool
+	IncludePredictedRate bool
 	// RespectHistoryLimits if an exchange has a limit on rate history lookup
 	// and your start date is beyond that time, this will set your start date
 	// to the maximum allowed date rather than give you errors
@@ -52,8 +53,9 @@ type HistoricalRates struct {
 
 // LatestRateRequest is used to request the latest funding rate
 type LatestRateRequest struct {
-	Asset asset.Item
-	Pair  currency.Pair
+	Asset                asset.Item
+	Pair                 currency.Pair
+	IncludePredictedRate bool
 }
 
 // LatestRateResponse for when you just want the latest rate

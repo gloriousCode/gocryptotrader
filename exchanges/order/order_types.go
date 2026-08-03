@@ -78,6 +78,9 @@ type Submit struct {
 	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
 	// see kucoin_wrapper.go
 	AutoBorrow bool
+	// AutoRepay when enabled the system will automatically repay the borrowed funds after the order is filled.
+	// Used in conjunction with margin trading to close/reduce short positions.
+	AutoRepay bool
 
 	// MarginType such as isolated or cross margin for when an exchange
 	// supports margin type definition when submitting an order eg okx
@@ -487,6 +490,14 @@ type ByDate []Detail
 
 // ByOrderSide used for sorting orders by order side (buy sell)
 type ByOrderSide []Detail
+
+// ClassificationError returned when an order status
+// side or type cannot be recognised
+type ClassificationError struct {
+	Exchange string
+	OrderID  string
+	Err      error
+}
 
 // FilteredOrders defines orders that have been filtered at the wrapper level
 // forcing required filter operations when calling method Filter() on

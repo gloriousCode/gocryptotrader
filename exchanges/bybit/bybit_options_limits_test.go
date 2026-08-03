@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestFetchTradablePairsFiltersNonTradingOptions(t *testing.T) {
@@ -167,17 +168,17 @@ func newOptionInstrumentInfo(symbol, status string) InstrumentInfo {
 		Status:      status,
 		OptionsType: "Call",
 	}
-	info.PriceFilter.MinPrice = 1
-	info.PriceFilter.MaxPrice = 1_000_000
-	info.PriceFilter.TickSize = 0.1
-	info.LotSizeFilter.MinOrderQuantity = 0.1
-	info.LotSizeFilter.MaxOrderQuantity = 10
-	info.LotSizeFilter.QuantityStep = 0.1
-	info.LotSizeFilter.BasePrecision = 0.1
-	info.LotSizeFilter.QuotePrecision = 0.1
-	info.LotSizeFilter.MinOrderAmount = 1
-	info.LotSizeFilter.MaxOrderAmount = 1_000_000
-	info.LotSizeFilter.MinNotionalValue = 1
+	info.PriceFilter.MinPrice = types.NumberFromFloat64(1)
+	info.PriceFilter.MaxPrice = types.NumberFromFloat64(1_000_000)
+	info.PriceFilter.TickSize = types.NumberFromFloat64(0.1)
+	info.LotSizeFilter.MinOrderQuantity = types.NumberFromFloat64(0.1)
+	info.LotSizeFilter.MaxOrderQuantity = types.NumberFromFloat64(10)
+	info.LotSizeFilter.QuantityStep = types.NumberFromFloat64(0.1)
+	info.LotSizeFilter.BasePrecision = types.NumberFromFloat64(0.1)
+	info.LotSizeFilter.QuotePrecision = types.NumberFromFloat64(0.1)
+	info.LotSizeFilter.MinOrderAmount = types.NumberFromFloat64(1)
+	info.LotSizeFilter.MaxOrderAmount = types.NumberFromFloat64(1_000_000)
+	info.LotSizeFilter.MinNotionalValue = types.NumberFromFloat64(1)
 	return info
 }
 

@@ -193,8 +193,8 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
 	type Response struct {
-		Error []interface{}          `json:"error"`
-		Data  map[string]interface{} `json:"result"`
+		Error []any          `json:"error"`
+		Data  map[string]any `json:"result"`
 	}
 
 	var result Response
@@ -683,7 +683,7 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 	}
 
 	if args.CloseOrderType != "" {
-		params.Set("close[ordertype]", args.ExpireTm)
+		params.Set("close[ordertype]", args.CloseOrderType)
 	}
 
 	if args.ClosePrice != 0 {
@@ -700,6 +700,10 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 
 	if args.TimeInForce != "" {
 		params.Set("timeinforce", args.TimeInForce)
+	}
+
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
 	var result AddOrderResponse
@@ -1016,6 +1020,7 @@ func (a *assetTranslatorStore) Seeded() bool {
 	return isSeeded
 }
 
+// CalculateContractDates returns Kraken contract date codes within a time range.
 func (e *Exchange) CalculateContractDates(start, end time.Time) ([]string, error) {
 	var resp []string
 	err := common.StartEndTimeCheck(start, end)
@@ -1042,10 +1047,7 @@ func roundDateToEndOfMonth(t time.Time) time.Time {
 	originalMonth := t.Month()
 	originalYear := t.Year()
 	t = time.Date(originalYear, originalMonth, 31, 0, 0, 0, 0, time.UTC)
-	for {
-		if t.Month() == originalMonth && t.Year() == originalYear {
-			break
-		}
+	for t.Month() != originalMonth || t.Year() != originalYear {
 		// reduce the day so that it is at the end of the month provided
 		t = time.Date(t.Year(), t.Month(), t.Day()-1, 0, 0, 0, 0, time.UTC)
 	}
