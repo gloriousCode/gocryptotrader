@@ -1992,10 +1992,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolNotMatched)
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolNotMatched)
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)

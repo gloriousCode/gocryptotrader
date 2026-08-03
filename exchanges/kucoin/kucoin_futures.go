@@ -24,11 +24,47 @@ import (
 
 const (
 	kucoinFuturesAPIURL = "https://api-futures.kucoin.com/api"
-	kucoinWebsocketURL  = "wss://ws-api.kucoin.com/endpoint"
 
 	kucoinFuturesOrder     = "/v1/orders"
 	kucoinFuturesStopOrder = "/v1/stopOrders"
+
+	kucoinOneWayPositionMode = 0
+	kucoinHedgePositionMode  = 1
 )
+
+// GetFuturesPositionMode returns and caches the account-level KuCoin futures
+// position mode.
+func (e *Exchange) GetFuturesPositionMode(ctx context.Context) (FuturesPositionMode, error) {
+	if cached := FuturesPositionMode(e.futuresPositionMode.Load()); cached != FuturesPositionModeUnknown {
+		return cached, nil
+	}
+	var resp *FuturesPositionModeResponse
+	if err := e.SendAuthHTTPRequest(
+		ctx,
+		exchange.RestFutures,
+		futuresPositionModeEPL,
+		http.MethodGet,
+		"/v2/position/getPositionMode",
+		nil,
+		&resp,
+	); err != nil {
+		return FuturesPositionModeUnknown, err
+	}
+	if resp == nil {
+		return FuturesPositionModeUnknown, common.ErrNoResponse
+	}
+	var mode FuturesPositionMode
+	switch resp.PositionMode.Int64() {
+	case kucoinOneWayPositionMode:
+		mode = FuturesPositionModeOneWay
+	case kucoinHedgePositionMode:
+		mode = FuturesPositionModeHedge
+	default:
+		return FuturesPositionModeUnknown, fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, resp.PositionMode)
+	}
+	e.futuresPositionMode.Store(uint32(mode))
+	return mode, nil
+}
 
 // GetFuturesOpenContracts gets all open futures contract with its details
 func (e *Exchange) GetFuturesOpenContracts(ctx context.Context) ([]Contract, error) {
@@ -374,7 +410,7 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		}
 	}
 	switch arg.OrderType {
-	case "limit", "":
+	case kucoinLimit, "":
 		if arg.Price <= 0 {
 			return fmt.Errorf("%w %f", limits.ErrPriceBelowMin, arg.Price)
 		}
@@ -384,7 +420,7 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		if arg.VisibleSize < 0 {
 			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
-	case "market":
+	case kucoinMarket:
 		if arg.Size <= 0 {
 			return fmt.Errorf("%w, market size must be > 0", limits.ErrAmountBelowMin)
 		}
@@ -848,7 +884,7 @@ func (e *Exchange) GetPositionHistory(ctx context.Context, symbol string, from, 
 		params.Set("symbol", symbol)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(kucoinLimit, strconv.FormatInt(limit, 10))
 	}
 	if pageID > 0 {
 		params.Set("pageId", strconv.FormatInt(pageID, 10))

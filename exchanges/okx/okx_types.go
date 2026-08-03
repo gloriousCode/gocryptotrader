@@ -59,6 +59,7 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	stateLive                             = "live"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
@@ -160,6 +161,8 @@ var (
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
 	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
+	errInvalidOrderBookLevel                = errors.New("invalid orderbook level")
+	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -368,8 +371,6 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract
 type Instrument struct {
-	MaxLmtAmt                       string        `json:"maxLmtAmt"`
-	MaxMktAmt                       string        `json:"maxMktAmt"`
 	InstrumentType                  string        `json:"instType"`
 	InstrumentID                    currency.Pair `json:"instId"`
 	InstrumentIDCode                types.Number  `json:"instIdCode"`
@@ -393,6 +394,8 @@ type Instrument struct {
 	ContractType                    string        `json:"ctType"`
 	Alias                           string        `json:"alias"`
 	State                           string        `json:"state"`
+	MaxLimitAmount                  types.Number  `json:"maxLmtAmt"`
+	MaxMarketAmount                 types.Number  `json:"maxMktAmt"`
 	MaxQuantityOfSpotLimitOrder     types.Number  `json:"maxLmtSz"`
 	MaxQuantityOfMarketLimitOrder   types.Number  `json:"maxMktSz"`
 	MaxQuantityOfSpotTwapLimitOrder types.Number  `json:"maxTwapSz"`
@@ -791,6 +794,60 @@ type PlaceOrderRequestParam struct {
 	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
 }
 
+// MarshalJSON ensures small numeric values are sent as plain decimal strings
+// instead of scientific notation for websocket order submission.
+func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
+	type payload struct {
+		InstrumentID     string `json:"instId"`
+		InstrumentIDCode int64  `json:"instIdCode,omitempty"`
+		TradeMode        string `json:"tdMode"`
+		ClientOrderID    string `json:"clOrdId,omitempty"`
+		Currency         string `json:"ccy,omitempty"`
+		OrderTag         string `json:"tag,omitempty"`
+		Side             string `json:"side"`
+		PositionSide     string `json:"posSide,omitempty"`
+		OrderType        string `json:"ordType"`
+		Amount           string `json:"sz"`
+		Price            string `json:"px,omitempty"`
+
+		PlaceOptionsOrder                    string `json:"pxUsd,omitempty"`
+		PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"`
+		ReduceOnly                           bool   `json:"reduceOnly,omitempty"`
+		TargetCurrency                       string `json:"tgtCcy,omitempty"`
+		SelfTradePreventionMode              string `json:"stpMode,omitempty"`
+		BanAmend                             bool   `json:"banAmend,omitempty"`
+	}
+
+	out := payload{
+		InstrumentID:                         arg.InstrumentID,
+		InstrumentIDCode:                     arg.InstrumentIDCode,
+		TradeMode:                            arg.TradeMode,
+		ClientOrderID:                        arg.ClientOrderID,
+		Currency:                             arg.Currency,
+		OrderTag:                             arg.OrderTag,
+		Side:                                 arg.Side,
+		PositionSide:                         arg.PositionSide,
+		OrderType:                            arg.OrderType,
+		Amount:                               formatNonScientificFloat(arg.Amount),
+		PlaceOptionsOrder:                    arg.PlaceOptionsOrder,
+		PlaceOptionsOrderOnImpliedVolatility: arg.PlaceOptionsOrderOnImpliedVolatility,
+		TargetCurrency:                       arg.TargetCurrency,
+		SelfTradePreventionMode:              arg.SelfTradePreventionMode,
+		BanAmend:                             arg.BanAmend,
+	}
+	if arg.Price > 0 {
+		out.Price = formatNonScientificFloat(arg.Price)
+	}
+	if arg.ReduceOnly {
+		out.ReduceOnly = true
+	}
+	return json.Marshal(out)
+}
+
+func formatNonScientificFloat(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
+}
+
 // Validate validates the PlaceOrderRequestParam
 func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg == nil {
@@ -810,7 +867,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
+		if arg.PositionSide != "" && !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
 			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
@@ -3692,12 +3749,77 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks               [][4]types.Number `json:"asks"`
-	Bids               [][4]types.Number `json:"bids"`
-	Timestamp          types.Time        `json:"ts"`
-	Checksum           int32             `json:"checksum"`
-	PreviousSequenceID int64             `json:"prevSeqId"`
-	SequenceID         int64             `json:"seqId"`
+	Asks               []WsOrderBookLevel `json:"asks"`
+	Bids               []WsOrderBookLevel `json:"bids"`
+	Timestamp          types.Time         `json:"ts"`
+	Checksum           int32              `json:"checksum"`
+	PreviousSequenceID int64              `json:"prevSeqId"`
+	SequenceID         int64              `json:"seqId"`
+}
+
+// WsOrderBookLevel contains the price and amount from an OKX orderbook level.
+type WsOrderBookLevel struct {
+	Price        types.Number
+	Amount       types.Number
+	PriceString  string
+	AmountString string
+}
+
+// UnmarshalJSON deserialises the price and amount from an OKX orderbook level.
+func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
+	pos := 0
+	for pos < len(data) && data[pos] == ' ' {
+		pos++
+	}
+	if pos >= len(data) || data[pos] != '[' {
+		return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+	}
+	pos++
+
+	var values [2]types.Number
+	var rawValues [2]string
+	for valueIndex := range values {
+		for pos < len(data) && (data[pos] == ' ' || data[pos] == ',') {
+			pos++
+		}
+		if pos >= len(data) {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+
+		start := pos
+		if data[pos] == '"' {
+			pos++
+			start = pos
+			for pos < len(data) && data[pos] != '"' {
+				pos++
+			}
+			if pos >= len(data) {
+				return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+			}
+		} else {
+			for pos < len(data) && data[pos] != ',' && data[pos] != ']' {
+				pos++
+			}
+		}
+
+		rawValue := string(data[start:pos])
+		value, err := strconv.ParseFloat(rawValue, 64)
+		if err != nil {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+		values[valueIndex] = types.NumberFromFloat64(value)
+		rawValues[valueIndex] = rawValue
+
+		if pos < len(data) && data[pos] == '"' {
+			pos++
+		}
+	}
+
+	w.Price = values[0]
+	w.Amount = values[1]
+	w.PriceString = rawValues[0]
+	w.AmountString = rawValues[1]
+	return nil
 }
 
 // WsOptionSummary represents option summary

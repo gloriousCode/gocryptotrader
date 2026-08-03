@@ -35,7 +35,7 @@ type RateHistoryRequest struct {
 	// CalculateOffline allows for the borrow rate and borrow costs to be
 	// calculated offline. It requires the taker fee rate and existing rates.
 	CalculateOffline bool
-	TakeFeeRate      decimal.Decimal
+	TakerFeeRate     decimal.Decimal
 	// Rates is used when calculating offline.
 	// Each Rate must have the Rate and Size fields populated
 	Rates []Rate

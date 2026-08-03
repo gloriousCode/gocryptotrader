@@ -2,10 +2,12 @@ package request
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestIsVerbose(t *testing.T) {
@@ -25,9 +27,56 @@ func TestWithDelayNotAllowed(t *testing.T) {
 	assert.False(t, hasDelayNotAllowed(WithRetryNotAllowed(WithVerbose(t.Context()))))
 }
 
+func TestWithHeaders(t *testing.T) {
+	t.Parallel()
+	headers := http.Header{"User-Agent": {"custom"}, "X-Values": {"one", "two"}}
+	ctx := WithHeaders(t.Context(), headers)
+	headers.Set("User-Agent", "mutated")
+
+	got := headersFromContext(ctx)
+	assert.Equal(t, "custom", got.Get("User-Agent"))
+	assert.Equal(t, []string{"one", "two"}, got.Values("X-Values"))
+	assert.Nil(t, headersFromContext(t.Context()))
+	assert.Same(t, t.Context(), WithHeaders(t.Context(), nil))
+
+	frozen := common.FreezeContext(ctx)
+	thawed := common.ThawContext(frozen)
+	assert.Equal(t, "custom", headersFromContext(thawed).Get("User-Agent"))
+}
+
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
 	assert.False(t, hasRetryNotAllowed(t.Context()))
 	assert.False(t, hasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
+}
+
+func TestWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	weight, ok := getRateLimitWeight(t.Context())
+	assert.False(t, ok)
+	assert.Zero(t, weight)
+
+	ctx := WithRateLimitWeight(t.Context(), 0)
+	weight, ok = getRateLimitWeight(ctx)
+	assert.False(t, ok)
+	assert.Zero(t, weight)
+
+	ctx = WithRateLimitWeight(t.Context(), 7)
+	weight, ok = getRateLimitWeight(ctx)
+	assert.True(t, ok)
+	assert.Equal(t, Weight(7), weight)
+}
+
+func TestGetRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	weight, ok := getRateLimitWeight(t.Context())
+	assert.False(t, ok, "weight lookup should report missing in plain context")
+	assert.Zero(t, weight, "weight should be zero when missing")
+
+	weight, ok = getRateLimitWeight(WithRateLimitWeight(t.Context(), 3))
+	assert.True(t, ok, "weight lookup should report present when set")
+	assert.Equal(t, Weight(3), weight, "weight should match configured value")
 }

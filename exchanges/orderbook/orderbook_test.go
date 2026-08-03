@@ -60,6 +60,9 @@ func TestValidate(t *testing.T) {
 	}
 
 	require.NoError(t, b.Validate())
+	b.SuppressEmptyBookWarning = true
+	require.NoError(t, b.Validate(), "empty book warning suppression must not disable validation")
+	b.SuppressEmptyBookWarning = false
 
 	b.Asks = []Level{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err := b.Validate()
@@ -232,7 +235,7 @@ func TestDeployDepth(t *testing.T) {
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	require.ErrorIs(t, err, errPairNotSet)
 	_, err = DeployDepth("test", pair, asset.Empty)
-	require.ErrorIs(t, err, errAssetTypeNotSet)
+	require.ErrorIs(t, err, ErrAssetTypeNotSet)
 	d, err := DeployDepth("test", pair, asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, d)
@@ -255,7 +258,7 @@ func TestProcessOrderbook(t *testing.T) {
 	pair := currency.NewBTCUSD()
 	b.Pair = pair
 	err = b.Process()
-	require.ErrorIs(t, err, errAssetTypeNotSet)
+	require.ErrorIs(t, err, ErrAssetTypeNotSet)
 
 	// now process a valid orderbook
 	b.Asset = asset.Spot

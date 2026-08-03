@@ -7,6 +7,39 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNumberFromString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		input    string
+		expected Number
+		err      error
+	}{
+		{name: "empty", input: ""},
+		{name: "valid", input: "1337.37", expected: Number(1337.37)},
+		{name: "invalid", input: "meow", err: errInvalidNumberValue},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := NumberFromString(tc.input)
+			assert.ErrorIs(t, err, tc.err, "NumberFromString should return the expected error")
+			assert.Equal(t, tc.expected, result, "NumberFromString should return the expected value")
+		})
+	}
+}
+
+func TestNumberFromFloat64(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, Number(1337.37), NumberFromFloat64(1337.37), "NumberFromFloat64 should return the expected value")
+}
+
+func TestNumberIsEmpty(t *testing.T) {
+	t.Parallel()
+	assert.True(t, Number(0).IsEmpty(), "IsEmpty should report the zero value as empty")
+	assert.False(t, Number(1).IsEmpty(), "IsEmpty should report a non-zero value as populated")
+}
+
 // TestNumberUnmarshalJSON asserts the following behaviour:
 // * Literal numbers and quoted are valid
 // * Anything else returns errInvalidNumberValue
@@ -23,8 +56,8 @@ func TestNumberUnmarshalJSON(t *testing.T) {
 	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
 
 	err = n.UnmarshalJSON([]byte(`null`))
-	assert.NoError(t, err, "Unmarshal should not error")
-	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
+	assert.NoError(t, err, "Unmarshal should not error on null")
+	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse null as 0")
 
 	err = n.UnmarshalJSON([]byte(`1337.37`))
 	assert.NoError(t, err, "Unmarshal should not error on number types")
@@ -45,7 +78,7 @@ func TestNumberMarshalJSON(t *testing.T) {
 	assert.NoError(t, err, "MarshalJSON should not error")
 	assert.Equal(t, `""`, string(data), "MarshalJSON should return the correct value")
 
-	data, err = NumberFromFloat64(1337.1337).MarshalJSON()
+	data, err = Number(1337.1337).MarshalJSON()
 	assert.NoError(t, err, "MarshalJSON should not error")
 	assert.Equal(t, `"1337.1337"`, string(data), "MarshalJSON should return the correct value")
 }
@@ -53,20 +86,20 @@ func TestNumberMarshalJSON(t *testing.T) {
 // TestNumberFloat64 asserts Float64() returns a valid float64
 func TestNumberFloat64(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 0.04200064, NumberFromFloat64(0.04200064).Float64(), "Float64() should return the correct value")
+	assert.Equal(t, 0.04200064, Number(0.04200064).Float64(), "Float64() should return the correct value")
 }
 
 // TestNumberDecimal asserts Decimal() returns a valid decimal.Decimal
 func TestNumberDecimal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, decimal.NewFromFloat(0.04200064), NumberFromFloat64(0.04200064).Decimal(), "Decimal() should return the correct value")
+	assert.Equal(t, decimal.NewFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
 }
 
 // TestNumberInt64 asserts Int64() returns a valid truncated int64
 func TestNumberInt64(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, int64(42), NumberFromFloat64(42.00000064).Int64(), "Int64() should return the correct truncated value")
-	assert.Equal(t, int64(43), NumberFromFloat64(43.99999964).Int64(), "Int64() should not round the number")
+	assert.Equal(t, int64(42), Number(42.00000064).Int64(), "Int64() should return the correct truncated value")
+	assert.Equal(t, int64(43), Number(43.99999964).Int64(), "Int64() should not round the number")
 }
 
 // BenchmarkNumberUnmarshalJSON provides a barebones benchmark of Unmarshaling a string value
@@ -81,8 +114,7 @@ func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 // BenchmarkNumberMarshalJSON provides a barebones benchmark of Marshaling a string value
 // Ballpark: 118.2 ns/op            56 B/op          3 allocs/op
 func BenchmarkNumberMarshalJSON(b *testing.B) {
-	b.ReportAllocs()
 	for b.Loop() {
-		_, _ = NumberFromFloat64(1337.1337).MarshalJSON()
+		_, _ = Number(1337.1337).MarshalJSON()
 	}
 }

@@ -1,6 +1,7 @@
 package yobit
 
 import (
+	"errors"
 	"log"
 	"math"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -504,6 +506,9 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), testPair, asset.Spot)
+	if errors.Is(err, ticker.ErrTickerNotFound) {
+		t.Skipf("UpdateTicker should skip when pair %s is unavailable in live ticker feed", testPair)
+	}
 	assert.NoError(t, err, "UpdateTicker should not error")
 }
 

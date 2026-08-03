@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -158,9 +160,10 @@ func (e *Exchange) SetDefaults() {
 
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      kucoinAPIURL,
-		exchange.RestFutures:   kucoinFuturesAPIURL,
-		exchange.WebsocketSpot: kucoinWebsocketURL,
+		exchange.RestSpot:         kucoinAPIURL,
+		exchange.RestFutures:      kucoinFuturesAPIURL,
+		exchange.WebsocketSpot:    kucoinWebsocketSpotURL,
+		exchange.WebsocketFutures: kucoinWebsocketFuturesURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -170,11 +173,19 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		FetchDelay:         buffer.DefaultWSOrderbookUpdateTimeDelay,
-		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
-		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
-		CheckPendingUpdate: checkPendingUpdate,
-		BufferInstance:     &e.Websocket.Orderbook,
+		FetchDelay:                        kucoinWSOrderbookSnapshotFetchDelay,
+		FetchDeadline:                     buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:                    e.fetchWSOrderbookSnapshot,
+		OutdatedSnapshotRetryDelay:        buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
+		SnapshotSyncLimit:                 kucoinWSOrderbookSnapshotSyncLimit,
+		AcceptSnapshotWhenUpdatesCovered:  true,
+		InitialSnapshotFallbackDelay:      kucoinWSOrderbookFallbackDelay,
+		InitialSnapshotFallbackRetryDelay: kucoinWSOrderbookFallbackRetryDelay,
+		InitialSnapshotFallbackLimit:      kucoinWSOrderbookFallbackSyncLimit,
+		CheckPendingUpdate:                checkPendingUpdate,
+		CheckLiveUpdates:                  true,
+		RecordMetrics:                     true,
+		BufferInstance:                    &e.Websocket.Orderbook,
 	})
 }
 
@@ -203,21 +214,70 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsSpotEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	var (
+		websocketSubscriptionsMu       sync.Mutex
+		websocketSpotSubscriptions     subscription.List
+		websocketFuturesSubscriptions  subscription.List
+		websocketSubscriptionConsumers int
+	)
+	generateWebsocketSubscriptions := func() (subscription.List, subscription.List, error) {
+		websocketSubscriptionsMu.Lock()
+		defer websocketSubscriptionsMu.Unlock()
+
+		if websocketSubscriptionConsumers == 0 {
+			subs, err := e.generateSubscriptions()
+			if err != nil {
+				return nil, nil, err
+			}
+			websocketSpotSubscriptions = spotWebsocketSubscriptions(subs)
+			websocketFuturesSubscriptions = futuresWebsocketSubscriptions(subs)
+			websocketSubscriptionConsumers = 2
+		}
+		websocketSubscriptionConsumers--
+		return websocketSpotSubscriptions, websocketFuturesSubscriptions, nil
+	}
+
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		ConnectionRateLimiter: kucoinWebsocketRateLimiter,
+		URL:                   wsSpotEndpoint,
+		Connector:             e.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			spot, _, err := generateWebsocketSubscriptions()
+			return spot, err
+		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Handler:       e.wsHandleData,
+		MessageFilter: wsSpotConnection,
+	}); err != nil {
+		return err
+	}
+
+	wsFuturesEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
 	if err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
-		URL:                   wsRunningEndpoint,
+		ConnectionRateLimiter: kucoinWebsocketRateLimiter,
+		URL:                   wsFuturesEndpoint,
 		Connector:             e.WsConnect,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler:               e.wsHandleData,
-		MessageFilter:         wsConnection,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			_, futuresSubs, err := generateWebsocketSubscriptions()
+			return futuresSubs, err
+		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Handler:       e.wsHandleData,
+		MessageFilter: wsFuturesConnection,
 	})
 }
 
@@ -292,37 +352,25 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := e.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return err
 		}
-		pairs, err := e.GetEnabledPairs(asset.Futures)
-		if err != nil {
-			return err
-		}
 		for x := range ticks {
-			pair := currency.NewPair(ticks[x].BaseCurrency,
-				currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
-			if !pairs.Contains(pair, true) {
-				continue
-			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			pair := currency.NewPair(ticks[x].BaseCurrency, currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[x].LastTradePrice,
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
 				OpenInterest: ticks[x].OpenInterest.Float64(),
-				MarkPrice:    ticks[x].MarkPrice,
-				IndexPrice:   ticks[x].IndexPrice,
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
-			})
-			if err != nil {
-				errs = common.AppendError(errs, err)
+			}); err != nil {
+				return err
 			}
 		}
 	case asset.Spot, asset.Margin:
@@ -331,15 +379,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for t := range ticks.Tickers {
-			pair, enabled, err := e.MatchSymbolCheckEnabled(ticks.Tickers[t].Symbol, assetType, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			pair, err := e.MatchSymbolWithAvailablePairs(ticks.Tickers[t].Symbol, assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return err
 			}
-			if !enabled {
-				continue
-			}
-
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.Tickers[t].Last,
 				High:         ticks.Tickers[t].High,
 				Low:          ticks.Tickers[t].Low,
@@ -350,15 +397,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				ExchangeName: e.Name,
 				AssetType:    assetType,
 				LastUpdated:  ticks.Time.Time(),
-			})
-			if err != nil {
-				errs = common.AppendError(errs, err)
+			}); err != nil {
+				return err
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return errs
+	return nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
@@ -442,16 +488,15 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			})
 		}
 	case asset.Spot, asset.Margin:
-		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, "")
+		accountType, err := spotMarginBalanceAccountType(assetType)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := e.GetAllAccounts(ctx, currency.EMPTYCODE, accountType)
 		if err != nil {
 			return nil, err
 		}
 		for i := range resp {
-			if resp[i].AccountType == "margin" && assetType == asset.Spot {
-				continue
-			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
-				continue
-			}
 			subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
 				Total: resp[i].Balance.Float64(),
 				Hold:  resp[i].Holds.Float64(),
@@ -462,6 +507,17 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+func spotMarginBalanceAccountType(assetType asset.Item) (string, error) {
+	switch assetType {
+	case asset.Spot:
+		return "trade", nil
+	case asset.Margin:
+		return "margin", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -617,10 +673,22 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Leverage == 0 {
 			s.Leverage = 1
 		}
+		marginMode := strings.ToUpper(MarginModeToString(s.MarginType))
+		if marginMode == "" {
+			return nil, fmt.Errorf("%w: KuCoin futures orders require isolated or cross margin", margin.ErrInvalidMarginType)
+		}
+		positionMode, err := e.GetFuturesPositionMode(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting KuCoin futures position mode: %w", err)
+		}
+		positionSide, err := futuresPositionSide(positionMode, s.Side, s.ReduceOnly)
+		if err != nil {
+			return nil, err
+		}
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
-			orderType = "limit"
+			orderType = kucoinLimit
 			if s.TriggerPrice == 0 {
 				break
 			}
@@ -663,6 +731,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
+			MarginMode:    marginMode,
+			PositionSide:  positionSide,
 			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
@@ -791,7 +861,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
-				AutoRepay:     s.AutoBorrow,
+				AutoRepay:     s.AutoRepay,
 				Iceberg:       s.Iceberg,
 			})
 		if err != nil {
@@ -809,13 +879,33 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 }
 
+func futuresPositionSide(mode FuturesPositionMode, side order.Side, reduceOnly bool) (string, error) {
+	if mode == FuturesPositionModeOneWay {
+		return "BOTH", nil
+	}
+	if mode != FuturesPositionModeHedge {
+		return "", fmt.Errorf("%w: %s", errInvalidFuturesPositionMode, mode)
+	}
+	isLong := side.IsLong()
+	if !isLong && !side.IsShort() {
+		return "", fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
+	}
+	if reduceOnly {
+		isLong = !isLong
+	}
+	if isLong {
+		return "LONG", nil
+	}
+	return "SHORT", nil
+}
+
 // MarginModeToString returns a string representation of a MarginMode
 func MarginModeToString(mType margin.Type) string {
 	switch mType {
 	case margin.Isolated:
 		return mType.String()
 	case margin.Multi:
-		return "cross"
+		return kucoinCross
 	default:
 		return ""
 	}
@@ -1175,9 +1265,9 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 func OrderTypeToString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Limit:
-		return "limit", nil
+		return kucoinLimit, nil
 	case order.Market:
-		return "market", nil
+		return kucoinMarket, nil
 	case order.StopLimit:
 		return "limit_stop", nil
 	case order.StopMarket:
@@ -1478,7 +1568,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			}
 			oType, err := order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
-				return nil, err
+				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
 			}
 			orders = append(orders, order.Detail{
 				Price:           futuresOrders.Items[i].Price,
@@ -1886,8 +1976,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-// if no pair is supplied it returns all funding rates, but no predicted rate
-// if an individual pair is supplied it returns the predicted rate as well
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1903,6 +1991,9 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		contracts, err := e.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
+		}
+		if r.IncludePredictedRate {
+			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", e.Name, len(contracts))
 		}
 		timeChecked := time.Now()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
@@ -1929,6 +2020,17 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 				},
 				TimeOfNextRate: timeOfNextFundingRate,
 				TimeChecked:    timeChecked,
+			}
+			if r.IncludePredictedRate {
+				var fr *FuturesFundingRate
+				fr, err = e.GetFuturesCurrentFundingRate(ctx, contracts[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+				rate.PredictedUpcomingRate = fundingrate.Rate{
+					Time: timeOfNextFundingRate,
+					Rate: decimal.NewFromFloat(fr.PredictedValue),
+				}
 			}
 			resp = append(resp, rate)
 		}
@@ -1962,9 +2064,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
 		TimeChecked:    time.Now(),
 	}
-	rate.PredictedUpcomingRate = fundingrate.Rate{
-		Time: rate.TimeOfNextRate,
-		Rate: decimal.NewFromFloat(fr.PredictedValue),
+	if r.IncludePredictedRate {
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.TimeOfNextRate,
+			Rate: decimal.NewFromFloat(fr.PredictedValue),
+		}
 	}
 	resp[0] = rate
 	return resp, nil
@@ -2008,7 +2112,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(records) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
-
 	fundingRates := make([]fundingrate.Rate, 0, len(records))
 	for i := range records {
 		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timepoint.Time())) ||
@@ -2096,120 +2199,6 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 		AllocatedMargin: resp.PosMargin,
 		MarginType:      r.MarginType,
 	}, nil
-}
-
-// GetCurrentMarginRates returns the latest margin rates for pairs.
-func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
-	}
-	if r.Asset != asset.Margin {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
-	}
-	pairs := r.Pairs
-	if len(pairs) == 0 {
-		var err error
-		pairs, err = e.GetEnabledPairs(r.Asset)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if len(pairs) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
-
-	timeChecked := time.Now().UTC()
-	cache := make(map[currency.Code]margin.Rate)
-	resp := make([]margin.CurrentRateResponse, len(pairs))
-	for i := range pairs {
-		if pairs[i].IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
-		}
-		rate, ok := cache[pairs[i].Base]
-		if !ok {
-			interestRates, err := e.GetInterestRate(ctx, pairs[i].Base)
-			if err != nil {
-				return nil, err
-			}
-			if len(interestRates) == 0 {
-				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
-			}
-			latest := interestRates[0]
-			for x := 1; x < len(interestRates); x++ {
-				if interestRates[x].Time.Time().After(latest.Time.Time()) {
-					latest = interestRates[x]
-				}
-			}
-			hourlyRate := decimal.NewFromFloat(latest.MarketInterestRate.Float64())
-			rate = margin.Rate{
-				Time:       latest.Time.Time(),
-				HourlyRate: hourlyRate,
-				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-			}
-			cache[pairs[i].Base] = rate
-		}
-		resp[i] = margin.CurrentRateResponse{
-			Exchange:    e.Name,
-			Asset:       r.Asset,
-			Pair:        pairs[i],
-			CurrentRate: rate,
-			TimeChecked: timeChecked,
-		}
-	}
-	return resp, nil
-}
-
-// GetMarginRatesHistory returns available margin market rates history.
-func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
-	}
-	if r.Asset != asset.Margin {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
-	}
-	if r.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if r.GetPredictedRate {
-		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
-	}
-	if r.GetBorrowCosts {
-		return nil, fmt.Errorf("%w GetBorrowCosts", common.ErrFunctionNotSupported)
-	}
-	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
-		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
-			return nil, err
-		}
-	}
-
-	interestRates, err := e.GetInterestRate(ctx, r.Currency)
-	if err != nil {
-		return nil, err
-	}
-
-	resp := &margin.RateHistoryResponse{
-		Rates: make([]margin.Rate, 0, len(interestRates)),
-	}
-	for i := range interestRates {
-		t := interestRates[i].Time.Time()
-		if !r.StartDate.IsZero() && t.Before(r.StartDate) {
-			continue
-		}
-		if !r.EndDate.IsZero() && t.After(r.EndDate) {
-			continue
-		}
-		hourlyRate := decimal.NewFromFloat(interestRates[i].MarketInterestRate.Float64())
-		entry := margin.Rate{
-			Time:       t,
-			HourlyRate: hourlyRate,
-			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-		}
-		resp.Rates = append(resp.Rates, entry)
-	}
-	sort.Slice(resp.Rates, func(i, j int) bool {
-		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
-	})
-	return resp, nil
 }
 
 // GetFuturesPositionSummary returns position summary details for an active position

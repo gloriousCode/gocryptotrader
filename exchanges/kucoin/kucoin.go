@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,7 +32,8 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Kucoin
 type Exchange struct {
 	exchange.Base
-	wsOBUpdateMgr *buffer.UpdateManager
+	wsOBUpdateMgr       *buffer.UpdateManager
+	futuresPositionMode atomic.Uint32
 }
 
 const (
@@ -42,6 +44,10 @@ const (
 	tradeFutures = "futures/"
 
 	symbolQuery = "?symbol="
+
+	kucoinLimit  = "limit"
+	kucoinMarket = "market"
+	kucoinCross  = "cross"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -165,7 +171,7 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 	params := url.Values{}
 	params.Set("tradeType", tradeType)
 	params.Set("symbol", symbol)
-	params.Set("limit", limit)
+	params.Set(kucoinLimit, limit)
 	var o *orderbookResponse
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotFuturesOrderbookV1EPL, http.MethodGet, common.EncodeURLValues("/ua/v1/market/orderbook", params), nil, &o); err != nil {
 		return nil, err
@@ -2310,7 +2316,7 @@ func (e *Exchange) GetInterestRate(ctx context.Context, ccy currency.Code) ([]In
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp []InterestRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, "/v3/project/marketInterestRate?currency="+ccy.String(), &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, http.MethodGet, "/v3/project/marketInterestRate?currency="+ccy.String(), nil, &resp)
 }
 
 // MarginLendingSubscription retrieves margin lending subscription information.

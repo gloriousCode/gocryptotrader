@@ -510,10 +510,6 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	enabled, err := e.GetEnabledPairs(assetType)
-	if err != nil {
-		return err
-	}
 	format, err := e.GetPairFormat(assetType, false)
 	if err != nil {
 		return err
@@ -531,9 +527,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			var pair currency.Pair
 			pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 			if err != nil {
-				continue
-			}
-			if !enabled.Contains(pair, true) {
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -565,9 +558,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				var pair currency.Pair
 				pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 				if err != nil {
-					continue
-				}
-				if !enabled.Contains(pair, true) {
 					continue
 				}
 				err = ticker.ProcessTicker(&ticker.Price{

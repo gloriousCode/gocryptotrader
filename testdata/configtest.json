@@ -996,6 +996,67 @@
    }
   },
   {
+   "name": "Bitget",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 0,
+   "websocketMetricsLogging": false,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketTrafficTimeout": 0,
+   "connectionMonitorDelay": 0,
+   "baseCurrencies": "",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "pairs": {
+     "spot": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT"
+     },
+     "usdtmarginedfutures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDT",
+      "available": "BTC-USDT"
+     },
+     "margin": {
+      "assetEnabled": true
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "urlEndpoints": null
+   },
+   "features": {
+    "supports": {
+     "websocketAPI": true
+    },
+    "enabled": {
+     "websocketAPI": true
+    }
+   },
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 0,
+    "websocketBufferEnabled": false,
+    "publishPeriod": null
+   }
+  },
+  {
    "name": "Bithumb",
    "enabled": true,
    "verbose": false,
@@ -2669,7 +2730,8 @@
     "urlEndpoints": {
      "RestFuturesURL": "https://api-futures.kucoin.com/api",
      "RestSpotURL": "https://api.kucoin.com/api",
-     "WebsocketSpotURL": "wss://ws-api.kucoin.com/endpoint"
+     "WebsocketFuturesURL": "wss://ws-api-futures.kucoin.com",
+     "WebsocketSpotURL": "wss://ws-api-spot.kucoin.com"
     }
    },
    "features": {

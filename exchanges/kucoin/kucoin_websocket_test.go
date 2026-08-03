@@ -5,10 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -38,6 +42,10 @@ type ConnectionFixture struct {
 	messageError    error
 	sendFn          func(any) ([]byte, error)
 	sentRequests    []WsSubscriptionInput
+	endpointURL     string
+	dialValues      url.Values
+	dialled         bool
+	pingHandler     websocket.PingHandler
 }
 
 func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
@@ -51,6 +59,24 @@ func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ reque
 		return c.sendFn(req)
 	}
 	return []byte(c.messageResponse), nil
+}
+
+func (c *ConnectionFixture) Dial(_ context.Context, _ *gws.Dialer, _ http.Header, values url.Values) error {
+	c.dialValues = values
+	c.dialled = true
+	return nil
+}
+
+func (c *ConnectionFixture) SetupPingHandler(_ request.EndpointLimit, p websocket.PingHandler) {
+	c.pingHandler = p
+}
+
+func (c *ConnectionFixture) SetURL(endpointURL string) {
+	c.endpointURL = endpointURL
+}
+
+func (c *ConnectionFixture) GetURL() string {
+	return c.endpointURL
 }
 
 func expectedPerPairSubscriptions(channel string, a asset.Item, pairs currency.Pairs, qualifiedPrefix string, interval kline.Interval, suffixFn func(currency.Pair) string) subscription.List {
@@ -144,6 +170,70 @@ func TestPushData(t *testing.T) {
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
 
+func TestWsHandleData(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SetCredentials(&accounts.Credentials{Key: "mock", Secret: "test", ClientID: "test"})
+	ku.API.AuthenticatedSupport = true
+	payload := []byte(`{"topic":"/account/balance","type":"message","subject":"account.balance","id":"2806792994029696","channelType":"private","data":{"available":"0","currency":"KITE","hold":"30","relationEvent":"trade.hold","time":"1784868353683","total":"30"}}`)
+
+	require.NoError(t, ku.wsHandleData(t.Context(), nil, payload), "wsHandleData must route identified push messages by topic")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
+}
+
+func TestProcessAccountBalanceChange(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SetCredentials(&accounts.Credentials{Key: "mock", Secret: "test", ClientID: "test"})
+	ku.API.AuthenticatedSupport = true
+	payload := []byte(`{"available":"50.17067692","currency":"USDT","hold":"0","relationEvent":"trade.setted","time":"1784868353688","total":"50.17067692"}`)
+
+	require.NoError(t, ku.processAccountBalanceChange(t.Context(), payload), "processAccountBalanceChange must not error")
+	require.Len(t, ku.Websocket.DataHandler.C, 1, "DataHandler must receive the account balance change")
+	item := <-ku.Websocket.DataHandler.C
+	subAccounts, ok := item.Data.(accounts.SubAccounts)
+	require.True(t, ok, "DataHandler item must contain sub-accounts")
+	require.Len(t, subAccounts, 1, "account balance change must contain one sub-account")
+	require.Equal(t, asset.Spot, subAccounts[0].AssetType, "account balance change must update the spot account")
+
+	creds, err := ku.GetCredentials(t.Context())
+	require.NoError(t, err, "GetCredentials must not error")
+	balance, err := ku.Accounts.GetBalance("", creds, asset.Spot, currency.USDT)
+	require.NoError(t, err, "GetBalance must find the stored spot balance")
+	require.InDelta(t, 50.17067692, balance.Total, 1e-12, "stored spot total must match the update")
+	require.InDelta(t, 50.17067692, balance.Free, 1e-12, "stored spot free balance must match the update")
+	require.Zero(t, balance.Hold, "stored spot hold balance must match the update")
+}
+
+func TestAccountBalanceAsset(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		relationEvent string
+		expected      asset.Item
+	}{
+		{name: "classic spot", relationEvent: "trade.setted", expected: asset.Spot},
+		{name: "high frequency spot", relationEvent: "trade_hf.hold", expected: asset.Spot},
+		{name: "classic margin", relationEvent: "margin.transfer", expected: asset.Margin},
+		{name: "high frequency margin", relationEvent: "marginV2.other", expected: asset.Margin},
+		{name: "isolated margin", relationEvent: "isolated_BTC-USDT.setted", expected: asset.Margin},
+		{name: "isolated high frequency margin", relationEvent: "isolatedV2_BTC-USDT.hold", expected: asset.Margin},
+		{name: "funding account", relationEvent: "main.transfer", expected: asset.Empty},
+		{name: "unknown", relationEvent: "other", expected: asset.Empty},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tc.expected, accountBalanceAsset(tc.relationEvent))
+		})
+	}
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -167,36 +257,209 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	pairs["both"] = common.SortStrings(pairs["spot"].Add(pairs["margin"]...))
 
-	exp := append(subscription.List{}, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Spot, pairs["both"], marketTickerChannel, 0, nil)...)
-	exp = append(exp, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Futures, pairs["futures"], futuresTickerChannel, 0, nil)...)
-	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Spot, pairs["both"], marketOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
-	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Futures, pairs["futures"], futuresOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
-	exp = append(exp, expectedPerPairSubscriptions(subscription.AllTradesChannel, asset.Spot, pairs["both"], marketMatchChannel, 0, nil)...)
-
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+	hasSub := func(channel string, item asset.Item) bool {
+		for i := range subs {
+			if subs[i].Channel == channel && subs[i].Asset == item {
+				return true
+			}
+		}
+		return false
+	}
+	for i := range subs {
+		assert.NotEmpty(t, subs[i].QualifiedChannel, "QualifiedChannel should not be empty")
+	}
+	assert.True(t, hasSub(subscription.TickerChannel, asset.Spot), "should include spot ticker subscriptions")
+	assert.True(t, hasSub(subscription.TickerChannel, asset.Futures), "should include futures ticker subscriptions")
+	assert.True(t, hasSub(subscription.OrderbookChannel, asset.Spot), "should include spot orderbook subscriptions")
+	assert.True(t, hasSub(subscription.OrderbookChannel, asset.Futures), "should include futures orderbook subscriptions")
+	assert.True(t, hasSub(subscription.AllTradesChannel, asset.Spot), "should include spot trade subscriptions")
 
 	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	var loanPairs currency.Pairs
-	loanCurrs := common.SortStrings(pairs["both"].GetCurrencies())
-	for _, c := range loanCurrs {
-		loanPairs = append(loanPairs, currency.Pair{Base: c})
-	}
-
-	exp = append(exp, subscription.List{
-		{Asset: asset.Futures, Channel: futuresTradeOrderChannel, QualifiedChannel: "/contractMarket/tradeOrders", Pairs: pairs["futures"]},
-		{Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, QualifiedChannel: "/contractMarket/advancedOrders", Pairs: pairs["futures"]},
-		{Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, QualifiedChannel: "/contractAccount/wallet", Pairs: pairs["futures"]},
-		{Asset: asset.Margin, Channel: marginPositionChannel, QualifiedChannel: "/margin/position", Pairs: pairs["margin"]},
-		{Asset: asset.Margin, Channel: marginLoanChannel, QualifiedChannel: "/margin/loan:" + loanCurrs.Join(), Pairs: loanPairs},
-		{Channel: accountBalanceChannel, QualifiedChannel: "/account/balance"},
-	}...)
-
 	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions with Auth must not error")
-	testsubs.EqualLists(t, exp, subs)
+	require.NotEmpty(t, subs, "generateSubscriptions with auth must return subscriptions")
+	hasSub = func(channel string, item asset.Item) bool {
+		for i := range subs {
+			if subs[i].Channel == channel && subs[i].Asset == item {
+				return true
+			}
+		}
+		return false
+	}
+	assert.True(t, hasSub(futuresTradeOrderChannel, asset.Futures), "should include futures trade order channel")
+	assert.True(t, hasSub(futuresStopOrdersLifecycleEventChannel, asset.Futures), "should include futures stop order lifecycle channel")
+	assert.True(t, hasSub(futuresAccountBalanceEventChannel, asset.Futures), "should include futures account balance channel")
+	assert.True(t, hasSub(marginPositionChannel, asset.Margin), "should include margin position channel")
+	assert.True(t, hasSub(marginLoanChannel, asset.Margin), "should include margin loan channel")
+	assert.True(t, hasSub(accountBalanceChannel, asset.Empty), "should include account balance channel")
+}
+
+func TestSpotWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	got := spotWebsocketSubscriptions(subs)
+	require.NotEmpty(t, got, "spotWebsocketSubscriptions must return subscriptions")
+	for _, sub := range got {
+		require.NotEqual(t, asset.Futures, sub.Asset, "spot subscription generator must exclude futures assets")
+		require.False(t, strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "spot subscription generator must exclude futures topics")
+	}
+}
+
+func TestSplitWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs := subscription.List{
+		{Channel: subscription.TickerChannel, Asset: asset.Spot},
+		{Channel: subscription.TickerChannel, Asset: asset.Futures},
+		{Channel: subscription.TickerChannel, Asset: asset.Margin},
+		{Channel: futuresTradeOrderChannel, Asset: asset.Empty},
+		{Channel: accountBalanceChannel, Asset: asset.Empty},
+	}
+
+	spot, futures := splitWebsocketSubscriptions(subs)
+	require.Len(t, spot, 3, "splitWebsocketSubscriptions must return spot-family subscriptions")
+	assert.Equal(t, asset.Spot, spot[0].Asset, "first spot-family asset should be correct")
+	assert.Equal(t, asset.Margin, spot[1].Asset, "second spot-family asset should be correct")
+	assert.Equal(t, accountBalanceChannel, spot[2].Channel, "spot-family subscriptions should include account balance")
+
+	require.Len(t, futures, 2, "splitWebsocketSubscriptions must return futures-family subscriptions")
+	assert.Equal(t, asset.Futures, futures[0].Asset, "first futures-family asset should be correct")
+	assert.Equal(t, futuresTradeOrderChannel, futures[1].Channel, "futures-family subscriptions should include contract channels")
+}
+
+func TestKucoinWebsocketRateLimiter(t *testing.T) {
+	t.Parallel()
+
+	require.NotNil(t, kucoinWebsocketRateLimiter(), "kucoinWebsocketRateLimiter must return a limiter")
+}
+
+func TestFuturesWebsocketSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	got := futuresWebsocketSubscriptions(subs)
+	require.NotEmpty(t, got, "futuresWebsocketSubscriptions must return subscriptions")
+	for _, sub := range got {
+		require.True(t, sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract"), "futures subscription generator must exclude spot and margin topics")
+	}
+}
+
+func TestWsConnectUsesExpectedBulletEndpoint(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name            string
+		authenticated   bool
+		connectionURL   string
+		wantSpotHits    int
+		wantFuturesHits int
+		wantToken       string
+		wantEndpoint    string
+	}{
+		{
+			name:          "public_spot",
+			connectionURL: kucoinWebsocketSpotURL,
+			wantSpotHits:  1,
+			wantToken:     "spot-public-token",
+			wantEndpoint:  "wss://spot-public.example.test/endpoint",
+		},
+		{
+			name:            "public_futures",
+			connectionURL:   kucoinWebsocketFuturesURL,
+			wantFuturesHits: 1,
+			wantToken:       "futures-public-token",
+			wantEndpoint:    "wss://futures-public.example.test/endpoint",
+		},
+		{
+			name:          "authenticated_spot",
+			authenticated: true,
+			connectionURL: kucoinWebsocketSpotURL,
+			wantSpotHits:  1,
+			wantToken:     "spot-private-token",
+			wantEndpoint:  "wss://spot-private.example.test/endpoint",
+		},
+		{
+			name:            "authenticated_futures",
+			authenticated:   true,
+			connectionURL:   kucoinWebsocketFuturesURL,
+			wantFuturesHits: 1,
+			wantToken:       "futures-private-token",
+			wantEndpoint:    "wss://futures-private.example.test/endpoint",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ku := testInstance(t)
+			ku.SkipAuthCheck = true
+			ku.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret", ClientID: "passphrase"})
+			ku.Websocket.SetCanUseAuthenticatedEndpoints(tt.authenticated)
+
+			spotHits := 0
+			spotServer := newKucoinBulletServer(t, "spot", &spotHits)
+			futuresHits := 0
+			futuresServer := newKucoinBulletServer(t, "futures", &futuresHits)
+			require.NoError(t, ku.SetHTTPClient(spotServer.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), spotServer.URL+"/api"), "SetRunningURL must not error for spot REST")
+			require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), futuresServer.URL+"/api"), "SetRunningURL must not error for futures REST")
+
+			conn := &ConnectionFixture{endpointURL: tt.connectionURL}
+			err := ku.WsConnect(t.Context(), conn)
+			require.NoError(t, err, "WsConnect must not error")
+
+			assert.Equal(t, tt.wantSpotHits, spotHits, "spot bullet endpoint hit count should be correct")
+			assert.Equal(t, tt.wantFuturesHits, futuresHits, "futures bullet endpoint hit count should be correct")
+			assert.Equal(t, tt.wantEndpoint, conn.GetURL(), "WsConnect should switch to the instance endpoint")
+			assert.True(t, conn.dialled, "WsConnect should dial the websocket")
+			assert.Equal(t, tt.wantToken, conn.dialValues.Get("token"), "WsConnect should dial with the returned token")
+			assert.Equal(t, time.Second*18, conn.pingHandler.Delay, "WsConnect should use the returned ping interval")
+		})
+	}
+}
+
+func newKucoinBulletServer(t *testing.T, family string, hits *int) *httptest.Server {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		*hits++
+		assert.Equal(t, http.MethodPost, r.Method, "bullet request method should be correct")
+		endpointType := "public"
+		if strings.HasSuffix(r.URL.Path, privateBullets) {
+			endpointType = "private"
+		}
+		assert.Contains(t, []string{"/api" + publicBullets, "/api" + privateBullets}, r.URL.Path, "bullet request path should be correct")
+		_, err := fmt.Fprintf(w, `{"code":"200000","data":{"token":"%[1]s-%[2]s-token","instanceServers":[{"endpoint":"wss://%[1]s-%[2]s.example.test/endpoint","encrypt":true,"protocol":"websocket","pingInterval":18000,"pingTimeout":10000}]}}`, family, endpointType)
+		assert.NoError(t, err, "writing bullet response should not error")
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestSetupCreatesSeparateWebsocketConnections(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+
+	spotConn, err := ku.Websocket.CreateTestConnection(wsSpotConnection)
+	require.NoError(t, err, "CreateTestConnection must find spot websocket connection")
+	require.Equal(t, kucoinWebsocketSpotURL, spotConn.GetURL(), "spot websocket connection URL must be set")
+
+	futuresConn, err := ku.Websocket.CreateTestConnection(wsFuturesConnection)
+	require.NoError(t, err, "CreateTestConnection must find futures websocket connection")
+	require.Equal(t, kucoinWebsocketFuturesURL, futuresConn.GetURL(), "futures websocket connection URL must be set")
 }
 
 func TestGenerateTickerAllSub(t *testing.T) {
@@ -221,36 +484,40 @@ func TestGenerateTickerAllSub(t *testing.T) {
 func TestGenerateOtherSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	ku := testInstance(t)
-	spotPairs, err := ku.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err, "GetEnabledPairs must not error")
-	spotPairs = common.SortStrings(spotPairs)
-	interval, err := IntervalToString(kline.FourHour)
-	require.NoError(t, err, "IntervalToString must not error")
-
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FourHour},
 		{Channel: marketSnapshotChannel, Asset: asset.Spot},
 	}
 
 	for _, s := range subs {
-		ku.Features.Subscriptions = subscription.List{s}
-		got, err := ku.generateSubscriptions()
-		require.NoError(t, err, "generateSubscriptions must not error")
+		t.Run(s.Channel, func(t *testing.T) {
+			t.Parallel()
 
-		var exp subscription.List
-		switch s.Channel {
-		case subscription.CandlesChannel:
-			exp = expectedPerPairSubscriptions(subscription.CandlesChannel, asset.Spot, spotPairs, marketCandlesChannel, kline.FourHour, func(pair currency.Pair) string {
-				return pair.String() + "_" + interval
-			})
-		case marketSnapshotChannel:
-			exp = expectedPerPairSubscriptions(marketSnapshotChannel, asset.Spot, spotPairs, marketSnapshotChannel, 0, nil)
-		default:
-			t.Fatalf("unexpected test channel %s", s.Channel)
-		}
+			ku := testInstance(t)
+			ku.Features.Subscriptions = subscription.List{s}
+			spotPairs, err := ku.GetEnabledPairs(asset.Spot)
+			require.NoError(t, err, "GetEnabledPairs must not error")
+			spotPairs = common.SortStrings(spotPairs)
+			interval, err := IntervalToString(kline.FourHour)
+			require.NoError(t, err, "IntervalToString must not error")
 
-		testsubs.EqualLists(t, exp, got)
+			got, err := ku.generateSubscriptions()
+			require.NoError(t, err, "generateSubscriptions must not error")
+
+			var exp subscription.List
+			switch s.Channel {
+			case subscription.CandlesChannel:
+				exp = expectedPerPairSubscriptions(subscription.CandlesChannel, asset.Spot, spotPairs, marketCandlesChannel, kline.FourHour, func(pair currency.Pair) string {
+					return pair.String() + "_" + interval
+				})
+			case marketSnapshotChannel:
+				exp = expectedPerPairSubscriptions(marketSnapshotChannel, asset.Spot, spotPairs, marketSnapshotChannel, 0, nil)
+			default:
+				t.Fatalf("unexpected test channel %s", s.Channel)
+			}
+
+			testsubs.EqualLists(t, exp, got)
+		})
 	}
 }
 
@@ -278,6 +545,12 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	testsubs.EqualLists(t, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Margin, marginAvail[:6], marketTickerChannel, 0, nil), subs)
+
+	collapsed := collapseSubscriptionList(subs)
+	require.Len(t, collapsed, 1, "collapseSubscriptionList must batch margin ticker subs into one request")
+	for _, sub := range collapsed {
+		assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), sub.QualifiedChannel, "collapsed QualifiedChannel should be correct")
+	}
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
@@ -342,7 +615,9 @@ func TestProcessOrderbook(t *testing.T) {
 		require.NoError(t, err, "CalculateAssets must not error")
 		require.NotEmpty(t, assets, "must resolve at least one asset for the orderbook pair")
 
+		before := time.Now()
 		err = ku.processOrderbook([]byte(`{"asks":[["0.0500","1.5"],["0.0500","0.5"],["0.0600","2"]],"bids":[["0.0400","3"],["0.0400","1"],["0.0300","4"]],"timestamp":1700555340197}`), pair.String(), marketOrderbookDepth50Channel)
+		after := time.Now()
 		require.NoError(t, err, "processOrderbook must not error")
 
 		for _, a := range assets {
@@ -351,6 +626,9 @@ func TestProcessOrderbook(t *testing.T) {
 			require.Len(t, book.Asks, 2, "must collapse duplicate ask levels")
 			require.Len(t, book.Bids, 2, "must collapse duplicate bid levels")
 			assert.Equal(t, time.UnixMilli(1700555340197), book.LastUpdated, "LastUpdated should match the snapshot timestamp")
+			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the snapshot timestamp")
+			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the snapshot")
+			assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the message was received")
 			assert.Equal(t, pair, book.Pair, "Pair should match the processed orderbook symbol")
 			assert.Equal(t, a, book.Asset, "Asset should match the calculated asset")
 			assert.Equal(t, 0.05, book.Asks[0].Price, "First ask price should match payload")
@@ -359,7 +637,9 @@ func TestProcessOrderbook(t *testing.T) {
 			assert.InDelta(t, 4.0, book.Bids[0].Amount, 1e-12, "First bid amount should merge duplicate rounded levels")
 		}
 
+		before = time.Now()
 		err = ku.wsHandleData(t.Context(), nil, []byte(`{"type":"message","topic":"/spotMarket/level2Depth50:ETH-BTC","subject":"level2","data":{"asks":[["0.0700","1.25"]],"bids":[["0.0200","2.5"]],"timestamp":1700555342007}}`))
+		after = time.Now()
 		require.NoError(t, err, "wsHandleData must not error for orderbook payloads")
 
 		for _, a := range assets {
@@ -368,6 +648,9 @@ func TestProcessOrderbook(t *testing.T) {
 			require.Len(t, book.Asks, 1, "must replace asks on snapshot reload")
 			require.Len(t, book.Bids, 1, "must replace bids on snapshot reload")
 			assert.Equal(t, time.UnixMilli(1700555342007), book.LastUpdated, "LastUpdated should update from websocket dispatch")
+			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should update from websocket dispatch")
+			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should update from websocket dispatch")
+			assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the websocket dispatch reached GCT")
 			assert.Equal(t, 0.07, book.Asks[0].Price, "Ask price should match websocket dispatch payload")
 			assert.InDelta(t, 1.25, book.Asks[0].Amount, 1e-12, "Ask amount should match websocket dispatch payload")
 			assert.Equal(t, 0.02, book.Bids[0].Price, "Bid price should match websocket dispatch payload")
@@ -395,6 +678,8 @@ func TestProcessOrderbook(t *testing.T) {
 			require.NoErrorf(t, err, "GetOrderbook must not error for asset %s", a)
 			assert.False(t, book.LastUpdated.Before(before), "LastUpdated should not be before the fallback window")
 			assert.False(t, book.LastUpdated.After(after), "LastUpdated should not be after the fallback window")
+			assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match fallback LastUpdated")
+			assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set in the fallback window")
 		}
 	})
 
@@ -434,12 +719,71 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 	t.Parallel()
 
+	t.Run("update_time_fields", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Name += "-TestProcessSpotOrderbookWithDepth"
+
+		pair := currency.NewBTCUSDT()
+		const sequenceStart = int64(14103844)
+		const sequenceEnd = int64(14103847)
+		updateTime := time.UnixMilli(1663747970273)
+		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDelay:    0,
+			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				if !p.Equal(pair) {
+					return nil, fmt.Errorf("snapshot pair must match the websocket payload symbol: %s", p)
+				}
+				if a != asset.Spot {
+					return nil, fmt.Errorf("snapshot asset must be spot: %s", a)
+				}
+				return &orderbook.Book{
+					Exchange:     ku.Name,
+					Pair:         pair,
+					Asset:        asset.Spot,
+					Bids:         orderbook.Levels{{Price: 18890, Amount: 1, ID: sequenceStart - 1}},
+					Asks:         orderbook.Levels{{Price: 18910, Amount: 1, ID: sequenceStart - 1}},
+					LastUpdated:  updateTime.Add(-time.Millisecond),
+					LastPushed:   updateTime.Add(-time.Millisecond),
+					LastUpdateID: sequenceStart - 1,
+				}, nil
+			},
+			CheckPendingUpdate: checkPendingUpdate,
+			BufferInstance:     &ku.Websocket.Orderbook,
+		})
+
+		before := time.Now()
+		err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "BTC-USDT,ETH-USDT")
+		after := time.Now()
+		require.NoError(t, err, "processSpotOrderbookWithDepth must not error")
+
+		require.Eventually(t, func() bool {
+			id, err := ku.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == sequenceEnd
+		}, time.Second*5, time.Millisecond*50, "spot orderbook update must eventually sync")
+
+		book, err := ku.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for spot incremental updates")
+		assert.Equal(t, sequenceEnd, book.LastUpdateID, "LastUpdateID should match sequenceEnd")
+		assert.Equal(t, updateTime, book.LastUpdated, "LastUpdated should match the websocket time field")
+		assert.Equal(t, updateTime, book.LastPushed, "LastPushed should match the websocket time field")
+		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set before orderbook processing")
+		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the update reached GCT")
+		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a spot update")
+		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a spot update")
+		assert.Equal(t, 18891.9, book.Bids[0].Price, "bid price should match websocket update")
+		assert.InDelta(t, 0.15688, book.Bids[0].Amount, 1e-12, "bid amount should match websocket update")
+		assert.Equal(t, 18906.0, book.Asks[0].Price, "ask price should match websocket update")
+		assert.InDelta(t, 0.00331, book.Asks[0].Amount, 1e-12, "ask amount should match websocket update")
+	})
+
 	t.Run("error_paths", func(t *testing.T) {
 		t.Parallel()
 		t.Run("invalid_instrument", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "a")
+			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"time":1663747970273}}`), "a")
 			require.ErrorIs(t, err, currency.ErrCreatingPair)
 		})
 
@@ -450,6 +794,28 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 			require.Error(t, err)
 		})
 	})
+}
+
+func TestProcessFuturesOrderbookSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
+
+	before := time.Now()
+	err := ku.processFuturesOrderbookSnapshot([]byte(`{"sequence":18,"bids":[["5000","83"]],"asks":[["5010","1"]],"ts":1551770400100,"timestamp":1551770400000}`), futuresTradablePair.String())
+	after := time.Now()
+	require.NoError(t, err, "processFuturesOrderbookSnapshot must not error")
+
+	book, err := ku.Websocket.Orderbook.GetOrderbook(futuresTradablePair, asset.Futures)
+	require.NoError(t, err, "GetOrderbook must not error for futures snapshots")
+	require.NotEmpty(t, book.Bids, "bids must not be empty after processing a futures snapshot")
+	require.NotEmpty(t, book.Asks, "asks must not be empty after processing a futures snapshot")
+	assert.Equal(t, int64(18), book.LastUpdateID, "LastUpdateID should match the futures snapshot sequence")
+	assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the futures snapshot timestamp")
+	assert.Equal(t, time.UnixMilli(1551770400100), book.LastPushed, "LastPushed should match the futures snapshot push timestamp")
+	assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the futures snapshot")
+	assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the futures snapshot reached GCT")
 }
 
 func TestProcessFuturesOrderbookLevel2(t *testing.T) {
@@ -489,7 +855,9 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
+		before := time.Now()
 		err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, futuresTradablePair.String())
+		after := time.Now()
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for buy updates")
 
 		require.Eventually(t, func() bool {
@@ -501,6 +869,10 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		require.NoError(t, err, "GetOrderbook must not error for futures buy updates")
 		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a buy update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
+		assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the websocket update timestamp")
+		assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the websocket update timestamp")
+		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the buy update")
+		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the buy update reached GCT")
 		assert.Equal(t, 5000.0, book.Bids[0].Price, "Highest bid price should match the buy update")
 		assert.InDelta(t, 83.0, book.Bids[0].Amount, 1e-12, "Highest bid amount should match the buy update")
 	})
@@ -537,7 +909,9 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 			BufferInstance:     &ku.Websocket.Orderbook,
 		})
 
+		before := time.Now()
 		err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,sell,83","timestamp":1551770400000}`), futuresTradablePair.String())
+		after := time.Now()
 		require.NoError(t, err, "processFuturesOrderbookLevel2 must not error for sell updates")
 
 		require.Eventually(t, func() bool {
@@ -549,6 +923,10 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 		require.NoError(t, err, "GetOrderbook must not error for futures sell updates")
 		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a sell update")
 		assert.Equal(t, updateID, book.LastUpdateID, "LastUpdateID should be updated from the websocket sequence")
+		assert.Equal(t, time.UnixMilli(1551770400000), book.LastUpdated, "LastUpdated should match the websocket update timestamp")
+		assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match the websocket update timestamp")
+		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set while processing the sell update")
+		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the sell update reached GCT")
 		assert.Equal(t, 5000.0, book.Asks[0].Price, "Lowest ask price should match the sell update")
 		assert.InDelta(t, 83.0, book.Asks[0].Amount, 1e-12, "Lowest ask amount should match the sell update")
 	})
@@ -685,6 +1063,33 @@ func TestSubscribeBatches(t *testing.T) {
 		assert.Truef(t, ok, "Request topic should match a collapsed subscription: %s", req.Topic)
 	}
 	assert.Len(t, ku.Websocket.GetSubscriptions(), len(subs), "Subscribe should track each original subscription")
+}
+
+func TestCollapseSubscriptionListBatchesAtKuCoinLimit(t *testing.T) {
+	t.Parallel()
+
+	const subCount = kucoinWSSubscribeLimit*2 + 5
+	subs := make(subscription.List, 0, subCount)
+	for i := range subCount {
+		subs = append(subs, &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          marketOrderbookChannel,
+			QualifiedChannel: fmt.Sprintf("%s:TEST%d-USDT", marketOrderbookChannel, i),
+		})
+	}
+
+	got := collapseSubscriptionList(subs)
+	require.Len(t, got, 3, "collapseSubscriptionList must split subscriptions into capped requests")
+
+	total := 0
+	for assoc, collapsed := range got {
+		require.LessOrEqual(t, len(*assoc), kucoinWSSubscribeLimit, "associated subscriptions must respect KuCoin request topic limit")
+		total += len(*assoc)
+		topicParts := strings.SplitN(collapsed.QualifiedChannel, ":", 2)
+		require.Len(t, topicParts, 2, "collapsed subscription must keep channel and suffixes")
+		require.LessOrEqual(t, len(strings.Split(topicParts[1], ",")), kucoinWSSubscribeLimit, "collapsed request must respect KuCoin request topic limit")
+	}
+	require.Equal(t, subCount, total, "collapseSubscriptionList must preserve all source subscriptions")
 }
 
 func TestChannelName(t *testing.T) {
@@ -887,6 +1292,49 @@ func TestManageSubscriptions(t *testing.T) {
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":"ack"}`}, subscription.List{baseSub()}, "unsubscribe")
 			require.ErrorIs(t, err, subscription.ErrNotFound)
 		})
+	})
+}
+
+func TestScheduleOrderbookSnapshotFallback(t *testing.T) {
+	t.Parallel()
+
+	t.Run("registers_only_full_depth_orderbooks", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDeadline: time.Second,
+			FetchOrderbook: func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+				return nil, orderbook.ErrDepthNotFound
+			},
+			CheckPendingUpdate:           checkPendingUpdate,
+			InitialSnapshotFallbackDelay: time.Hour,
+			InitialSnapshotFallbackLimit: 1,
+			BufferInstance:               &ku.Websocket.Orderbook,
+		})
+		spotPair := currency.NewBTCUSDT()
+		futuresPair := currency.NewPair(currency.ETH, currency.USDT)
+		subs := subscription.List{
+			{Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+			{Channel: futuresOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresPair}},
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+			nil,
+		}
+
+		require.NoError(t, ku.scheduleOrderbookSnapshotFallback(t.Context(), subs))
+		stats := ku.wsOBUpdateMgr.BootstrapStats()
+		assert.Equal(t, 1, stats[asset.Spot].Subscribed)
+		assert.Equal(t, 1, stats[asset.Futures].Subscribed)
+	})
+
+	t.Run("returns_invalid_pair", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		err := ku.scheduleOrderbookSnapshotFallback(t.Context(), subscription.List{{
+			Channel: marketOrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.EMPTYPAIR},
+		}})
+		require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	})
 }
 

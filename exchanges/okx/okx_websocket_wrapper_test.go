@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -21,25 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testpath "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-func loadOKXExchangeConfig(t *testing.T, exchangeName string) *config.Exchange {
-	t.Helper()
-
-	root, err := testpath.RootPathFromCWD()
-	require.NoError(t, err)
-
-	cfg := &config.Config{}
-	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true))
-
-	exchCfg, err := cfg.GetExchangeConfig(exchangeName)
-	require.NoError(t, err)
-	exchCfg.Features.Subscriptions = subscription.List{}
-	return exchCfg
-}
 
 func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
 	t.Helper()
@@ -52,7 +33,9 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
-	exchCfg := loadOKXExchangeConfig(t, ex.Name)
+	exchCfg := ex.Config
+	require.NotNil(t, exchCfg)
+	exchCfg.Features.Subscriptions = subscription.List{}
 	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exchCfg,
 		Features:                     &ex.Features.Supports.WebsocketCapabilities,
@@ -115,7 +98,7 @@ func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 	var response string
 	switch req.Op {
 	case "order":
-		response = `{"id":"` + req.ID + `","op":"order","code":"0","msg":"","data":[{"ordId":"submit-order","sCode":"0","sMsg":""}]}`
+		response = `{"id":"` + req.ID + `","op":"order","code":"0","msg":"","data":[{"ordId":"submit-order","clOrdId":"client-order","sCode":"0","sMsg":"","ts":"1694153250532"}]}`
 	case "amend-order":
 		response = `{"id":"` + req.ID + `","op":"amend-order","code":"0","msg":"","data":[{"ordId":"amended-order","sCode":"0","sMsg":""}]}`
 	case "cancel-order":
@@ -142,6 +125,10 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "submit-order", resp.OrderID)
+	assert.Equal(t, "client-order", resp.ClientOrderID)
+	expectedTimestamp := time.UnixMilli(1694153250532)
+	assert.True(t, resp.Date.Equal(expectedTimestamp), "Date should match exchange timestamp")
+	assert.True(t, resp.LastUpdated.Equal(expectedTimestamp), "LastUpdated should match exchange timestamp")
 
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
@@ -175,7 +162,7 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	invalid := *modify
 	invalid.Amount = 1.5
 	_, err = ex.WebsocketModifyOrder(t.Context(), &invalid)
-	require.ErrorContains(t, err, "contract amount can not be decimal")
+	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
 }
 
 func TestWebsocketCancelOrderMocked(t *testing.T) {
@@ -214,7 +201,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 		})
-		require.Error(t, err)
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 
@@ -227,7 +214,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			Amount:    1,
 			Price:     1,
 		})
-		require.Error(t, err)
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 
@@ -237,7 +224,7 @@ func TestWebsocketSpreadRouting(t *testing.T) {
 			OrderID:   "1",
 			AssetType: asset.Spread,
 		})
-		require.Error(t, err)
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 		require.NotErrorIs(t, err, asset.ErrNotSupported)
 	})
 }
@@ -293,7 +280,23 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, order.Buy.Lower(), arg.Side)
-		assert.Equal(t, positionSideShort, arg.PositionSide)
+		assert.Empty(t, arg.PositionSide)
+		assert.True(t, arg.ReduceOnly)
+	})
+
+	t.Run("futures plain sell omits position side", func(t *testing.T) {
+		t.Parallel()
+		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Futures,
+			Side:      order.Sell,
+			Type:      order.Market,
+			Amount:    1,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, order.Sell.Lower(), arg.Side)
+		assert.Empty(t, arg.PositionSide)
 	})
 
 	t.Run("options side is set", func(t *testing.T) {
@@ -327,76 +330,241 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 	})
 }
 
-func TestLookupInstrumentIDCode(t *testing.T) {
-	t.Parallel()
-
-	t.Run("exact instrument match", func(t *testing.T) {
-		t.Parallel()
-		code := lookupInstrumentIDCode([]Instrument{
-			{
-				InstrumentID:     mainPair,
-				InstrumentIDCode: types.NumberFromFloat64(123456),
-			},
-		}, mainPair.String())
-		require.Equal(t, int64(123456), code)
-	})
-
-	t.Run("single instrument fallback", func(t *testing.T) {
-		t.Parallel()
-		code := lookupInstrumentIDCode([]Instrument{
-			{
-				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.NumberFromFloat64(654321),
-			},
-		}, "NON-MATCHING")
-		require.Equal(t, int64(654321), code)
-	})
-
-	t.Run("returns zero when unresolved", func(t *testing.T) {
-		t.Parallel()
-		code := lookupInstrumentIDCode([]Instrument{
-			{
-				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.NumberFromFloat64(0),
-			},
-			{
-				InstrumentID:     currency.NewPair(currency.ETH, currency.USDT),
-				InstrumentIDCode: types.NumberFromFloat64(0),
-			},
-		}, "UNKNOWN")
-		require.Equal(t, int64(0), code)
-	})
-}
-
-func TestOptionInstrumentSelectors(t *testing.T) {
+func TestDeriveOrderSide(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name            string
-		instrumentID    string
-		expectedULY     string
-		expectedInstFam string
+		name    string
+		side    order.Side
+		want    string
+		wantErr error
 	}{
 		{
-			name:            "option instrument id",
-			instrumentID:    "BTC-USD-260403-70000-C",
-			expectedULY:     "BTC-USD",
-			expectedInstFam: "BTC-USD",
+			name: "buy",
+			side: order.Buy,
+			want: order.Buy.Lower(),
 		},
 		{
-			name:            "too short",
-			instrumentID:    "BTC",
-			expectedULY:     "",
-			expectedInstFam: "",
+			name: "sell",
+			side: order.Sell,
+			want: order.Sell.Lower(),
+		},
+		{
+			name:    "invalid",
+			side:    order.AnySide,
+			wantErr: order.ErrSideIsInvalid,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			gotULY, gotInstFam := optionInstrumentSelectors(tc.instrumentID)
-			require.Equal(t, tc.expectedULY, gotULY)
-			require.Equal(t, tc.expectedInstFam, gotInstFam)
+
+			got, err := deriveOrderSide(tc.side)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestDerivePositionSide(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+		sub  *order.Submit
+		want string
+	}{
+		{
+			name: "spot empty",
+			sub: &order.Submit{
+				AssetType: asset.Spot,
+				Side:      order.Buy,
+			},
+			want: "",
+		},
+		{
+			name: "futures long",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Long,
+			},
+			want: positionSideLong,
+		},
+		{
+			name: "futures short",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Short,
+			},
+			want: positionSideShort,
+		},
+		{
+			name: "futures reduce only buy",
+			sub: &order.Submit{
+				AssetType:  asset.Futures,
+				Side:       order.Buy,
+				ReduceOnly: true,
+			},
+			want: "",
+		},
+		{
+			name: "futures reduce only sell",
+			sub: &order.Submit{
+				AssetType:  asset.Futures,
+				Side:       order.Sell,
+				ReduceOnly: true,
+			},
+			want: "",
+		},
+		{
+			name: "futures buy",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Buy,
+			},
+			want: "",
+		},
+		{
+			name: "futures sell",
+			sub: &order.Submit{
+				AssetType: asset.Futures,
+				Side:      order.Sell,
+			},
+			want: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, derivePositionSide(tc.sub))
+		})
+	}
+}
+
+func TestIsSpotMarketOrder(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isSpotMarketOrder(&order.Submit{AssetType: asset.Spot, Type: order.Market}))
+	require.False(t, isSpotMarketOrder(&order.Submit{AssetType: asset.Spot, Type: order.Limit}))
+	require.False(t, isSpotMarketOrder(&order.Submit{AssetType: asset.Futures, Type: order.Market}))
+}
+
+func TestIsSpotMarketBuyWithQuoteAmount(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isSpotMarketBuyWithQuoteAmount(&order.Submit{
+		AssetType:   asset.Spot,
+		Type:        order.Market,
+		Side:        order.Buy,
+		QuoteAmount: 1,
+	}))
+	require.False(t, isSpotMarketBuyWithQuoteAmount(&order.Submit{
+		AssetType:   asset.Spot,
+		Type:        order.Market,
+		Side:        order.Sell,
+		QuoteAmount: 1,
+	}))
+	require.False(t, isSpotMarketBuyWithQuoteAmount(&order.Submit{
+		AssetType:   asset.Spot,
+		Type:        order.Limit,
+		Side:        order.Buy,
+		QuoteAmount: 1,
+	}))
+	require.False(t, isSpotMarketBuyWithQuoteAmount(&order.Submit{
+		AssetType:   asset.Spot,
+		Type:        order.Market,
+		Side:        order.Buy,
+		QuoteAmount: 0,
+	}))
+}
+
+func TestDeriveAmendOrderArguments(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	_, err := ex.deriveAmendOrderArguments(&order.Modify{})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
+
+	_, err = ex.deriveAmendOrderArguments(nil)
+	require.ErrorIs(t, err, order.ErrModifyOrderIsNil)
+
+	_, err = ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+		Amount:    1,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID:   "1",
+		AssetType: asset.Options,
+		Pair:      mainPair,
+		Amount:    1.5,
+	})
+	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
+
+	arg, err := ex.deriveAmendOrderArguments(&order.Modify{
+		OrderID:       "1",
+		ClientOrderID: "abc",
+		AssetType:     asset.Options,
+		Pair:          mainPair,
+		Amount:        2,
+		Price:         3,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "BTC-USDT", arg.InstrumentID)
+	require.Equal(t, 2.0, arg.NewQuantity)
+	require.Equal(t, 3.0, arg.NewPrice)
+	require.Equal(t, "1", arg.OrderID)
+	require.Equal(t, "abc", arg.ClientOrderID)
+}
+
+func TestDeriveCancelOrderArguments(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	_, err := ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Options,
+		Pair:      mainPair,
+		OrderID:   "1",
+	})
+	require.NoError(t, err)
+
+	_, err = ex.deriveCancelOrderArguments(nil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Spread,
+		Pair:      spreadPair,
+		OrderID:   "1",
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType: asset.Options,
+		OrderID:   "1",
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg, err := ex.deriveCancelOrderArguments(&order.Cancel{
+		AssetType:     asset.Options,
+		Pair:          mainPair,
+		OrderID:       "1",
+		ClientOrderID: "abc",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "BTC-USDT", arg.InstrumentID)
+	require.Equal(t, "1", arg.OrderID)
+	require.Equal(t, "abc", arg.ClientOrderID)
 }
