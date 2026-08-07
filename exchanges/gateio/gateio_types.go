@@ -1844,11 +1844,14 @@ type FuturesAccount struct {
 
 // AccountBookItem represents account book item
 type AccountBookItem struct {
-	Time    types.Time   `json:"time"`
-	Change  types.Number `json:"change"`
-	Balance types.Number `json:"balance"`
-	Text    string       `json:"text"`
-	Type    string       `json:"type"`
+	Time     types.Time   `json:"time"`
+	Change   types.Number `json:"change"`
+	Balance  types.Number `json:"balance"`
+	Text     string       `json:"text"`
+	Type     string       `json:"type"`
+	Contract string       `json:"contract"`
+	TradeID  string       `json:"trade_id"`
+	ID       string       `json:"id"`
 }
 
 // Position represents futures position
