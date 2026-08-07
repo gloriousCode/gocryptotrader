@@ -1105,7 +1105,7 @@ func TestQueryFuturesAccount(t *testing.T) {
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
+	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, "", 0, 0, time.Time{}, time.Time{}, "dnw")
 	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
 }
 
