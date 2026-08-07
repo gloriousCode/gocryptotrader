@@ -2247,6 +2247,22 @@ type WsOrderbookSnapshot struct {
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
+// WsSpotOrdersEvent represents a spot order lifecycle update envelope.
+type WsSpotOrdersEvent struct {
+	Time    types.Time    `json:"time"`
+	Channel string        `json:"channel"`
+	Event   string        `json:"event"`
+	Result  []WsSpotOrder `json:"result"`
+}
+
+// WsSpotUserTradesEvent represents a spot user trade lifecycle update envelope.
+type WsSpotUserTradesEvent struct {
+	Time    types.Time            `json:"time"`
+	Channel string                `json:"channel"`
+	Event   string                `json:"event"`
+	Result  []WsUserPersonalTrade `json:"result"`
+}
+
 // WsSpotOrder represents an order push data through the websocket channel.
 type WsSpotOrder struct {
 	ID                 string        `json:"id,omitempty"`
@@ -2259,8 +2275,11 @@ type WsSpotOrder struct {
 	Type               string        `json:"type,omitempty"`
 	Account            string        `json:"account,omitempty"`
 	Side               string        `json:"side,omitempty"`
+	Status             string        `json:"status,omitempty"`
 	Amount             types.Number  `json:"amount,omitzero"`
 	Price              types.Number  `json:"price,omitzero"`
+	AverageDealPrice   types.Number  `json:"avg_deal_price,omitzero"`
+	FillPrice          types.Number  `json:"fill_price,omitzero"`
 	TimeInForce        string        `json:"time_in_force,omitempty"`
 	Iceberg            string        `json:"iceberg,omitempty"`
 	Left               types.Number  `json:"left,omitzero"`
@@ -2273,25 +2292,29 @@ type WsSpotOrder struct {
 	RebatedFee         string        `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
 	Event              string        `json:"event"`
+	CreateTimeSeconds  types.Time    `json:"create_time,omitzero"`
 	CreateTime         types.Time    `json:"create_time_ms,omitzero"`
+	UpdateTimeSeconds  types.Time    `json:"update_time,omitzero"`
 	UpdateTime         types.Time    `json:"update_time_ms,omitzero"`
 }
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID           int64         `json:"id"`
-	UserID       int64         `json:"user_id"`
-	OrderID      string        `json:"order_id"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	CreateTime   types.Time    `json:"create_time_ms"`
-	Side         string        `json:"side"`
-	Amount       types.Number  `json:"amount"`
-	Role         string        `json:"role"`
-	Price        types.Number  `json:"price"`
-	Fee          types.Number  `json:"fee"`
-	PointFee     types.Number  `json:"point_fee"`
-	GtFee        string        `json:"gt_fee"`
-	Text         string        `json:"text"`
+	ID                int64         `json:"id"`
+	UserID            int64         `json:"user_id"`
+	OrderID           string        `json:"order_id"`
+	CurrencyPair      currency.Pair `json:"currency_pair"`
+	CreateTimeSeconds types.Time    `json:"create_time"`
+	CreateTime        types.Time    `json:"create_time_ms"`
+	Side              string        `json:"side"`
+	Amount            types.Number  `json:"amount"`
+	Role              string        `json:"role"`
+	Price             types.Number  `json:"price"`
+	Fee               types.Number  `json:"fee"`
+	FeeCurrency       currency.Code `json:"fee_currency"`
+	PointFee          types.Number  `json:"point_fee"`
+	GtFee             string        `json:"gt_fee"`
+	Text              string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
