@@ -216,13 +216,21 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresCandlesticksChannel:
 		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
-		processed, err := e.processFuturesOrdersPushData(respRaw, a)
+		event, processed, err := e.processFuturesOrdersPushData(respRaw, a)
+		if event != nil {
+			if sendErr := e.Websocket.DataHandler.Send(ctx, event); sendErr != nil {
+				if err != nil {
+					return fmt.Errorf("%w %w", sendErr, err)
+				}
+				return sendErr
+			}
+		}
 		if err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, processed)
 	case futuresUserTradesChannel:
-		return e.procesFuturesUserTrades(respRaw, a)
+		return e.procesFuturesUserTrades(ctx, respRaw, a)
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
@@ -230,6 +238,13 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresAutoPositionCloseChannel:
 		return e.processPositionCloseData(ctx, respRaw)
 	case futuresBalancesChannel:
+		var event WsFuturesBalancesEvent
+		if err := json.Unmarshal(respRaw, &event); err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, &event); err != nil {
+			return err
+		}
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
@@ -581,16 +596,11 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
-	resp := struct {
-		Time    types.Time     `json:"time"`
-		Channel string         `json:"channel"`
-		Event   string         `json:"event"`
-		Result  []FuturesOrder `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
+func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) (*WsFuturesOrdersEvent, []order.Detail, error) {
+	resp := new(WsFuturesOrdersEvent)
+	err := json.Unmarshal(data, resp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
@@ -605,7 +615,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
 		if err != nil {
-			return nil, err
+			return resp, nil, err
 		}
 
 		orderDetails[x] = order.Detail{
@@ -623,23 +633,19 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
-	return orderDetails, nil
+	return resp, orderDetails, nil
 }
 
-func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+func (e *Exchange) procesFuturesUserTrades(ctx context.Context, data []byte, assetType asset.Item) error {
+	resp := new(WsFuturesUserTradesEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+		return err
+	}
 	if !e.IsFillsFeedEnabled() {
 		return nil
-	}
-
-	resp := struct {
-		Time    types.Time           `json:"time"`
-		Channel string               `json:"channel"`
-		Event   string               `json:"event"`
-		Result  []WsFuturesUserTrade `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
@@ -686,17 +692,11 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 }
 
 func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  []WsPositionClose `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	resp := new(WsFuturesPositionClosesEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
@@ -741,17 +741,11 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 }
 
 func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time          `json:"time"`
-		Channel string              `json:"channel"`
-		Event   string              `json:"event"`
-		Result  []WsFuturesPosition `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	resp := new(WsFuturesPositionsEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processFuturesAutoOrderPushData(ctx context.Context, data []byte) error {

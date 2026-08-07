@@ -1975,9 +1975,11 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
+	UpdateID                  int64         `json:"update_id"`
 	User                      string        `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
+	UpdateTime                types.Time    `json:"update_time"`
 	Size                      types.Number  `json:"size"`
 	Iceberg                   types.Number  `json:"iceberg"`
 	RemainingAmount           types.Number  `json:"left"` // Size left to be traded
@@ -2425,6 +2427,46 @@ type WsFuturesOrderbookUpdateEvent struct {
 	ID           int64        `json:"id"`
 }
 
+// WsFuturesOrdersEvent represents a futures order lifecycle update envelope.
+type WsFuturesOrdersEvent struct {
+	Time    types.Time     `json:"time"`
+	Channel string         `json:"channel"`
+	Event   string         `json:"event"`
+	Result  []FuturesOrder `json:"result"`
+}
+
+// WsFuturesUserTradesEvent represents a futures user trade lifecycle update envelope.
+type WsFuturesUserTradesEvent struct {
+	Time    types.Time           `json:"time"`
+	Channel string               `json:"channel"`
+	Event   string               `json:"event"`
+	Result  []WsFuturesUserTrade `json:"result"`
+}
+
+// WsFuturesBalancesEvent represents a futures balance lifecycle update envelope.
+type WsFuturesBalancesEvent struct {
+	Time    types.Time   `json:"time"`
+	Channel string       `json:"channel"`
+	Event   string       `json:"event"`
+	Result  []*WsBalance `json:"result"`
+}
+
+// WsFuturesPositionsEvent represents a futures position lifecycle update envelope.
+type WsFuturesPositionsEvent struct {
+	Time    types.Time          `json:"time"`
+	Channel string              `json:"channel"`
+	Event   string              `json:"event"`
+	Result  []WsFuturesPosition `json:"result"`
+}
+
+// WsFuturesPositionClosesEvent represents a futures position close lifecycle update envelope.
+type WsFuturesPositionClosesEvent struct {
+	Time    types.Time        `json:"time"`
+	Channel string            `json:"channel"`
+	Event   string            `json:"event"`
+	Result  []WsPositionClose `json:"result"`
+}
+
 // WsFuturesUserTrade represents a futures account user trade push data
 type WsFuturesUserTrade struct {
 	ID         string        `json:"id"`
@@ -2436,7 +2478,8 @@ type WsFuturesUserTrade struct {
 	Role       string        `json:"role"`
 	Text       string        `json:"text"`
 	Fee        types.Number  `json:"fee"`
-	PointFee   int64         `json:"point_fee"`
+	PointFee   types.Number  `json:"point_fee"`
+	CloseSize  types.Number  `json:"close_size"`
 }
 
 // WsFuturesLiquidationNotification represents a liquidation notification push data
@@ -2483,13 +2526,14 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance  types.Number  `json:"balance"`
-	Change   types.Number  `json:"change"`
-	Currency currency.Code `json:"currency"`
-	Text     string        `json:"text"`
-	Time     types.Time    `json:"time_ms"`
-	Type     string        `json:"type"`
-	User     string        `json:"user"`
+	Balance   types.Number  `json:"balance"`
+	Change    types.Number  `json:"change"`
+	Currency  currency.Code `json:"currency"`
+	Text      string        `json:"text"`
+	Timestamp types.Time    `json:"time"`
+	Time      types.Time    `json:"time_ms"`
+	Type      string        `json:"type"`
+	User      string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data
@@ -2506,6 +2550,7 @@ type WsFuturesReduceRiskLimitNotification struct {
 
 // WsFuturesPosition represents futures notify positions update.
 type WsFuturesPosition struct {
+	UpdateID           int64        `json:"update_id"`
 	Contract           string       `json:"contract"`
 	CrossLeverageLimit types.Number `json:"cross_leverage_limit"`
 	EntryPrice         types.Number `json:"entry_price"`
@@ -2524,6 +2569,8 @@ type WsFuturesPosition struct {
 	Size               types.Number `json:"size"`
 	Time               types.Time   `json:"time_ms"`
 	User               string       `json:"user"`
+	PositionMarginMode string       `json:"pos_margin_mode"`
+	PositionLeverage   types.Number `json:"lever"`
 }
 
 // WsFuturesAutoOrder represents an auto order push data.

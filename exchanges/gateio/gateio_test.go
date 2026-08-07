@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -2383,12 +2384,118 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 18, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
 	}
+}
+
+func TestWsHandleFuturesDataLifecycleEvents(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.SetFillsFeedStatus(true)
+	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, message []byte) error {
+		if strings.Contains(string(message), futuresBalancesChannel) {
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+		}
+		return ex.WsHandleFuturesData(ctx, nil, message, asset.CoinMarginedFutures)
+	})
+	ex.Websocket.DataHandler.Close()
+
+	seen := make(map[string]bool, 5)
+	orderEventIndex, orderProjectionIndex := -1, -1
+	userTradeEventIndex, fillProjectionIndex := -1, -1
+	balanceEventIndex, balanceProjectionIndex := -1, -1
+	for i := 0; ; i++ {
+		payload, ok := <-ex.Websocket.DataHandler.C
+		if !ok {
+			break
+		}
+		switch event := payload.Data.(type) {
+		case *WsFuturesOrdersEvent:
+			seen[event.Channel] = true
+			orderEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, int64(987654321), result.UpdateID)
+			require.Equal(t, time.Unix(1628736848, 321000000), result.UpdateTime.Time())
+			require.Equal(t, "t-futures-order", result.Text)
+			require.True(t, result.IsReduceOnly)
+			require.Zero(t, result.RemainingAmount.Float64())
+			require.Equal(t, 1.0, result.Size.Float64())
+		case *WsFuturesUserTradesEvent:
+			seen[event.Channel] = true
+			userTradeEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1543205083, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, 0.0009290592, result.Fee.Float64())
+			require.Equal(t, 0.125, result.PointFee.Float64())
+			require.Equal(t, "maker", result.Role)
+			require.Equal(t, "t-futures-order", result.Text)
+			require.Equal(t, 0.5, result.CloseSize.Float64())
+		case *WsFuturesBalancesEvent:
+			seen[event.Channel] = true
+			balanceEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, -0.000002074115, result.Change.Float64())
+			require.Equal(t, "fee", result.Type)
+			require.Equal(t, "BTC_USD:3914424", result.Text)
+			require.Equal(t, "211xxx", result.User)
+			require.Equal(t, currency.BTC, result.Currency)
+			require.Equal(t, time.Unix(1547199246, 0), result.Timestamp.Time())
+		case *WsFuturesPositionsEvent:
+			seen[event.Channel] = true
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1588212926, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, int64(987654322), result.UpdateID)
+			require.Equal(t, "cross_margin", result.PositionMarginMode)
+			require.Equal(t, 3.0, result.PositionLeverage.Float64())
+		case *WsFuturesPositionClosesEvent:
+			seen[event.Channel] = true
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			require.Equal(t, "BTC_USD", event.Result[0].Contract)
+		case []order.Detail:
+			if len(event) == 1 && event[0].OrderID == "4872460" {
+				orderProjectionIndex = i
+			}
+		case []fill.Data:
+			if len(event) == 1 && event[0].TradeID == "3335259" {
+				fillProjectionIndex = i
+			}
+		case accounts.SubAccounts:
+			if len(event) == 1 && event[0].ID == "211xxx" {
+				balanceProjectionIndex = i
+			}
+		}
+	}
+
+	require.True(t, seen[futuresOrdersChannel])
+	require.True(t, seen[futuresUserTradesChannel])
+	require.True(t, seen[futuresBalancesChannel])
+	require.True(t, seen[futuresPositionsChannel])
+	require.True(t, seen[futuresAutoPositionCloseChannel])
+	require.NotEqual(t, -1, orderEventIndex)
+	require.Greater(t, orderProjectionIndex, orderEventIndex)
+	require.NotEqual(t, -1, userTradeEventIndex)
+	require.Greater(t, fillProjectionIndex, userTradeEventIndex)
+	require.NotEqual(t, -1, balanceEventIndex)
+	require.Greater(t, balanceProjectionIndex, balanceEventIndex)
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
@@ -3107,8 +3214,9 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
+			event, processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
+			require.Equal(t, futuresOrdersChannel, event.Channel)
 			require.NotNil(t, processed)
 			for i := range processed {
 				assert.Equal(t, tc.status.String(), processed[i].Status.String())
