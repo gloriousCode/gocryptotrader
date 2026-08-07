@@ -3182,8 +3182,21 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
 func staticGateioWSHandler(response string) mockws.WsMockFunc {
-	return func(_ testing.TB, _ []byte, c *gws.Conn) error {
-		return c.WriteMessage(gws.TextMessage, []byte(response))
+	return func(_ testing.TB, payload []byte, c *gws.Conn) error {
+		var inboundRequest WsInput
+		if err := json.Unmarshal(payload, &inboundRequest); err != nil {
+			return err
+		}
+		var result map[string]any
+		if err := json.Unmarshal([]byte(response), &result); err != nil {
+			return err
+		}
+		result["id"] = inboundRequest.ID
+		response, err := json.Marshal(result)
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, response)
 	}
 }
 
@@ -3201,7 +3214,9 @@ func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler 
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
 	})
-	return ex.Websocket.Conn
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err)
+	return conn
 }
 
 func TestHandleSubscriptions(t *testing.T) {

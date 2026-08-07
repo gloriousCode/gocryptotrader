@@ -200,6 +200,8 @@ type Exchange struct {
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
+
+	futuresWebsocketUserID int64
 }
 
 // ***************************************** SubAccounts ********************************

@@ -29,6 +29,7 @@ import (
 const (
 	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
 	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	futuresAllContracts     = "!all"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"
@@ -67,7 +68,24 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-var errNoChannelsSupplied = errors.New("no channels supplied")
+var (
+	errAuthenticatedWebsocketRequired = errors.New("authenticated websocket support required")
+	errFuturesWebsocketUserIDNotSet   = errors.New("futures websocket user ID not set")
+	errNoChannelsSupplied             = errors.New("no channels supplied")
+)
+
+// SetFuturesWebsocketUserID configures the Gate user ID required by authenticated futures subscriptions.
+// It must be called before the websocket manager starts.
+func (e *Exchange) SetFuturesWebsocketUserID(userID int64) error {
+	if e == nil {
+		return common.ErrNilPointer
+	}
+	if userID <= 0 {
+		return errFuturesWebsocketUserIDNotSet
+	}
+	e.futuresWebsocketUserID = userID
+	return nil
+}
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
@@ -95,9 +113,6 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
-	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := e.GetEnabledPairs(a)
@@ -137,6 +152,25 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 				Asset:   a,
 			})
 		}
+	}
+	if e.Websocket.CanUseAuthenticatedEndpoints() && a == asset.USDTMarginedFutures {
+		userID := e.futuresWebsocketUserID
+		if userID <= 0 {
+			return nil, errFuturesWebsocketUserIDNotSet
+		}
+		user := strconv.FormatInt(userID, 10)
+		for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channel,
+				Params:  map[string]any{"user": user, "all_contracts": true},
+				Asset:   a,
+			})
+		}
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: futuresBalancesChannel,
+			Params:  map[string]any{"user": user},
+			Asset:   a,
+		})
 	}
 	return subscriptions, nil
 }
@@ -217,48 +251,54 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		return nil, errNoChannelsSupplied
 	}
 
-	var creds *accounts.Credentials
-	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = e.GetCredentials(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-
 	outbound := make([]WsInput, len(channelsToSubscribe))
+	var err error
 	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return nil, subscription.ErrNotSinglePair
-		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		var params []string
-		params = []string{channelsToSubscribe[i].Pairs[0].String()}
-		if e.Websocket.CanUseAuthenticatedEndpoints() {
-			switch channelsToSubscribe[i].Channel {
-			case futuresOrdersChannel, futuresUserTradesChannel,
-				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
-				futuresAutoPositionCloseChannel, futuresBalancesChannel,
-				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
-				futuresAutoOrdersChannel:
-				value, ok := channelsToSubscribe[i].Params["user"].(string)
-				if ok {
-					params = append(
-						[]string{value},
-						params...)
-				}
-				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
-				if err != nil {
-					return nil, err
-				}
-				auth = &WsAuthInput{
-					Method: "api_key",
-					Key:    creds.Key,
-					Sign:   sigTemp,
+		privateChannel := false
+		switch channelsToSubscribe[i].Channel {
+		case futuresOrdersChannel, futuresUserTradesChannel,
+			futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel, futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel, futuresPositionsChannel,
+			futuresAutoOrdersChannel:
+			privateChannel = true
+		}
+		if privateChannel {
+			if !e.Websocket.CanUseAuthenticatedEndpoints() {
+				return nil, errAuthenticatedWebsocketRequired
+			}
+			user, ok := channelsToSubscribe[i].Params["user"].(string)
+			if !ok || user == "" {
+				return nil, errFuturesWebsocketUserIDNotSet
+			}
+			params = append(params, user)
+			if channelsToSubscribe[i].Channel != futuresBalancesChannel {
+				if allContracts, _ := channelsToSubscribe[i].Params["all_contracts"].(bool); allContracts {
+					params = append(params, futuresAllContracts)
+				} else {
+					if len(channelsToSubscribe[i].Pairs) != 1 {
+						return nil, subscription.ErrNotSinglePair
+					}
+					params = append(params, channelsToSubscribe[i].Pairs[0].String())
 				}
 			}
+			creds, err := e.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
+			}
+			signature, err := e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+			if err != nil {
+				return nil, err
+			}
+			auth = &WsAuthInput{Method: "api_key", Key: creds.Key, Sign: signature}
+		} else {
+			if len(channelsToSubscribe[i].Pairs) != 1 {
+				return nil, subscription.ErrNotSinglePair
+			}
+			params = append(params, channelsToSubscribe[i].Pairs[0].String())
 		}
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
