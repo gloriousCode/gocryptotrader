@@ -2316,7 +2316,7 @@ func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	}
 }
 
-const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175507",		"update_time_ms": "1605175507456",		"event": "update",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"status": "open",		"amount": "1",		"price": "10001",		"avg_deal_price": "10000.5",		"fill_price": "7500.375",		"time_in_force": "gtc",		"left": "0.25",		"filled_total": "0.75",		"fee": "0.0015",		"fee_currency": "USDT",		"point_fee": "0.0005",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
+const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175507",		"update_time_ms": "1605175507456",		"event": "update",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"status": "closed",		"finish_as": "ioc",		"amount": "1",		"price": "10001",		"avg_deal_price": "10000.5",		"fill_price": "7500.375",		"time_in_force": "ioc",		"left": "0.25",		"filled_total": "0.75",		"fee": "0.0015",		"fee_currency": "USDT",		"point_fee": "0.0005",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
 
 func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
