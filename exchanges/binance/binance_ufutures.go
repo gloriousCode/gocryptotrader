@@ -96,13 +96,15 @@ func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, 
 
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-	strLimit := strconv.FormatInt(limit, 10)
-	if strLimit != "" {
-		if !slices.Contains(uValidOBLimits, strLimit) {
-			return nil, fmt.Errorf("invalid limit: %v", limit)
-		}
-		params.Set("limit", strLimit)
+	if limit == 0 {
+		// default
+		limit = 500
 	}
+	strLimit := strconv.FormatInt(limit, 10)
+	if !slices.Contains(uValidOBLimits, strLimit) {
+		return nil, fmt.Errorf("invalid limit: %v", limit)
+	}
+	params.Set("limit", strLimit)
 
 	rateBudget := uFuturesOrderbook1000Rate
 	switch {

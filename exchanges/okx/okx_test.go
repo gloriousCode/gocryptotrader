@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -36,16 +37,21 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:      "",
+	Secret:   "",
+	ClientID: "", // passphrase
+}
 
 var (
 	e *Exchange
@@ -69,10 +75,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Okx Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" && passphrase != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
@@ -1597,13 +1603,13 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
+	data := MakerInstrumentSetting{MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInvalidUnderlying)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
+	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1615,8 +1621,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   10000,
-					MakerPriceBand: 5,
+					MaxBlockSize:   types.NumberFromFloat64(10000),
+					MakerPriceBand: types.NumberFromFloat64(5),
 				},
 				{
 					Underlying: mainPair.String(),
@@ -2035,13 +2041,13 @@ func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetLendingRate(contextGenerate(), &LendingRate{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
+	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: types.NumberFromFloat64(2)})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
 	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
+	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: types.NumberFromFloat64(2)})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2518,6 +2524,7 @@ func TestGetBorrowInterestAndLimit(t *testing.T) {
 func TestGetFixedLoanBorrowLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowLimit(contextGenerate())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2539,6 +2546,7 @@ func TestGetFixedLoanBorrowQuote(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowQuote(contextGenerate(), currency.USDT, "normal", "30D", "123423423", 1, .4)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2621,6 +2629,7 @@ func TestReduceLiabilitiesForFixedLoan(t *testing.T) {
 func TestGetFixedLoanBorrowOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetFixedLoanBorrowOrderList(contextGenerate(), currency.USDT, "1231231", "8", "30D", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2678,7 +2687,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		SimAsset: []SimulatedAsset{
 			{
 				Currency: "USDT",
-				Amount:   100,
+				Amount:   types.NumberFromFloat64(100),
 			},
 		},
 		SpotOffsetType: "1",
@@ -2733,7 +2742,7 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.ResetSubAccountAPIKey(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiKey, APIKeyPermission: "trade"})
+	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiCredentials.Key, APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidSubAccountName)
 	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{SubAccountName: "sam", APIKey: "", APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidAPIKey)
@@ -2750,14 +2759,14 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName:   "sam",
-		APIKey:           apiKey,
+		APIKey:           apiCredentials.Key,
 		APIKeyPermission: "trade",
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	result, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName: "sam",
-		APIKey:         apiKey,
+		APIKey:         apiCredentials.Key,
 		Permissions:    []string{"trade", "read"},
 	})
 	require.NoError(t, err)
@@ -3039,7 +3048,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = 1234.5
+	arg.TakeProfitTriggerPrice = types.NumberFromFloat64(1234.5)
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -3394,6 +3403,51 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Parallel()
 		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
 	})
+}
+
+func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
+	exch := &Exchange{}
+	exch.SetDefaults()
+	exch.Name = t.Name()
+
+	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{
+			InstrumentID:     livePair,
+			State:            instrumentStateLive,
+			TickSize:         types.NumberFromFloat64(0.1),
+			MinimumOrderSize: types.NumberFromFloat64(1),
+		},
+		{
+			InstrumentID:     inactivePair,
+			State:            "preopen",
+			TickSize:         types.NumberFromFloat64(0.01),
+			MinimumOrderSize: types.NumberFromFloat64(2),
+		},
+		{
+			InstrumentID:     currency.EMPTYPAIR,
+			State:            instrumentStateLive,
+			TickSize:         types.NumberFromFloat64(0.01),
+			MinimumOrderSize: types.NumberFromFloat64(2),
+		},
+	}), "loadInstrumentOrderExecutionLimits must load live instruments and skip inactive or empty instruments")
+
+	loadedLimit, err := exch.GetOrderExecutionLimits(asset.Futures, livePair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
+	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
+	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+
+	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
+	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{InstrumentID: inactivePair, State: "preopen"},
+		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
+	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
+		common.ErrNoResponse, "empty instrument slice must return no response")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -4083,7 +4137,7 @@ func TestWsHandleData(t *testing.T) {
 		case "Balance And Position":
 			e.API.AuthenticatedSupport = true
 			e.API.AuthenticatedWebsocketSupport = true
-			e.SetCredentials("test", "test", "test", "", "", "")
+			e.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test", ClientID: "test"})
 		default:
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
@@ -4335,16 +4389,16 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
+	assert.Equal(t, int64(125), i.MaxLeverage.Int64(), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, 1, int(i.LotSize))
+	assert.Equal(t, int64(1), i.LotSize.Int64())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxStopSize))
+	assert.Equal(t, int64(100000000), i.MaxQuantityOfSpotLimitOrder.Int64())
+	assert.Equal(t, int64(85000), i.MaxQuantityOfMarketLimitOrder.Int64())
+	assert.Equal(t, int64(85000), i.MaxStopSize.Int64())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
-	assert.Equal(t, 1, int(i.MinimumOrderSize))
+	assert.Zero(t, i.MaxQuantityOfSpotTwapLimitOrder.Int64(), "expected empty max TWAP size")
+	assert.Equal(t, int64(1), i.MinimumOrderSize.Int64())
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
@@ -4357,9 +4411,8 @@ func TestInstrument(t *testing.T) {
 func TestGetLatestFundingRate(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetLatestFundingRates(contextGenerate(), &fundingrate.LatestRateRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		IncludePredictedRate: true,
+		Asset: asset.PerpetualSwap,
+		Pair:  perpetualSwapPair,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4368,12 +4421,11 @@ func TestGetLatestFundingRate(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	r := &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.PerpetualSwap,
-		Pair:                 perpetualSwapPair,
-		PaymentCurrency:      currency.USDT,
-		StartDate:            time.Now().Add(-time.Hour * 24 * 2),
-		EndDate:              time.Now(),
-		IncludePredictedRate: true,
+		Asset:           asset.PerpetualSwap,
+		Pair:            perpetualSwapPair,
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 24 * 2),
+		EndDate:         time.Now(),
 	}
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
@@ -4661,6 +4713,7 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 func TestGetBorrowAndRepayHistoryInQuickMarginMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetBorrowAndRepayHistoryInQuickMarginMode(contextGenerate(), currency.EMPTYPAIR, currency.BTC, "borrow", "", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5771,7 +5824,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.PerpetualSwap, cp1)
-	resp, err = e.GetOpenInterest(contextGenerate(),
+	resp, err = e.GetOpenInterest(
+		contextGenerate(),
 		key.PairAsset{
 			Base:  currency.BTC.Item,
 			Quote: usdSwapCode.Item,
@@ -5851,6 +5905,7 @@ func TestAmendLendingOrder(t *testing.T) {
 func TestGetLendingOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetLendingOrders(contextGenerate(), "", "pending", currency.ETH, time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5862,6 +5917,7 @@ func TestGetLendingSubOrderList(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	// This endpoint may return HTTP 404 depending on account region/availability.
 	result, err := e.GetLendingSubOrderList(contextGenerate(), "12345", "", time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -6179,6 +6235,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+		{Channel: channelBalanceAndPosition, QualifiedChannel: `{"channel":"balance_and_position"}`, Authenticated: true},
+		{Channel: channelAccountGreeks, QualifiedChannel: `{"channel":"account-greeks"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6439,6 +6497,9 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), common.ErrNilPointer)
 	p = &PlaceOrderRequestParam{}
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
+	p.InstrumentIDCode = 123
+	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
+	p.InstrumentIDCode = 0
 	p.InstrumentID = mainPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()

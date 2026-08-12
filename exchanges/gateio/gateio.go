@@ -73,24 +73,26 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs     = "margin/currency_pairs"
-	gateioMarginFundingBook       = "margin/funding_book"
-	gateioMarginAccount           = "margin/accounts"
-	gateioMarginAccountBook       = "margin/account_book"
-	gateioMarginFundingAccounts   = "margin/funding_accounts"
-	gateioMarginLoans             = "margin/loans"
-	gateioMarginMergedLoans       = "margin/merged_loans"
-	gateioMarginLoanRecords       = "margin/loan_records"
-	gateioMarginAutoRepay         = "margin/auto_repay"
-	gateioMarginTransfer          = "margin/transferable"
-	gateioMarginBorrowable        = "margin/borrowable"
-	gateioCrossMarginCurrencies   = "margin/cross/currencies"
-	gateioCrossMarginAccounts     = "margin/cross/accounts"
-	gateioCrossMarginAccountBook  = "margin/cross/account_book"
-	gateioCrossMarginLoans        = "margin/cross/loans"
-	gateioCrossMarginRepayments   = "margin/cross/repayments"
-	gateioCrossMarginTransferable = "margin/cross/transferable"
-	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
+	gateioMarginCurrencyPairs      = "margin/currency_pairs"
+	gateioMarginFundingBook        = "margin/funding_book"
+	gateioMarginUserAccount        = "margin/user/account"
+	gateioMarginAccountBook        = "margin/account_book"
+	gateioMarginFundingAccounts    = "margin/funding_accounts"
+	gateioMarginLoans              = "margin/loans"
+	gateioMarginMergedLoans        = "margin/merged_loans"
+	gateioMarginLoanRecords        = "margin/loan_records"
+	gateioMarginAutoRepay          = "margin/auto_repay"
+	gateioMarginTransfer           = "margin/transferable"
+	gateioMarginBorrowable         = "margin/uni/borrowable"
+	gateioMarginUniLoans           = "margin/uni/loans"
+	gateioMarginUniInterestRecords = "margin/uni/interest_records"
+	gateioCrossMarginCurrencies    = "margin/cross/currencies"
+	gateioCrossMarginAccounts      = "margin/cross/accounts"
+	gateioCrossMarginAccountBook   = "margin/cross/account_book"
+	gateioCrossMarginLoans         = "margin/cross/loans"
+	gateioCrossMarginRepayments    = "margin/cross/repayments"
+	gateioCrossMarginTransferable  = "margin/cross/transferable"
+	gateioCrossMarginBorrowable    = "margin/cross/borrowable"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -170,6 +172,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -453,15 +456,13 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 }
 
 // GetCandlesticks retrieves market candlesticks.
-func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
+func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, _ uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
 	params := url.Values{}
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params.Set("currency_pair", currencyPair.String())
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
+	params.Set("limit", "1000")
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
@@ -537,10 +538,10 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
-		if args[x].Amount <= 0 {
+		if args[x].Amount.Float64() <= 0 {
 			return nil, errInvalidAmount
 		}
-		if args[x].Price <= 0 {
+		if args[x].Price.Float64() <= 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -603,10 +604,10 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price < 0 {
+	if arg.Price.Float64() < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -901,6 +902,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	respHeaders := make(http.Header)
 	var intermediary json.RawMessage
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -944,22 +946,29 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &respHeaders,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	}
+
+	if respHeaders.Get("Status") == "204" { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if len(intermediary) != 0 {
+			return fmt.Errorf("%s %w, expected empty response body but got %s", e.Name, request.ErrAuthRequestFailed, string(intermediary))
+		}
+		if result == nil {
+			return nil
+		}
+		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{}
-
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s",
-			e.Name,
-			errCap.Label,
-			errCap.Message)
+		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
 	}
 	if result == nil {
 		return nil
@@ -1341,6 +1350,57 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
+// UniLoanBorrowOrRepay borrows or repays currency in a unified margin account
+// using the margin/uni/loans endpoint. Pass type="borrow" to open a loan or
+// type="repay" to close one. This replaces the deprecated POST margin/loans
+// endpoint which returned 403 "This API is no longer supported" for unified
+// margin accounts.
+func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowRepayParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Type != "borrow" && arg.Type != "repay" {
+		return errInvalidUniLoanType
+	}
+	if arg.Amount.Float64() <= 0 {
+		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoanBorrowRepayEPL, http.MethodPost, gateioMarginUniLoans, nil, arg, nil)
+}
+
+// GetUniLoanInterestRecords retrieves interest deduction records for unified
+// margin loans. Optionally filters by currency pair or by currency code.
+// Pagination: page starts at 1, limit defaults to 100 (max 100).
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, pair currency.Pair, ccy currency.Code, page, limit uint64, from, to time.Time) ([]UniLoanInterestRecord, error) {
+	params := url.Values{}
+	if pair.IsPopulated() {
+		params.Set("currency_pair", pair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	var response []UniLoanInterestRecord
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)
+}
+
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
 func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
 	var currenciePairsInfo []MarginCurrencyPairInfo
@@ -1365,14 +1425,15 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, gateioMarginFundingBook+"?currency="+ccy.String(), &lendingLoans)
 }
 
-// GetMarginAccountList margin account list
+// GetMarginAccountList retrieves user's isolated margin account list.
+// Supports querying both risk-based and margin-based isolated margin accounts.
 func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	var response []MarginAccountItem
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginAccount, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginUserAccount, params, nil, &response)
 }
 
 // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
@@ -1552,7 +1613,7 @@ func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoan
 	if arg.Mode != "all" && arg.Mode != "partial" {
 		return nil, errInvalidRepayMode
 	}
-	if arg.Mode == "partial" && arg.Amount <= 0 {
+	if arg.Mode == "partial" && arg.Amount.Float64() <= 0 {
 		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", errInvalidAmount)
 	}
 	var response *MarginLoanResponse
@@ -1658,24 +1719,25 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, gateioMarginTransfer, params, nil, &response)
 }
 
-// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
-func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowable amount for specific currency
+func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
+	params := url.Values{}
+	params.Set("currency_pair", pair.String())
 	params.Set("currency", ccy.String())
-	var response *MaxTransferAndLoanAmount
+	var response *MaxBorrowableAmount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxBorrowEPL, http.MethodGet, gateioMarginBorrowable, params, nil, &response)
 }
 
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
 func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
 	var response []CrossMarginCurrencies
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, gateioCrossMarginCurrencies, &response)
 }
 
 // GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin
@@ -1937,20 +1999,20 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	intervalString, err := getIntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	if from.IsZero() {
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if to.IsZero() {
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	intervalString, err := getIntervalString(interval)
-	if err != nil {
-		return nil, err
 	}
 	params.Set("interval", intervalString)
 	var resp []FuturesPremiumIndexKLineResponse
@@ -2456,7 +2518,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
@@ -2942,10 +3004,10 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
-	if arg.Initial.Size <= 0 {
+	if arg.Initial.Size.Float64() <= 0 {
 		return nil, errors.New("invalid argument: initial.size out of range")
 	}
 	if arg.Initial.TimeInForce != "" &&
@@ -3230,17 +3292,17 @@ func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) 
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}
-	if arg.OrderSize == 0 {
+	if arg.OrderSize.Float64() == 0 {
 		return nil, errInvalidOrderSize
 	}
-	if arg.Iceberg < 0 {
-		arg.Iceberg = 0
+	if arg.Iceberg.Float64() < 0 {
+		arg.Iceberg = types.NumberFromFloat64(0)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF {
 		arg.TimeInForce = ""
 	}
-	if arg.TimeInForce == iocTIF || arg.Price < 0 {
-		arg.Price = 0
+	if arg.TimeInForce == iocTIF || arg.Price.Float64() < 0 {
+		arg.Price = types.NumberFromFloat64(0)
 	}
 	var response *OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSubmitOrderEPL, http.MethodPost, gateioOptionsOrders, nil, &arg, &response)

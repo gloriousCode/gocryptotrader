@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,11 +27,12 @@ import (
 )
 
 // Please supply your own keys here to do better tests
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e           *Exchange
@@ -44,9 +46,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("BTSE Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -658,9 +660,8 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error on Margin")
 

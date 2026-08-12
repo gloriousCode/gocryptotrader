@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -35,14 +36,16 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey    = ""
-	apiSecret = ""
-
 	canManipulateRealOrders   = false
 	canManipulateAPIEndpoints = false
 	btcPerpInstrument         = "BTC-PERPETUAL"
 	useTestNet                = false
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                                                                     *Exchange
@@ -58,10 +61,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Deribit Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	if useTestNet {
@@ -468,10 +471,9 @@ func TestHistoricalVolatilityDataUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(data, &targets)
 	require.NoError(t, err)
 	require.Len(t, targets, 21)
-	assert.Equal(t, HistoricalVolatilityData{
-		Timestamp: types.Time(time.UnixMilli(1746532800000)),
-		Value:     33.926694663144644,
-	}, targets[0])
+	assert.Equal(t, types.Time(time.UnixMilli(1746532800000)), targets[0].Timestamp)
+	assert.Equal(t, 33.926694663144644, targets[0].Value.Float64())
+	assert.Equal(t, "33.926694663144644", targets[0].Value.String())
 }
 
 func TestGetHistoricalVolatility(t *testing.T) {
@@ -4026,7 +4028,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s)
+					if !strings.HasSuffix(s.QualifiedChannel, ".") {
+						s.QualifiedChannel += "."
+					}
+					s.QualifiedChannel += p.String()
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}
@@ -4535,9 +4541,8 @@ func TestWSRetrieveCombos(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{

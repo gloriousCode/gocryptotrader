@@ -137,7 +137,7 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	for _, assetType := range []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo} {
+	for _, assetType := range []asset.Item{asset.OptionCombo, asset.FutureCombo} {
 		if err = e.DisableAssetWebsocketSupport(assetType); err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -626,6 +626,61 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
+// WebsocketSubmitOrder submits a new order via websocket.
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	err := s.Validate(e.GetTradingRequirements())
+	if err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%s: orderType %v is not valid", e.Name, s.AssetType)
+	}
+	fmtPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	timeInForce := ""
+	if s.TimeInForce.Is(order.ImmediateOrCancel) {
+		timeInForce = "immediate_or_cancel"
+	}
+	reqParams := &OrderBuyAndSellParams{
+		Instrument:   fmtPair.String(),
+		OrderType:    strings.ToLower(s.Type.String()),
+		Label:        s.ClientOrderID,
+		TimeInForce:  timeInForce,
+		Amount:       s.Amount,
+		Price:        s.Price,
+		TriggerPrice: s.TriggerPrice,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
+		ReduceOnly:   s.ReduceOnly,
+	}
+
+	var data *PrivateTradeData
+	switch {
+	case s.Side.IsLong():
+		data, err = e.WSSubmitBuy(ctx, reqParams)
+	case s.Side.IsShort():
+		data, err = e.WSSubmitSell(ctx, reqParams)
+	default:
+		return nil, order.ErrSideIsInvalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, common.ErrNoResponse
+	}
+	resp, err := s.DeriveSubmitResponse(data.Order.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = order.New
+	return resp, nil
+}
+
 // ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
@@ -659,6 +714,35 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
+// WebsocketModifyOrder modifies an order via websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%s: %w - %v", e.Name, asset.ErrNotSupported, action.AssetType)
+	}
+	modify, err := e.WSSubmitEdit(ctx, &OrderBuyAndSellParams{
+		TriggerPrice: action.TriggerPrice,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
+		Amount:       action.Amount,
+		OrderID:      action.OrderID,
+		Price:        action.Price,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = modify.Order.OrderID
+	return resp, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.SupportsAsset(ord.AssetType) {
@@ -677,6 +761,21 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return err
 	}
 	return nil
+}
+
+// WebsocketCancelOrder cancels an order by ID via websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return common.ErrFunctionNotSupported
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
+	}
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := e.WSSubmitCancel(ctx, ord.OrderID)
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -1085,6 +1184,14 @@ func appendCandles(tradingViewData *TVChartData, start time.Time) ([]kline.Candl
 	return listCandles, nil
 }
 
+// GetContractFromCurrencyAndDate derives a dated futures instrument name.
+func (e *Exchange) GetContractFromCurrencyAndDate(code currency.Code, date time.Time) (string, time.Time, error) {
+	for date.Weekday() != time.Friday {
+		date = date.Add(time.Hour * 24)
+	}
+	return strings.ToUpper(code.String() + "-" + date.Format("02Jan06")), date, nil
+}
+
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
@@ -1133,7 +1240,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if item != asset.Futures {
+	if item != asset.Futures && item != asset.Options {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 	resp := []futures.Contract{}
@@ -1149,7 +1256,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			return nil, err
 		}
 		for _, inst := range marketSummary {
-			if inst.Kind != "future" && inst.Kind != "future_combo" {
+			validKind := false
+			switch item {
+			case asset.Futures:
+				validKind = inst.Kind == "future" || inst.Kind == "future_combo"
+			case asset.Options:
+				validKind = inst.Kind == "option" || inst.Kind == "option_combo"
+			}
+			if !validKind {
 				continue
 			}
 			cp, err := currency.NewPairFromString(inst.InstrumentName)
@@ -1164,14 +1278,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				ct = futures.Weekly
 			case "month":
 				ct = futures.Monthly
+			case "quarter":
+				ct = futures.Quarterly
 			case "perpetual":
 				ct = futures.Perpetual
 			}
-			var contractSettlementType futures.ContractSettlementType
+			contractSettlementType := futures.Linear
 			if inst.InstrumentType == "reversed" {
 				contractSettlementType = futures.Inverse
-			} else {
-				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
@@ -1551,6 +1665,189 @@ func formatPairString(assetType asset.Item, pair currency.Pair) string {
 		return futureComboPairToString(pair)
 	}
 	return pair.String()
+}
+
+// GetLongDatedContractsFromDate returns dated contracts available from the requested date.
+func (e *Exchange) GetLongDatedContractsFromDate(ctx context.Context, item asset.Item, underlyingPair currency.Pair, ct futures.ContractType, t time.Time) ([]futures.Contract, error) {
+	if item != asset.Futures {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	var resp []futures.Contract
+	var marketSummary *InstrumentData
+	tt := t
+	for tt.Before(time.Now()) {
+		contract, _, err := e.GetContractFromCurrencyAndDate(underlyingPair.Base, tt)
+		if err != nil {
+			return nil, err
+		}
+		if e.Websocket.IsConnected() {
+			marketSummary, err = e.WSRetrieveInstrumentData(ctx, contract)
+		} else {
+			marketSummary, err = e.GetInstrument(ctx, contract)
+		}
+		if err != nil {
+			// likely no data for this date, keep going
+			tt = tt.Add(ct.Duration())
+			continue
+		}
+		if marketSummary.Kind != "future" {
+			tt = tt.Add(ct.Duration())
+			continue
+		}
+		underlying := currency.NewPair(marketSummary.BaseCurrency, marketSummary.QuoteCurrency)
+		if !underlying.Equal(underlyingPair) {
+			tt = tt.Add(ct.Duration())
+			continue
+		}
+
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(marketSummary.InstrumentName)
+		if err != nil {
+			return nil, err
+		}
+		var contractType futures.ContractType
+		switch marketSummary.SettlementPeriod {
+		case "day":
+			contractType = futures.Daily
+		case "week":
+			contractType = futures.Weekly
+		case "month":
+			contractType = futures.Monthly
+		case "perpetual":
+			contractType = futures.Perpetual
+		}
+		var contractSettlementType futures.ContractSettlementType
+		if marketSummary.SettlementCurrency == marketSummary.BaseCurrency || marketSummary.InstrumentType == "reversed" {
+			contractSettlementType = futures.Inverse
+		} else {
+			contractSettlementType = futures.Linear
+		}
+		resp = append(resp, futures.Contract{
+			Exchange:           e.Name,
+			Name:               cp,
+			Underlying:         underlying,
+			Asset:              item,
+			StartDate:          marketSummary.CreationTimestamp.Time(),
+			EndDate:            marketSummary.ExpirationTimestamp.Time(),
+			IsActive:           marketSummary.IsActive,
+			Type:               contractType,
+			SettlementType:     contractSettlementType,
+			SettlementCurrency: marketSummary.SettlementCurrency,
+			Multiplier:         marketSummary.ContractSize,
+			MaxLeverage:        marketSummary.MaxLeverage,
+		})
+
+		tt = tt.Add(contractType.Duration())
+	}
+	return resp, nil
+}
+
+// GetHistoricalContractKlineData gets each contract's data in a range
+// then grabs spot data for comparisons
+func (e *Exchange) GetHistoricalContractKlineData(ctx context.Context, req *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if !req.Asset.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	contracts, err := e.GetLongDatedContractsFromDate(ctx, req.Asset, req.UnderlyingPair, req.Contract, req.StartDate)
+	if err != nil {
+		return nil, err
+	}
+	var resp futures.HistoricalContractKline
+	resp.Data = make([]futures.ContractKline, 0, len(contracts))
+	for i := range contracts {
+		if contracts[i].StartDate.After(time.Now()) {
+			continue
+		}
+		klineReq, err := e.GetKlineExtendedRequest(contracts[i].Name, req.Asset, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		var klinesForContract []kline.Candle
+		for j := range klineReq.RangeHolder.Ranges {
+			candles, err := e.GetHistoricCandlesExtended(ctx, contracts[i].Name, req.Asset, req.Interval, klineReq.RangeHolder.Ranges[j].Start.Time, klineReq.RangeHolder.Ranges[j].End.Time)
+			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
+				return nil, err
+			}
+			for k := range candles.Candles {
+				if candles.Candles[k].Close == 0 {
+					continue
+				}
+				klinesForContract = append(klinesForContract, kline.Candle{
+					Time:   candles.Candles[k].Time,
+					Open:   candles.Candles[k].Open,
+					High:   candles.Candles[k].High,
+					Low:    candles.Candles[k].Low,
+					Close:  candles.Candles[k].Close,
+					Volume: candles.Candles[k].Volume,
+				})
+			}
+		}
+		if len(klinesForContract) == 0 {
+			continue
+		}
+
+		spotUnderlyingReq, err := e.GetKlineExtendedRequest(req.UnderlyingPair, asset.Spot, req.Interval, contracts[i].StartDate, contracts[i].EndDate)
+		if err != nil {
+			return nil, err
+		}
+		if req.UnderlyingPair.Quote.Equal(currency.USD) {
+			req.UnderlyingPair.Quote = currency.USDT
+		}
+		spotCandles := make([]kline.Candle, 0, spotUnderlyingReq.Size())
+		up, err := e.FormatExchangeCurrency(req.UnderlyingPair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for i := range spotUnderlyingReq.RangeHolder.Ranges {
+			candles, err := e.GetHistoricCandlesExtended(ctx, up, asset.Spot, req.Interval, spotUnderlyingReq.RangeHolder.Ranges[i].Start.Time, spotUnderlyingReq.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				if errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+					continue
+				}
+				return nil, err
+			}
+			for j := range candles.Candles {
+				spotCandles = append(spotCandles, kline.Candle{
+					Time:   candles.Candles[j].Time,
+					Open:   candles.Candles[j].Open,
+					High:   candles.Candles[j].High,
+					Low:    candles.Candles[j].Low,
+					Close:  candles.Candles[j].Close,
+					Volume: candles.Candles[j].Volume,
+				})
+			}
+		}
+		spotKlineItem, err := spotUnderlyingReq.ProcessResponse(spotCandles)
+		if err != nil {
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
+		}
+
+		contractKlineItem, err := klineReq.ProcessResponse(klinesForContract)
+		if err != nil {
+			if !errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+				return nil, err
+			}
+		}
+		contractKlineItem.SortCandlesByTimestamp(false)
+		resp.Data = append(resp.Data, futures.ContractKline{
+			PremiumContract: &contracts[i],
+			PremiumKline:    contractKlineItem,
+			BaseKline:       spotKlineItem,
+		})
+	}
+	if len(resp.Data) == 0 {
+		return nil, kline.ErrInsufficientCandleData
+	}
+
+	return &resp, nil
 }
 
 func timeInForceFromString(timeInForceString string, postOnly bool) (order.TimeInForce, error) {

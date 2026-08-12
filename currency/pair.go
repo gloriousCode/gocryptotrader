@@ -60,9 +60,17 @@ func NewPairFromStrings(base, quote string) (Pair, error) {
 	return Pair{Base: NewCode(base), Quote: NewCode(quote)}, nil
 }
 
-// NewPair returns a currency pair from currency codes
+// NewPair returns a currency pair from currency codes.
 func NewPair(baseCurrency, quoteCurrency Code) Pair {
 	return Pair{Base: baseCurrency, Quote: quoteCurrency}
+}
+
+// NewPairFromItems returns a currency pair from currency items.
+func NewPairFromItems(baseCurrency, quoteCurrency *Item) Pair {
+	return Pair{
+		Base:  baseCurrency.Currency(),
+		Quote: quoteCurrency.Currency(),
+	}
 }
 
 // NewPairWithDelimiter returns a CurrencyPair with a delimiter

@@ -197,6 +197,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
+		if cp.Base.Equal(currency.EFIL) && cp.Quote.Equal(currency.FIL) {
+			continue
+		}
+		if cp.Base.Equal(currency.GUSD) && cp.Quote.Equal(currency.USD) {
+			continue
+		}
 		pairs = append(pairs, cp)
 	}
 	return pairs, nil
@@ -256,6 +262,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Ask:          tick.Ask,
 		Open:         tick.Open,
 		Close:        tick.Close,
+		Last:         tick.Close,
 		Pair:         fPair,
 		ExchangeName: e.Name,
 		AssetType:    a,

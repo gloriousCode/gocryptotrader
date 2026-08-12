@@ -4132,7 +4132,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		ai)
 }
 
-func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPayments, includeFundingRates, includeOrders, includePredictedRate bool) *gctrpc.FuturePosition {
+func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPayments, includeFundingRates, includeOrders bool) *gctrpc.FuturePosition {
 	response := &gctrpc.FuturePosition{
 		Exchange: position.Exchange,
 		Asset:    position.Asset.String(),
@@ -4168,11 +4168,9 @@ func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPa
 		}
 		fundingData.PaymentSum = sum.String()
 		response.FundingData = fundingData
-		if includePredictedRate && !position.FundingRates.PredictedUpcomingRate.Time.IsZero() {
-			fundingData.UpcomingRate = &gctrpc.FundingRate{
-				Date: position.FundingRates.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
-				Rate: position.FundingRates.PredictedUpcomingRate.Rate.String(),
-			}
+		fundingData.UpcomingRate = &gctrpc.FundingRate{
+			Date: position.FundingRates.PredictedUpcomingRate.Time.Format(common.SimpleTimeFormatWithTimezone),
+			Rate: position.FundingRates.PredictedUpcomingRate.Rate.String(),
 		}
 	}
 
@@ -4222,7 +4220,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	if r == nil {
 		return nil, fmt.Errorf("%w GetManagedPositionRequest", common.ErrNilPointer)
 	}
-	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	if r.Pair == nil {
@@ -4266,7 +4264,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	}
 
 	return &gctrpc.GetManagedPositionsResponse{Positions: []*gctrpc.FuturePosition{
-		s.buildFuturePosition(position, r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate),
+		s.buildFuturePosition(position, r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData),
 	}}, nil
 }
 
@@ -4275,7 +4273,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if r == nil {
 		return nil, fmt.Errorf("%w GetAllManagedPositionsRequest", common.ErrNilPointer)
 	}
-	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
@@ -4287,7 +4285,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	})
 	response := make([]*gctrpc.FuturePosition, len(positions))
 	for i := range positions {
-		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData, r.IncludePredictedRate)
+		response[i] = s.buildFuturePosition(&positions[i], r.GetFundingPayments, r.IncludeFullFundingRates, r.IncludeFullOrderData)
 	}
 
 	return &gctrpc.GetManagedPositionsResponse{Positions: response}, nil
@@ -4615,7 +4613,6 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		StartDate:            start,
 		EndDate:              end,
 		IncludePayments:      r.IncludePayments,
-		IncludePredictedRate: r.IncludePredicted,
 		RespectHistoryLimits: r.RespectHistoryLimits,
 		PaymentCurrency:      currency.NewCode(r.PaymentCurrency),
 	})
@@ -4708,9 +4705,8 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 	}
 
 	fundingRates, err := exch.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
-		Asset:                a,
-		Pair:                 cp,
-		IncludePredictedRate: r.IncludePredicted,
+		Asset: a,
+		Pair:  cp,
 	})
 	if err != nil {
 		return nil, err
@@ -5169,16 +5165,15 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 	}
 
 	req := &margin.RateHistoryRequest{
-		Exchange:           exch.GetName(),
-		Asset:              a,
-		Currency:           c,
-		StartDate:          start,
-		EndDate:            end,
-		GetPredictedRate:   r.GetPredictedRate,
-		GetLendingPayments: r.GetLendingPayments,
-		GetBorrowRates:     r.GetBorrowRates,
-		GetBorrowCosts:     r.GetBorrowCosts,
-		CalculateOffline:   r.CalculateOffline,
+		Exchange:         exch.GetName(),
+		Asset:            a,
+		Currency:         c,
+		StartDate:        start,
+		EndDate:          end,
+		GetPredictedRate: r.GetPredictedRate,
+		GetBorrowRates:   r.GetBorrowRates,
+		GetBorrowCosts:   r.GetBorrowCosts,
+		CalculateOffline: r.CalculateOffline,
 	}
 	if req.CalculateOffline {
 		if r.TakerFeeRate == "" {
@@ -5245,13 +5240,11 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.LatestRate.HourlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].HourlyBorrowRate.String()
 		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
 	}
-	if r.GetBorrowRates || r.GetLendingPayments {
+	if r.GetBorrowRates {
 		resp.TakerFeeRate = lendingResp.TakerFeeRate.String()
 	}
-	if r.GetLendingPayments {
-		resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
-		resp.AvgLendingSize = lendingResp.AverageLendingSize.String()
-	}
+	resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
+	resp.AvgLendingSize = lendingResp.AverageLendingSize.String()
 	if r.GetBorrowCosts {
 		resp.SumBorrowCosts = lendingResp.SumBorrowCosts.String()
 		resp.AvgBorrowSize = lendingResp.AverageBorrowSize.String()
@@ -5286,11 +5279,9 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 					Size: lendingResp.Rates[i].BorrowCost.Size.String(),
 				}
 			}
-			if r.GetLendingPayments {
-				rate.LendingPayment = &gctrpc.LendingPayment{
-					Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
-					Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
-				}
+			rate.LendingPayment = &gctrpc.LendingPayment{
+				Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
+				Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
 			}
 			resp.Rates[i] = rate
 		}

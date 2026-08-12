@@ -58,6 +58,12 @@ func PercentageDifferenceDecimal(x, y decimal.Decimal) decimal.Decimal {
 	return x.Sub(y).Abs().Div(x.Add(y).Div(two)).Mul(oneHundred)
 }
 
+// CalculatePercentageDifference returns the percentage of difference between
+// multiple time periods
+func CalculatePercentageDifference(amount, secondAmount float64) float64 {
+	return (amount - secondAmount) / ((amount + secondAmount) / 2) * 100
+}
+
 // CalculateNetProfit returns net profit
 func CalculateNetProfit(amount, priceThen, priceNow, costs float64) float64 {
 	return (priceNow * amount) - (priceThen * amount) - costs

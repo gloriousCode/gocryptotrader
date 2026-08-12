@@ -54,10 +54,10 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 		if orders[i].Side == "" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if orders[i].Amount == 0 {
+		if orders[i].Amount.Float64() == 0 {
 			return nil, errInvalidAmount
 		}
-		if orders[i].Type == "limit" && orders[i].Price == 0 {
+		if orders[i].Type == "limit" && orders[i].Price.Float64() == 0 {
 			return nil, errInvalidPrice
 		}
 	}

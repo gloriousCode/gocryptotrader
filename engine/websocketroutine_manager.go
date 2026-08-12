@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -20,10 +19,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// setupWebsocketRoutineManager creates a new websocket routine manager
-func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
+// SetupWebsocketRoutineManager creates a new websocket routine manager
+func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer ICurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
+	}
+	if orderManager == nil {
+		return nil, errNilOrderManager
 	}
 	if syncer == nil {
 		return nil, errNilCurrencyPairSyncer
@@ -40,6 +42,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		currencyFormat:  cfg.CurrencyPairFormat,
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -54,14 +57,14 @@ func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 		return errNilCurrencyConfig
 	}
 
-	if m.currencyConfig.CurrencyPairFormat == nil {
+	if m.currencyFormat == nil {
 		return errNilCurrencyPairFormat
 	}
 
 	connectionCtx, connectionCancel := context.WithCancel(ctx)
 
 	m.mu.Lock()
-	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
+	if !m.state.CompareAndSwap(stoppedState, startingState) {
 		m.mu.Unlock()
 		connectionCancel()
 		return ErrSubSystemAlreadyStarted
@@ -73,7 +76,7 @@ func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 	go func() {
 		m.websocketRoutine(connectionCtx)
 		// It's okay for this to fail, just means shutdown has started
-		atomic.CompareAndSwapInt32(&m.state, startingState, readyState)
+		m.state.CompareAndSwap(startingState, readyState)
 	}()
 	return nil
 }
@@ -83,7 +86,7 @@ func (m *WebsocketRoutineManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.state) == readyState
+	return m.state.Load() == readyState
 }
 
 // Stop attempts to shutdown the subsystem
@@ -93,11 +96,11 @@ func (m *WebsocketRoutineManager) Stop() error {
 	}
 
 	m.mu.Lock()
-	if atomic.LoadInt32(&m.state) == stoppedState {
+	if m.state.Load() == stoppedState {
 		m.mu.Unlock()
 		return fmt.Errorf("websocket routine manager %w", ErrSubSystemNotStarted)
 	}
-	atomic.StoreInt32(&m.state, stoppedState)
+	m.state.Store(stoppedState)
 	if m.connectionCancel != nil {
 		m.connectionCancel()
 		m.connectionCancel = nil
@@ -181,7 +184,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errNilWebsocket
 	}
 
-	if atomic.LoadInt32(&m.state) == stoppedState {
+	if m.state.Load() == stoppedState {
 		return errRoutineManagerNotStarted
 	}
 
@@ -233,11 +236,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
-				SyncItemTicker,
-				nil)
+			err := m.syncer.WebsocketUpdateTicker(d)
 			if err != nil {
 				return err
 			}
@@ -250,11 +249,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
+				err := m.syncer.WebsocketUpdateTicker(&d[x])
 				if err != nil {
 					return err
 				}
@@ -302,9 +297,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
@@ -328,9 +320,6 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
-		if !m.orderManager.IsRunning() {
-			return nil
-		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
 				err := m.orderManager.Add(&d[x])
@@ -381,16 +370,16 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
 func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
+	if m == nil || m.state.Load() == stoppedState {
 		return p
 	}
-	return p.Format(*m.currencyConfig.CurrencyPairFormat)
+	return p.Format(*m.currencyFormat)
 }
 
 // printOrderSummary this function will be deprecated when a order manager
 // update is done.
 func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bool) {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState || o == nil {
+	if m == nil || m.state.Load() == stoppedState || o == nil {
 		return
 	}
 

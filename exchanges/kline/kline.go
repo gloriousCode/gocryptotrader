@@ -333,6 +333,23 @@ func (k *Item) RemoveDuplicates() {
 	k.Candles = k.Candles[:target]
 }
 
+// RemoveZeroes removes candles with no price or volume information.
+func (k *Item) RemoveZeroes() {
+	lookup := make(map[int64]bool)
+	target := 0
+	for _, keep := range k.Candles {
+		if key := keep.Time.Unix(); !lookup[key] {
+			if keep.Close == 0 {
+				continue
+			}
+			lookup[key] = true
+			k.Candles[target] = keep
+			target++
+		}
+	}
+	k.Candles = k.Candles[:target]
+}
+
 // RemoveOutsideRange removes any candles outside the start and end date.
 // NOTE: Filter-in-place is used in this function for optimisation and to keep
 // the slice reference pointer the same, if changed ExtendedRequest

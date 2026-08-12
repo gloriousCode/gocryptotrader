@@ -28,6 +28,10 @@ func (sl *SubLogger) setOutput(o *multiWriterHolder) error {
 		return errMultiWriterHolderIsNil
 	}
 	sl.output = o
+	sl.buildPrefixes()
+	if err := setupSubLoggerBackend(sl); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -36,13 +40,31 @@ func (sl *SubLogger) setLevels(newLevels Levels) {
 	sl.levels = newLevels
 }
 
-// getFields returns sub logger specific fields for the potential log job.
+// buildPrefixes precomputes static header prefixes for the sublogger.
 // Note: Calling function must have mutex lock in place.
+func (sl *SubLogger) buildPrefixes() {
+	if sl == nil {
+		return
+	}
+	suffix := logger.Spacer
+	if logger.ShowLogSystemName {
+		suffix += sl.name + logger.Spacer
+	}
+	sl.infoPrefix = logger.InfoHeader + suffix
+	sl.warnPrefix = logger.WarnHeader + suffix
+	sl.debugPrefix = logger.DebugHeader + suffix
+	sl.errorPrefix = logger.ErrorHeader + suffix
+}
+
+// getFields checks out and populates sub logger fields for a potential log job.
+// The caller must hold mu's read lock until the value is returned to
+// logFieldsPool by stageln, stagef, or stage.
 func (sl *SubLogger) getFields() *fields {
 	if sl == nil || globalLogConfig == nil || globalLogConfig.Enabled == nil || !*globalLogConfig.Enabled {
 		return nil
 	}
 	f := logFieldsPool.Get().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+	f.structuredFields = nil
 	f.info = sl.levels.Info
 	f.warn = sl.levels.Warn
 	f.debug = sl.levels.Debug
@@ -51,5 +73,10 @@ func (sl *SubLogger) getFields() *fields {
 	f.output = sl.output
 	f.botName = sl.botName
 	f.structuredLogging = sl.structuredLogging
+	f.zapLogger = sl.zapLogger
+	f.infoPrefix = sl.infoPrefix
+	f.warnPrefix = sl.warnPrefix
+	f.debugPrefix = sl.debugPrefix
+	f.errorPrefix = sl.errorPrefix
 	return f
 }

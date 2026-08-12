@@ -37,8 +37,6 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -193,6 +191,7 @@ func TestUExchangeInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 2)
 }
 
 func TestUFuturesOrderbook(t *testing.T) {
@@ -388,7 +387,8 @@ func TestUCompositeIndexInfo(t *testing.T) {
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UFuturesNewOrder(t.Context(),
+	_, err := e.UFuturesNewOrder(
+		t.Context(),
 		&UFuturesNewOrderRequest{
 			Symbol:      currency.NewBTCUSDT(),
 			Side:        "BUY",
@@ -667,16 +667,16 @@ func TestGetFuturesKlineData(t *testing.T) {
 		require.Equal(t, 5, len(r), "GetFuturesKlineData must return 5 items in mock test")
 		exp := FuturesCandleStick{
 			OpenTime:                types.Time(time.UnixMilli(1596240000000)),
-			Open:                    11785,
-			High:                    12513.6,
-			Low:                     11114.1,
-			Close:                   11663.5,
-			Volume:                  12155433,
+			Open:                    types.NumberFromFloat64(11785),
+			High:                    types.NumberFromFloat64(12513.6),
+			Low:                     types.NumberFromFloat64(11114.1),
+			Close:                   types.NumberFromFloat64(11663.5),
+			Volume:                  types.NumberFromFloat64(12155433),
 			CloseTime:               types.Time(time.UnixMilli(1598918399999)),
-			BaseAssetVolume:         104142.54608485,
+			BaseAssetVolume:         types.NumberFromFloat64(104142.54608485),
 			NumberOfTrades:          359100,
-			TakerBuyVolume:          6013546,
-			TakerBuyBaseAssetVolume: 51511.95826419,
+			TakerBuyVolume:          types.NumberFromFloat64(6013546),
+			TakerBuyBaseAssetVolume: types.NumberFromFloat64(51511.95826419),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {
@@ -1165,16 +1165,16 @@ func TestGetSpotKline(t *testing.T) {
 		require.Equal(t, 24, len(r), "GetSpotKline must return 24 items in mock test")
 		exp := CandleStick{
 			OpenTime:                 types.Time(time.UnixMilli(1577836800000)),
-			Open:                     7195.24,
-			High:                     7196.25,
-			Low:                      7178.64,
-			Close:                    7179.78,
-			Volume:                   95.509133,
+			Open:                     types.NumberFromFloat64(7195.24),
+			High:                     types.NumberFromFloat64(7196.25),
+			Low:                      types.NumberFromFloat64(7178.64),
+			Close:                    types.NumberFromFloat64(7179.78),
+			Volume:                   types.NumberFromFloat64(95.509133),
 			CloseTime:                types.Time(time.UnixMilli(1577837099999)),
-			QuoteAssetVolume:         686317.13625177,
+			QuoteAssetVolume:         types.NumberFromFloat64(686317.13625177),
 			TradeCount:               1127,
-			TakerBuyAssetVolume:      32.773245,
-			TakerBuyQuoteAssetVolume: 235537.29504531,
+			TakerBuyAssetVolume:      types.NumberFromFloat64(32.773245),
+			TakerBuyQuoteAssetVolume: types.NumberFromFloat64(235537.29504531),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {
@@ -1499,7 +1499,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1012, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1512,7 +1513,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1001, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1525,7 +1527,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 3, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -2465,12 +2468,12 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = e.obm.fetchBookViaREST(p)
+	err = e.obm.fetchBookViaREST(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = e.obm.cleanup(p)
+	err = e.obm.cleanup(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2757,17 +2760,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		StartDate:            start,
-		EndDate:              end,
-		IncludePayments:      true,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewBTCUSDT(),
 		StartDate:       start,
@@ -3037,6 +3031,30 @@ func TestSetMarginType(t *testing.T) {
 
 	err = e.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USDT,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:            asset.Margin,
+		Currency:         currency.USDT,
+		GetPredictedRate: true,
+	})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetLeverage(t *testing.T) {
@@ -3311,6 +3329,25 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	ct, _, _, err := e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+
+	ct, _, _, err = e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
+	require.NoError(t, err)
+	t.Log(ct)
+}
+
+func TestGetExpiredContractsFromDate(t *testing.T) {
+	t.Parallel()
+	e.Verbose = true
+	resp, err := e.GetLongDatedContractsFromDate(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
 func TestGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFundingRateInfo(t.Context())
@@ -3349,6 +3386,19 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
+func TestSpotFutures(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.NewCode("BTCUSD"), currency.NewCode("231229"))
+	cp.Delimiter = "_"
+	e.Verbose = true
+	interval := e.FormatExchangeKlineInterval(kline.OneDay)
+	resp, err := e.GetFuturesKlineData(t.Context(), cp, interval, 0, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	t.Log(resp)
+}
+
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -3360,4 +3410,25 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestGetHistoricalContractKlineData(t *testing.T) {
+	t.Parallel()
+	resp, err := e.GetHistoricalContractKlineData(t.Context(), &futures.GetKlineContractRequest{
+		UnderlyingPair: currency.NewBTCUSDT(),
+		Asset:          asset.USDTMarginedFutures,
+		StartDate:      time.Now().Add(-time.Hour * 24 * 365),
+		EndDate:        time.Now(),
+		Interval:       kline.OneDay,
+		Contract:       futures.Quarterly,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+}
+
+func TestFetchUSDTMarginExchangeLimits(t *testing.T) {
+	t.Parallel()
+	resp, err := e.FetchUSDTMarginExchangeLimits(t.Context())
+	require.NoError(t, err)
+	t.Log(resp)
 }

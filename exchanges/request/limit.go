@@ -90,8 +90,8 @@ func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateL
 
 // InitiateRateLimit sleeps for designated end point rate limits.
 func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
+	if err := common.NilGuard(r); err != nil {
+		return err
 	}
 	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
 		return nil
@@ -171,8 +171,8 @@ func cancelAll(reservations []*rate.Reservation, at time.Time) {
 
 // DisableRateLimiter disables the rate limiting system for the exchange.
 func (r *Requester) DisableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
+	if err := common.NilGuard(r); err != nil {
+		return err
 	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
@@ -182,8 +182,8 @@ func (r *Requester) DisableRateLimiter() error {
 
 // EnableRateLimiter enables the rate limiting system for the exchange.
 func (r *Requester) EnableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
+	if err := common.NilGuard(r); err != nil {
+		return err
 	}
 	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)

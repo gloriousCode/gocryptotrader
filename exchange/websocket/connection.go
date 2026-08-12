@@ -58,6 +58,7 @@ type Connection interface {
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 	// Subscriptions returns the subscription store for the connection
 	Subscriptions() *subscription.Store
+	IsConnected() bool
 }
 
 // ConnectionSetup defines variables for an individual stream connection
@@ -147,6 +148,9 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 	}
 
 	path := common.EncodeURLValues(c.URL, values)
+	if err := configureInterfaceDialer(dialer); err != nil {
+		return err
+	}
 	conn, resp, err := dialer.DialContext(ctx, path, headers)
 	if err != nil {
 		if resp != nil {

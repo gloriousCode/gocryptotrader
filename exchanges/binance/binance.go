@@ -37,8 +37,8 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
-	testnetSpotURL = "https://testnet.binance.vision/api" //nolint:unused // Can be used for testing via setting useTestNet to true
-	testnetFutures = "https://testnet.binancefuture.com"  //nolint:unused // Can be used for testing via setting useTestNet to true
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
 
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
@@ -375,6 +375,9 @@ func (e *Exchange) GetAveragePrice(ctx context.Context, symbol currency.Pair) (A
 // symbol: string of currency pair
 func (e *Exchange) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (*PriceChangeStats, error) {
 	resp := PriceChangeStats{}
+	if symbol.IsEmpty() {
+		return nil, errors.New("symbol is required, use GetTickers")
+	}
 	params := url.Values{}
 	rateLimit := spotTickerAllRate
 	if !symbol.IsEmpty() {

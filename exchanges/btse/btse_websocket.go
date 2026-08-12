@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -253,6 +254,19 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			a, err = e.GetPairAssetType(p)
 			if err != nil {
 				return err
+			}
+
+			if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+				Last:         tradeHistory.Data[x].Price,
+				Pair:         p,
+				ExchangeName: e.Name,
+				AssetType:    a,
+				LastUpdated:  tradeHistory.Data[x].Timestamp.Time(),
+			}); err != nil {
+				return err
+			}
+			if !e.IsSaveTradeDataEnabled() {
+				continue
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeHistory.Data[x].Timestamp.Time().UTC(),

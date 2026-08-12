@@ -465,7 +465,7 @@ func TestAssetEnabled(t *testing.T) {
 	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
-// TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
+// TestFullStoreUnmarshalMarshal tests JSON Marshal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	um := make(FullStore)
@@ -1081,4 +1081,15 @@ func TestIsAssetSupported(t *testing.T) {
 	}
 	assert.True(t, p.IsAssetSupported(asset.Spot), "Spot should be supported")
 	assert.False(t, p.IsAssetSupported(asset.Index), "Index should not be supported")
+}
+
+func TestDisableAllPairs(t *testing.T) {
+	t.Parallel()
+	p := initTest(t)
+
+	assert.True(t, p.Pairs[asset.Spot].AssetEnabled)
+	assert.Len(t, p.Pairs[asset.Spot].Enabled, 1)
+	p.DisableAllPairs()
+	assert.False(t, p.Pairs[asset.Spot].AssetEnabled)
+	assert.Empty(t, p.Pairs[asset.Spot].Enabled)
 }

@@ -236,3 +236,24 @@ func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	}
 	return []uuid.UUID{exchangeID}, nil
 }
+
+func (s *Service) getByExchangeAsset(exch string, item asset.Item) []*Price {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prices := make([]*Price, 0, len(service.Tickers))
+	for k, v := range service.Tickers {
+		if k.Exchange != exch {
+			continue
+		}
+		if k.Asset != item {
+			continue
+		}
+		prices = append(prices, &v.Price)
+	}
+	return prices
+}
+
+// GetByExchangeAsset returns all cached tickers for an exchange and asset type.
+func GetByExchangeAsset(exch string, item asset.Item) []*Price {
+	return service.getByExchangeAsset(exch, item)
+}

@@ -29,7 +29,6 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-
 	account accountTypeHolder
 }
 
@@ -1315,10 +1314,10 @@ func (e *Exchange) SetMMP(ctx context.Context, arg *MMPRequestParam) error {
 	if arg.FrozenPeriod <= 0 {
 		return errFrozenPeriodRequired
 	}
-	if arg.TradeQuantityLimit <= 0 {
+	if arg.TradeQuantityLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, trade quantity limit required", errQuantityLimitRequired)
 	}
-	if arg.DeltaLimit <= 0 {
+	if arg.DeltaLimit.Float64() <= 0 {
 		return fmt.Errorf("%w, delta limit is required", errQuantityLimitRequired)
 	}
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/mmp-modify", nil, arg, &struct{}{}, defaultEPL)
@@ -1497,7 +1496,7 @@ func (e *Exchange) CreateInternalTransfer(ctx context.Context, arg *TransferPara
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -1552,7 +1551,7 @@ func (e *Exchange) CreateUniversalTransfer(ctx context.Context, arg *TransferPar
 	if arg.Coin.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return "", order.ErrAmountIsInvalid
 	}
 	if arg.FromAccountType == "" {
@@ -2123,7 +2122,7 @@ func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([
 
 	resp := make([]MarginCoinInfo, 0, len(newResp.List))
 	for _, item := range newResp.List {
-		conversionRate := types.Number(0)
+		conversionRate := types.NumberFromFloat64(0)
 		if len(item.CollateralRatioList) > 0 {
 			conversionRate = item.CollateralRatioList[0].CollateralRatio
 		}

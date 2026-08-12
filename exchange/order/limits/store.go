@@ -55,6 +55,9 @@ func (e *store) load(levels []MinMaxLevel) error {
 				levels[x].MinPrice,
 				levels[x].MaxPrice)
 		}
+		if levels[x].MultiplierDecimal == 0 {
+			levels[x].MultiplierDecimal = 1
+		}
 
 		if levels[x].MinimumBaseAmount > 0 &&
 			levels[x].MaximumBaseAmount > 0 &&

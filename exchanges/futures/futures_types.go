@@ -41,6 +41,10 @@ var (
 	ErrGetFundingDataRequired = errors.New("getfundingdata is a prerequisite")
 	// ErrOrderHistoryTooLarge is returned when you lookup order history, but with too early a start date
 	ErrOrderHistoryTooLarge = errors.New("order history start date too long ago")
+	// ErrContractTypeNotSupported is returned when an exchange cannot service a contract type.
+	ErrContractTypeNotSupported = errors.New("contract type not supported")
+	// ErrContractMismatch is returned when a requested contract does not match the expected type.
+	ErrContractMismatch = errors.New("contract mismatch")
 
 	errExchangeNameMismatch           = errors.New("exchange name mismatch")
 	errTimeUnset                      = errors.New("time unset")
@@ -202,6 +206,7 @@ type CollateralCalculator struct {
 type OpenInterest struct {
 	Key          key.ExchangeAssetPair
 	OpenInterest float64
+	LastUpdated  time.Time
 }
 
 // PNLCalculator implements the PNLCalculation interface

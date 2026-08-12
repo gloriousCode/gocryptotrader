@@ -31,23 +31,26 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	websocketMockTestsSkipped = "skipped websocket test while mock testing is enabled"
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                                     *Exchange
 	spotTradablePair, futuresTradablePair currency.Pair
 )
 
-func (e *Exchange) setAPICredential(apiKey, apiSecret string) { //nolint:unparam // Intentional suppress 'apiKey always receives apiKey ("")' error
-	if apiKey != "" && apiSecret != "" {
+func (e *Exchange) setAPICredential(creds *accounts.Credentials) {
+	if creds.Key != "" && creds.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(creds)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 }
@@ -437,7 +440,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -480,7 +483,7 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -686,9 +689,9 @@ func TestMapSubAccountBalances(t *testing.T) {
 			AccountType: "SPOT",
 			Balances: []*SubAccountBalance{{
 				Currency:     currency.BTC,
-				Available:    types.Number(3),
-				Hold:         types.Number(2),
-				MaxAvailable: types.Number(999),
+				Available:    types.NumberFromFloat64(3),
+				Hold:         types.NumberFromFloat64(2),
+				MaxAvailable: types.NumberFromFloat64(999),
 			}},
 		},
 		{
@@ -696,9 +699,9 @@ func TestMapSubAccountBalances(t *testing.T) {
 			AccountType: "FUTURES",
 			Balances: []*SubAccountBalance{{
 				Currency:         currency.USDT,
-				AccountEquity:    types.Number(10),
-				FrozenFunds:      types.Number(4),
-				AvailableBalance: types.Number(6),
+				AccountEquity:    types.NumberFromFloat64(10),
+				FrozenFunds:      types.NumberFromFloat64(4),
+				AvailableBalance: types.NumberFromFloat64(6),
 			}},
 		},
 	})
@@ -2293,7 +2296,7 @@ func TestWsSpotPrivateHandleData(t *testing.T) {
 		t.Skip(websocketMockTestsSkipped)
 	}
 
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -2341,7 +2344,7 @@ func TestWsCreateOrder(t *testing.T) {
 		t.Skip(websocketMockTestsSkipped)
 	}
 
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -2372,7 +2375,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 		t.Skip(websocketMockTestsSkipped)
 	}
 
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -2390,7 +2393,7 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
@@ -2530,7 +2533,7 @@ func TestWsFuturesPrivateHandleData(t *testing.T) {
 		t.Skip(websocketMockTestsSkipped)
 	}
 
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 

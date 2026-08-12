@@ -16,10 +16,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -33,11 +35,12 @@ import (
 )
 
 // Please supply API keys here or in config/testdata.json to test authenticated endpoints
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e          *Exchange
@@ -50,11 +53,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Bitfinex Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -857,8 +860,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1569348774, 0)),
 		MTSUpdated:         types.Time(time.Unix(1569348774, 0)),
 		Status:             "COMPLETED",
-		Amount:             0.26300954,
-		Fees:               -0.00135,
+		Amount:             types.NumberFromFloat64(0.26300954),
+		Fees:               types.NumberFromFloat64(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionType:    "deposit",
@@ -873,8 +876,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1574175052, 0)),
 		MTSUpdated:         types.Time(time.Unix(1574181326, 0)),
 		Status:             "CANCELED",
-		Amount:             -0.24,
-		Fees:               -0.00135,
+		Amount:             types.NumberFromFloat64(-0.24),
+		Fees:               types.NumberFromFloat64(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionNote:    stringPtr("Purchase of 100 pizzas"),
@@ -1190,7 +1193,8 @@ func TestModifyOrder(t *testing.T) {
 			OrderID:   "1337",
 			AssetType: asset.Spot,
 			Pair:      currency.NewBTCUSD(),
-		})
+		},
+	)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2103,6 +2107,47 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USD,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.MarginFunding,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:          asset.MarginFunding,
+		Currency:       currency.USD,
+		GetBorrowRates: true,
+	})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestGetCurrentMarginRatesValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrentMarginRates(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Spot,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.MarginFunding,
+		Pairs: currency.Pairs{currency.EMPTYPAIR},
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
 func TestGetHistoricTrades(t *testing.T) {

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 var (
+	errNilOrderManager                 = errors.New("nil order manager received")
 	errNilCurrencyPairSyncer           = errors.New("nil currency pair syncer received")
 	errNilCurrencyConfig               = errors.New("nil currency config received")
 	errNilCurrencyPairFormat           = errors.New("nil currency pair format received")
@@ -26,12 +28,13 @@ const (
 
 // WebsocketRoutineManager is used to process websocket updates from a unified location
 type WebsocketRoutineManager struct {
-	state            int32
+	state            atomic.Int32
 	verbose          bool
 	exchangeManager  iExchangeManager
 	orderManager     iOrderManager
-	syncer           iCurrencyPairSyncer
+	syncer           ICurrencyPairSyncer
 	currencyConfig   *currency.Config
+	currencyFormat   *currency.PairFormat
 	shutdown         chan struct{}
 	connectionCancel context.CancelFunc
 	dataHandlers     []WebsocketDataHandler

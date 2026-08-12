@@ -487,7 +487,7 @@ type BatchOrderItemParam struct {
 	TriggerDirection int64         `json:"triggerDirection,omitempty"`
 	TriggerPrice     int64         `json:"triggerPrice,omitempty"`
 	OrderIv          int64         `json:"orderIv,omitempty,string"`
-	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
+	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values: LastPrice, IndexPrice, and MarkPrice
 	TimeInForce      string        `json:"timeInForce,omitempty"`
 
 	// PositionIndex Used to identify positions in different position modes. Under hedge-mode,
@@ -1110,7 +1110,7 @@ type TransferableCoins struct {
 type TransferParams struct {
 	TransferID      uuid.UUID     `json:"transferId"`
 	Coin            currency.Code `json:"coin"`
-	Amount          types.Number  `json:"amount,string"`
+	Amount          types.Number  `json:"amount"`
 	FromAccountType string        `json:"fromAccountType"`
 	ToAccountType   string        `json:"toAccountType"`
 

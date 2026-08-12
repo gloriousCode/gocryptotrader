@@ -1472,7 +1472,7 @@ func TestCheckTransientError(t *testing.T) {
 func TestDisableEnableRateLimiter(t *testing.T) {
 	b := Base{}
 	err := b.EnableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
 	if err != nil {
@@ -1912,6 +1912,13 @@ func TestGetMarginRateHistory(t *testing.T) {
 	t.Parallel()
 	var b Base
 	_, err := b.GetMarginRatesHistory(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
+}
+
+func TestGetCurrentMarginRates(t *testing.T) {
+	t.Parallel()
+	var b Base
+	_, err := b.GetCurrentMarginRates(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 

@@ -86,11 +86,11 @@ var (
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
-	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000},
-	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: false, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: false, Channel: subscription.MyTradesChannel, Authenticated: true},
 }
 
 // WsConnect initiates a websocket connection

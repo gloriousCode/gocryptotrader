@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestWebsocketLogin(t *testing.T) {
@@ -42,11 +43,11 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	out.Side = strings.ToLower(order.Sell.String())
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = 1
+	out.Amount = types.NumberFromFloat64(1)
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = 100
+	out.Price = types.NumberFromFloat64(100)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -70,11 +71,11 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	out.Side = strings.ToLower(order.Buy.String())
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = 0.0003
+	out.Amount = types.NumberFromFloat64(0.0003)
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = 20000
+	out.Price = types.NumberFromFloat64(20000)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -196,7 +197,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 // This restricts the pairs to a single pair per asset type to reduce test time.
 func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	t.Helper()
-	if apiKey == "" || apiSecret == "" {
+	if apiCredentials.Key == "" || apiCredentials.Secret == "" {
 		t.Skip()
 	}
 	e := new(Exchange)
@@ -204,7 +205,7 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	testexch.UpdatePairsOnce(t, e)
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
-	e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	e.SetCredentials(apiCredentials)
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	// Disable all other asset types to ensure only the specified asset type is used for websocket tests.

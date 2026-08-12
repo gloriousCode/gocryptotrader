@@ -210,24 +210,27 @@ updates:
 }
 
 // insertUpdates inserts new updates for bids or asks based on price level
+// TODO: Remove when BitMEX support is removed.
 func (l *Levels) insertUpdates(updts Levels, comp comparison) error {
 updates:
-	for x := range updts {
+	for _, update := range updts {
 		if len(*l) == 0 {
-			*l = append(*l, updts[x])
+			*l = append(*l, update)
 			continue
 		}
 
 		for y := range *l {
 			switch {
-			case (*l)[y].Price == updts[x].Price: // Price already found
-				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
-			case comp((*l)[y].Price, updts[x].Price): // price at correct spot
-				*l = append((*l)[:y], append([]Level{updts[x]}, (*l)[y:]...)...)
+			case (*l)[y].Price == update.Price: // Price already found
+				return fmt.Errorf("%w for price %f", errCollisionDetected, update.Price)
+			case comp((*l)[y].Price, update.Price): // price at correct spot
+				*l = append(*l, Level{})
+				copy((*l)[y+1:], (*l)[y:])
+				(*l)[y] = update
 				continue updates
 			}
 		}
-		*l = append(*l, updts[x])
+		*l = append(*l, update)
 	}
 	return nil
 }
@@ -266,24 +269,37 @@ func (l Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Mov
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice}
+	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
 	for x := range l {
 		levelValue := l[x].Amount * l[x].Price
 		leftover := quote - levelValue
 		if leftover < 0 {
+			m.Trades = append(m.Trades, Trade{
+				Price:        l[x].Price,
+				TrancheSize:  l[x].Amount,
+				PurchaseSize: quote / l[x].Price,
+			})
 			m.Purchased += quote
 			m.Sold += quote / levelValue * l[x].Amount
 			// This level is not consumed so the book shifts to this price.
 			m.EndPrice = l[x].Price
 			quote = 0
+
 			break
 		}
-		// Full level consumed
+
+		m.Trades = append(m.Trades, Trade{
+			Price:           l[x].Price,
+			TrancheSize:     l[x].Amount,
+			PurchaseSize:    l[x].Amount,
+			ConsumedTranche: true,
+		})
+		// Full tranche consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		quote = leftover
 		if leftover == 0 {
-			// Price no longer exists on the book so use next full price level
+			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact. If available.
 			if x+1 < len(l) {
 				m.EndPrice = l[x+1].Price
@@ -314,10 +330,15 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice}
+	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
 	for x := range l {
 		leftover := base - l[x].Amount
 		if leftover < 0 {
+			m.Trades = append(m.Trades, Trade{
+				Price:        l[x].Price,
+				TrancheSize:  l[x].Amount,
+				PurchaseSize: base,
+			})
 			m.Purchased += l[x].Price * base
 			m.Sold += base
 			// This level is not consumed so the book shifts to this price.
@@ -325,7 +346,13 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 			base = 0
 			break
 		}
-		// Full level consumed
+		m.Trades = append(m.Trades, Trade{
+			Price:           l[x].Price,
+			TrancheSize:     l[x].Amount,
+			PurchaseSize:    l[x].Amount,
+			ConsumedTranche: true,
+		})
+		// Full tranche consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		base = leftover

@@ -227,7 +227,14 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 		creds.OTPSecret = "-" // Ensure OTP is available for use
 	}
 
-	base.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.PEMKey, creds.OTPSecret)
+	base.SetCredentials(&accounts.Credentials{
+		Key:             creds.Key,
+		Secret:          creds.Secret,
+		ClientID:        creds.ClientID,
+		SubAccount:      creds.Subaccount,
+		PEMKey:          creds.PEMKey,
+		OneTimePassword: creds.OTPSecret,
+	})
 
 	base.Config.API.Credentials.Key = creds.Key
 	base.Config.API.Credentials.Secret = creds.Secret
@@ -885,15 +892,14 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 		})
 
 		marginRateHistoryRequest := &margin.RateHistoryRequest{
-			Exchange:           e.GetName(),
-			Asset:              assetTypes[i],
-			Currency:           p.Base,
-			StartDate:          time.Now().Add(-time.Hour * 24),
-			EndDate:            time.Now(),
-			GetPredictedRate:   true,
-			GetLendingPayments: true,
-			GetBorrowRates:     true,
-			GetBorrowCosts:     true,
+			Exchange:         e.GetName(),
+			Asset:            assetTypes[i],
+			Currency:         p.Base,
+			StartDate:        time.Now().Add(-time.Hour * 24),
+			EndDate:          time.Now(),
+			GetPredictedRate: true,
+			GetBorrowRates:   true,
+			GetBorrowCosts:   true,
 		}
 		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
 		msg = ""

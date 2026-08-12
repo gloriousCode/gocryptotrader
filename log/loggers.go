@@ -39,7 +39,7 @@ func Infof(sl *SubLogger, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.InfoHeader, format, a...)
+		f.stagef(f.logger.InfoHeader, format, a...)
 	}
 }
 
@@ -92,7 +92,7 @@ func Debugf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.DebugHeader, data, v...)
+		f.stagef(f.logger.DebugHeader, data, v...)
 	}
 }
 
@@ -144,7 +144,7 @@ func Warnf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.WarnHeader, data, v...)
+		f.stagef(f.logger.WarnHeader, data, v...)
 	}
 }
 
@@ -196,7 +196,7 @@ func Errorf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.ErrorHeader, data, v...)
+		f.stagef(f.logger.ErrorHeader, data, v...)
 	}
 }
 
@@ -251,6 +251,7 @@ func (l *fields) stage(header string, deferFunc deferral) {
 	if level := l.enabled(header); level != "" {
 		l.output.StageLogEvent(deferFunc,
 			header,
+			l.prefixForHeader(header),
 			l.name,
 			l.logger.Spacer,
 			l.logger.TimestampFormat,
@@ -259,9 +260,40 @@ func (l *fields) stage(header string, deferFunc deferral) {
 			l.logger.ShowLogSystemName,
 			l.logger.BypassJobChannelFilledWarning,
 			l.structuredLogging,
+			l.logger.DropDebugLogsOnOverflow,
 			l.structuredFields)
 	}
 	logFieldsPool.Put(l)
+}
+
+// stageZapMessage writes a preformatted message to zap for the provided header.
+func (l *fields) stageZapMessage(header, msg string) {
+	if l == nil || l.zapLogger == nil {
+		return
+	}
+	if l.enabled(header) != "" {
+		l.zapLogger.Info(l.prefixForHeader(header) + msg)
+	}
+}
+
+// prefixForHeader returns a precomputed prefix for a given header.
+func (l *fields) prefixForHeader(header string) string {
+	switch header {
+	case l.logger.InfoHeader:
+		return l.infoPrefix
+	case l.logger.WarnHeader:
+		return l.warnPrefix
+	case l.logger.ErrorHeader:
+		return l.errorPrefix
+	case l.logger.DebugHeader:
+		return l.debugPrefix
+	default:
+		prefix := header + l.logger.Spacer
+		if l.logger.ShowLogSystemName {
+			prefix += l.name + l.logger.Spacer
+		}
+		return prefix
+	}
 }
 
 // stageln logs a message with the given header and arguments. It uses the
@@ -269,7 +301,28 @@ func (l *fields) stage(header string, deferFunc deferral) {
 // system.
 func (l *fields) stageln(header string, a ...any) {
 	if customLogHook != nil && customLogHook(header, l.name, a...) {
+		logFieldsPool.Put(l)
 		return
+	}
+	if l.zapLogger != nil && !l.structuredLogging {
+		var msg string
+		if len(a) == 1 {
+			if s, ok := a[0].(string); ok {
+				msg = s
+			}
+		}
+		if msg == "" {
+			msg = fmt.Sprint(a...)
+		}
+		l.stageZapMessage(header, msg)
+		logFieldsPool.Put(l)
+		return
+	}
+	if len(a) == 1 {
+		if s, ok := a[0].(string); ok {
+			l.stage(header, func() string { return s })
+			return
+		}
 	}
 	l.stage(header, func() string { return fmt.Sprint(a...) })
 }
@@ -278,7 +331,24 @@ func (l *fields) stageln(header string, a ...any) {
 // the custom log hook if set, otherwise falls back to the library's internal
 // log system.
 func (l *fields) stagef(header, format string, a ...any) {
-	if customLogHook != nil && customLogHook(header, l.name, fmt.Sprintf(format, a...)) {
+	if customLogHook != nil {
+		formatted := fmt.Sprintf(format, a...)
+		if customLogHook(header, l.name, formatted) {
+			logFieldsPool.Put(l)
+			return
+		}
+		if l.zapLogger != nil && !l.structuredLogging {
+			l.stageZapMessage(header, formatted)
+			logFieldsPool.Put(l)
+			return
+		}
+		l.stage(header, func() string { return formatted })
+		return
+	}
+	if l.zapLogger != nil && !l.structuredLogging {
+		formatted := fmt.Sprintf(format, a...)
+		l.stageZapMessage(header, formatted)
+		logFieldsPool.Put(l)
 		return
 	}
 	l.stage(header, func() string { return fmt.Sprintf(format, a...) })

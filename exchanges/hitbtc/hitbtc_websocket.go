@@ -270,18 +270,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		var trades []trade.Data
 		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				Err:      err,
-			}
+			return err
 		}
 		for i := range tradeSnapshot.Params.Data {
 			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
 			if err != nil {
-				return &order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,

@@ -70,7 +70,7 @@ func (e *Exchange) RequestQuote(ctx context.Context, params *RequestQuoteRequest
 	} else {
 		params.RequestCoin = params.FromCoin
 	}
-	if params.RequestAmount <= 0 {
+	if params.RequestAmount.Float64() <= 0 {
 		return nil, fmt.Errorf("%w: %v", order.ErrAmountIsInvalid, params.RequestAmount)
 	}
 

@@ -192,16 +192,21 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 	}
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
+	type Response struct {
+		Error []any          `json:"error"`
+		Data  map[string]any `json:"result"`
+	}
+
+	var result Response
 
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
-	result := make(map[string]any)
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 	if err != nil {
 		return nil, err
 	}
 
-	ohlcData, ok := result[translatedAsset].([]any)
+	ohlcData, ok := result.Data[translatedAsset].([]any)
 	if !ok {
 		return nil, errors.New("invalid data returned")
 	}
@@ -1013,4 +1018,38 @@ func (a *assetTranslatorStore) Seeded() bool {
 	isSeeded := len(a.Assets) > 0
 	a.l.RUnlock()
 	return isSeeded
+}
+
+// CalculateContractDates returns Kraken contract date codes within a time range.
+func (e *Exchange) CalculateContractDates(start, end time.Time) ([]string, error) {
+	var resp []string
+	err := common.StartEndTimeCheck(start, end)
+	if err != nil {
+		return nil, err
+	}
+	roundStart := time.Date(start.Year(), start.Month(), 31, 0, 0, 0, 0, time.UTC)
+	roundEnd := roundDateToEndOfMonth(end)
+	for roundStart.Before(roundEnd) {
+		for {
+			if roundStart.Weekday() == time.Friday {
+				resp = append(resp, roundStart.Format("060102"))
+				break
+			}
+			roundStart = roundStart.AddDate(0, 0, -1)
+		}
+		roundStart = roundStart.AddDate(0, 1, 0)
+		roundStart = roundDateToEndOfMonth(roundStart)
+	}
+	return resp, nil
+}
+
+func roundDateToEndOfMonth(t time.Time) time.Time {
+	originalMonth := t.Month()
+	originalYear := t.Year()
+	t = time.Date(originalYear, originalMonth, 31, 0, 0, 0, 0, time.UTC)
+	for t.Month() != originalMonth || t.Year() != originalYear {
+		// reduce the day so that it is at the end of the month provided
+		t = time.Date(t.Year(), t.Month(), t.Day()-1, 0, 0, 0, 0, time.UTC)
+	}
+	return t
 }

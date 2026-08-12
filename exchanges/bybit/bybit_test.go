@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -44,12 +45,15 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e *Exchange
@@ -107,15 +111,15 @@ func TestGetKlines(t *testing.T) {
 
 				switch tc.category {
 				case cSpot:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(29393.99), High: types.NumberFromFloat64(29399.76), Low: types.NumberFromFloat64(29393.98), Close: types.NumberFromFloat64(29399.76), TradeVolume: types.NumberFromFloat64(1.168988), Turnover: types.NumberFromFloat64(34363.5346739)}, r[0])
 				case cLinear:
 					if tc.pair == usdtMarginedTradablePair {
-						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
+						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.0003), High: types.NumberFromFloat64(0.0003), Low: types.NumberFromFloat64(0.0002995), Close: types.NumberFromFloat64(0.0003), TradeVolume: types.NumberFromFloat64(55102100), Turnover: types.NumberFromFloat64(16506.2427)}, r[0])
 						return
 					}
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(239.7), High: types.NumberFromFloat64(239.7), Low: types.NumberFromFloat64(239.7), Close: types.NumberFromFloat64(239.7)}, r[0])
 				case cInverse:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.NumberFromFloat64(0.2908), High: types.NumberFromFloat64(0.2912), Low: types.NumberFromFloat64(0.2908), Close: types.NumberFromFloat64(0.2912), TradeVolume: types.NumberFromFloat64(5131), Turnover: types.NumberFromFloat64(17626.40000346)}, r[0])
 				}
 			} else {
 				assert.NotEmpty(t, r)
@@ -1560,78 +1564,78 @@ func TestGetWalletBalance(t *testing.T) {
 
 	if mockTests {
 		require.Len(t, r.List, 1, "GetWalletBalance must return a single list result")
-		assert.Equal(t, types.Number(0.1997), r.List[0].AccountIMRate, "AccountIMRate should be correct")
-		assert.Equal(t, types.Number(0.4996), r.List[0].AccountLTV, "AccountLTV should be correct")
-		assert.Equal(t, types.Number(0.0399), r.List[0].AccountMMRate, "AccountMMRate should be correct")
+		assert.Equal(t, types.NumberFromFloat64(0.1997), r.List[0].AccountIMRate, "AccountIMRate should be correct")
+		assert.Equal(t, types.NumberFromFloat64(0.4996), r.List[0].AccountLTV, "AccountLTV should be correct")
+		assert.Equal(t, types.NumberFromFloat64(0.0399), r.List[0].AccountMMRate, "AccountMMRate should be correct")
 		assert.Equal(t, "UNIFIED", r.List[0].AccountType, "AccountType should be correct")
-		assert.Equal(t, types.Number(24616.49915805), r.List[0].TotalAvailableBalance, "TotalAvailableBalance should be correct")
-		assert.Equal(t, types.Number(41445.9203332), r.List[0].TotalEquity, "TotalEquity should be correct")
-		assert.Equal(t, types.Number(6144.46796478), r.List[0].TotalInitialMargin, "TotalInitialMargin should be correct")
-		assert.Equal(t, types.Number(1228.89359295), r.List[0].TotalMaintenanceMargin, "TotalMaintenanceMargin should be correct")
-		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalMarginBalance, "TotalMarginBalance should be correct")
-		assert.Equal(t, types.Number(0.0), r.List[0].TotalPerpUPL, "TotalPerpUPL should be correct")
-		assert.Equal(t, types.Number(30760.96712284), r.List[0].TotalWalletBalance, "TotalWalletBalance should be correct")
+		assert.Equal(t, types.NumberFromFloat64(24616.49915805), r.List[0].TotalAvailableBalance, "TotalAvailableBalance should be correct")
+		assert.Equal(t, types.NumberFromFloat64(41445.9203332), r.List[0].TotalEquity, "TotalEquity should be correct")
+		assert.Equal(t, types.NumberFromFloat64(6144.46796478), r.List[0].TotalInitialMargin, "TotalInitialMargin should be correct")
+		assert.Equal(t, types.NumberFromFloat64(1228.89359295), r.List[0].TotalMaintenanceMargin, "TotalMaintenanceMargin should be correct")
+		assert.Equal(t, types.NumberFromFloat64(30760.96712284), r.List[0].TotalMarginBalance, "TotalMarginBalance should be correct")
+		assert.Equal(t, types.NumberFromFloat64(0.0), r.List[0].TotalPerpUPL, "TotalPerpUPL should be correct")
+		assert.Equal(t, types.NumberFromFloat64(30760.96712284), r.List[0].TotalWalletBalance, "TotalWalletBalance should be correct")
 		require.Len(t, r.List[0].Coin, 3, "GetWalletBalance must return 3 coins")
 
 		for x := range r.List[0].Coin {
 			switch x {
 			case 0:
-				assert.Equal(t, types.Number(0.21976631), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
-				assert.Equal(t, types.Number(30723.630216383714), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0.21976631), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
+				assert.Equal(t, types.NumberFromFloat64(30723.630216383714), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
 				assert.Equal(t, currency.USDC, r.List[0].Coin[x].Coin, "Coin should be correct")
 				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
-				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].Equity, "Equity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(-30723.63021638), r.List[0].Coin[x].Equity, "Equity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Locked, "Locked should be correct")
 				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
-				assert.Equal(t, types.Number(-30722.33982391), r.List[0].Coin[x].USDValue, "USDValue should be correct")
-				assert.Equal(t, types.Number(-30723.63021638), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(-30722.33982391), r.List[0].Coin[x].USDValue, "USDValue should be correct")
+				assert.Equal(t, types.NumberFromFloat64(-30723.63021638), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
 			case 1:
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
-				assert.Equal(t, types.Number(1005.79191187), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
+				assert.Equal(t, types.NumberFromFloat64(1005.79191187), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
 				assert.Equal(t, currency.AVAX, r.List[0].Coin[x].Coin, "Coin should be correct")
 				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
-				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].Equity, "Equity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(2473.9), r.List[0].Coin[x].Equity, "Equity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Locked, "Locked should be correct")
 				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
-				assert.Equal(t, types.Number(71233.0214024), r.List[0].Coin[x].USDValue, "USDValue should be correct")
-				assert.Equal(t, types.Number(2473.9), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(71233.0214024), r.List[0].Coin[x].USDValue, "USDValue should be correct")
+				assert.Equal(t, types.NumberFromFloat64(2473.9), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
 			case 2:
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
-				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AccruedInterest, "AccruedInterest should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].AvailableToBorrow, "AvailableToBorrow should be correct")
+				assert.Equal(t, types.NumberFromFloat64(935.1415), r.List[0].Coin[x].AvailableToWithdraw, "AvailableToWithdraw should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Bonus, "Bonus should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].BorrowAmount, "BorrowAmount should be correct")
 				assert.Equal(t, currency.USDT, r.List[0].Coin[x].Coin, "Coin should be correct")
 				assert.True(t, r.List[0].Coin[x].CollateralSwitch, "CollateralSwitch should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
-				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].Equity, "Equity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].Locked, "Locked should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].CumulativeRealisedPNL, "CumulativeRealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(935.1415), r.List[0].Coin[x].Equity, "Equity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].Locked, "Locked should be correct")
 				assert.True(t, r.List[0].Coin[x].MarginCollateral, "MarginCollateral should match")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
-				assert.Equal(t, types.Number(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
-				assert.Equal(t, types.Number(935.23875471), r.List[0].Coin[x].USDValue, "USDValue should be correct")
-				assert.Equal(t, types.Number(935.1415), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].SpotHedgingQuantity, "SpotHedgingQuantity should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalOrderIM, "TotalOrderIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionIM, "TotalPositionIM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].TotalPositionMM, "TotalPositionMM should be correct")
+				assert.Equal(t, types.NumberFromFloat64(0), r.List[0].Coin[x].UnrealisedPNL, "UnrealisedPNL should be correct")
+				assert.Equal(t, types.NumberFromFloat64(935.23875471), r.List[0].Coin[x].USDValue, "USDValue should be correct")
+				assert.Equal(t, types.NumberFromFloat64(935.1415), r.List[0].Coin[x].WalletBalance, "WalletBalance should be correct")
 			}
 		}
 	}
@@ -1783,8 +1787,8 @@ func TestSetMMP(t *testing.T) {
 		BaseCoin:           "ETH",
 		TimeWindowMS:       5000,
 		FrozenPeriod:       100000,
-		TradeQuantityLimit: 50,
-		DeltaLimit:         20,
+		TradeQuantityLimit: types.NumberFromFloat64(50),
+		DeltaLimit:         types.NumberFromFloat64(20),
 	})
 	if err != nil {
 		t.Error(err)
@@ -1935,25 +1939,25 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2038,25 +2042,25 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2068,7 +2072,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.NumberFromFloat64(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 		FromMemberID:    123,
@@ -2541,12 +2545,12 @@ func TestGetMarginCoinInfo(t *testing.T) {
 	if mockTests {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
-		assert.Equal(t, types.Number(0.95), resp[0].ConversionRate)
+		assert.Equal(t, types.NumberFromFloat64(0.95), resp[0].ConversionRate)
 		require.Len(t, resp[0].CollateralRatioList, 2)
-		assert.Equal(t, types.Number(0), resp[0].CollateralRatioList[0].MinQuantity)
-		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[0].MaxQuantity)
-		assert.Equal(t, types.Number(0.95), resp[0].CollateralRatioList[0].CollateralRatio)
-		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[1].MinQuantity)
+		assert.Equal(t, types.NumberFromFloat64(0), resp[0].CollateralRatioList[0].MinQuantity)
+		assert.Equal(t, types.NumberFromFloat64(1000000), resp[0].CollateralRatioList[0].MaxQuantity)
+		assert.Equal(t, types.NumberFromFloat64(0.95), resp[0].CollateralRatioList[0].CollateralRatio)
+		assert.Equal(t, types.NumberFromFloat64(1000000), resp[0].CollateralRatioList[1].MinQuantity)
 		assert.Zero(t, resp[0].CollateralRatioList[1].MaxQuantity)
 		assert.Zero(t, resp[0].CollateralRatioList[1].CollateralRatio)
 		assert.Zero(t, resp[0].LiquidationOrder)
@@ -2562,7 +2566,7 @@ func TestGetVIPMarginData(t *testing.T) {
 		require.NotEmpty(t, resp.VipCoinList[0].List)
 		assert.Equal(t, "No VIP", resp.VipCoinList[0].VipLevel)
 		assert.Equal(t, "USDT", resp.VipCoinList[0].List[0].Currency)
-		assert.Equal(t, types.Number(1), resp.VipCoinList[0].List[0].CollateralRatio)
+		assert.Equal(t, types.NumberFromFloat64(1), resp.VipCoinList[0].List[0].CollateralRatio)
 	}
 }
 
@@ -2579,7 +2583,7 @@ func TestGetMaxBorrowableAmount(t *testing.T) {
 	if mockTests {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
-		assert.Equal(t, types.Number(5), resp[0].MaxLoan)
+		assert.Equal(t, types.NumberFromFloat64(5), resp[0].MaxLoan)
 	}
 }
 
@@ -3064,7 +3068,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("test", "test", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {
@@ -3262,13 +3266,15 @@ func TestWsTicker(t *testing.T) {
 		return e.wsHandleData(t.Context(), nil, a, r)
 	})
 	e.Websocket.DataHandler.Close()
-	expected := 8
+	expected := 9
 	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	tickerSequence := 0
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
+			tickerSequence++
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(e.Websocket.DataHandler.C) {
+			switch tickerSequence {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3392,6 +3398,18 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
+		case *exchangeoptions.Option:
+			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
+			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
+			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
+			assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
+			assert.Equal(t, -0.37596534, v.Delta, "Delta should be correct")
+			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
+			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
+			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
+			assert.Equal(t, 0.5479, v.BidIV, "BidIV should be correct")
+			assert.Equal(t, 0.5534, v.AskIV, "AskIV should be correct")
+			assert.Equal(t, 0.0, v.MarkIV, "MarkIV should be correct")
 		case error:
 			t.Error(v)
 		default:

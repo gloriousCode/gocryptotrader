@@ -479,7 +479,7 @@ func (m *MovementHistory) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if m.Amount < 0 {
+	if m.Amount.Float64() < 0 {
 		m.TransactionType = "withdrawal"
 	} else {
 		m.TransactionType = "deposit"
