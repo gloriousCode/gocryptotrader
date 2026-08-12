@@ -43,7 +43,7 @@ func TestSetFuturesWebsocketUserID(t *testing.T) {
 	ex := new(Exchange)
 	require.ErrorIs(t, ex.SetFuturesWebsocketUserID(0), errFuturesWebsocketUserIDNotSet)
 	require.NoError(t, ex.SetFuturesWebsocketUserID(12345))
-	require.Equal(t, int64(12345), ex.futuresWebsocketUserID)
+	require.Equal(t, int64(12345), ex.futuresWebsocketUserID.Load())
 }
 
 func TestWsFuturesConnect(t *testing.T) {
@@ -271,10 +271,6 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex))
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	_, err := ex.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, errFuturesWebsocketUserIDNotSet)
-
-	require.NoError(t, ex.SetFuturesWebsocketUserID(12345))
 	subs, err := ex.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 
@@ -288,10 +284,10 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 	require.Len(t, private, 4)
 	for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
 		require.Empty(t, private[channel].Pairs)
-		require.Equal(t, map[string]any{"user": "12345", "all_contracts": true}, private[channel].Params)
+		require.Equal(t, map[string]any{"all_contracts": true}, private[channel].Params)
 	}
 	require.Empty(t, private[futuresBalancesChannel].Pairs)
-	require.Equal(t, map[string]any{"user": "12345"}, private[futuresBalancesChannel].Params)
+	require.Empty(t, private[futuresBalancesChannel].Params)
 
 	coinMSubs, err := ex.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
@@ -304,4 +300,114 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 	for _, sub := range deliverySubs {
 		require.NotContains(t, sub.Params, "user")
 	}
+}
+
+func TestFuturesSubscribe(t *testing.T) {
+	t.Parallel()
+
+	newAuthenticatedExchange := func(t *testing.T) *Exchange {
+		t.Helper()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		return ex
+	}
+
+	t.Run("public subscription does not discover user ID", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		sub := &subscription.Subscription{
+			Channel: futuresTickersChannel,
+			Pairs:   currency.Pairs{BTCUSDT},
+			Asset:   asset.USDTMarginedFutures,
+		}
+		require.NoError(t, ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{sub}))
+		require.Zero(t, ex.futuresWebsocketUserID.Load())
+		require.NotContains(t, sub.Params, "user")
+	})
+
+	t.Run("private subscription requires authentication", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		err := ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{
+			&subscription.Subscription{Channel: futuresBalancesChannel, Asset: asset.USDTMarginedFutures},
+		})
+		require.ErrorIs(t, err, errAuthenticatedWebsocketRequired)
+	})
+
+	t.Run("manual override", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		require.NoError(t, ex.SetFuturesWebsocketUserID(54321))
+		sub := &subscription.Subscription{
+			Channel: futuresOrdersChannel,
+			Params:  map[string]any{"all_contracts": true},
+			Asset:   asset.USDTMarginedFutures,
+		}
+		require.NoError(t, ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{sub}))
+		require.Equal(t, "54321", sub.Params["user"])
+	})
+
+	t.Run("subscription user ID", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		sub := &subscription.Subscription{
+			Channel: futuresBalancesChannel,
+			Params:  map[string]any{"user": "67890"},
+			Asset:   asset.USDTMarginedFutures,
+		}
+		require.NoError(t, ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{sub}))
+		require.Zero(t, ex.futuresWebsocketUserID.Load())
+		require.Equal(t, "67890", sub.Params["user"])
+	})
+
+	t.Run("unsupported private subscription asset", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		err := ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{
+			&subscription.Subscription{Channel: futuresBalancesChannel, Asset: asset.Spot},
+		})
+		require.ErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("automatic discovery is retained for unsubscribe", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		require.NoError(t, testexch.MockHTTPInstance(ex, "/"))
+		sub := &subscription.Subscription{
+			Channel: futuresBalancesChannel,
+			Asset:   asset.USDTMarginedFutures,
+		}
+		conn := new(FixtureConnection)
+		require.NoError(t, ex.FuturesSubscribe(t.Context(), conn, subscription.List{sub}))
+		require.Equal(t, int64(12345), ex.futuresWebsocketUserID.Load())
+		require.Equal(t, "12345", sub.Params["user"])
+
+		ex.futuresWebsocketUserID.Store(0)
+		require.NoError(t, ex.FuturesUnsubscribe(t.Context(), conn, subscription.List{sub}))
+		require.Equal(t, "12345", sub.Params["user"])
+	})
+
+	t.Run("discovery error", func(t *testing.T) {
+		t.Parallel()
+
+		ex := newAuthenticatedExchange(t)
+		require.NoError(t, testexch.MockHTTPInstance(ex, "/"))
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		sub := &subscription.Subscription{Channel: futuresBalancesChannel, Asset: asset.USDTMarginedFutures}
+		err := ex.FuturesSubscribe(ctx, new(FixtureConnection), subscription.List{sub})
+		require.ErrorIs(t, err, context.Canceled)
+		require.Zero(t, ex.futuresWebsocketUserID.Load())
+		require.NotContains(t, sub.Params, "user")
+	})
 }

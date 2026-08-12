@@ -2248,6 +2248,8 @@ type WsOrderbookSnapshot struct {
 }
 
 // WsSpotOrdersEvent represents a spot order lifecycle update envelope.
+// The data handler publishes this exchange-native event before its []order.Detail
+// projection so Gate-specific lifecycle fields remain available to consumers.
 type WsSpotOrdersEvent struct {
 	Time    types.Time    `json:"time"`
 	Channel string        `json:"channel"`
@@ -2256,6 +2258,8 @@ type WsSpotOrdersEvent struct {
 }
 
 // WsSpotUserTradesEvent represents a spot user trade lifecycle update envelope.
+// The data handler publishes this exchange-native event before its fill.Data
+// projection when the fills feed is enabled so Gate-specific fields remain available.
 type WsSpotUserTradesEvent struct {
 	Time    types.Time            `json:"time"`
 	Channel string                `json:"channel"`
@@ -2452,6 +2456,8 @@ type WsFuturesOrderbookUpdateEvent struct {
 }
 
 // WsFuturesOrdersEvent represents a futures order lifecycle update envelope.
+// The data handler publishes this exchange-native event before its []order.Detail
+// projection so Gate-specific lifecycle fields remain available to consumers.
 type WsFuturesOrdersEvent struct {
 	Time    types.Time     `json:"time"`
 	Channel string         `json:"channel"`
@@ -2460,6 +2466,8 @@ type WsFuturesOrdersEvent struct {
 }
 
 // WsFuturesUserTradesEvent represents a futures user trade lifecycle update envelope.
+// The data handler publishes this exchange-native event before its fill.Data
+// projection when the fills feed is enabled so Gate-specific fields remain available.
 type WsFuturesUserTradesEvent struct {
 	Time    types.Time           `json:"time"`
 	Channel string               `json:"channel"`
@@ -2468,6 +2476,8 @@ type WsFuturesUserTradesEvent struct {
 }
 
 // WsFuturesBalancesEvent represents a futures balance lifecycle update envelope.
+// The data handler publishes this exchange-native event before its accounts.SubAccounts
+// projection so Gate-specific balance fields remain available to consumers.
 type WsFuturesBalancesEvent struct {
 	Time    types.Time   `json:"time"`
 	Channel string       `json:"channel"`

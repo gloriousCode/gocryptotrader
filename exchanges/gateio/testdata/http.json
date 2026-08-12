@@ -1,5 +1,17 @@
 {
  "routes": {
+  "/futures/usdt/accounts": {
+   "GET": [
+    {
+     "data": {
+      "user": 12345
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/spot/order_book": {
    "GET": [
     {

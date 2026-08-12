@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -201,7 +202,7 @@ type Exchange struct {
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
 
-	futuresWebsocketUserID int64
+	futuresWebsocketUserID atomic.Int64
 }
 
 // ***************************************** SubAccounts ********************************

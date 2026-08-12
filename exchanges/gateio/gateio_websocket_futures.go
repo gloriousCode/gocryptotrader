@@ -74,8 +74,7 @@ var (
 	errNoChannelsSupplied             = errors.New("no channels supplied")
 )
 
-// SetFuturesWebsocketUserID configures the Gate user ID required by authenticated futures subscriptions.
-// It must be called before the websocket manager starts.
+// SetFuturesWebsocketUserID overrides the Gate user ID automatically discovered for authenticated futures subscriptions.
 func (e *Exchange) SetFuturesWebsocketUserID(userID int64) error {
 	if e == nil {
 		return common.ErrNilPointer
@@ -83,7 +82,7 @@ func (e *Exchange) SetFuturesWebsocketUserID(userID int64) error {
 	if userID <= 0 {
 		return errFuturesWebsocketUserIDNotSet
 	}
-	e.futuresWebsocketUserID = userID
+	e.futuresWebsocketUserID.Store(userID)
 	return nil
 }
 
@@ -154,30 +153,77 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		}
 	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() && a == asset.USDTMarginedFutures {
-		userID := e.futuresWebsocketUserID
-		if userID <= 0 {
-			return nil, errFuturesWebsocketUserIDNotSet
-		}
-		user := strconv.FormatInt(userID, 10)
 		for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
-				Params:  map[string]any{"user": user, "all_contracts": true},
+				Params:  map[string]any{"all_contracts": true},
 				Asset:   a,
 			})
 		}
 		subscriptions = append(subscriptions, &subscription.Subscription{
 			Channel: futuresBalancesChannel,
-			Params:  map[string]any{"user": user},
+			Params:  map[string]any{},
 			Asset:   a,
 		})
 	}
 	return subscriptions, nil
 }
 
-// FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateFuturesPayload)
+// FuturesSubscribe sends a websocket message to receive data from the channel.
+func (e *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	privateSubscriptions := make(subscription.List, 0, len(channelsToSubscribe))
+	for _, sub := range channelsToSubscribe {
+		switch sub.Channel {
+		case futuresOrdersChannel, futuresUserTradesChannel,
+			futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel, futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel, futuresPositionsChannel,
+			futuresAutoOrdersChannel:
+			privateSubscriptions = append(privateSubscriptions, sub)
+		}
+	}
+	if len(privateSubscriptions) > 0 {
+		if !e.Websocket.CanUseAuthenticatedEndpoints() {
+			return errAuthenticatedWebsocketRequired
+		}
+		userID := e.futuresWebsocketUserID.Load()
+		if userID <= 0 {
+			allHaveUserID := true
+			for _, sub := range privateSubscriptions {
+				user, ok := sub.Params["user"].(string)
+				if !ok || user == "" {
+					allHaveUserID = false
+					break
+				}
+			}
+			if allHaveUserID {
+				return e.handleSubscription(ctx, conn, subscribeEvent, channelsToSubscribe, e.generateFuturesPayload)
+			}
+			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, privateSubscriptions[0].Asset)
+			if err != nil {
+				return err
+			}
+			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+			if err != nil {
+				return fmt.Errorf("error querying futures account for websocket user ID: %w", err)
+			}
+			if account == nil {
+				return fmt.Errorf("%w: futures account", common.ErrNilPointer)
+			}
+			if err := e.SetFuturesWebsocketUserID(account.User); err != nil {
+				return err
+			}
+			userID = account.User
+		}
+		user := strconv.FormatInt(userID, 10)
+		for _, sub := range privateSubscriptions {
+			if sub.Params == nil {
+				sub.Params = make(map[string]any)
+			}
+			sub.Params["user"] = user
+		}
+	}
+	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToSubscribe, e.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
