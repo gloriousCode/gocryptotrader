@@ -765,31 +765,32 @@ type ExecutionResponse struct {
 
 // Execution represents execution record
 type Execution struct {
-	Symbol                 string       `json:"symbol"`
-	OrderType              string       `json:"orderType"`
-	UnderlyingPrice        types.Number `json:"underlyingPrice"`
-	IndexPrice             types.Number `json:"indexPrice"`
-	OrderLinkID            string       `json:"orderLinkId"`
-	Side                   string       `json:"side"`
-	OrderID                string       `json:"orderId"`
-	StopOrderType          string       `json:"stopOrderType"`
-	LeavesQuantity         types.Number `json:"leavesQty"`
-	ExecTime               types.Time   `json:"execTime"`
-	IsMaker                bool         `json:"isMaker"`
-	ExecFee                types.Number `json:"execFee"`
-	FeeRate                types.Number `json:"feeRate"`
-	ExecID                 string       `json:"execId"`
-	TradeImpliedVolatility string       `json:"tradeIv"`
-	BlockTradeID           string       `json:"blockTradeId"`
-	MarkPrice              types.Number `json:"markPrice"`
-	ExecPrice              types.Number `json:"execPrice"`
-	MarkIv                 string       `json:"markIv"`
-	OrderQuantity          types.Number `json:"orderQty"`
-	ExecValue              string       `json:"execValue"`
-	ExecType               string       `json:"execType"`
-	OrderPrice             types.Number `json:"orderPrice"`
-	ExecQuantity           types.Number `json:"execQty"`
-	ClosedSize             types.Number `json:"closedSize"`
+	Symbol                 string        `json:"symbol"`
+	OrderType              string        `json:"orderType"`
+	UnderlyingPrice        types.Number  `json:"underlyingPrice"`
+	IndexPrice             types.Number  `json:"indexPrice"`
+	OrderLinkID            string        `json:"orderLinkId"`
+	Side                   string        `json:"side"`
+	OrderID                string        `json:"orderId"`
+	StopOrderType          string        `json:"stopOrderType"`
+	LeavesQuantity         types.Number  `json:"leavesQty"`
+	ExecTime               types.Time    `json:"execTime"`
+	IsMaker                bool          `json:"isMaker"`
+	ExecFee                types.Number  `json:"execFee"`
+	FeeCurrency            currency.Code `json:"feeCurrency"`
+	FeeRate                types.Number  `json:"feeRate"`
+	ExecID                 string        `json:"execId"`
+	TradeImpliedVolatility string        `json:"tradeIv"`
+	BlockTradeID           string        `json:"blockTradeId"`
+	MarkPrice              types.Number  `json:"markPrice"`
+	ExecPrice              types.Number  `json:"execPrice"`
+	MarkIv                 string        `json:"markIv"`
+	OrderQuantity          types.Number  `json:"orderQty"`
+	ExecValue              string        `json:"execValue"`
+	ExecType               string        `json:"execType"`
+	OrderPrice             types.Number  `json:"orderPrice"`
+	ExecQuantity           types.Number  `json:"execQty"`
+	ClosedSize             types.Number  `json:"closedSize"`
 }
 
 // ClosedProfitAndLossResponse represents list of closed profit and loss records

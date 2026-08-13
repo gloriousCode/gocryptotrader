@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"slices"
 	"strings"
@@ -482,6 +483,54 @@ func TestGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetOrderInfoHydratesExecution(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t,
+		ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, false),
+		"StorePairs must not error for available pairs")
+	require.NoError(t,
+		ex.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, currency.Pairs{pair}, true),
+		"StorePairs must not error for enabled pairs")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials(&accounts.Credentials{Key: "test-key", Secret: "test-secret"})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
+		assert.Equal(t, bybitAPIVersion+"order/realtime", r.URL.Path, "Request path should be the realtime order endpoint")
+		assert.Equal(t, cLinear, r.URL.Query().Get("category"), "Category should be linear")
+		assert.Equal(t, "BTCUSDT", r.URL.Query().Get("symbol"), "Symbol should be exchange formatted")
+		assert.Equal(t, "order-123", r.URL.Query().Get("orderId"), "Order ID should match")
+
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(
+			`{"retCode":0,"retMsg":"OK","result":{"category":"linear","list":[{"orderId":"order-123","orderLinkId":"client-123","symbol":"BTCUSDT","price":"100","qty":"2","side":"Buy","orderStatus":"Filled","avgPrice":"101.25","leavesQty":"0","cumExecQty":"2","cumExecValue":"202.5","cumExecFee":"0.11","orderType":"Market","triggerPrice":"99","reduceOnly":true,"createdTime":"1700000000000","updatedTime":"1700000001000"}],"nextPageCursor":""},"time":1700000001000}`,
+		))
+		assert.NoError(t, err, "Writing the realtime order response should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t,
+		ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL),
+		"SetRunningURL must not error")
+
+	detail, err := ex.GetOrderInfo(t.Context(), "order-123", pair, asset.USDTMarginedFutures)
+	require.NoError(t, err, "GetOrderInfo must not error")
+	require.NotNil(t, detail, "Order detail must be returned")
+	assert.Equal(t, "order-123", detail.OrderID, "Order ID should match")
+	assert.Equal(t, order.Filled, detail.Status, "Order status should be filled")
+	assert.InDelta(t, 2, detail.ExecutedAmount, 0.00000001, "Executed amount should match")
+	assert.InDelta(t, 101.25, detail.AverageExecutedPrice, 0.00000001, "Average executed price should match")
+	assert.InDelta(t, 202.5, detail.Cost, 0.00000001, "Cumulative executed value should be used as cost")
+	assert.InDelta(t, 0.11, detail.Fee, 0.00000001, "Cumulative execution fee should match")
+	assert.InDelta(t, 99, detail.TriggerPrice, 0.00000001, "Trigger price should match")
+	assert.True(t, detail.ReduceOnly, "Reduce-only should match")
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -1428,6 +1477,14 @@ func TestGetExecution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestExecutionFeeCurrency(t *testing.T) {
+	t.Parallel()
+
+	var execution Execution
+	require.NoError(t, json.Unmarshal([]byte(`{"execFee":"0.12","feeCurrency":"USDT"}`), &execution), "Unmarshal must not error")
+	assert.Equal(t, currency.USDT, execution.FeeCurrency, "FeeCurrency should match")
 }
 
 func TestGetClosedPnL(t *testing.T) {
