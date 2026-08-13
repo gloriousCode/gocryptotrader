@@ -1,6 +1,8 @@
 package bybit
 
 import (
+	"math"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -49,20 +51,44 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		triggerPriceType = s.TriggerPriceType.String()
 	}
 
+	orderQuantity := s.Amount
+	var marketUnit string
+	if s.AssetType == asset.Spot && s.Type == order.Market && s.Side.IsLong() {
+		if orderQuantity > 0 {
+			marketUnit = "baseCoin"
+		} else {
+			orderQuantity = s.QuoteAmount
+			marketUnit = "quoteCoin"
+		}
+	}
+
+	var slippageToleranceType string
+	var slippageTolerance float64
+	if s.SlippageTolerance != 0 {
+		if s.Type != order.Market || s.SlippageTolerance < 0.0001 || s.SlippageTolerance > 0.1 {
+			return nil, errInvalidSlippageTolerance
+		}
+		slippageToleranceType = "Percent"
+		slippageTolerance = math.Round(s.SlippageTolerance*10000) / 100
+	}
+
 	arg := &PlaceOrderRequest{
-		Category:         getCategoryName(s.AssetType),
-		Symbol:           formattedPair,
-		Side:             side,
-		OrderType:        orderTypeToString(s.Type),
-		OrderQuantity:    s.Amount,
-		Price:            s.Price,
-		OrderLinkID:      s.ClientOrderID,
-		EnableBorrow:     s.AssetType == asset.Margin,
-		ReduceOnly:       s.ReduceOnly,
-		OrderFilter:      orderFilter,
-		TriggerPrice:     s.TriggerPrice,
-		TimeInForce:      timeInForce,
-		TriggerPriceType: triggerPriceType,
+		Category:              getCategoryName(s.AssetType),
+		Symbol:                formattedPair,
+		Side:                  side,
+		OrderType:             orderTypeToString(s.Type),
+		OrderQuantity:         orderQuantity,
+		MarketUnit:            marketUnit,
+		SlippageToleranceType: slippageToleranceType,
+		SlippageTolerance:     slippageTolerance,
+		Price:                 s.Price,
+		OrderLinkID:           s.ClientOrderID,
+		EnableBorrow:          s.AssetType == asset.Margin,
+		ReduceOnly:            s.ReduceOnly,
+		OrderFilter:           orderFilter,
+		TriggerPrice:          s.TriggerPrice,
+		TimeInForce:           timeInForce,
+		TriggerPriceType:      triggerPriceType,
 	}
 
 	if s.RiskManagementModes.TakeProfit.Price != 0 {

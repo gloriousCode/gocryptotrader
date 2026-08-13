@@ -1209,17 +1209,41 @@ func TestGetBorrowQuota(t *testing.T) {
 
 func TestSetDisconnectCancelAll(t *testing.T) {
 	t.Parallel()
+	testCases := []struct {
+		name string
+		arg  *SetDCPParams
+		err  error
+	}{
+		{name: "nil argument", err: errNilArgument},
+		{name: "unset window", arg: &SetDCPParams{}, err: errDisconnectTimeWindowNotSet},
+		{name: "below minimum", arg: &SetDCPParams{TimeWindow: 2}, err: errInvalidDisconnectTimeWindow},
+		{name: "above maximum", arg: &SetDCPParams{TimeWindow: 301}, err: errInvalidDisconnectTimeWindow},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := e.SetDisconnectCancelAll(t.Context(), tc.arg)
+			require.ErrorIs(t, err, tc.err, "SetDisconnectCancelAll must return the expected validation error")
+		})
+	}
 	if mockTests {
 		t.Skip(skipAuthenticatedFunctionsForMockTesting)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err := e.SetDisconnectCancelAll(t.Context(), nil)
-	require.ErrorIs(t, err, errNilArgument)
-
-	err = e.SetDisconnectCancelAll(t.Context(), &SetDCPParams{TimeWindow: 300})
+	err := e.SetDisconnectCancelAll(t.Context(), &SetDCPParams{TimeWindow: 300})
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestConfigureDCPSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.ErrorIs(t, ex.ConfigureDCPSubscriptions("invalid"), errInvalidDCPProduct)
+	require.NoError(t, ex.ConfigureDCPSubscriptions("spot", "future", "spot"))
+	require.Equal(t, []string{"future", "spot"}, ex.dcpProducts)
 }
 
 func TestGetPositionInfo(t *testing.T) {
@@ -3275,6 +3299,8 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Empty(t, v[0].TradeID, "Trade ID should be empty")
 			assert.Equal(t, 0.3374, v[0].Price, "price should be correct")
 			assert.Equal(t, 25.0, v[0].Amount, "amount should be correct")
+			assert.Equal(t, 8.435, v[0].Value, "value should be correct")
+			assert.Equal(t, 0.005061, v[0].Fee, "fee should be correct")
 		default:
 			t.Errorf("Unexpected data received: %T %v", v, v)
 		}
@@ -3918,9 +3944,16 @@ func TestAuthSubscribe(t *testing.T) {
 	require.Empty(t, authsubs, "generateAuthSubscriptions must not return subs")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	require.NoError(t, e.ConfigureDCPSubscriptions("future", "spot"), "ConfigureDCPSubscriptions must not error")
 	authsubs, err = e.generateAuthSubscriptions()
 	require.NoError(t, err, "generateAuthSubscriptions must not error")
 	require.NotEmpty(t, authsubs, "generateAuthSubscriptions must return subs")
+	channels := make([]string, len(authsubs))
+	for i := range authsubs {
+		channels[i] = authsubs[i].Channel
+	}
+	require.Contains(t, channels, "dcp.future", "generateAuthSubscriptions must include futures DCP")
+	require.Contains(t, channels, "dcp.spot", "generateAuthSubscriptions must include spot DCP")
 
 	require.NoError(t, e.authSubscribe(t.Context(), &FixtureConnection{}, authsubs))
 	require.NoError(t, e.authUnsubscribe(t.Context(), &FixtureConnection{}, authsubs))

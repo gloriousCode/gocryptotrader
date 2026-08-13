@@ -319,6 +319,9 @@ type PlaceOrderRequest struct {
 	Side                   string        `json:"side"`       // Required
 	OrderType              string        `json:"orderType"`  // Required // Market, Limit
 	OrderQuantity          float64       `json:"qty,string"` // Required // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
+	MarketUnit             string        `json:"marketUnit,omitempty"`
+	SlippageToleranceType  string        `json:"slippageToleranceType,omitempty"`
+	SlippageTolerance      float64       `json:"slippageTolerance,omitempty,string"`
 	Price                  float64       `json:"price,string,omitempty"`
 	TimeInForce            string        `json:"timeInForce,omitempty"` // IOC and GTC
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
@@ -584,7 +587,8 @@ type BorrowQuota struct {
 
 // SetDCPParams represents the set disconnect cancel all parameters.
 type SetDCPParams struct {
-	TimeWindow int64 `json:"timeWindow"`
+	Product    string `json:"product,omitempty"`
+	TimeWindow int64  `json:"timeWindow"`
 }
 
 // PositionInfoList represents a list of positions infos.
@@ -1909,33 +1913,34 @@ type WsPositions []struct {
 
 // WsExecutions represents execution stream to see your executions in real-time.
 type WsExecutions []struct {
-	Category        string       `json:"category"`
-	Symbol          string       `json:"symbol"`
-	ExecFee         types.Number `json:"execFee"`
-	ExecID          string       `json:"execId"`
-	ExecPrice       types.Number `json:"execPrice"`
-	ExecQty         types.Number `json:"execQty"`
-	ExecType        string       `json:"execType"`
-	ExecValue       types.Number `json:"execValue"`
-	IsMaker         bool         `json:"isMaker"`
-	FeeRate         string       `json:"feeRate"`
-	TradeIv         string       `json:"tradeIv"`
-	MarkIv          string       `json:"markIv"`
-	BlockTradeID    string       `json:"blockTradeId"`
-	MarkPrice       types.Number `json:"markPrice"`
-	IndexPrice      types.Number `json:"indexPrice"`
-	UnderlyingPrice types.Number `json:"underlyingPrice"`
-	LeavesQty       types.Number `json:"leavesQty"`
-	OrderID         string       `json:"orderId"`
-	OrderLinkID     string       `json:"orderLinkId"`
-	OrderPrice      types.Number `json:"orderPrice"`
-	OrderQty        types.Number `json:"orderQty"`
-	OrderType       string       `json:"orderType"`
-	StopOrderType   string       `json:"stopOrderType"`
-	Side            string       `json:"side"`
-	ExecTime        types.Time   `json:"execTime"`
-	IsLeverage      types.Number `json:"isLeverage"`
-	ClosedSize      types.Number `json:"closedSize"`
+	Category        string        `json:"category"`
+	Symbol          string        `json:"symbol"`
+	ExecFee         types.Number  `json:"execFee"`
+	FeeCurrency     currency.Code `json:"feeCurrency"`
+	ExecID          string        `json:"execId"`
+	ExecPrice       types.Number  `json:"execPrice"`
+	ExecQty         types.Number  `json:"execQty"`
+	ExecType        string        `json:"execType"`
+	ExecValue       types.Number  `json:"execValue"`
+	IsMaker         bool          `json:"isMaker"`
+	FeeRate         string        `json:"feeRate"`
+	TradeIv         string        `json:"tradeIv"`
+	MarkIv          string        `json:"markIv"`
+	BlockTradeID    string        `json:"blockTradeId"`
+	MarkPrice       types.Number  `json:"markPrice"`
+	IndexPrice      types.Number  `json:"indexPrice"`
+	UnderlyingPrice types.Number  `json:"underlyingPrice"`
+	LeavesQty       types.Number  `json:"leavesQty"`
+	OrderID         string        `json:"orderId"`
+	OrderLinkID     string        `json:"orderLinkId"`
+	OrderPrice      types.Number  `json:"orderPrice"`
+	OrderQty        types.Number  `json:"orderQty"`
+	OrderType       string        `json:"orderType"`
+	StopOrderType   string        `json:"stopOrderType"`
+	Side            string        `json:"side"`
+	ExecTime        types.Time    `json:"execTime"`
+	IsLeverage      types.Number  `json:"isLeverage"`
+	ClosedSize      types.Number  `json:"closedSize"`
 }
 
 // WsOrders represents private order

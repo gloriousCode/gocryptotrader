@@ -28,4 +28,7 @@ type Data struct {
 	TradeID       string
 	Price         float64
 	Amount        float64
+	Value         float64
+	Fee           float64
+	FeeAsset      currency.Code
 }
