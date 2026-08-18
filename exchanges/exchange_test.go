@@ -2938,6 +2938,18 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+func TestWebsocketCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketCancelBatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketCancelBatchOrders must return the expected error")
+}
+
+func TestWebsocketCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{}).WebsocketCancelAllOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported, "WebsocketCancelAllOrders must return the expected error")
+}
+
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := (new(Base)).MessageID()

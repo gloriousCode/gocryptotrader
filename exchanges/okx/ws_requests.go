@@ -28,6 +28,9 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
+	if arg.InstrumentIDCode <= 0 {
+		return nil, errMissingInstrumentIDCode
+	}
 
 	var resp []*OrderData
 	if err := e.SendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp); err != nil {
@@ -46,6 +49,9 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 		if err := args[i].Validate(); err != nil {
 			return nil, err
 		}
+		if args[i].InstrumentIDCode <= 0 {
+			return nil, errMissingInstrumentIDCode
+		}
 	}
 
 	var resp []*OrderData
@@ -59,6 +65,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
+	}
+	if arg.InstrumentIDCode <= 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -82,6 +91,9 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		if args[i].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
+		if args[i].InstrumentIDCode <= 0 {
+			return nil, errMissingInstrumentIDCode
+		}
 		if args[i].OrderID == "" && args[i].ClientOrderID == "" {
 			return nil, order.ErrOrderIDNotSet
 		}
@@ -98,6 +110,9 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
+	}
+	if arg.InstrumentIDCode <= 0 {
+		return nil, errMissingInstrumentIDCode
 	}
 	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -122,6 +137,9 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 	for x := range args {
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
+		}
+		if args[x].InstrumentIDCode <= 0 {
+			return nil, errMissingInstrumentIDCode
 		}
 		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, order.ErrOrderIDNotSet

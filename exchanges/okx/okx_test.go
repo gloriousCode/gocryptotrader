@@ -815,8 +815,11 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
+	arg.PositionSide = "invalid"
+	_, err = e.PlaceOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -897,8 +900,11 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
+	arg.PositionSide = "invalid"
+	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -6498,6 +6504,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
