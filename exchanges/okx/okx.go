@@ -33,7 +33,8 @@ import (
 type Exchange struct {
 	exchange.Base
 
-	instrumentsInfoMapLock sync.Mutex
+	// instrumentsInfoMapLock allows concurrent websocket order lookups while instrument refreshes retain exclusive access.
+	instrumentsInfoMapLock sync.RWMutex
 	instrumentsInfoMap     map[string][]Instrument
 	tradeScopedLimiters    sync.Map
 	tradeSubAccountLimiter sync.Map

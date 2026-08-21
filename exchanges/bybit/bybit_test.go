@@ -488,7 +488,7 @@ func TestGetOrderInfo(t *testing.T) {
 func TestGetOrderInfoHydratesExecution(t *testing.T) {
 	t.Parallel()
 
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	require.NoError(t,

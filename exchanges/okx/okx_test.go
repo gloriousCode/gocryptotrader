@@ -42,12 +42,16 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passphrase              = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:      "",
+	Secret:   "",
+	ClientID: "", // passphrase
+}
 
 var (
 	e *Exchange
@@ -71,37 +75,14 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Okx Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" && passphrase != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(&accounts.Credentials{Key: apiKey, Secret: apiSecret, ClientID: passphrase})
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
 	os.Exit(m.Run())
-}
-
-func TestSetDefaultsEndpoints(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	ex.SetDefaults()
-
-	restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
-	require.NoError(t, err, "GetURL must not fail for OKX REST")
-	require.Equal(t, "https://www.okx.com/api/v5/", restURL)
-
-	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/public", publicURL)
-
-	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
-	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/private", privateURL)
-
-	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
-	require.Equal(t, "wss://wsus.okx.com:8443/ws/v5/business", businessURL)
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {
@@ -112,7 +93,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	}
 
 	loadLeadTraderOnce.Do(func() {
-		result, err := e.GetLeadTradersRanks(request.WithVerbose(contextGenerate()), &LeadTraderRanksRequest{
+		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
 			HasVacancy:     true,
@@ -431,13 +412,13 @@ func TestGetInstrument(t *testing.T) {
 
 	resp, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
-		Underlying:     optionsPair.String(),
+		Underlying:     "SOL-USD",
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp, "GetInstruments must return live instruments for BTC-USD futures")
+	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
 	for i := range resp {
 		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
-		assert.Equal(t, optionsPair.String(), resp[i].Underlying, "Underlying should be correct")
+		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
 		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
 		assert.NotEmpty(t, resp[i].State, "State should not be empty")
 	}
@@ -836,6 +817,9 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
+	arg.PositionSide = "invalid"
+	_, err = e.PlaceOrder(contextGenerate(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -918,6 +902,9 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
+	arg.PositionSide = "invalid"
+	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
@@ -1622,13 +1609,13 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
+	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInvalidUnderlying)
 
 	arg.InstrumentType = "SPOT"
-	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: types.NumberFromFloat64(10000), MakerPriceBand: types.NumberFromFloat64(5)}
+	data = MakerInstrumentSetting{Underlying: "BTC-USD", MaxBlockSize: 10000, MakerPriceBand: 5}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -1640,8 +1627,8 @@ func TestSetQuoteProducts(t *testing.T) {
 			Data: []MakerInstrumentSetting{
 				{
 					Underlying:     "BTC-USD",
-					MaxBlockSize:   types.NumberFromFloat64(10000),
-					MakerPriceBand: types.NumberFromFloat64(5),
+					MaxBlockSize:   10000,
+					MakerPriceBand: 5,
 				},
 				{
 					Underlying: mainPair.String(),
@@ -2060,13 +2047,13 @@ func TestSetLendingRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetLendingRate(contextGenerate(), &LendingRate{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: types.NumberFromFloat64(2)})
+	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.EMPTYCODE, Rate: 2})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC})
 	require.ErrorIs(t, err, errRateRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: types.NumberFromFloat64(2)})
+	result, err := e.SetLendingRate(contextGenerate(), &LendingRate{Currency: currency.BTC, Rate: 2})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2703,7 +2690,7 @@ func TestNewPositionBuilder(t *testing.T) {
 		SimAsset: []SimulatedAsset{
 			{
 				Currency: "USDT",
-				Amount:   types.NumberFromFloat64(100),
+				Amount:   100,
 			},
 		},
 		SpotOffsetType: "1",
@@ -2758,7 +2745,7 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.ResetSubAccountAPIKey(contextGenerate(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiKey, APIKeyPermission: "trade"})
+	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{APIKey: apiCredentials.Key, APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidSubAccountName)
 	_, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{SubAccountName: "sam", APIKey: "", APIKeyPermission: "trade"})
 	require.ErrorIs(t, err, errInvalidAPIKey)
@@ -2775,14 +2762,14 @@ func TestResetSubAccountAPIKey(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName:   "sam",
-		APIKey:           apiKey,
+		APIKey:           apiCredentials.Key,
 		APIKeyPermission: "trade",
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	result, err = e.ResetSubAccountAPIKey(contextGenerate(), &SubAccountAPIKeyParam{
 		SubAccountName: "sam",
-		APIKey:         apiKey,
+		APIKey:         apiCredentials.Key,
 		Permissions:    []string{"trade", "read"},
 	})
 	require.NoError(t, err)
@@ -3064,7 +3051,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = types.NumberFromFloat64(1234.5)
+	arg.TakeProfitTriggerPrice = 1234.5
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -3379,13 +3366,6 @@ func TestAssetTypeFromInstrumentType(t *testing.T) {
 		assetItem, err := assetTypeFromInstrumentType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.AssetType, assetItem)
-
-		if v.Error == nil && k != "" {
-			lower := strings.ToLower(k)
-			assetItem, err = assetTypeFromInstrumentType(lower)
-			require.NoError(t, err, "assetTypeFromInstrumentType must support lowercase instrument type inputs")
-			assert.Equal(t, v.AssetType, assetItem, "asset type should match for lowercase instrument type input")
-		}
 	}
 }
 
@@ -3419,16 +3399,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-				switch a {
-				case asset.Spot, asset.Margin:
-					assert.GreaterOrEqual(t, l.MaximumQuoteAmount, float64(0), "MaximumQuoteAmount should not be negative when the API omits the optional limit")
-				case asset.Futures, asset.PerpetualSwap, asset.Options:
-					assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
-					assert.NotZero(t, l.Listed, "Listed should be populated")
-				case asset.Spread:
-					assert.NotZero(t, l.Listed, "Listed should be populated")
-				}
 			}
 		})
 	}
@@ -3448,21 +3418,21 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{
 			InstrumentID:     livePair,
-			State:            stateLive,
-			TickSize:         types.NumberFromFloat64(0.1),
-			MinimumOrderSize: types.NumberFromFloat64(1),
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.1),
+			MinimumOrderSize: types.Number(1),
 		},
 		{
 			InstrumentID:     inactivePair,
 			State:            "preopen",
-			TickSize:         types.NumberFromFloat64(0.01),
-			MinimumOrderSize: types.NumberFromFloat64(2),
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
 		},
 		{
 			InstrumentID:     currency.EMPTYPAIR,
-			State:            stateLive,
-			TickSize:         types.NumberFromFloat64(0.01),
-			MinimumOrderSize: types.NumberFromFloat64(2),
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
 		},
 	}), "loadInstrumentOrderExecutionLimits must load live instruments and skip inactive or empty instruments")
 
@@ -3476,7 +3446,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{InstrumentID: inactivePair, State: "preopen"},
-		{InstrumentID: currency.EMPTYPAIR, State: stateLive},
+		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
 	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
@@ -3505,10 +3475,6 @@ func TestUpdateTickers(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
-		if a == asset.Spread {
-			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "spread asset must return not supported error")
-			continue
-		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
 }
@@ -4060,140 +4026,6 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
 }
 
-func TestCalculateOrderbookChecksum(t *testing.T) {
-	t.Parallel()
-
-	data := &WsOrderBookData{
-		Bids: []WsOrderBookLevel{
-			{Price: types.NumberFromFloat64(100.5), Amount: types.NumberFromFloat64(1.25), PriceString: "100.5", AmountString: "1.25"},
-			{Price: types.NumberFromFloat64(100.4), Amount: types.NumberFromFloat64(2.5), PriceString: "100.4", AmountString: "2.5"},
-		},
-		Asks: []WsOrderBookLevel{
-			{Price: types.NumberFromFloat64(100.6), Amount: types.NumberFromFloat64(0.75), PriceString: "100.6", AmountString: "0.75"},
-			{Price: types.NumberFromFloat64(100.7), Amount: types.NumberFromFloat64(3.5), PriceString: "100.7", AmountString: "3.5"},
-		},
-	}
-
-	checksum, err := e.CalculateOrderbookChecksum(data)
-	require.NoError(t, err, "CalculateOrderbookChecksum must not error")
-
-	book := &orderbook.Book{
-		Bids: orderbook.Levels{
-			{Price: 100.5, Amount: 1.25, StrPrice: "100.5", StrAmount: "1.25"},
-			{Price: 100.4, Amount: 2.5, StrPrice: "100.4", StrAmount: "2.5"},
-		},
-		Asks: orderbook.Levels{
-			{Price: 100.6, Amount: 0.75, StrPrice: "100.6", StrAmount: "0.75"},
-			{Price: 100.7, Amount: 3.5, StrPrice: "100.7", StrAmount: "3.5"},
-		},
-	}
-	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
-}
-
-func TestWsProcessSnapshotOrderBook(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name                     string
-		pairSuffix               string
-		useChecksum              bool
-		checksumCompletedAtIsSet bool
-	}{
-		{
-			name:                     "legacy_checksum",
-			pairSuffix:               "CHECKSUM",
-			useChecksum:              true,
-			checksumCompletedAtIsSet: true,
-		},
-		{
-			name:       "zero_checksum",
-			pairSuffix: "ZERO",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			tracked := new(Exchange)
-			require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-
-			data := &WsOrderBookData{
-				Bids: []WsOrderBookLevel{
-					{Price: types.NumberFromFloat64(100.5), Amount: types.NumberFromFloat64(1.25), PriceString: "100.5", AmountString: "1.25"},
-				},
-				Asks: []WsOrderBookLevel{
-					{Price: types.NumberFromFloat64(100.6), Amount: types.NumberFromFloat64(0.75), PriceString: "100.6", AmountString: "0.75"},
-				},
-				Timestamp:  types.Time(time.UnixMilli(1659792392540)),
-				SequenceID: 42,
-			}
-			if tc.useChecksum {
-				checksum, err := tracked.CalculateOrderbookChecksum(data)
-				require.NoError(t, err, "CalculateOrderbookChecksum must not error")
-				data.Checksum = int32(checksum) //nolint:gosec // OKX checksum is signed on the wire.
-			}
-
-			pair := currency.NewPairWithDelimiter("SNAP"+tc.pairSuffix, "USDT", "-")
-			err := tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot})
-			require.NoError(t, err, "WsProcessSnapshotOrderBook must not error")
-
-			book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-			require.NoError(t, err, "GetOrderbook must not error")
-			require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-			assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
-			assert.False(t, book.ReachedGCTAt.IsZero(), "ReachedGCTAt should be set")
-			assert.Equal(t, tc.checksumCompletedAtIsSet, !book.ChecksumCompletedAt.IsZero(), "ChecksumCompletedAt should match checksum usage")
-		})
-	}
-}
-
-func TestWsProcessUpdateOrderbook(t *testing.T) {
-	t.Parallel()
-
-	tracked := new(Exchange)
-	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
-
-	pair := currency.NewPairWithDelimiter("UPD", "USDT", "-")
-	err := tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-		Exchange:     tracked.Name,
-		Pair:         pair,
-		Asset:        asset.Spot,
-		LastUpdateID: 10,
-		LastUpdated:  time.UnixMilli(1659792392540),
-		LastPushed:   time.UnixMilli(1659792392540),
-		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
-		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
-	})
-	require.NoError(t, err, "LoadSnapshot must not error")
-
-	update := &WsOrderBookData{
-		Timestamp:          types.Time(time.UnixMilli(1659792392640)),
-		PreviousSequenceID: 10,
-		SequenceID:         11,
-	}
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must not error when prevSeqId matches")
-	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must advance to update seqId")
-	require.Equal(t, update.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-	assert.Equal(t, update.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
-
-	update.PreviousSequenceID = 10
-	update.SequenceID = 11
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.NoError(t, err, "WsProcessUpdateOrderbook must discard stale updates without error")
-	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
-
-	update.PreviousSequenceID = 10
-	update.SequenceID = 12
-	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
-	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject sequence gaps")
-}
-
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -4560,16 +4392,16 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, int64(125), i.MaxLeverage.Int64(), "expected 125 leverage")
+	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, int64(1), i.LotSize.Int64())
+	assert.Equal(t, 1, int(i.LotSize))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, int64(100000000), i.MaxQuantityOfSpotLimitOrder.Int64())
-	assert.Equal(t, int64(85000), i.MaxQuantityOfMarketLimitOrder.Int64())
-	assert.Equal(t, int64(85000), i.MaxStopSize.Int64())
+	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
+	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
+	assert.Equal(t, 85000, int(i.MaxStopSize))
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, int64(0), i.MaxQuantityOfSpotTwapLimitOrder.Int64(), "expected empty max TWAP size")
-	assert.Equal(t, int64(1), i.MinimumOrderSize.Int64())
+	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
+	assert.Equal(t, 1, int(i.MinimumOrderSize))
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
@@ -4634,186 +4466,34 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
-	testCases := []struct {
-		name               string
-		instrumentID       string
-		expectedAssetTypes []asset.Item
-		expectedError      error
-	}{
-		{
-			name:               "spot instrument",
-			instrumentID:       "BTC-USDT",
-			expectedAssetTypes: []asset.Item{asset.Spot, asset.Margin},
-		},
-		{
-			name:               "swap instrument",
-			instrumentID:       "BTC-USD-SWAP",
-			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
-		},
-		{
-			name:               "swap instrument lowercase suffix",
-			instrumentID:       "BTC-USD-swap",
-			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
-		},
-		{
-			name:          "invalid instrument",
-			instrumentID:  "test",
-			expectedError: currency.ErrCurrencyNotSupported,
-		},
-		{
-			name:               "futures instrument",
-			instrumentID:       "BTC-USD-240329",
-			expectedAssetTypes: []asset.Item{asset.Futures},
-		},
-		{
-			name:               "options instrument",
-			instrumentID:       "BTC-USD-240329-70000-C",
-			expectedAssetTypes: []asset.Item{asset.Options},
-		},
-		{
-			name:               "options instrument lowercase suffix",
-			instrumentID:       "BTC-USD-240329-70000-c",
-			expectedAssetTypes: []asset.Item{asset.Options},
-		},
+	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
+		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		switch a {
+		case asset.Spot, asset.Margin:
+			// spot and margin instruments are similar
+			require.Len(t, assets, 2)
+		default:
+			require.Len(t, assets, 1)
+		}
+		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+	_, err = e.getAssetsFromInstrumentID("test")
+	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
+	_, err = e.getAssetsFromInstrumentID("test-test")
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
 
-			assets, err2 := e.getAssetsFromInstrumentID(testCase.instrumentID)
-			if testCase.expectedError != nil {
-				require.ErrorIs(t, err2, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
-				return
-			}
-			require.NoError(t, err2, "getAssetsFromInstrumentID must not error")
-			assert.Equal(t, testCase.expectedAssetTypes, assets, "asset types should match")
-		})
+	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
+		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
+		assert.Contains(t, assets, a)
 	}
-}
-
-func TestGetAssetsFromInstrumentID(t *testing.T) {
-	t.Parallel()
-
-	e := new(Exchange)
-	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
-	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
-	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
-}
-
-func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name                 string
-		data                 []byte
-		expectedPrice        float64
-		expectedAmount       float64
-		expectedPriceString  string
-		expectedAmountString string
-		expectedError        error
-	}{
-		{
-			name:                 "quoted values",
-			data:                 []byte(`["0.07026","5","0","1"]`),
-			expectedPrice:        0.07026,
-			expectedAmount:       5,
-			expectedPriceString:  "0.07026",
-			expectedAmountString: "5",
-		},
-		{
-			name:                 "numeric values",
-			data:                 []byte(`[0.07026,5,0,1]`),
-			expectedPrice:        0.07026,
-			expectedAmount:       5,
-			expectedPriceString:  "0.07026",
-			expectedAmountString: "5",
-		},
-		{
-			name:          "malformed",
-			data:          []byte(`{}`),
-			expectedError: errInvalidOrderBookLevel,
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			var level WsOrderBookLevel
-			err := json.Unmarshal(testCase.data, &level)
-			if testCase.expectedError != nil {
-				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return expected error")
-				return
-			}
-
-			require.NoError(t, err, "UnmarshalJSON must not error")
-			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
-			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
-			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should match")
-			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should match")
-		})
-	}
-}
-
-func TestAppendWsOrderbookItems(t *testing.T) {
-	t.Parallel()
-
-	entries := []WsOrderBookLevel{
-		{
-			Price:        types.NumberFromFloat64(100.5),
-			Amount:       types.NumberFromFloat64(2.25),
-			PriceString:  "100.5",
-			AmountString: "2.25",
-		},
-	}
-	items, err := new(Exchange).AppendWsOrderbookItems(entries)
-	require.NoError(t, err, "AppendWsOrderbookItems must not error")
-	require.Len(t, items, 1, "AppendWsOrderbookItems must return one orderbook item")
-	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
-	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
-	assert.Equal(t, "100.5", items[0].StrPrice, "orderbook price string should match")
-	assert.Equal(t, "2.25", items[0].StrAmount, "orderbook amount string should match")
-}
-
-func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
-	t.Parallel()
-
-	entries := []WsOrderBookLevel{
-		{Price: types.NumberFromFloat64(1), Amount: types.NumberFromFloat64(2), PriceString: "1", AmountString: "2"},
-		{Price: types.NumberFromFloat64(3), Amount: types.NumberFromFloat64(4), PriceString: "3", AmountString: "4"},
-	}
-	items, pooled := appendWsOrderbookItemsFromPool(entries)
-	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
-	assert.Equal(t, "1", items[0].StrPrice, "first price string should match")
-	assert.Equal(t, "4", items[1].StrAmount, "second amount string should match")
-
-	putWsOrderbookLevels(pooled)
-}
-
-func TestPutWsOrderbookLevels(t *testing.T) {
-	t.Parallel()
-
-	putWsOrderbookLevels(nil)
-
-	items := orderbook.Levels{{Price: 1}, {Price: 2}}
-	putWsOrderbookLevels(&items)
-	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
-}
-
-func TestAppendOrderbookChecksumLevel(t *testing.T) {
-	t.Parallel()
-
-	level := &orderbook.Level{
-		StrPrice:  "100.01",
-		StrAmount: "0.25",
-	}
-	checksum := appendOrderbookChecksumLevel(nil, level)
-	require.Equal(t, "100.01:0.25:", string(checksum), "appendOrderbookChecksumLevel must append colon-delimited level values")
 }
 
 func TestSetMarginType(t *testing.T) {
@@ -4853,7 +4533,7 @@ func TestSetCollateralMode(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetFuturesPositionSummary(t *testing.T) {
+func TestGetPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	pp, err := e.CurrencyPairs.GetPairs(asset.PerpetualSwap, true)
@@ -4970,9 +4650,12 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, got.Asks, 5)
+	require.Len(t, got.Bids, 5)
+	// Book replicated to margin
+	got, err = orderbook.Get(e.Name, required, asset.Margin)
+	require.NoError(t, err)
+	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
-	require.Equal(t, time.UnixMilli(1695864901807), got.LastUpdated, "LastUpdated must match OKX generation timestamp")
-	assert.Equal(t, got.LastUpdated, got.LastPushed, "LastPushed should match OKX generation timestamp")
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -6145,7 +5828,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, e, asset.PerpetualSwap, cp1)
-	resp, err = e.GetOpenInterest(contextGenerate(),
+	resp, err = e.GetOpenInterest(
+		contextGenerate(),
 		key.PairAsset{
 			Base:  currency.BTC.Item,
 			Quote: usdSwapCode.Item,
@@ -6551,14 +6235,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{}
-	for _, s := range e.Features.Subscriptions {
-		if s.Asset != asset.Empty {
-			continue
-		}
-		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
-		exp = append(exp, s)
+	exp := subscription.List{
+		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6572,15 +6250,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			switch {
-			case isSymbolChannel(s):
+			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			default:
+			} else {
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6592,7 +6269,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, slices.Concat(public, private))
+	testsubs.EqualLists(t, exp, append(public, private...))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
@@ -6663,9 +6340,8 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	channels := []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H}
-	subs := make(subscription.List, 0, len(channels))
-	for i, ch := range channels {
+	var subs subscription.List
+	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
 		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 
@@ -6702,14 +6378,7 @@ const (
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
 	err := e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
-	require.NoError(t, err)
-
-	pair, err := e.GetPairFromInstrumentID("BTC-USDT_BTC-USDT-SWAP")
-	require.NoError(t, err, "GetPairFromInstrumentID must not error")
-	book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spread)
-	require.NoError(t, err, "GetOrderbook must not error")
-	require.Equal(t, time.UnixMilli(1670324386802), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
-	assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match OKX generation timestamp")
+	assert.NoError(t, err)
 }
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {
@@ -6836,7 +6505,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
-	p.PositionSide = "moo"
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -6865,46 +6534,4 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
-}
-
-func TestDeriveDelistingWindow(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, time.May, 11, 16, 0, 0, 0, time.UTC)
-	futureExpiry := now.Add(2 * time.Hour)
-	pastExpiry := now.Add(-2 * time.Hour)
-
-	t.Run("future expiry maps to delisting only", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
-			State:   "suspend",
-			ExpTime: types.Time(futureExpiry),
-		}, now)
-		require.Equal(t, futureExpiry, delistingAt)
-		require.True(t, delistedAt.IsZero())
-	})
-
-	t.Run("past expiry maps to delisting and delisted", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
-			State:   "suspend",
-			ExpTime: types.Time(pastExpiry),
-		}, now)
-		require.Equal(t, pastExpiry, delistingAt)
-		require.Equal(t, pastExpiry, delistedAt)
-	})
-
-	t.Run("live state has no delisting", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "live"}, now)
-		require.True(t, delistingAt.IsZero())
-		require.True(t, delistedAt.IsZero())
-	})
-
-	t.Run("non live state maps to delisted window", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "suspend"}, now)
-		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
-		require.Equal(t, now, delistedAt)
-	})
 }
