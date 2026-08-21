@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1105,7 +1106,7 @@ func TestQueryFuturesAccount(t *testing.T) {
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
+	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, "", 0, 0, time.Time{}, time.Time{}, "dnw")
 	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
 }
 
@@ -2315,7 +2316,7 @@ func TestWsOrderbookSnapshotPushData(t *testing.T) {
 	}
 }
 
-const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175506",		"update_time_ms": "1605175506123",		"event": "put",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"amount": "1",		"price": "10001",		"time_in_force": "gtc",		"left": "1",		"filled_total": "0",		"fee": "0",		"fee_currency": "USDT",		"point_fee": "0",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
+const wsSpotOrderPushDataJSON = `{"time": 1605175506,	"channel": "spot.orders",	"event": "update",	"result": [	  {		"id": "30784435",		"user": 123456,		"text": "t-abc",		"create_time": "1605175506",		"create_time_ms": "1605175506123",		"update_time": "1605175507",		"update_time_ms": "1605175507456",		"event": "update",		"currency_pair": "BTC_USDT",		"type": "limit",		"account": "spot",		"side": "sell",		"status": "closed",		"finish_as": "ioc",		"amount": "1",		"price": "10001",		"avg_deal_price": "10000.5",		"fill_price": "7500.375",		"time_in_force": "ioc",		"left": "0.25",		"filled_total": "0.75",		"fee": "0.0015",		"fee_currency": "USDT",		"point_fee": "0.0005",		"gt_fee": "0",		"gt_discount": true,		"rebated_fee": "0",		"rebated_fee_currency": "USDT"}	]}`
 
 func TestWsPushOrders(t *testing.T) {
 	t.Parallel()
@@ -2324,7 +2325,7 @@ func TestWsPushOrders(t *testing.T) {
 	}
 }
 
-const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"point_fee": "0",		"gt_fee": "0",		"text": "apiv4"	  }	]}`
+const wsUserTradePushDataJSON = `{"time": 1605176741,	"channel": "spot.usertrades",	"event": "update",	"result": [	  {		"id": 5736713,		"user_id": 1000001,		"order_id": "30784428",		"currency_pair": "BTC_USDT",		"create_time": 1605176741,		"create_time_ms": "1605176741123.456",		"side": "sell",		"amount": "1.00000000",		"role": "taker",		"price": "10000.00000000",		"fee": "0.00200000000000",		"fee_currency": "USDT",		"point_fee": "0.0005",		"gt_fee": "0",		"text": "t-abc"	  }	]}`
 
 func TestWsUserTradesPushDataJSON(t *testing.T) {
 	t.Parallel()
@@ -2383,12 +2384,118 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 18, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
 	}
+}
+
+func TestWsHandleFuturesDataLifecycleEvents(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.SetFillsFeedStatus(true)
+	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, message []byte) error {
+		if strings.Contains(string(message), futuresBalancesChannel) {
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+		}
+		return ex.WsHandleFuturesData(ctx, nil, message, asset.CoinMarginedFutures)
+	})
+	ex.Websocket.DataHandler.Close()
+
+	seen := make(map[string]bool, 5)
+	orderEventIndex, orderProjectionIndex := -1, -1
+	userTradeEventIndex, fillProjectionIndex := -1, -1
+	balanceEventIndex, balanceProjectionIndex := -1, -1
+	for i := 0; ; i++ {
+		payload, ok := <-ex.Websocket.DataHandler.C
+		if !ok {
+			break
+		}
+		switch event := payload.Data.(type) {
+		case *WsFuturesOrdersEvent:
+			seen[event.Channel] = true
+			orderEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, int64(987654321), result.UpdateID)
+			require.Equal(t, time.Unix(1628736848, 321000000), result.UpdateTime.Time())
+			require.Equal(t, "t-futures-order", result.Text)
+			require.True(t, result.IsReduceOnly)
+			require.Zero(t, result.RemainingAmount.Float64())
+			require.Equal(t, 1.0, result.Size.Float64())
+		case *WsFuturesUserTradesEvent:
+			seen[event.Channel] = true
+			userTradeEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1543205083, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, 0.0009290592, result.Fee.Float64())
+			require.Equal(t, 0.125, result.PointFee.Float64())
+			require.Equal(t, "maker", result.Role)
+			require.Equal(t, "t-futures-order", result.Text)
+			require.Equal(t, 0.5, result.CloseSize.Float64())
+		case *WsFuturesBalancesEvent:
+			seen[event.Channel] = true
+			balanceEventIndex = i
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, -0.000002074115, result.Change.Float64())
+			require.Equal(t, "fee", result.Type)
+			require.Equal(t, "BTC_USD:3914424", result.Text)
+			require.Equal(t, "211xxx", result.User)
+			require.Equal(t, currency.BTC, result.Currency)
+			require.Equal(t, time.Unix(1547199246, 0), result.Timestamp.Time())
+		case *WsFuturesPositionsEvent:
+			seen[event.Channel] = true
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1588212926, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			result := event.Result[0]
+			require.Equal(t, int64(987654322), result.UpdateID)
+			require.Equal(t, "cross_margin", result.PositionMarginMode)
+			require.Equal(t, 3.0, result.PositionLeverage.Float64())
+		case *WsFuturesPositionClosesEvent:
+			seen[event.Channel] = true
+			require.Equal(t, "update", event.Event)
+			require.Equal(t, time.Unix(1541505434, 0), event.Time.Time())
+			require.Len(t, event.Result, 1)
+			require.Equal(t, "BTC_USD", event.Result[0].Contract)
+		case []order.Detail:
+			if len(event) == 1 && event[0].OrderID == "4872460" {
+				orderProjectionIndex = i
+			}
+		case []fill.Data:
+			if len(event) == 1 && event[0].TradeID == "3335259" {
+				fillProjectionIndex = i
+			}
+		case accounts.SubAccounts:
+			if len(event) == 1 && event[0].ID == "211xxx" {
+				balanceProjectionIndex = i
+			}
+		}
+	}
+
+	require.True(t, seen[futuresOrdersChannel])
+	require.True(t, seen[futuresUserTradesChannel])
+	require.True(t, seen[futuresBalancesChannel])
+	require.True(t, seen[futuresPositionsChannel])
+	require.True(t, seen[futuresAutoPositionCloseChannel])
+	require.NotEqual(t, -1, orderEventIndex)
+	require.Greater(t, orderProjectionIndex, orderEventIndex)
+	require.NotEqual(t, -1, userTradeEventIndex)
+	require.Greater(t, fillProjectionIndex, userTradeEventIndex)
+	require.NotEqual(t, -1, balanceEventIndex)
+	require.Greater(t, balanceProjectionIndex, balanceEventIndex)
 }
 
 func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
@@ -3107,8 +3214,9 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
+			event, processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
+			require.Equal(t, futuresOrdersChannel, event.Channel)
 			require.NotNil(t, processed)
 			for i := range processed {
 				assert.Equal(t, tc.status.String(), processed[i].Status.String())
@@ -3182,8 +3290,21 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
 func staticGateioWSHandler(response string) mockws.WsMockFunc {
-	return func(_ testing.TB, _ []byte, c *gws.Conn) error {
-		return c.WriteMessage(gws.TextMessage, []byte(response))
+	return func(_ testing.TB, payload []byte, c *gws.Conn) error {
+		var inboundRequest WsInput
+		if err := json.Unmarshal(payload, &inboundRequest); err != nil {
+			return err
+		}
+		var result map[string]any
+		if err := json.Unmarshal([]byte(response), &result); err != nil {
+			return err
+		}
+		result["id"] = inboundRequest.ID
+		response, err := json.Marshal(result)
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, response)
 	}
 }
 
@@ -3201,7 +3322,9 @@ func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler 
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
 	})
-	return ex.Websocket.Conn
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err)
+	return conn
 }
 
 func TestHandleSubscriptions(t *testing.T) {

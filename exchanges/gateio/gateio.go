@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -200,6 +201,8 @@ type Exchange struct {
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
+
+	futuresWebsocketUserID atomic.Int64
 }
 
 // ***************************************** SubAccounts ********************************
@@ -2134,14 +2137,20 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAccountEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/accounts", nil, nil, &response)
 }
 
-// GetFuturesAccountBooks retrieves account books
-func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+// GetFuturesAccountBooks retrieves paginated futures account books, optionally scoped to one contract.
+func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, contract string, limit, offset uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	params := url.Values{}
+	if contract != "" {
+		params.Set("contract", contract)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))

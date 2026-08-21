@@ -29,6 +29,7 @@ import (
 const (
 	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
 	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+	futuresAllContracts     = "!all"
 
 	futuresPingChannel            = "futures.ping"
 	futuresTickersChannel         = "futures.tickers"
@@ -67,7 +68,23 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-var errNoChannelsSupplied = errors.New("no channels supplied")
+var (
+	errAuthenticatedWebsocketRequired = errors.New("authenticated websocket support required")
+	errFuturesWebsocketUserIDNotSet   = errors.New("futures websocket user ID not set")
+	errNoChannelsSupplied             = errors.New("no channels supplied")
+)
+
+// SetFuturesWebsocketUserID overrides the Gate user ID automatically discovered for authenticated futures subscriptions.
+func (e *Exchange) SetFuturesWebsocketUserID(userID int64) error {
+	if e == nil {
+		return common.ErrNilPointer
+	}
+	if userID <= 0 {
+		return errFuturesWebsocketUserIDNotSet
+	}
+	e.futuresWebsocketUserID.Store(userID)
+	return nil
+}
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
@@ -95,9 +112,6 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if a == asset.CoinMarginedFutures {
 		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
-	}
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
 	pairs, err := e.GetEnabledPairs(a)
@@ -138,12 +152,78 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 			})
 		}
 	}
+	if e.Websocket.CanUseAuthenticatedEndpoints() && a == asset.USDTMarginedFutures {
+		for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
+			subscriptions = append(subscriptions, &subscription.Subscription{
+				Channel: channel,
+				Params:  map[string]any{"all_contracts": true},
+				Asset:   a,
+			})
+		}
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: futuresBalancesChannel,
+			Params:  map[string]any{},
+			Asset:   a,
+		})
+	}
 	return subscriptions, nil
 }
 
-// FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToUnsubscribe subscription.List) error {
-	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToUnsubscribe, e.generateFuturesPayload)
+// FuturesSubscribe sends a websocket message to receive data from the channel.
+func (e *Exchange) FuturesSubscribe(ctx context.Context, conn websocket.Connection, channelsToSubscribe subscription.List) error {
+	privateSubscriptions := make(subscription.List, 0, len(channelsToSubscribe))
+	for _, sub := range channelsToSubscribe {
+		switch sub.Channel {
+		case futuresOrdersChannel, futuresUserTradesChannel,
+			futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel, futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel, futuresPositionsChannel,
+			futuresAutoOrdersChannel:
+			privateSubscriptions = append(privateSubscriptions, sub)
+		}
+	}
+	if len(privateSubscriptions) > 0 {
+		if !e.Websocket.CanUseAuthenticatedEndpoints() {
+			return errAuthenticatedWebsocketRequired
+		}
+		userID := e.futuresWebsocketUserID.Load()
+		if userID <= 0 {
+			allHaveUserID := true
+			for _, sub := range privateSubscriptions {
+				user, ok := sub.Params["user"].(string)
+				if !ok || user == "" {
+					allHaveUserID = false
+					break
+				}
+			}
+			if allHaveUserID {
+				return e.handleSubscription(ctx, conn, subscribeEvent, channelsToSubscribe, e.generateFuturesPayload)
+			}
+			settlementCurrency, err := getSettlementCurrency(currency.EMPTYPAIR, privateSubscriptions[0].Asset)
+			if err != nil {
+				return err
+			}
+			account, err := e.QueryFuturesAccount(ctx, settlementCurrency)
+			if err != nil {
+				return fmt.Errorf("error querying futures account for websocket user ID: %w", err)
+			}
+			if account == nil {
+				return fmt.Errorf("%w: futures account", common.ErrNilPointer)
+			}
+			if err := e.SetFuturesWebsocketUserID(account.User); err != nil {
+				return err
+			}
+			userID = account.User
+		}
+		user := strconv.FormatInt(userID, 10)
+		for _, sub := range privateSubscriptions {
+			if sub.Params == nil {
+				sub.Params = make(map[string]any)
+			}
+			sub.Params["user"] = user
+		}
+	}
+	return e.handleSubscription(ctx, conn, subscribeEvent, channelsToSubscribe, e.generateFuturesPayload)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
@@ -182,13 +262,21 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresCandlesticksChannel:
 		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
-		processed, err := e.processFuturesOrdersPushData(respRaw, a)
+		event, processed, err := e.processFuturesOrdersPushData(respRaw, a)
+		if event != nil {
+			if sendErr := e.Websocket.DataHandler.Send(ctx, event); sendErr != nil {
+				if err != nil {
+					return fmt.Errorf("%w %w", sendErr, err)
+				}
+				return sendErr
+			}
+		}
 		if err != nil {
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, processed)
 	case futuresUserTradesChannel:
-		return e.procesFuturesUserTrades(respRaw, a)
+		return e.procesFuturesUserTrades(ctx, respRaw, a)
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
@@ -196,6 +284,13 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresAutoPositionCloseChannel:
 		return e.processPositionCloseData(ctx, respRaw)
 	case futuresBalancesChannel:
+		var event WsFuturesBalancesEvent
+		if err := json.Unmarshal(respRaw, &event); err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, &event); err != nil {
+			return err
+		}
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
@@ -217,48 +312,54 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		return nil, errNoChannelsSupplied
 	}
 
-	var creds *accounts.Credentials
-	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = e.GetCredentials(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-
 	outbound := make([]WsInput, len(channelsToSubscribe))
+	var err error
 	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 1 {
-			return nil, subscription.ErrNotSinglePair
-		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		var params []string
-		params = []string{channelsToSubscribe[i].Pairs[0].String()}
-		if e.Websocket.CanUseAuthenticatedEndpoints() {
-			switch channelsToSubscribe[i].Channel {
-			case futuresOrdersChannel, futuresUserTradesChannel,
-				futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
-				futuresAutoPositionCloseChannel, futuresBalancesChannel,
-				futuresReduceRiskLimitsChannel, futuresPositionsChannel,
-				futuresAutoOrdersChannel:
-				value, ok := channelsToSubscribe[i].Params["user"].(string)
-				if ok {
-					params = append(
-						[]string{value},
-						params...)
-				}
-				var sigTemp string
-				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
-				if err != nil {
-					return nil, err
-				}
-				auth = &WsAuthInput{
-					Method: "api_key",
-					Key:    creds.Key,
-					Sign:   sigTemp,
+		privateChannel := false
+		switch channelsToSubscribe[i].Channel {
+		case futuresOrdersChannel, futuresUserTradesChannel,
+			futuresLiquidatesChannel, futuresAutoDeleveragesChannel,
+			futuresAutoPositionCloseChannel, futuresBalancesChannel,
+			futuresReduceRiskLimitsChannel, futuresPositionsChannel,
+			futuresAutoOrdersChannel:
+			privateChannel = true
+		}
+		if privateChannel {
+			if !e.Websocket.CanUseAuthenticatedEndpoints() {
+				return nil, errAuthenticatedWebsocketRequired
+			}
+			user, ok := channelsToSubscribe[i].Params["user"].(string)
+			if !ok || user == "" {
+				return nil, errFuturesWebsocketUserIDNotSet
+			}
+			params = append(params, user)
+			if channelsToSubscribe[i].Channel != futuresBalancesChannel {
+				if allContracts, _ := channelsToSubscribe[i].Params["all_contracts"].(bool); allContracts {
+					params = append(params, futuresAllContracts)
+				} else {
+					if len(channelsToSubscribe[i].Pairs) != 1 {
+						return nil, subscription.ErrNotSinglePair
+					}
+					params = append(params, channelsToSubscribe[i].Pairs[0].String())
 				}
 			}
+			creds, err := e.GetCredentials(ctx)
+			if err != nil {
+				return nil, err
+			}
+			signature, err := e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
+			if err != nil {
+				return nil, err
+			}
+			auth = &WsAuthInput{Method: "api_key", Key: creds.Key, Sign: signature}
+		} else {
+			if len(channelsToSubscribe[i].Pairs) != 1 {
+				return nil, subscription.ErrNotSinglePair
+			}
+			params = append(params, channelsToSubscribe[i].Pairs[0].String())
 		}
 		frequency, okay := channelsToSubscribe[i].Params["frequency"].(kline.Interval)
 		if okay {
@@ -541,16 +642,11 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
-	resp := struct {
-		Time    types.Time     `json:"time"`
-		Channel string         `json:"channel"`
-		Event   string         `json:"event"`
-		Result  []FuturesOrder `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
+func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) (*WsFuturesOrdersEvent, []order.Detail, error) {
+	resp := new(WsFuturesOrdersEvent)
+	err := json.Unmarshal(data, resp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
@@ -565,7 +661,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
 		if err != nil {
-			return nil, err
+			return resp, nil, err
 		}
 
 		orderDetails[x] = order.Detail{
@@ -583,23 +679,19 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
-	return orderDetails, nil
+	return resp, orderDetails, nil
 }
 
-func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
+func (e *Exchange) procesFuturesUserTrades(ctx context.Context, data []byte, assetType asset.Item) error {
+	resp := new(WsFuturesUserTradesEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+		return err
+	}
 	if !e.IsFillsFeedEnabled() {
 		return nil
-	}
-
-	resp := struct {
-		Time    types.Time           `json:"time"`
-		Channel string               `json:"channel"`
-		Event   string               `json:"event"`
-		Result  []WsFuturesUserTrade `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range resp.Result {
@@ -646,17 +738,11 @@ func (e *Exchange) processFuturesAutoDeleveragesNotification(ctx context.Context
 }
 
 func (e *Exchange) processPositionCloseData(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  []WsPositionClose `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	resp := new(WsFuturesPositionClosesEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, assetType asset.Item) error {
@@ -701,17 +787,11 @@ func (e *Exchange) processFuturesReduceRiskLimitNotification(ctx context.Context
 }
 
 func (e *Exchange) processFuturesPositionsNotification(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time          `json:"time"`
-		Channel string              `json:"channel"`
-		Event   string              `json:"event"`
-		Result  []WsFuturesPosition `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	resp := new(WsFuturesPositionsEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &resp)
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processFuturesAutoOrderPushData(ctx context.Context, data []byte) error {

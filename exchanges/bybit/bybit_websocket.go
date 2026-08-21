@@ -48,6 +48,7 @@ const (
 	// Private v5 channels
 	chanPositions = "position"
 	chanExecution = "execution"
+	chanDCP       = "dcp"
 	chanOrder     = "order"
 	chanWallet    = "wallet"
 	chanGreeks    = "greeks"
@@ -285,6 +286,8 @@ func (e *Exchange) wsHandleAuthenticatedData(ctx context.Context, conn websocket
 		return e.wsProcessWalletPushData(ctx, respRaw)
 	case chanGreeks:
 		return e.wsProcessGreeks(ctx, respRaw)
+	case chanDCP:
+		return e.Websocket.DataHandler.Send(ctx, &result)
 	}
 	return fmt.Errorf("%w %s", errUnhandledStreamData, string(respRaw))
 }
@@ -400,6 +403,9 @@ func (e *Exchange) wsProcessExecution(ctx context.Context, resp *WebsocketRespon
 			ClientOrderID: result[x].OrderLinkID,
 			Price:         result[x].ExecPrice.Float64(),
 			Amount:        result[x].ExecQty.Float64(),
+			Value:         result[x].ExecValue.Float64(),
+			Fee:           result[x].ExecFee.Float64(),
+			FeeAsset:      result[x].FeeCurrency,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, executions)
@@ -860,6 +866,14 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 		if len(s.Pairs) == 1 {
 			pair = s.Pairs[0]
 		}
+		if strings.HasPrefix(s.Channel, chanDCP+".") {
+			if !chanMap[s.Channel] {
+				authArg.Arguments = append(authArg.Arguments, s.Channel)
+				chanMap[s.Channel] = true
+				authArg.associatedSubs = append(authArg.associatedSubs, s)
+			}
+			continue
+		}
 		switch s.Channel {
 		case chanOrderbook:
 			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pairFmt.Format(pair)))
@@ -929,9 +943,14 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 	}
 
 	var subscriptions subscription.List
-	// TODO: Implement DCP (Disconnection Protect) subscription
 	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
+	}
+	for _, product := range e.dcpProducts {
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: chanDCP + "." + product,
+			Asset:   asset.All,
+		})
 	}
 	return subscriptions, nil
 }

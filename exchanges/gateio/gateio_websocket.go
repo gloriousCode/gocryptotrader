@@ -198,7 +198,7 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotOrdersChannel:
 		return e.processSpotOrders(ctx, respRaw)
 	case spotUserTradesChannel:
-		return e.processUserPersonalTrades(respRaw)
+		return e.processUserPersonalTrades(ctx, respRaw)
 	case spotBalancesChannel:
 		return e.processSpotBalances(ctx, push.Result)
 	case marginBalancesChannel:
@@ -470,14 +470,11 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 }
 
 func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
-	resp := struct {
-		Time    types.Time    `json:"time"`
-		Channel string        `json:"channel"`
-		Event   string        `json:"event"`
-		Result  []WsSpotOrder `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	resp := new(WsSpotOrdersEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
@@ -512,20 +509,16 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 	return e.Websocket.DataHandler.Send(ctx, details)
 }
 
-func (e *Exchange) processUserPersonalTrades(data []byte) error {
+func (e *Exchange) processUserPersonalTrades(ctx context.Context, data []byte) error {
+	resp := new(WsSpotUserTradesEvent)
+	if err := json.Unmarshal(data, resp); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+		return err
+	}
 	if !e.IsFillsFeedEnabled() {
 		return nil
-	}
-
-	resp := struct {
-		Time    types.Time            `json:"time"`
-		Channel string                `json:"channel"`
-		Event   string                `json:"event"`
-		Result  []WsUserPersonalTrade `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
 	for x := range fills {

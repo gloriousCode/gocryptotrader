@@ -29,7 +29,8 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
 type Exchange struct {
 	exchange.Base
-	account accountTypeHolder
+	account     accountTypeHolder
+	dcpProducts []string
 }
 
 const (
@@ -79,6 +80,7 @@ var (
 	errQuantityLimitRequired              = errors.New("quantity limit required")
 	errInvalidLeverage                    = errors.New("leverage can't be zero or less then it")
 	errInvalidPositionMode                = errors.New("position mode is invalid")
+	errInvalidSlippageTolerance           = errors.New("slippage tolerance must be between 0.0001 and 0.1")
 	errInvalidMode                        = errors.New("mode can't be empty or missing")
 	errInvalidOrderFilter                 = errors.New("invalid order filter")
 	errInvalidCategory                    = errors.New("invalid category")
@@ -87,6 +89,8 @@ var (
 	errSymbolMissing                      = errors.New("symbol missing")
 	errInvalidAutoAddMarginValue          = errors.New("invalid add auto margin value")
 	errDisconnectTimeWindowNotSet         = errors.New("disconnect time window not set")
+	errInvalidDisconnectTimeWindow        = errors.New("disconnect time window must be between 3 and 300 seconds")
+	errInvalidDCPProduct                  = errors.New("invalid DCP product")
 	errAPIKeyIsNotUnified                 = errors.New("api key is not unified")
 	errInvalidContractLength              = errors.New("contract length cannot be less than or equal to zero")
 )
@@ -717,7 +721,30 @@ func (e *Exchange) SetDisconnectCancelAll(ctx context.Context, arg *SetDCPParams
 	if arg.TimeWindow == 0 {
 		return errDisconnectTimeWindowNotSet
 	}
+	if arg.TimeWindow < 3 || arg.TimeWindow > 300 {
+		return errInvalidDisconnectTimeWindow
+	}
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/disconnected-cancel-all", nil, arg, &struct{}{}, defaultEPL)
+}
+
+// ConfigureDCPSubscriptions enables the explicitly requested DCP private
+// websocket product topics. Bybit restricts DCP to approved institutional accounts.
+func (e *Exchange) ConfigureDCPSubscriptions(products ...string) error {
+	deduplicated := make(map[string]struct{}, len(products))
+	for _, product := range products {
+		switch product {
+		case "future", "spot", "option":
+			deduplicated[product] = struct{}{}
+		default:
+			return fmt.Errorf("%w: %s", errInvalidDCPProduct, product)
+		}
+	}
+	e.dcpProducts = e.dcpProducts[:0]
+	for product := range deduplicated {
+		e.dcpProducts = append(e.dcpProducts, product)
+	}
+	slices.Sort(e.dcpProducts)
+	return nil
 }
 
 // GetPositionInfo retrieves real-time position data, such as position size, cumulative realizedPNL.

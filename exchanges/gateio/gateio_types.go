@@ -1844,11 +1844,14 @@ type FuturesAccount struct {
 
 // AccountBookItem represents account book item
 type AccountBookItem struct {
-	Time    types.Time   `json:"time"`
-	Change  types.Number `json:"change"`
-	Balance types.Number `json:"balance"`
-	Text    string       `json:"text"`
-	Type    string       `json:"type"`
+	Time     types.Time   `json:"time"`
+	Change   types.Number `json:"change"`
+	Balance  types.Number `json:"balance"`
+	Text     string       `json:"text"`
+	Type     string       `json:"type"`
+	Contract string       `json:"contract"`
+	TradeID  string       `json:"trade_id"`
+	ID       string       `json:"id"`
 }
 
 // Position represents futures position
@@ -1972,9 +1975,11 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
+	UpdateID                  int64         `json:"update_id"`
 	User                      string        `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
+	UpdateTime                types.Time    `json:"update_time"`
 	Size                      types.Number  `json:"size"`
 	Iceberg                   types.Number  `json:"iceberg"`
 	RemainingAmount           types.Number  `json:"left"` // Size left to be traded
@@ -2242,6 +2247,26 @@ type WsOrderbookSnapshot struct {
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
+// WsSpotOrdersEvent represents a spot order lifecycle update envelope.
+// The data handler publishes this exchange-native event before its []order.Detail
+// projection so Gate-specific lifecycle fields remain available to consumers.
+type WsSpotOrdersEvent struct {
+	Time    types.Time    `json:"time"`
+	Channel string        `json:"channel"`
+	Event   string        `json:"event"`
+	Result  []WsSpotOrder `json:"result"`
+}
+
+// WsSpotUserTradesEvent represents a spot user trade lifecycle update envelope.
+// The data handler publishes this exchange-native event before its fill.Data
+// projection when the fills feed is enabled so Gate-specific fields remain available.
+type WsSpotUserTradesEvent struct {
+	Time    types.Time            `json:"time"`
+	Channel string                `json:"channel"`
+	Event   string                `json:"event"`
+	Result  []WsUserPersonalTrade `json:"result"`
+}
+
 // WsSpotOrder represents an order push data through the websocket channel.
 type WsSpotOrder struct {
 	ID                 string        `json:"id,omitempty"`
@@ -2254,8 +2279,12 @@ type WsSpotOrder struct {
 	Type               string        `json:"type,omitempty"`
 	Account            string        `json:"account,omitempty"`
 	Side               string        `json:"side,omitempty"`
+	Status             string        `json:"status,omitempty"`
+	FinishAs           string        `json:"finish_as,omitempty"`
 	Amount             types.Number  `json:"amount,omitzero"`
 	Price              types.Number  `json:"price,omitzero"`
+	AverageDealPrice   types.Number  `json:"avg_deal_price,omitzero"`
+	FillPrice          types.Number  `json:"fill_price,omitzero"`
 	TimeInForce        string        `json:"time_in_force,omitempty"`
 	Iceberg            string        `json:"iceberg,omitempty"`
 	Left               types.Number  `json:"left,omitzero"`
@@ -2268,25 +2297,29 @@ type WsSpotOrder struct {
 	RebatedFee         string        `json:"rebated_fee,omitempty"`
 	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
 	Event              string        `json:"event"`
+	CreateTimeSeconds  types.Time    `json:"create_time,omitzero"`
 	CreateTime         types.Time    `json:"create_time_ms,omitzero"`
+	UpdateTimeSeconds  types.Time    `json:"update_time,omitzero"`
 	UpdateTime         types.Time    `json:"update_time_ms,omitzero"`
 }
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID           int64         `json:"id"`
-	UserID       int64         `json:"user_id"`
-	OrderID      string        `json:"order_id"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	CreateTime   types.Time    `json:"create_time_ms"`
-	Side         string        `json:"side"`
-	Amount       types.Number  `json:"amount"`
-	Role         string        `json:"role"`
-	Price        types.Number  `json:"price"`
-	Fee          types.Number  `json:"fee"`
-	PointFee     types.Number  `json:"point_fee"`
-	GtFee        string        `json:"gt_fee"`
-	Text         string        `json:"text"`
+	ID                int64         `json:"id"`
+	UserID            int64         `json:"user_id"`
+	OrderID           string        `json:"order_id"`
+	CurrencyPair      currency.Pair `json:"currency_pair"`
+	CreateTimeSeconds types.Time    `json:"create_time"`
+	CreateTime        types.Time    `json:"create_time_ms"`
+	Side              string        `json:"side"`
+	Amount            types.Number  `json:"amount"`
+	Role              string        `json:"role"`
+	Price             types.Number  `json:"price"`
+	Fee               types.Number  `json:"fee"`
+	FeeCurrency       currency.Code `json:"fee_currency"`
+	PointFee          types.Number  `json:"point_fee"`
+	GtFee             string        `json:"gt_fee"`
+	Text              string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
@@ -2422,6 +2455,52 @@ type WsFuturesOrderbookUpdateEvent struct {
 	ID           int64        `json:"id"`
 }
 
+// WsFuturesOrdersEvent represents a futures order lifecycle update envelope.
+// The data handler publishes this exchange-native event before its []order.Detail
+// projection so Gate-specific lifecycle fields remain available to consumers.
+type WsFuturesOrdersEvent struct {
+	Time    types.Time     `json:"time"`
+	Channel string         `json:"channel"`
+	Event   string         `json:"event"`
+	Result  []FuturesOrder `json:"result"`
+}
+
+// WsFuturesUserTradesEvent represents a futures user trade lifecycle update envelope.
+// The data handler publishes this exchange-native event before its fill.Data
+// projection when the fills feed is enabled so Gate-specific fields remain available.
+type WsFuturesUserTradesEvent struct {
+	Time    types.Time           `json:"time"`
+	Channel string               `json:"channel"`
+	Event   string               `json:"event"`
+	Result  []WsFuturesUserTrade `json:"result"`
+}
+
+// WsFuturesBalancesEvent represents a futures balance lifecycle update envelope.
+// The data handler publishes this exchange-native event before its accounts.SubAccounts
+// projection so Gate-specific balance fields remain available to consumers.
+type WsFuturesBalancesEvent struct {
+	Time    types.Time   `json:"time"`
+	Channel string       `json:"channel"`
+	Event   string       `json:"event"`
+	Result  []*WsBalance `json:"result"`
+}
+
+// WsFuturesPositionsEvent represents a futures position lifecycle update envelope.
+type WsFuturesPositionsEvent struct {
+	Time    types.Time          `json:"time"`
+	Channel string              `json:"channel"`
+	Event   string              `json:"event"`
+	Result  []WsFuturesPosition `json:"result"`
+}
+
+// WsFuturesPositionClosesEvent represents a futures position close lifecycle update envelope.
+type WsFuturesPositionClosesEvent struct {
+	Time    types.Time        `json:"time"`
+	Channel string            `json:"channel"`
+	Event   string            `json:"event"`
+	Result  []WsPositionClose `json:"result"`
+}
+
 // WsFuturesUserTrade represents a futures account user trade push data
 type WsFuturesUserTrade struct {
 	ID         string        `json:"id"`
@@ -2433,7 +2512,8 @@ type WsFuturesUserTrade struct {
 	Role       string        `json:"role"`
 	Text       string        `json:"text"`
 	Fee        types.Number  `json:"fee"`
-	PointFee   int64         `json:"point_fee"`
+	PointFee   types.Number  `json:"point_fee"`
+	CloseSize  types.Number  `json:"close_size"`
 }
 
 // WsFuturesLiquidationNotification represents a liquidation notification push data
@@ -2480,13 +2560,14 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance  types.Number  `json:"balance"`
-	Change   types.Number  `json:"change"`
-	Currency currency.Code `json:"currency"`
-	Text     string        `json:"text"`
-	Time     types.Time    `json:"time_ms"`
-	Type     string        `json:"type"`
-	User     string        `json:"user"`
+	Balance   types.Number  `json:"balance"`
+	Change    types.Number  `json:"change"`
+	Currency  currency.Code `json:"currency"`
+	Text      string        `json:"text"`
+	Timestamp types.Time    `json:"time"`
+	Time      types.Time    `json:"time_ms"`
+	Type      string        `json:"type"`
+	User      string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data
@@ -2503,6 +2584,7 @@ type WsFuturesReduceRiskLimitNotification struct {
 
 // WsFuturesPosition represents futures notify positions update.
 type WsFuturesPosition struct {
+	UpdateID           int64        `json:"update_id"`
 	Contract           string       `json:"contract"`
 	CrossLeverageLimit types.Number `json:"cross_leverage_limit"`
 	EntryPrice         types.Number `json:"entry_price"`
@@ -2521,6 +2603,8 @@ type WsFuturesPosition struct {
 	Size               types.Number `json:"size"`
 	Time               types.Time   `json:"time_ms"`
 	User               string       `json:"user"`
+	PositionMarginMode string       `json:"pos_margin_mode"`
+	PositionLeverage   types.Number `json:"lever"`
 }
 
 // WsFuturesAutoOrder represents an auto order push data.
