@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"slices"
@@ -24,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -33,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -338,9 +342,64 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
-		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+
+	t.Run("all supported assets", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range e.GetAssetTypes(false) {
+			_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
+			assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+		}
+	})
+
+	for _, tc := range []struct {
+		name         string
+		asset        asset.Item
+		pair         currency.Pair
+		expectedPath string
+	}{
+		{
+			name:         "USDT margined futures mark and index prices",
+			asset:        asset.USDTMarginedFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/futures/usdt/tickers",
+		},
+		{
+			name:         "coin margined futures mark and index prices",
+			asset:        asset.CoinMarginedFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/futures/btc/tickers",
+		},
+		{
+			name:         "delivery futures mark and index prices",
+			asset:        asset.DeliveryFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/delivery/usdt/tickers",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, tc.expectedPath, r.URL.Path)
+				assert.Equal(t, tc.pair.String(), r.URL.Query().Get("contract"))
+				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h_base":"5526","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+			got, err := ex.UpdateTicker(t.Context(), tc.pair, tc.asset)
+			require.NoError(t, err)
+			assert.Equal(t, 118.35, got.MarkPrice)
+			assert.Equal(t, 118.36, got.IndexPrice)
+		})
 	}
 }
 
@@ -2100,9 +2159,65 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
-		err := e.UpdateTickers(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
+
+	t.Run("all supported assets", func(t *testing.T) {
+		t.Parallel()
+		for _, a := range e.GetAssetTypes(false) {
+			err := e.UpdateTickers(t.Context(), a)
+			assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
+		}
+	})
+
+	for _, tc := range []struct {
+		name         string
+		asset        asset.Item
+		pair         currency.Pair
+		expectedPath string
+	}{
+		{
+			name:         "USDT margined futures mark and index prices",
+			asset:        asset.USDTMarginedFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/futures/usdt/tickers",
+		},
+		{
+			name:         "coin margined futures mark and index prices",
+			asset:        asset.CoinMarginedFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/futures/btc/tickers",
+		},
+		{
+			name:         "delivery futures mark and index prices",
+			asset:        asset.DeliveryFutures,
+			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
+			expectedPath: "/api/v4/delivery/usdt/tickers",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			ex.Name = t.Name()
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, tc.expectedPath, r.URL.Path)
+				assert.Empty(t, r.URL.Query().Get("contract"))
+				_, err := fmt.Fprintf(w, `[{"contract":%q,"last":"118.4","low_24h":"99.2","high_24h":"132.5","volume_24h":"745487577","volume_24h_quote":"1665006","mark_price":"118.35","index_price":"118.36"}]`, tc.pair.String())
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(server.Close)
+
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+			require.NoError(t, ex.UpdateTickers(t.Context(), tc.asset))
+			got, err := ticker.GetTicker(ex.Name, tc.pair, tc.asset)
+			require.NoError(t, err)
+			assert.Equal(t, 118.35, got.MarkPrice)
+			assert.Equal(t, 118.36, got.IndexPrice)
+		})
 	}
 }
 

@@ -371,6 +371,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Last:         tickers[0].Last.Float64(),
 			Volume:       tickers[0].Volume24HBase.Float64(),
 			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
+			MarkPrice:    tickers[0].MarkPrice.Float64(),
+			IndexPrice:   tickers[0].IndexPrice.Float64(),
 			ExchangeName: e.Name,
 			AssetType:    a,
 		}
@@ -617,6 +619,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          tickers[i].Low24H.Float64(),
 				Volume:       tickers[i].Volume24H.Float64(),
 				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
+				MarkPrice:    tickers[i].MarkPrice.Float64(),
+				IndexPrice:   tickers[i].IndexPrice.Float64(),
 				ExchangeName: e.Name,
 				Pair:         currencyPair,
 				AssetType:    a,
@@ -2559,7 +2563,7 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 			latest = stats[i]
 		}
 	}
-	return latest.OpenInterest.Float64(), nil
+	return latest.OpenInterestUsd.Float64(), nil
 }
 
 func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {
