@@ -437,7 +437,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, pairString, interval string
 		params.Set("interval", interval)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	params.Set("with_id", strconv.FormatBool(withOrderbookID))
 	var response *OrderbookData
@@ -455,7 +455,7 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	}
 	params.Set("currency_pair", pairString.String())
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if lastID != "" {
 		params.Set("last_id", lastID)
@@ -480,7 +480,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pa
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params.Set("currency_pair", currencyPair.String())
-	params.Set("limit", "1000")
+	params.Set(limitKey, "1000")
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
@@ -541,7 +541,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if args[x].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if args[x].Type != "limit" {
+		if args[x].Type != orderTypeLimit {
 			return nil, errors.New("only order type limit is allowed")
 		}
 		args[x].Side = strings.ToLower(args[x].Side)
@@ -572,7 +572,7 @@ func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, is
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if isCrossMargin {
 		params.Set("account", crossMarginAccount)
@@ -639,7 +639,7 @@ func (e *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetOrdersEPL, http.MethodGet, gateioSpotOrders, params, nil, &response)
@@ -751,7 +751,7 @@ func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair,
 		params.Set("order_id", orderID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -799,7 +799,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 	}
 	arg.Put.Side = strings.ToLower(arg.Put.Side)
 	arg.Put.Type = strings.ToLower(arg.Put.Type)
-	if arg.Put.Type != "limit" {
+	if arg.Put.Type != orderTypeLimit {
 		return nil, errors.New("invalid order type, only order type 'limit' is allowed")
 	}
 	if arg.Put.Side != "buy" && arg.Put.Side != "sell" {
@@ -833,7 +833,7 @@ func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string
 		params.Set("account", a.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1065,7 +1065,7 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, 
 		params.Set("currency", ccy.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1089,7 +1089,7 @@ func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, fro
 		params.Set("currency", ccy.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1202,7 +1202,7 @@ func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountU
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []SubAccountTransferResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferHistoryEPL, http.MethodGet, walletSubAccountTransfer, params, nil, &response)
@@ -1295,7 +1295,7 @@ func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, cha
 		params.Set("chain", chain)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []WalletSavedAddress
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSavedAddressesEPL, http.MethodGet, walletSavedAddress, params, nil, &response)
@@ -1363,7 +1363,7 @@ func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy curren
 		if limit > 100 {
 			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
 		}
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -1439,7 +1439,7 @@ func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy s
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []MarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAllLoansEPL, http.MethodGet, gateioMarginLoans, params, nil, &response)
@@ -1558,7 +1558,7 @@ func (e *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanI
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []LoanRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginRepaymentRecordEPL, http.MethodGet, gateioMarginLoanRecords, params, nil, &response)
@@ -1635,7 +1635,7 @@ func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy c
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if accountChangeType != "" { // "in", "out", "repay", "new_order", "order_fill", "referral_fee", "order_fee", "unknown" are supported
 		params.Set("type", accountChangeType)
@@ -1681,7 +1681,7 @@ func (e *Exchange) GetCrossMarginRepayments(ctx context.Context, ccy currency.Co
 		params.Set("loanId", loanID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1727,7 +1727,7 @@ func (e *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint6
 		params.Set("currency", ccy.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1785,7 +1785,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, settle currency.Code
 		params.Set("interval", interval)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if withOrderbookID {
 		params.Set("with_id", "true")
@@ -1805,7 +1805,7 @@ func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency
 	params := url.Values{}
 	params.Set("contract", contract.Upper().String())
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -1834,7 +1834,7 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 		return nil, err
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if interval.Duration().Microseconds() != 0 {
 		intervalString, err := getIntervalString(interval)
@@ -1869,7 +1869,7 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(limitKey, strconv.FormatInt(limit, 10))
 	}
 	params.Set("interval", intervalString)
 	var resp []FuturesPremiumIndexKLineResponse
@@ -1900,7 +1900,7 @@ func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Co
 	params := url.Values{}
 	params.Set("contract", contract.String())
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var rates []FuturesFundingRate
 	return rates, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFundingRatesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/funding_rate", params), &rates)
@@ -1913,7 +1913,7 @@ func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle
 	}
 	params := url.Values{}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var balances []InsuranceBalance
 	return balances, e.SendHTTPRequest(ctx, exchange.RestSpot, publicInsuranceFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/insurance", params), &balances)
@@ -1940,7 +1940,7 @@ func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, con
 		params.Set("interval", intervalString)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var stats []ContractStat
 	return stats, e.SendHTTPRequest(ctx, exchange.RestSpot, publicStatsFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/contract_stats", params), &stats)
@@ -1973,7 +1973,7 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 		return nil, err
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var histories []LiquidationHistory
 	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/liq_orders", params), &histories)
@@ -1998,7 +1998,7 @@ func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.C
 		params.Set("contract", contract)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2167,7 +2167,7 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	}
 	params.Set("status", status)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2279,7 +2279,7 @@ func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle curren
 		params.Set("order", orderID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2304,7 +2304,7 @@ func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle cu
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2326,7 +2326,7 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
@@ -2411,7 +2411,7 @@ func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, 
 	params := url.Values{}
 	params.Set("status", status)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2495,7 +2495,7 @@ func (e *Exchange) GetDeliveryOrderbook(ctx context.Context, settle currency.Cod
 		params.Set("interval", interval)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if withOrderbookID {
 		params.Set("with_id", strconv.FormatBool(withOrderbookID))
@@ -2518,7 +2518,7 @@ func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currenc
 		return nil, err
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if lastID != "" {
 		params.Set("last_id", lastID)
@@ -2541,7 +2541,7 @@ func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle cu
 		return nil, err
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if int64(interval) != 0 {
 		intervalString, err := getIntervalString(interval)
@@ -2574,7 +2574,7 @@ func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settl
 	}
 	params := url.Values{}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var balances []InsuranceBalance
 	return balances, e.SendHTTPRequest(ctx, exchange.RestSpot, publicInsuranceDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/insurance", params), &balances)
@@ -2596,7 +2596,7 @@ func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.
 	}
 	params := url.Values{}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -2689,7 +2689,7 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	}
 	params.Set("status", status)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2760,7 +2760,7 @@ func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle curre
 		params.Set("order", orderID)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2785,7 +2785,7 @@ func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle c
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -2807,7 +2807,7 @@ func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle cur
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
@@ -2826,7 +2826,7 @@ func (e *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle curr
 		params.Set("contract", contract.String())
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
@@ -2892,7 +2892,7 @@ func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, s
 	params := url.Values{}
 	params.Set("status", status)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -3000,7 +3000,7 @@ func (e *Exchange) GetSettlementHistory(ctx context.Context, underlying string, 
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -3041,7 +3041,7 @@ func (e *Exchange) GetMyOptionsSettlements(ctx context.Context, underlying strin
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var settlements []MyOptionSettlement
 	return settlements, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSettlementsEPL, http.MethodGet, gateioOptionMySettlements, params, nil, &settlements)
@@ -3058,7 +3058,7 @@ func (e *Exchange) GetOptionsOrderbook(ctx context.Context, contract currency.Pa
 		params.Set("interval", interval)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	params.Set("with_id", strconv.FormatBool(withOrderbookID))
 	var response *Orderbook
@@ -3081,7 +3081,7 @@ func (e *Exchange) GetAccountChangingHistory(ctx context.Context, offset, limit 
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -3164,7 +3164,7 @@ func (e *Exchange) GetOptionFuturesOrders(ctx context.Context, contract currency
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -3224,7 +3224,7 @@ func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying st
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -3263,7 +3263,7 @@ func (e *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract cu
 	params := url.Values{}
 	params.Set("contract", contract.String())
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -3285,7 +3285,7 @@ func (e *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, un
 	params := url.Values{}
 	params.Set("underlying", underlying)
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -3315,7 +3315,7 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -3371,7 +3371,7 @@ func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCu
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []FlashSwapOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashGetOrdersEPL, http.MethodGet, gateioFlashSwapOrders, params, nil, &response)
@@ -3502,7 +3502,7 @@ func validateOrderCreateParams(contract currency.Pair, size, price float64, auto
 		return errInvalidTextPrefix
 	}
 	if autoSize != "" {
-		if autoSize != "close_long" && autoSize != "close_short" {
+		if autoSize != autoSizeCloseLong && autoSize != autoSizeCloseShort {
 			return fmt.Errorf("%w: %q", errInvalidAutoSize, autoSize)
 		}
 		if size != 0 {

@@ -26,6 +26,12 @@ const (
 	// Loan sides
 	sideLend   = "lend"
 	sideBorrow = "borrow"
+
+	limitKey           = "limit"
+	orderTypeLimit     = "limit"
+	autoSizeCloseLong  = "close_long"
+	autoSizeCloseShort = "close_short"
+	allContractsKey    = "all_contracts"
 )
 
 // WithdrawalFees the large list of predefined withdrawal fees
@@ -1732,6 +1738,8 @@ type FuturesAccount struct {
 	MaintenanceMargin      types.Number  `json:"maintenance_margin"`
 	MarginMode             int64         `json:"margin_mode"` // Margin mode: 1-cross margin, 2-isolated margin, 3-portfolio margin
 	EnabledEvolvedClassic  bool          `json:"enable_evolved_classic"`
+	EnableDualPlus         bool          `json:"enable_dual_plus"`
+	PositionMode           string        `json:"position_mode"`
 	CrossInitialMargin     types.Number  `json:"cross_initial_margin"`
 	CrossUnrealisedPnl     types.Number  `json:"cross_unrealised_pnl"`
 	IsolatedPositionMargin types.Number  `json:"isolated_position_margin"`

@@ -178,12 +178,12 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), nil), errNilArgument, "nil request should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		Currency: currency.BTC,
-		Type:     "borrow",
+		Type:     sideBorrow,
 		Amount:   1,
 	}), currency.ErrCurrencyPairEmpty, "empty currency pair should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
-		Type:         "borrow",
+		Type:         sideBorrow,
 		Amount:       1,
 	}), currency.ErrCurrencyCodeEmpty, "empty currency code should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
@@ -195,7 +195,7 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
-		Type:         "borrow",
+		Type:         sideBorrow,
 		Amount:       0,
 	}), errInvalidAmount, "zero amount should return the expected error")
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
@@ -208,7 +208,7 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
-		Type:         "borrow",
+		Type:         sideBorrow,
 		RepaidAll:    true,
 	}), errInvalidRepaidAllOperation, "full repayment on a borrow should return the expected error")
 

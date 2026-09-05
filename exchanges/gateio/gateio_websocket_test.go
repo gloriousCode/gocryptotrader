@@ -111,7 +111,7 @@ func TestProcessSpotBalances(t *testing.T) { //nolint:tparallel // Sequential te
 			// Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 			ctx := t.Context()
 			if tc.deployCreds {
-				ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+				ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 			}
 			err := e.processSpotBalances(ctx, tc.input)
 			if tc.err != nil {
@@ -181,7 +181,7 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 			// Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 			ctx := t.Context()
 			if tc.deployCreds {
-				ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+				ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 			}
 			err := e.processBalancePushData(ctx, tc.input, asset.USDTMarginedFutures)
 			if tc.err != nil {

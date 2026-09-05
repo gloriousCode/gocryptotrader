@@ -84,16 +84,69 @@ func TestCancelAllOrders(t *testing.T) {
 func TestOpenInterestFromStats(t *testing.T) {
 	t.Parallel()
 
-	_, err := openInterestFromStats(nil)
-	require.ErrorIs(t, err, errNoValidResponseFromServer)
+	for _, tc := range []struct {
+		name   string
+		stats  []ContractStat
+		expect float64
+		errIs  error
+	}{
+		{name: "missing statistics", errIs: errNoValidResponseFromServer},
+		{
+			name: "quote notional instead of contract count",
+			stats: []ContractStat{{
+				Time:            types.Time(time.Unix(100, 0)),
+				OpenInterest:    types.NumberFromFloat64(9_999_999),
+				OpenInterestUsd: types.NumberFromFloat64(123_456.78),
+			}},
+			expect: 123_456.78,
+		},
+		{
+			name: "latest statistic from unordered response",
+			stats: []ContractStat{
+				{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.NumberFromFloat64(2), OpenInterestUsd: types.NumberFromFloat64(20)},
+				{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.NumberFromFloat64(4), OpenInterestUsd: types.NumberFromFloat64(40)},
+				{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.NumberFromFloat64(3), OpenInterestUsd: types.NumberFromFloat64(30)},
+			},
+			expect: 40,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	openInterest, err := openInterestFromStats([]ContractStat{
-		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.NumberFromFloat64(2)},
-		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.NumberFromFloat64(4)},
-		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.NumberFromFloat64(3)},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 4.0, openInterest)
+			openInterest, err := openInterestFromStats(tc.stats)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expect, openInterest)
+		})
+	}
+}
+
+func TestGetOpenInterestFromStats(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		assert.Equal(t, "/api/v4/futures/usdt/contract_stats", r.URL.Path, "request path should be contract stats")
+		assert.Equal(t, "BTC_USDT", r.URL.Query().Get("contract"), "request should contain the pair")
+		assert.Equal(t, "1", r.URL.Query().Get("limit"), "request should ask for the latest statistic")
+		_, err := fmt.Fprint(w, `[{"time":1720000000,"open_interest":9999999,"open_interest_usd":123456.78}]`)
+		assert.NoError(t, err, "writing contract stats should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	pair := currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}
+	openInterest, err := ex.getOpenInterestFromStats(t.Context(), asset.USDTMarginedFutures, pair)
+	require.NoError(t, err, "getOpenInterestFromStats must not error")
+	assert.Equal(t, 123_456.78, openInterest, "getOpenInterestFromStats should return quote notional, not contract count")
 }
 
 func TestUseOpenInterestStats(t *testing.T) {

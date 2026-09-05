@@ -369,6 +369,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			Low:          tickers[0].Low24H.Float64(),
 			High:         tickers[0].High24H.Float64(),
 			Last:         tickers[0].Last.Float64(),
+			MarkPrice:    tickers[0].MarkPrice.Float64(),
+			IndexPrice:   tickers[0].IndexPrice.Float64(),
 			Volume:       tickers[0].Volume24HBase.Float64(),
 			QuoteVolume:  tickers[0].Volume24HQuote.Float64(),
 			ExchangeName: e.Name,
@@ -615,6 +617,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Last:         tickers[i].Last.Float64(),
 				High:         tickers[i].High24H.Float64(),
 				Low:          tickers[i].Low24H.Float64(),
+				MarkPrice:    tickers[i].MarkPrice.Float64(),
+				IndexPrice:   tickers[i].IndexPrice.Float64(),
 				Volume:       tickers[i].Volume24H.Float64(),
 				QuoteVolume:  tickers[i].Volume24HQuote.Float64(),
 				ExchangeName: e.Name,
@@ -2381,6 +2385,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
+	}
 
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
@@ -2656,7 +2663,7 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 			latest = stats[i]
 		}
 	}
-	return latest.OpenInterest.Float64(), nil
+	return latest.OpenInterestUsd.Float64(), nil
 }
 
 func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {

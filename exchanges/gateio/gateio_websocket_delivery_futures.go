@@ -77,7 +77,7 @@ func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
-				params["limit"] = 20
+				params[limitKey] = 20
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
@@ -167,7 +167,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 		if okay {
 			params = append(params, levelString)
 		}
-		limit, okay := channelsToSubscribe[i].Params["limit"].(int)
+		limit, okay := channelsToSubscribe[i].Params[limitKey].(int)
 		if okay {
 			params = append(params, strconv.Itoa(limit))
 		}

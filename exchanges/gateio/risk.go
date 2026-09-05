@@ -65,7 +65,7 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 		params.Set("contract", contract.Upper().String())
 	} else {
 		if limit > 0 {
-			params.Set("limit", strconv.FormatUint(limit, 10))
+			params.Set(limitKey, strconv.FormatUint(limit, 10))
 		}
 		if offset > 0 {
 			params.Set("offset", strconv.FormatUint(offset, 10))

@@ -55,7 +55,7 @@ func (e *Exchange) GetIsolatedMarginAccountBalanceChangeHistory(ctx context.Cont
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if accountType != "" {
 		if accountType != "margin_in" && accountType != "margin_out" {
@@ -173,13 +173,13 @@ func (e *Exchange) GetIsolatedMarginLoans(ctx context.Context, ccy currency.Code
 		if limit > 100 {
 			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
 		}
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []IsolatedMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoansEPL, http.MethodGet, "margin/uni/loans", params, nil, &response)
 }
 
-// IsolatedMarginBorrowOrRepay borrows or repays currency in an isolated margin account. Pass type="borrow" to open a
+// IsolatedMarginBorrowOrRepay borrows or repays currency in an isolated margin account. Pass type=sideBorrow to open a
 // loan or type="repay" to close one.
 // NOTE: 204 no content returned on success for borrow and repay.
 func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *IsolatedBorrowRepayRequest) error {
@@ -192,7 +192,7 @@ func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *Isolate
 	if arg.Currency.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	if arg.Type != "borrow" && arg.Type != "repay" {
+	if arg.Type != sideBorrow && arg.Type != "repay" {
 		return errInvalidIsolatedMarginLoanType
 	}
 	if arg.RepaidAll {
@@ -208,7 +208,7 @@ func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *Isolate
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateUniLoanEPL, http.MethodPost, "margin/uni/loans", nil, arg, nil)
 }
 
-// GetIsolatedMarginLoanRecords retrieves isolated margin loan records. Loan type can be "borrow" or "repay". If not provided, both types will be returned.
+// GetIsolatedMarginLoanRecords retrieves isolated margin loan records. Loan type can be sideBorrow or "repay". If not provided, both types will be returned.
 func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, ccy currency.Code, pair currency.Pair, page, limit uint64, loanType string) ([]IsolatedMarginLoanResponse, error) {
 	params := url.Values{}
 	if loanType != "" {
@@ -227,7 +227,7 @@ func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, ccy currenc
 		if limit > 100 {
 			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
 		}
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	var response []IsolatedMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoanRecordsEPL, http.MethodGet, "margin/uni/loan_records", params, nil, &response)
@@ -249,7 +249,7 @@ func (e *Exchange) GetIsolatedMarginInterestDeductionRecords(ctx context.Context
 		if limit > 1000 {
 			return nil, fmt.Errorf("%w: maximum 1000", errInvalidLimit)
 		}
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -343,7 +343,7 @@ func (e *Exchange) GetIsolatedMarginPoolLoans(ctx context.Context, coin currency
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+		params.Set(limitKey, strconv.FormatUint(limit, 10))
 	}
 
 	path := common.EncodeURLValues("spot_loan/margin/margin_loan_info", params)

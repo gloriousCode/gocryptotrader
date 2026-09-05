@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -45,7 +46,11 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 
-const canManipulateRealOrders = false
+const (
+	canManipulateRealOrders = false
+	testCredentialValue     = "test"
+	testFuturesUserID       = "user123"
+)
 
 var apiCredentials = &accounts.Credentials{
 	Key:    "",
@@ -343,8 +348,13 @@ func TestGetOrderInfo(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
+		result, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
 		assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+		if a.IsFutures() {
+			require.NotNil(t, result)
+			assert.Positivef(t, result.MarkPrice, "UpdateTicker should preserve the Gate mark price for %s", a)
+			assert.Positivef(t, result.IndexPrice, "UpdateTicker should preserve the Gate index price for %s", a)
+		}
 	}
 }
 
@@ -455,7 +465,7 @@ func TestCreateBatchOrders(t *testing.T) {
 			Amount:       types.NumberFromFloat64(0.001),
 			Price:        types.NumberFromFloat64(12349),
 			Account:      e.assetTypeToString(asset.Spot),
-			Type:         "limit",
+			Type:         orderTypeLimit,
 		},
 		{
 			CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
@@ -463,7 +473,7 @@ func TestCreateBatchOrders(t *testing.T) {
 			Amount:       types.NumberFromFloat64(1),
 			Price:        types.NumberFromFloat64(1234567789),
 			Account:      e.assetTypeToString(asset.Spot),
-			Type:         "limit",
+			Type:         orderTypeLimit,
 		},
 	})
 	assert.NoError(t, err, "CreateBatchOrders should not error")
@@ -498,7 +508,7 @@ func TestCreateSpotOrder(t *testing.T) {
 		Amount:       types.NumberFromFloat64(1),
 		Price:        types.NumberFromFloat64(900000),
 		Account:      e.assetTypeToString(asset.Spot),
-		Type:         "limit",
+		Type:         orderTypeLimit,
 	})
 	assert.NoError(t, err, "PlaceSpotOrder should not error")
 }
@@ -649,7 +659,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 			Expiration: 3600,
 		},
 		Put: PutOrderData{
-			Type:        "limit",
+			Type:        orderTypeLimit,
 			Side:        "sell",
 			Price:       2312312,
 			Amount:      30,
@@ -696,7 +706,7 @@ func TestMarginLoan(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if _, err := e.MarginLoan(t.Context(), &MarginLoanRequestParam{
-		Side:         "borrow",
+		Side:         sideBorrow,
 		Amount:       1,
 		Currency:     currency.BTC,
 		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
@@ -725,7 +735,7 @@ func TestMergeMultipleLendingLoans(t *testing.T) {
 func TestRetrieveOneSingleLoanDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.RetrieveOneSingleLoanDetail(t.Context(), "borrow", "123")
+	_, err := e.RetrieveOneSingleLoanDetail(t.Context(), sideBorrow, "123")
 	assert.NoError(t, err, "RetrieveOneSingleLoanDetail should not error")
 }
 
@@ -733,7 +743,7 @@ func TestModifyALoan(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:  currency.BTC,
-		Side:      "borrow",
+		Side:      sideBorrow,
 		AutoRenew: false,
 	})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -741,7 +751,7 @@ func TestModifyALoan(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.ModifyALoan(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.BTC,
-		Side:         "borrow",
+		Side:         sideBorrow,
 		AutoRenew:    false,
 		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 	}); err != nil {
@@ -2106,6 +2116,12 @@ func TestUpdateTickers(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
 		assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
+		if a.IsFutures() {
+			result, tickerErr := ticker.GetTicker(e.Name, getPair(t, a), a)
+			require.NoError(t, tickerErr)
+			assert.Positivef(t, result.MarkPrice, "UpdateTickers should preserve the Gate mark price for %s", a)
+			assert.Positivef(t, result.IndexPrice, "UpdateTickers should preserve the Gate index price for %s", a)
+		}
 	}
 }
 
@@ -2485,7 +2501,7 @@ const wsBalancesPushDataJSON = `{"time": 1605248616,	"channel": "spot.balances",
 
 func TestBalancesPushData(t *testing.T) {
 	t.Parallel()
-	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 	if err := e.WsHandleSpotData(ctx, nil, []byte(wsBalancesPushDataJSON)); err != nil {
 		t.Errorf("%s websocket balances push data error: %v", e.Name, err)
 	}
@@ -2504,7 +2520,7 @@ const wsCrossMarginBalancePushDataJSON = `{"time": 1605248616,"channel": "spot.c
 
 func TestCrossMarginBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 	if err := e.WsHandleSpotData(ctx, nil, []byte(wsCrossMarginBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket cross margin balance push data error: %v", e.Name, err)
 	}
@@ -2526,7 +2542,7 @@ func TestFuturesDataHandler(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, m []byte) error {
 		if strings.Contains(string(m), "futures.balances") {
-			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 		}
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
@@ -2548,7 +2564,7 @@ func TestWsHandleFuturesDataLifecycleEvents(t *testing.T) {
 	ex.Websocket.Fills.Setup(true, ex.Websocket.DataHandler)
 	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(ctx context.Context, message []byte) error {
 		if strings.Contains(string(message), futuresBalancesChannel) {
-			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: "test", Secret: "test"})
+			ctx = accounts.DeployCredentialsToContext(ctx, &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 		}
 		return ex.WsHandleFuturesData(ctx, nil, message, asset.CoinMarginedFutures)
 	})
@@ -2856,7 +2872,7 @@ const optionsBalancePushDataJSON = `{	"channel": "options.balances",	"event": "u
 
 func TestOptionsBalancePushData(t *testing.T) {
 	t.Parallel()
-	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "test"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: testCredentialValue, Secret: testCredentialValue})
 	if err := e.WsHandleOptionsData(ctx, nil, []byte(optionsBalancePushDataJSON)); err != nil {
 		t.Errorf("%s websocket options balance push data error: %v", e.Name, err)
 	}
@@ -2974,7 +2990,7 @@ func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 	if _, err := e.CreateAPIKeysOfSubAccount(t.Context(), CreateAPIKeySubAccountParams{
 		SubAccountUserID: 12345,
 		Body: &SubAccountKey{
-			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
+			APIKeyName: strings.Repeat("fixture", 4),
 			Permissions: []APIV4KeyPerm{
 				{
 					PermissionName: "wallet",
@@ -3022,7 +3038,7 @@ func TestUpdateAPIKeyOfSubAccount(t *testing.T) {
 	if err := e.UpdateAPIKeyOfSubAccount(t.Context(), apiCredentials.Key, CreateAPIKeySubAccountParams{
 		SubAccountUserID: 12345,
 		Body: &SubAccountKey{
-			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",
+			APIKeyName: strings.Repeat("fixture", 4),
 			Permissions: []APIV4KeyPerm{
 				{
 					PermissionName: "wallet",
@@ -4323,10 +4339,10 @@ func TestValidateOrderCreateParams(t *testing.T) {
 		{name: "unsupported-poc-tif", contract: BTCUSDT, size: 1, timeInForce: pocTIF, err: order.ErrUnsupportedTimeInForce},
 		{name: "invalid-text-prefix", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "test", err: errInvalidTextPrefix},
 		{name: "invalid-auto-size", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "silly_billy", err: errInvalidAutoSize},
-		{name: "size-nonzero-with-auto-size", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", err: errInvalidOrderSize},
-		{name: "rest-missing-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", isRest: true, err: errEmptyOrInvalidSettlementCurrency},
-		{name: "ws-invalid-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.NewCode("Silly"), err: errEmptyOrInvalidSettlementCurrency},
-		{name: "valid", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.USDT},
+		{name: "size-nonzero-with-auto-size", contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: autoSizeCloseLong, err: errInvalidOrderSize},
+		{name: "rest-missing-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: autoSizeCloseLong, isRest: true, err: errEmptyOrInvalidSettlementCurrency},
+		{name: "ws-invalid-settle", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: autoSizeCloseLong, settle: currency.NewCode("Silly"), err: errEmptyOrInvalidSettlementCurrency},
+		{name: "valid", contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: autoSizeCloseLong, settle: currency.USDT},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

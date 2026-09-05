@@ -8,6 +8,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,12 +19,39 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 type futuresDialCaptureConnection struct {
 	websocket.Connection
 	header http.Header
+}
+
+// TestProcessFuturesTickers verifies Gate mark and index prices survive websocket normalisation.
+func TestProcessFuturesTickers(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`{
+		"time":1800000000,
+		"channel":"futures.tickers",
+		"event":"update",
+		"result":[{"contract":"BTC_USDT","last":"100.5","mark_price":"101","index_price":"100","volume_24h_quote":"2000000"}]
+	}`), asset.USDTMarginedFutures))
+
+	select {
+	case event := <-ex.Websocket.DataHandler.C:
+		prices, ok := event.Data.([]ticker.Price)
+		require.True(t, ok)
+		require.Len(t, prices, 1)
+		assert.Equal(t, 101.0, prices[0].MarkPrice)
+		assert.Equal(t, 100.0, prices[0].IndexPrice)
+		assert.Equal(t, time.Unix(1_800_000_000, 0), prices[0].LastUpdated)
+	default:
+		require.Fail(t, "expected a futures ticker event")
+	}
 }
 
 func (c *futuresDialCaptureConnection) Dial(_ context.Context, _ *gws.Dialer, header http.Header, _ url.Values) error {
@@ -143,7 +171,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 				Params: map[string]any{
 					"frequency": kline.TwentyMilliseconds,
 					"level":     "20",
-					"limit":     100,
+					limitKey:    100,
 					"accuracy":  "0",
 				},
 			},
@@ -155,7 +183,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 			&subscription.Subscription{
 				Channel: futuresOrderbookChannel,
 				Pairs:   currency.Pairs{BTCUSDT},
-				Params:  map[string]any{"interval": "0", "limit": 100},
+				Params:  map[string]any{"interval": "0", limitKey: 100},
 			},
 			&subscription.Subscription{
 				Channel: futuresOrderbookV2,
@@ -195,7 +223,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{
 				Channel: futuresBalancesChannel,
-				Params:  map[string]any{"user": "user123"},
+				Params:  map[string]any{"user": testFuturesUserID},
 			},
 		})
 		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
@@ -210,7 +238,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
-			&subscription.Subscription{Channel: futuresOrdersChannel, Params: map[string]any{"user": "user123", "all_contracts": true}},
+			&subscription.Subscription{Channel: futuresOrdersChannel, Params: map[string]any{"user": testFuturesUserID, allContractsKey: true}},
 		})
 		require.ErrorIs(t, err, errAuthenticatedWebsocketRequired)
 	})
@@ -222,7 +250,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
-			&subscription.Subscription{Channel: futuresOrdersChannel, Params: map[string]any{"all_contracts": true}},
+			&subscription.Subscription{Channel: futuresOrdersChannel, Params: map[string]any{allContractsKey: true}},
 		})
 		require.ErrorIs(t, err, errFuturesWebsocketUserIDNotSet)
 	})
@@ -240,11 +268,11 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{
 				Channel: futuresBalancesChannel,
-				Params:  map[string]any{"user": "user123"},
+				Params:  map[string]any{"user": testFuturesUserID},
 			},
 			&subscription.Subscription{
 				Channel: futuresOrdersChannel,
-				Params:  map[string]any{"user": "user123", "all_contracts": true},
+				Params:  map[string]any{"user": testFuturesUserID, allContractsKey: true},
 			},
 		})
 		require.NoError(t, err, "generateFuturesPayload must not error")
@@ -255,8 +283,8 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		require.Equal(t, "key", got[0].Auth.Key)
 		require.NotEmpty(t, got[0].Auth.Sign)
 
-		require.Equal(t, []string{"user123"}, got[0].Payload)
-		require.Equal(t, []string{"user123", futuresAllContracts}, got[1].Payload)
+		require.Equal(t, []string{testFuturesUserID}, got[0].Payload)
+		require.Equal(t, []string{testFuturesUserID, futuresAllContracts}, got[1].Payload)
 
 		sig, err := ex.generateWsSignature("secret", subscribeEvent, futuresBalancesChannel, got[0].Time)
 		require.NoError(t, err)
@@ -284,7 +312,7 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 	require.Len(t, private, 4)
 	for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
 		require.Empty(t, private[channel].Pairs)
-		require.Equal(t, map[string]any{"all_contracts": true}, private[channel].Params)
+		require.Equal(t, map[string]any{allContractsKey: true}, private[channel].Params)
 	}
 	require.Empty(t, private[futuresBalancesChannel].Pairs)
 	require.Empty(t, private[futuresBalancesChannel].Params)
@@ -347,7 +375,7 @@ func TestFuturesSubscribe(t *testing.T) {
 		require.NoError(t, ex.SetFuturesWebsocketUserID(54321))
 		sub := &subscription.Subscription{
 			Channel: futuresOrdersChannel,
-			Params:  map[string]any{"all_contracts": true},
+			Params:  map[string]any{allContractsKey: true},
 			Asset:   asset.USDTMarginedFutures,
 		}
 		require.NoError(t, ex.FuturesSubscribe(t.Context(), new(FixtureConnection), subscription.List{sub}))

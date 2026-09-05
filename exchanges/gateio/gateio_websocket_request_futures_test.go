@@ -62,7 +62,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
-	out.AutoSize = "close_long"
+	out.AutoSize = autoSizeCloseLong
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidOrderSize)
 

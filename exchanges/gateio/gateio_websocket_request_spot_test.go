@@ -44,7 +44,7 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = types.NumberFromFloat64(1)
-	out.Type = "limit"
+	out.Type = orderTypeLimit
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = types.NumberFromFloat64(100)
@@ -72,7 +72,7 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
 	out.Amount = types.NumberFromFloat64(0.0003)
-	out.Type = "limit"
+	out.Type = orderTypeLimit
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
 	out.Price = types.NumberFromFloat64(20000)

@@ -128,7 +128,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
 			case futuresOrderbookChannel:
-				params["limit"] = 100
+				params[limitKey] = 100
 				params["interval"] = "0"
 			case futuresCandlesticksChannel:
 				params["interval"] = kline.FiveMin
@@ -156,7 +156,7 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 		for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channel,
-				Params:  map[string]any{"all_contracts": true},
+				Params:  map[string]any{allContractsKey: true},
 				Asset:   a,
 			})
 		}
@@ -337,7 +337,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 			}
 			params = append(params, user)
 			if channelsToSubscribe[i].Channel != futuresBalancesChannel {
-				if allContracts, _ := channelsToSubscribe[i].Params["all_contracts"].(bool); allContracts {
+				if allContracts, _ := channelsToSubscribe[i].Params[allContractsKey].(bool); allContracts {
 					params = append(params, futuresAllContracts)
 				} else {
 					if len(channelsToSubscribe[i].Pairs) != 1 {
@@ -374,7 +374,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		if okay {
 			params = append(params, levelString)
 		}
-		limit, okay := channelsToSubscribe[i].Params["limit"].(int)
+		limit, okay := channelsToSubscribe[i].Params[limitKey].(int)
 		if okay {
 			params = append(params, strconv.Itoa(limit))
 		}
@@ -444,6 +444,8 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, asset
 			High:         resp.Result[x].High24H.Float64(),
 			Low:          resp.Result[x].Low24H.Float64(),
 			Last:         resp.Result[x].Last.Float64(),
+			MarkPrice:    resp.Result[x].MarkPrice.Float64(),
+			IndexPrice:   resp.Result[x].IndexPrice.Float64(),
 			AssetType:    assetType,
 			Pair:         resp.Result[x].Contract,
 			LastUpdated:  resp.Time.Time(),
