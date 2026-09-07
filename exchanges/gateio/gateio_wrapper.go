@@ -396,6 +396,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			tickerData = &ticker.Price{
 				Pair:         tickers[x].Name,
 				Last:         tickers[x].LastPrice.Float64(),
+				MarkPrice:    tickers[x].MarkPrice.Float64(),
+				IndexPrice:   tickers[x].IndexPrice.Float64(),
 				Bid:          tickers[x].Bid1Price.Float64(),
 				Ask:          tickers[x].Ask1Price.Float64(),
 				AskSize:      tickers[x].Ask1Size.Float64(),
@@ -646,6 +648,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			for x := range tickers {
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
+					MarkPrice:    tickers[x].MarkPrice.Float64(),
+					IndexPrice:   tickers[x].IndexPrice.Float64(),
 					Ask:          tickers[x].Ask1Price.Float64(),
 					AskSize:      tickers[x].Ask1Size.Float64(),
 					Bid:          tickers[x].Bid1Price.Float64(),
