@@ -98,16 +98,16 @@ func TestOpenInterestFromStats(t *testing.T) {
 			stats: []ContractStat{{
 				Time:            types.Time(time.Unix(100, 0)),
 				OpenInterest:    types.Number(9_999_999),
-				OpenInterestUsd: types.Number(123_456.78),
+				OpenInterestUSD: types.Number(123_456.78),
 			}},
 			expect: 123_456.78,
 		},
 		{
 			name: "latest statistic from unordered response",
 			stats: []ContractStat{
-				{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2), OpenInterestUsd: types.Number(20)},
-				{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4), OpenInterestUsd: types.Number(40)},
-				{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3), OpenInterestUsd: types.Number(30)},
+				{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2), OpenInterestUSD: types.Number(20)},
+				{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4), OpenInterestUSD: types.Number(40)},
+				{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3), OpenInterestUSD: types.Number(30)},
 			},
 			expect: 40,
 		},

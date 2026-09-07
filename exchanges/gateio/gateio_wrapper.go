@@ -2563,7 +2563,7 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 			latest = stats[i]
 		}
 	}
-	return latest.OpenInterestUsd.Float64(), nil
+	return latest.OpenInterestUSD.Float64(), nil
 }
 
 func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {

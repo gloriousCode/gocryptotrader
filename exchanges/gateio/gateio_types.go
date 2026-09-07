@@ -771,7 +771,7 @@ type ContractStat struct {
 	ShortLiquidationAmount types.Number `json:"short_liq_amount"`
 	LongLiquidationAmount  types.Number `json:"long_liq_amount"`
 	LastFundingRate        types.Number `json:"last_funding_rate"`
-	OpenInterestUsd        types.Number `json:"open_interest_usd"`
+	OpenInterestUSD        types.Number `json:"open_interest_usd"`
 	TopLongShortAccount    types.Number `json:"top_lsr_account"`
 	LongLiquidationUSD     types.Number `json:"long_liq_usd"`
 	TopLongSize            types.Number `json:"top_long_size"`

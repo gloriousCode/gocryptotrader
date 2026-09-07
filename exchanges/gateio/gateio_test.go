@@ -346,8 +346,17 @@ func TestUpdateTicker(t *testing.T) {
 	t.Run("all supported assets", func(t *testing.T) {
 		t.Parallel()
 		for _, a := range e.GetAssetTypes(false) {
-			_, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
-			assert.NoErrorf(t, err, "UpdateTicker should not error for %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				got, err := e.UpdateTicker(t.Context(), getPair(t, a), a)
+				require.NoError(t, err, "UpdateTicker must not error")
+				switch a {
+				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
+					require.NotNil(t, got, "live ticker must not be nil")
+					assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
+				}
+			})
 		}
 	})
 
@@ -358,19 +367,19 @@ func TestUpdateTicker(t *testing.T) {
 		expectedPath string
 	}{
 		{
-			name:         "USDT margined futures mark and index prices",
+			name:         "mocked USDT margined futures mark and index prices",
 			asset:        asset.USDTMarginedFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/futures/usdt/tickers",
 		},
 		{
-			name:         "coin margined futures mark and index prices",
+			name:         "mocked coin margined futures mark and index prices",
 			asset:        asset.CoinMarginedFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/futures/btc/tickers",
 		},
 		{
-			name:         "delivery futures mark and index prices",
+			name:         "mocked delivery futures mark and index prices",
 			asset:        asset.DeliveryFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/delivery/usdt/tickers",
@@ -2163,8 +2172,25 @@ func TestUpdateTickers(t *testing.T) {
 	t.Run("all supported assets", func(t *testing.T) {
 		t.Parallel()
 		for _, a := range e.GetAssetTypes(false) {
-			err := e.UpdateTickers(t.Context(), a)
-			assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
+			t.Run(a.String(), func(t *testing.T) {
+				t.Parallel()
+				switch a {
+				case asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures:
+					pair := getPair(t, a)
+					ex := new(Exchange)
+					require.NoError(t, testexch.Setup(ex), "Setup must not error")
+					// Isolate the cache so another test cannot supply the ticker being checked.
+					ex.Name = t.Name()
+					require.NoError(t, ex.UpdateTickers(t.Context(), a), "live UpdateTickers must not error")
+					got, err := ticker.GetTicker(ex.Name, pair, a)
+					require.NoError(t, err, "live UpdateTickers must cache the requested ticker")
+					require.NotNil(t, got, "live ticker must not be nil")
+					assert.Positive(t, got.MarkPrice, "live ticker mark price should be positive")
+					assert.Positive(t, got.IndexPrice, "live ticker index price should be positive")
+				default:
+					assert.NoError(t, e.UpdateTickers(t.Context(), a), "UpdateTickers should not error")
+				}
+			})
 		}
 	})
 
@@ -2175,19 +2201,19 @@ func TestUpdateTickers(t *testing.T) {
 		expectedPath string
 	}{
 		{
-			name:         "USDT margined futures mark and index prices",
+			name:         "mocked USDT margined futures mark and index prices",
 			asset:        asset.USDTMarginedFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/futures/usdt/tickers",
 		},
 		{
-			name:         "coin margined futures mark and index prices",
+			name:         "mocked coin margined futures mark and index prices",
 			asset:        asset.CoinMarginedFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USD", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/futures/btc/tickers",
 		},
 		{
-			name:         "delivery futures mark and index prices",
+			name:         "mocked delivery futures mark and index prices",
 			asset:        asset.DeliveryFutures,
 			pair:         currency.NewPairWithDelimiter("BTC", "USDT_20261225", currency.UnderscoreDelimiter),
 			expectedPath: "/api/v4/delivery/usdt/tickers",
