@@ -160,6 +160,20 @@ func TestUnsubscribe(t *testing.T) {
 
 func TestPublish(t *testing.T) {
 	t.Parallel()
+	t.Run("unsubscribed routes do not consume a saturated queue", func(t *testing.T) {
+		t.Parallel()
+		d := NewDispatcher()
+		d.running = true
+		d.jobs = make(chan job, 1)
+		d.routes[nonEmptyUUID] = []chan any{make(chan any)}
+		require.NoError(t, d.publish(nonEmptyUUID, "observed"))
+		unused := uuid.Must(uuid.NewV4())
+		for range 1000 {
+			require.NoError(t, d.publish(unused, "unobserved"))
+		}
+		require.Len(t, d.jobs, 1)
+		require.ErrorIs(t, d.publish(nonEmptyUUID, "observed overflow"), errDispatcherJobsAtLimit)
+	})
 	var d *Dispatcher
 
 	err := d.publish(uuid.Nil, nil)
@@ -180,9 +194,11 @@ func TestPublish(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer, "publish should error correctly")
 
 	// demonstrate job limit error
+	d.routesMtx.Lock()
 	d.routes[nonEmptyUUID] = []chan any{
 		make(chan any),
 	}
+	d.routesMtx.Unlock()
 	for range 200 {
 		if err = d.publish(nonEmptyUUID, "test"); err != nil {
 			break

@@ -218,6 +218,14 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	if !d.running {
 		return nil
 	}
+	// A subscriber elsewhere does not make this route interesting. Broad market
+	// feeds publish many unobserved routes; do not spend queue capacity on them.
+	d.routesMtx.Lock()
+	hasSubscribers := len(d.routes[id]) > 0
+	d.routesMtx.Unlock()
+	if !hasSubscribers {
+		return nil
+	}
 
 	select {
 	case d.jobs <- job{data, id}: // Push job into job channel.
