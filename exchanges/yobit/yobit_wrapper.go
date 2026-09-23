@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
@@ -138,26 +137,43 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
+// Returned tickers are cached before reporting any omitted pairs with ticker.ErrTickerNotFound.
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	availablePairs, err := e.GetAvailablePairs(a)
+	_, err := e.updateTickers(ctx, a)
+	return err
+}
+
+func (e *Exchange) updateTickers(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	enabledPairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	pairsCollated, err := e.FormatExchangeCurrencies(availablePairs, a)
+	pairsCollated, err := e.FormatExchangeCurrencies(enabledPairs, a)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	result, err := e.GetTicker(ctx, pairsCollated)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	var missingPairs currency.Pairs
+	for _, enabledPair := range enabledPairs {
+		formattedPair, err := e.FormatExchangeCurrency(enabledPair, a)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := result[formattedPair.Lower().String()]; !ok {
+			missingPairs = append(missingPairs, enabledPair)
+		}
 	}
 
 	for symbol, resultCurr := range result {
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
 			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
+				return nil, err
 			}
 			continue
 		}
@@ -166,23 +182,28 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Last:         resultCurr.Last,
 			Ask:          resultCurr.Sell,
 			Bid:          resultCurr.Buy,
+			High:         resultCurr.High,
 			Low:          resultCurr.Low,
-			QuoteVolume:  resultCurr.VolumeCurrent,
-			Volume:       resultCurr.Vol,
+			BaseVolume:   resultCurr.BaseVolume,
+			QuoteVolume:  resultCurr.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,
+			LastUpdated:  resultCurr.Updated.Time(),
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-
-	return nil
+	if len(missingPairs) != 0 {
+		return missingPairs, fmt.Errorf("%w: %s %s omitted pairs %s", ticker.ErrTickerNotFound, e.Name, a, missingPairs)
+	}
+	return nil, nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := e.UpdateTickers(ctx, a); err != nil {
+	missingPairs, err := e.updateTickers(ctx, a)
+	if err != nil && (len(missingPairs) == 0 || missingPairs.Contains(p, true)) {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, a)
@@ -305,7 +326,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

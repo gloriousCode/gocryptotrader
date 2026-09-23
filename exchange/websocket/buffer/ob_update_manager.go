@@ -656,6 +656,10 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		cache.clearNoLock()
 		cache.m.Unlock()
 	}()
+	if m.acceptSnapshotWhenUpdatesCovered && len(cache.updates) == 0 {
+		cache.state = cacheStateSynced
+		return nil
+	}
 
 	pendingApplyStarted := time.Now()
 	err = m.applyPendingUpdates(cache)

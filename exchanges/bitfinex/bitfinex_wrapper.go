@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -34,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -279,6 +279,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		queryAsset = asset.Spot
 	case asset.Futures:
 		queryAsset = asset.Futures
+	case asset.MarginFunding:
+		// Bootstrap skips this error for every enabled asset, where asset.ErrNotSupported fails the load
+		return common.ErrNotYetImplemented
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -315,7 +318,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          val.Low,
 			Bid:          val.Bid,
 			Ask:          val.Ask,
-			Volume:       val.Volume,
+			BaseVolume:   val.Volume,
 			Pair:         pair,
 			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
@@ -484,7 +487,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 					latest = lends[x]
 				}
 			}
-			yearlyRate := decimal.NewFromFloat(latest.Rate)
+			yearlyRate := decimal.MustFromFloat(latest.Rate)
 			rate = margin.Rate{
 				Time:       latest.Timestamp.Time(),
 				HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
@@ -550,7 +553,7 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 		if !req.EndDate.IsZero() && t.After(req.EndDate) {
 			continue
 		}
-		yearlyRate := decimal.NewFromFloat(lends[i].Rate)
+		yearlyRate := decimal.MustFromFloat(lends[i].Rate)
 		resp.Rates = append(resp.Rates, margin.Rate{
 			Time:       t,
 			HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
@@ -650,7 +653,7 @@ allTrades:
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return trade.FilterTradesByTime(resp, timestampStart, timestampEnd), nil
 }
 

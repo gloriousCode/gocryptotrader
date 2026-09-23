@@ -95,6 +95,7 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 	if period == 0 {
 		panic("period duration for collecting metrics must be greater than 0")
 	}
+	windowStart := time.Now()
 	timer := time.NewTimer(time.Until(time.Now().Truncate(period).Add(period)))
 	defer timer.Stop()
 
@@ -104,8 +105,9 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 			return
 		case <-timer.C:
 			r.m.Lock()
+			windowEnd := time.Now()
 			if r.operations > 0 {
-				avgOperationsPerSecond := float64(r.operations) / 60
+				avgOperationsPerSecond := operationsPerSecond(r.operations, windowStart, windowEnd)
 				avgProcessingTime := r.totalProcessingTime / time.Duration(r.operations)
 				peakTime := r.peakProcessingTime
 				peakCause := r.peakCause
@@ -121,7 +123,16 @@ func (r *defaultProcessReporter) collectMetrics(conn Connection, period time.Dur
 			} else {
 				r.m.Unlock()
 			}
+			windowStart = windowEnd
 			timer.Reset(time.Until(time.Now().Truncate(period).Add(period)))
 		}
 	}
+}
+
+func operationsPerSecond(operations int64, windowStart, windowEnd time.Time) float64 {
+	elapsed := windowEnd.Sub(windowStart).Seconds()
+	if elapsed <= 0 {
+		return 0
+	}
+	return float64(operations) / elapsed
 }

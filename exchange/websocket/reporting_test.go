@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -70,4 +71,12 @@ func TestDefaultProcessReporterManagerConnectionIDs(t *testing.T) {
 	first.Close()
 	second.Close()
 	third.Close()
+}
+
+func TestOperationsPerSecond(t *testing.T) {
+	t.Parallel()
+
+	start := time.Unix(0, 0)
+	assert.InDelta(t, 100, operationsPerSecond(3000, start, start.Add(30*time.Second)), 0.0001, "partial-window rate should use elapsed time")
+	assert.Zero(t, operationsPerSecond(3000, start, start), "zero-length window should return zero")
 }

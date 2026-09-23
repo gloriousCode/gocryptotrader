@@ -47,6 +47,7 @@ const (
 	bitgetFillChannel             = "fill"
 	bitgetOrdersChannel           = "orders"
 	bitgetOrdersAlgoChannel       = "orders-algo"
+	bitgetMyTriggerOrdersChannel  = "myTriggerOrders"
 	bitgetPositionsChannel        = "positions"
 	bitgetPositionsHistoryChannel = "positions-history"
 	bitgetAccountCrossedChannel   = "account-crossed"
@@ -67,8 +68,8 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		subscription.OrderbookChannel: bitgetBookFullChannel,
 		subscription.MyTradesChannel:  bitgetFillChannel,
 		subscription.MyOrdersChannel:  bitgetOrdersChannel,
-		"myTriggerOrders":             bitgetOrdersAlgoChannel,
-		"account":                     bitgetAccount,
+		bitgetMyTriggerOrdersChannel:  bitgetOrdersAlgoChannel,
+		bitgetAccount:                 bitgetAccount,
 	},
 	asset.CoinMarginedFutures: {
 		subscription.TickerChannel:    bitgetTicker,
@@ -77,8 +78,8 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		subscription.OrderbookChannel: bitgetBookFullChannel,
 		subscription.MyTradesChannel:  bitgetFillChannel,
 		subscription.MyOrdersChannel:  bitgetOrdersChannel,
-		"myTriggerOrders":             bitgetOrdersAlgoChannel,
-		"account":                     bitgetAccount,
+		bitgetMyTriggerOrdersChannel:  bitgetOrdersAlgoChannel,
+		bitgetAccount:                 bitgetAccount,
 		"positions":                   bitgetPositionsChannel,
 		"positionsHistory":            bitgetPositionsHistoryChannel,
 	},
@@ -89,8 +90,8 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		subscription.OrderbookChannel: bitgetBookFullChannel,
 		subscription.MyTradesChannel:  bitgetFillChannel,
 		subscription.MyOrdersChannel:  bitgetOrdersChannel,
-		"myTriggerOrders":             bitgetOrdersAlgoChannel,
-		"account":                     bitgetAccount,
+		bitgetMyTriggerOrdersChannel:  bitgetOrdersAlgoChannel,
+		bitgetAccount:                 bitgetAccount,
 		"positions":                   bitgetPositionsChannel,
 		"positionsHistory":            bitgetPositionsHistoryChannel,
 	},
@@ -101,20 +102,20 @@ var subscriptionNames = map[asset.Item]map[string]string{
 		subscription.OrderbookChannel: bitgetBookFullChannel,
 		subscription.MyTradesChannel:  bitgetFillChannel,
 		subscription.MyOrdersChannel:  bitgetOrdersChannel,
-		"myTriggerOrders":             bitgetOrdersAlgoChannel,
-		"account":                     bitgetAccount,
+		bitgetMyTriggerOrdersChannel:  bitgetOrdersAlgoChannel,
+		bitgetAccount:                 bitgetAccount,
 		"positions":                   bitgetPositionsChannel,
 		"positionsHistory":            bitgetPositionsHistoryChannel,
 	},
 	asset.Margin: {
 		"indexPrice":                 bitgetIndexPriceChannel,
 		subscription.MyOrdersChannel: bitgetOrdersIsolatedChannel,
-		"account":                    bitgetAccountIsolatedChannel,
+		bitgetAccount:                bitgetAccountIsolatedChannel,
 	},
 	asset.CrossMargin: {
 		"indexPrice":                 bitgetIndexPriceChannel,
 		subscription.MyOrdersChannel: bitgetOrdersCrossedChannel,
-		"account":                    bitgetAccountCrossedChannel,
+		bitgetAccount:                bitgetAccountCrossedChannel,
 	},
 }
 
@@ -133,12 +134,12 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.Margin},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true, Asset: asset.CrossMargin},
-	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: "myTriggerOrders", Authenticated: true, Asset: asset.USDTMarginedFutures},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Spot},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.USDTMarginedFutures},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.Margin},
-	{Enabled: true, Channel: "account", Authenticated: true, Asset: asset.CrossMargin},
+	{Enabled: true, Channel: bitgetMyTriggerOrdersChannel, Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: bitgetMyTriggerOrdersChannel, Authenticated: true, Asset: asset.USDTMarginedFutures},
+	{Enabled: true, Channel: bitgetAccount, Authenticated: true, Asset: asset.Spot},
+	{Enabled: true, Channel: bitgetAccount, Authenticated: true, Asset: asset.USDTMarginedFutures},
+	{Enabled: true, Channel: bitgetAccount, Authenticated: true, Asset: asset.Margin},
+	{Enabled: true, Channel: bitgetAccount, Authenticated: true, Asset: asset.CrossMargin},
 	{Enabled: true, Channel: "positions", Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: "positionsHistory", Authenticated: true, Asset: asset.USDTMarginedFutures},
 	{Enabled: true, Channel: "indexPrice", Asset: asset.Margin},
@@ -316,7 +317,7 @@ func (e *Exchange) tickerDataHandler(ctx context.Context, wsResponse *WsResponse
 				Low:          ticks[i].Low24H.Float64(),
 				Bid:          ticks[i].BidPrice.Float64(),
 				Ask:          ticks[i].AskPrice.Float64(),
-				Volume:       ticks[i].BaseVolume.Float64(),
+				BaseVolume:   ticks[i].BaseVolume.Float64(),
 				QuoteVolume:  ticks[i].QuoteVolume.Float64(),
 				Open:         ticks[i].Open24H.Float64(),
 				Pair:         pair,
@@ -343,7 +344,7 @@ func (e *Exchange) tickerDataHandler(ctx context.Context, wsResponse *WsResponse
 				Low:          ticks[i].Low24H.Float64(),
 				Bid:          ticks[i].BidPrice.Float64(),
 				Ask:          ticks[i].AskPrice.Float64(),
-				Volume:       ticks[i].BaseVolume.Float64(),
+				BaseVolume:   ticks[i].BaseVolume.Float64(),
 				QuoteVolume:  ticks[i].QuoteVolume.Float64(),
 				Open:         ticks[i].Open24H.Float64(),
 				MarkPrice:    ticks[i].MarkPrice.Float64(),

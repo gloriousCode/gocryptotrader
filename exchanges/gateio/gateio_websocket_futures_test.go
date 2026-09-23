@@ -28,60 +28,28 @@ type futuresDialCaptureConnection struct {
 	header http.Header
 }
 
-// TestProcessFuturesTickers verifies Gate mark and index prices survive websocket normalisation.
 func TestProcessFuturesTickers(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	require.NoError(t, ex.processFuturesTickers(t.Context(), []byte(`{
-		"time":1800000000,
-		"channel":"futures.tickers",
-		"event":"update",
-		"result":[{"contract":"BTC_USDT","last":"100.5","mark_price":"101","index_price":"100","volume_24h_quote":"2000000"}]
-	}`), asset.USDTMarginedFutures))
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	payload := []byte(`{"time":1541659086,"channel":"futures.tickers","event":"update","result":[{"contract":"BTC_USDT","last":"118.4","mark_price":"118.35","index_price":"118.36","volume_24h_quote":"1665006","volume_24h_base":"5526","low_24h":"99.2","high_24h":"132.5"}]}`)
+	require.NoError(t, ex.processFuturesTickers(t.Context(), payload, asset.USDTMarginedFutures), "futures ticker processing must succeed")
 
 	select {
-	case event := <-ex.Websocket.DataHandler.C:
-		prices, ok := event.Data.([]ticker.Price)
-		require.True(t, ok)
-		require.Len(t, prices, 1)
-		assert.Equal(t, 101.0, prices[0].MarkPrice)
-		assert.Equal(t, 100.0, prices[0].IndexPrice)
-		assert.Equal(t, time.Unix(1_800_000_000, 0), prices[0].LastUpdated)
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]ticker.Price)
+		require.True(t, ok, "message must contain futures ticker prices")
+		require.Len(t, got, 1, "message must contain one futures ticker")
+		assert.Equal(t, 118.35, got[0].MarkPrice, "mark price should match the response")
+		assert.Equal(t, 118.36, got[0].IndexPrice, "index price should match the response")
+		assert.Equal(t, asset.USDTMarginedFutures, got[0].AssetType, "asset should be USDT margined futures")
+		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter), got[0].Pair, "ticker pair should match the response")
+		assert.Equal(t, time.Unix(1541659086, 0), got[0].LastUpdated, "ticker timestamp should match the response")
 	default:
-		require.Fail(t, "expected a futures ticker event")
+		require.Fail(t, "WebSocket futures ticker payload must be emitted")
 	}
-}
-
-func (c *futuresDialCaptureConnection) Dial(_ context.Context, _ *gws.Dialer, header http.Header, _ url.Values) error {
-	c.header = header.Clone()
-	return nil
-}
-
-func (c *futuresDialCaptureConnection) GetURL() string { return usdtFuturesWebsocketURL }
-
-func (c *futuresDialCaptureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
-}
-
-func TestSetFuturesWebsocketUserID(t *testing.T) {
-	t.Parallel()
-
-	require.ErrorIs(t, (*Exchange)(nil).SetFuturesWebsocketUserID(12345), common.ErrNilPointer)
-	ex := new(Exchange)
-	require.ErrorIs(t, ex.SetFuturesWebsocketUserID(0), errFuturesWebsocketUserIDNotSet)
-	require.NoError(t, ex.SetFuturesWebsocketUserID(12345))
-	require.Equal(t, int64(12345), ex.futuresWebsocketUserID.Load())
-}
-
-func TestWsFuturesConnect(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	conn := new(futuresDialCaptureConnection)
-	require.NoError(t, ex.WsFuturesConnect(t.Context(), conn))
-	require.Equal(t, "1", conn.header.Get("X-Gate-Size-Decimal"))
 }
 
 func TestGenerateFuturesPayload(t *testing.T) {
@@ -290,6 +258,53 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, sig, got[0].Auth.Sign)
 	})
+
+	t.Run("authenticated positions all contracts", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadAllPositionsTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresPositionsChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+				Params: map[string]any{
+					contractPayloadOverrideParam: allFuturesContracts,
+					requiresUserPlaceholderParam: true,
+				},
+			},
+		})
+		require.NoError(t, err, "generateFuturesPayload must not error")
+		require.Len(t, got, 1, "all-contract positions must generate one payload")
+		require.Equal(t, []string{"", "!all"}, got[0].Payload,
+			"all-contract positions payload must use the documented selector")
+		require.NotNil(t, got[0].Auth, "all-contract positions payload must be authenticated")
+	})
+
+	t.Run("authenticated position closes require user ID", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		ex.SetDefaults()
+		ex.Name = "generateFuturesPayloadPositionClosesTest"
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+
+		_, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
+			&subscription.Subscription{
+				Channel: futuresAutoPositionCloseChannel,
+				Pairs:   currency.Pairs{BTCUSDT},
+			},
+		})
+		require.ErrorIs(t, err, errFuturesWebsocketUserIDNotSet,
+			"position closes payload without a user ID must error")
+	})
 }
 
 func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
@@ -297,9 +312,12 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
+	ex.API.AuthenticatedWebsocketSupport = true
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	ex.setFuturesUserID("key", currency.USDT, "123")
 
-	subs, err := ex.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
+	subs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.USDTMarginedFutures)
 	require.NoError(t, err)
 
 	private := map[string]*subscription.Subscription{}
@@ -310,17 +328,21 @@ func TestGenerateFuturesDefaultSubscriptionsAuthenticated(t *testing.T) {
 		}
 	}
 	require.Len(t, private, 4)
-	for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel, futuresPositionsChannel} {
-		require.Empty(t, private[channel].Pairs)
-		require.Equal(t, map[string]any{allContractsKey: true}, private[channel].Params)
+	for _, channel := range []string{futuresOrdersChannel, futuresUserTradesChannel} {
+		require.NotEmpty(t, private[channel].Pairs)
+		require.Equal(t, "123", private[channel].Params["user"])
+		require.Equal(t, allFuturesContracts, private[channel].Params[contractPayloadOverrideParam])
 	}
-	require.Empty(t, private[futuresBalancesChannel].Pairs)
-	require.Empty(t, private[futuresBalancesChannel].Params)
+	require.NotEmpty(t, private[futuresPositionsChannel].Pairs)
+	require.Equal(t, true, private[futuresPositionsChannel].Params[requiresUserPlaceholderParam])
+	require.NotEmpty(t, private[futuresBalancesChannel].Pairs)
+	require.Equal(t, "123", private[futuresBalancesChannel].Params["user"])
+	require.Equal(t, true, private[futuresBalancesChannel].Params[omitContractParam])
 
-	coinMSubs, err := ex.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
+	coinMSubs, err := ex.GenerateFuturesDefaultSubscriptions(t.Context(), asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	for _, sub := range coinMSubs {
-		require.NotContains(t, []string{futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel, futuresPositionsChannel}, sub.Channel)
+		require.NotContains(t, []string{futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel}, sub.Channel)
 	}
 
 	deliverySubs, err := ex.GenerateDeliveryFuturesDefaultSubscriptions()
@@ -438,4 +460,34 @@ func TestFuturesSubscribe(t *testing.T) {
 		require.Zero(t, ex.futuresWebsocketUserID.Load())
 		require.NotContains(t, sub.Params, "user")
 	})
+}
+
+func (c *futuresDialCaptureConnection) Dial(_ context.Context, _ *gws.Dialer, header http.Header, _ url.Values) error {
+	c.header = header.Clone()
+	return nil
+}
+
+func (c *futuresDialCaptureConnection) GetURL() string { return usdtFuturesWebsocketURL }
+
+func (c *futuresDialCaptureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
+}
+
+func TestSetFuturesWebsocketUserID(t *testing.T) {
+	t.Parallel()
+
+	require.ErrorIs(t, (*Exchange)(nil).SetFuturesWebsocketUserID(12345), common.ErrNilPointer)
+	ex := new(Exchange)
+	require.ErrorIs(t, ex.SetFuturesWebsocketUserID(0), errFuturesWebsocketUserIDNotSet)
+	require.NoError(t, ex.SetFuturesWebsocketUserID(12345))
+	require.Equal(t, int64(12345), ex.futuresWebsocketUserID.Load())
+}
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	conn := new(futuresDialCaptureConnection)
+	require.NoError(t, ex.WsFuturesConnect(t.Context(), conn))
+	require.Equal(t, "1", conn.header.Get("X-Gate-Size-Decimal"))
 }

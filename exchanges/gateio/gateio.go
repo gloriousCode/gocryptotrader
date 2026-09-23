@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -111,7 +112,7 @@ const (
 	gateioOptionsMyTrades              = "options/my_trades"
 
 	// Flash Swap
-	gateioFlashSwapCurrencies    = "flash_swap/currencies"
+	gateioFlashSwapCurrencyPairs = "flash_swap/currency_pairs"
 	gateioFlashSwapOrders        = "flash_swap/orders"
 	gateioFlashSwapOrdersPreview = "flash_swap/orders/preview"
 
@@ -221,6 +222,8 @@ type Exchange struct {
 	wsOBUpdateMgr *buffer.UpdateManager
 
 	futuresWebsocketUserID atomic.Int64
+	futuresUserIDMu        sync.RWMutex
+	futuresUserIDs         map[string]string
 }
 
 // ***************************************** SubAccounts ********************************
@@ -783,7 +786,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 		return nil, errNilArgument
 	}
 	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: %q only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
+		return nil, fmt.Errorf("%w: %q only 'gtc' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
 	}
 	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
@@ -3326,10 +3329,20 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 
 // ********************************** Flash_SWAP *************************
 
-// GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap
-func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
-	var currencies []SwapCurrencies
-	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, gateioFlashSwapCurrencies, &currencies)
+// GetSupportedFlashSwapCurrencyPairs retrieves the supported flash swap pairs.
+func (e *Exchange) GetSupportedFlashSwapCurrencyPairs(ctx context.Context, ccy currency.Code, limit, page uint64) ([]FlashSwapCurrencyPair, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	var pairs []FlashSwapCurrencyPair
+	return pairs, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues(gateioFlashSwapCurrencyPairs, params), &pairs)
 }
 
 // CreateFlashSwapOrder creates a new flash swap order
@@ -3355,10 +3368,10 @@ func (e *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderP
 }
 
 // GetAllFlashSwapOrders retrieves list of flash swap orders filtered by the params
-func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
+func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status uint64, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
 	params := url.Values{}
 	if status == 1 || status == 2 {
-		params.Set("status", strconv.Itoa(status))
+		params.Set("status", strconv.FormatUint(status, 10))
 	}
 	if !sellCurrency.IsEmpty() {
 		params.Set("sell_currency", sellCurrency.String())

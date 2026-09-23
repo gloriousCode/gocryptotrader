@@ -144,8 +144,8 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook,
 	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
 }
 
-// GetOrderbookAuthenticatedV1 fetches a spot or futures orderbook using the authenticated V1 endpoint
-// For spot: limit options are 20, 50, FULL
+// GetOrderbookAuthenticatedV1 fetches a spot, margin or futures orderbook using the authenticated V1 endpoint
+// For spot and margin: limit options are 20, 50, FULL
 // For futures: limit options are 20, 100, FULL
 func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol string, a asset.Item, limit string) (*Orderbook, error) {
 	if symbol == "" {
@@ -154,7 +154,7 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 
 	var tradeType string
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		if limit != "20" && limit != "50" && limit != "FULL" {
 			return nil, fmt.Errorf("%w: %s", errInvalidLimit, limit)
 		}
@@ -857,7 +857,7 @@ func (e *Exchange) HandlePostOrder(ctx context.Context, arg *SpotOrderParam, pat
 			return "", limits.ErrAmountBelowMin
 		}
 		if arg.VisibleSize < 0 {
-			return "", fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
+			return "", limits.ErrAmountBelowMin
 		}
 	case order.Market.Lower():
 		if arg.Size == 0 && arg.Funds == 0 {
@@ -905,9 +905,6 @@ func (e *Exchange) SendPostMarginOrder(ctx context.Context, arg *MarginOrderPara
 		}
 		if arg.Size <= 0 {
 			return nil, limits.ErrAmountBelowMin
-		}
-		if arg.VisibleSize < 0 {
-			return nil, fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
 	case order.Market.Lower():
 		sum := arg.Size + arg.Funds
@@ -1081,8 +1078,8 @@ func (e *Exchange) GetRecentFills(ctx context.Context) ([]Fill, error) {
 
 // PostStopOrder used to place two types of stop orders: limit and market
 func (e *Exchange) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp,
-	tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize,
-	funds float64, postOnly, hidden, iceberg bool,
+	tradeType, timeInForce string, size, price, stopPrice, cancelAfter,
+	funds float64, postOnly bool,
 ) (string, error) {
 	if clientOID == "" {
 		return "", order.ErrClientOrderIDMustBeSet
@@ -1131,11 +1128,6 @@ func (e *Exchange) PostStopOrder(ctx context.Context, clientOID, side, symbol, o
 			arg["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
 		arg["postOnly"] = postOnly
-		arg["hidden"] = hidden
-		arg["iceberg"] = iceberg
-		if visibleSize > 0 {
-			arg["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
-		}
 	case order.Market.Lower():
 		switch {
 		case size > 0:

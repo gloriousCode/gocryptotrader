@@ -113,11 +113,11 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, erro
 			} else {
 				tickersC <- &ticker.Price{
 					Last:         tick.Price.Float64(),
+					LastSize:     tick.Size,
 					Bid:          tick.BestBidPrice.Float64(),
 					Ask:          tick.BestAskPrice.Float64(),
 					BidSize:      tick.BestBidSize,
 					AskSize:      tick.BestAskSize,
-					Volume:       tick.Size,
 					Pair:         p,
 					LastUpdated:  tick.FilledTime.Time(),
 					ExchangeName: e.Name,

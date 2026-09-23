@@ -17,6 +17,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -907,9 +908,6 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	if err != nil {
 		return err
 	}
-	if response.Argument.Channel == channelOrderBooks && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot {
-		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
-	}
 	if !response.Argument.InstrumentID.IsPopulated() {
 		return errMissingInstrumentID
 	}
@@ -926,18 +924,28 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			return err
 		}
 	}
+	isSnapshotOnly := response.Argument.Channel == channelBBOTBT
+	if (isSnapshotOnly && response.Action != "" && response.Action != wsOrderbookSnapshot) ||
+		(!isSnapshotOnly && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot) {
+		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
+	}
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
-		if response.Action == wsOrderbookSnapshot {
+		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
+			if errors.Is(err, errOrderbookSnapshotPending) {
+				continue
+			}
 		}
 		if err != nil {
-			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) {
+			if errors.Is(err, errInvalidChecksum) || errors.Is(err, errInvalidOrderbookSequence) || errors.Is(err, orderbook.ErrOrderbookInvalid) {
 				reason := "checksum"
 				if errors.Is(err, errInvalidOrderbookSequence) {
 					reason = "sequence_gap"
+				} else if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+					reason = "invalid_book"
 				}
 				for x := range assets {
 					metrics.RecordOrderbookDesync(&metrics.OrderbookSyncEvent{
@@ -951,26 +959,20 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 						UpdateID:      response.Data[i].SequenceID,
 					})
 				}
-				err = e.Subscribe(ctx, conn, subscription.List{
-					{
-						Channel: response.Argument.Channel,
-						Asset:   assets[0],
-						Pairs:   currency.Pairs{response.Argument.InstrumentID},
-					},
-				})
-				if err != nil {
-					for x := range assets {
-						metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
-							Exchange: e.Name,
-							Pair:     response.Argument.InstrumentID,
-							Asset:    assets[x],
-							Channel:  response.Argument.Channel,
-							Reason:   reason,
-							Result:   "request_failed",
-						})
+				var subscriptionsToResub subscription.List
+				for _, sub := range conn.Subscriptions().List() {
+					if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
+						subscriptionsToResub = append(subscriptionsToResub, sub)
 					}
-					return err
 				}
+				if len(subscriptionsToResub) == 0 {
+					return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
+				}
+				go func() {
+					if resubErr := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); resubErr != nil {
+						log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), resubErr)
+					}
+				}()
 				for x := range assets {
 					metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
 						Exchange: e.Name,
@@ -1001,7 +1003,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 		if err != nil {
 			return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %w", errInvalidChecksum, pair, err)
 		}
-		if signedChecksum != uint32(data.Checksum) {
+		if signedChecksum != uint32(data.Checksum) { //nolint:gosec // OKX represents the CRC32 bit pattern as a signed integer.
 			return fmt.Errorf("%w %v", errInvalidChecksum, pair)
 		}
 		checksumCompletedAt = time.Now()
@@ -1034,29 +1036,45 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	return nil
 }
 
-// WsProcessUpdateOrderbook updates an existing orderbook using websocket data
-// After merging WS data, it will sort, validate and finally update the existing
-// orderbook
+// WsProcessUpdateOrderbook updates an existing orderbook using websocket data.
+// OKX can reset sequence IDs to a lower value while retaining continuity through
+// prevSeqId; see https://www.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	reachedCodeAt := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
+	defer putWsOrderbookLevels(asksPoolItem)
+	defer putWsOrderbookLevels(bidsPoolItem)
 	updateTime := data.Timestamp.Time()
+	// Validate every mapped asset before changing any book, so a missing spot or margin
+	// snapshot cannot leave the two books at different sequence IDs.
+	for _, a := range assets {
+		if _, err := e.Websocket.Orderbook.LastUpdateID(pair, a); err != nil {
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				err = fmt.Errorf("%w %v %v: %w", errOrderbookSnapshotPending, pair, a, err)
+			}
+			for _, mappedAsset := range assets {
+				err = common.AppendError(err, e.Websocket.Orderbook.InvalidateOrderbook(pair, mappedAsset))
+			}
+			return err
+		}
+	}
+	var dispatchErr error
 	for i := range assets {
 		if data.PreviousSequenceID != 0 {
 			lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, assets[i])
 			if err != nil {
-				putWsOrderbookLevels(asksPoolItem)
-				putWsOrderbookLevels(bidsPoolItem)
 				return err
 			}
-			if data.SequenceID != 0 && data.SequenceID <= lastUpdateID {
+			if data.SequenceID == lastUpdateID && data.PreviousSequenceID < lastUpdateID {
 				continue
 			}
 			if lastUpdateID != data.PreviousSequenceID {
-				putWsOrderbookLevels(asksPoolItem)
-				putWsOrderbookLevels(bidsPoolItem)
-				return fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
+				sequenceErr := fmt.Errorf("%w %v %v: previous sequence ID %d, last update ID %d", errInvalidOrderbookSequence, pair, assets[i], data.PreviousSequenceID, lastUpdateID)
+				for _, mappedAsset := range assets {
+					sequenceErr = common.AppendError(sequenceErr, e.Websocket.Orderbook.InvalidateOrderbook(pair, mappedAsset))
+				}
+				return sequenceErr
 			}
 		}
 		obu := &orderbook.Update{
@@ -1077,14 +1095,16 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 		checksumCompletedAt := time.Now()
 		obu.ChecksumCompletedAt = checksumCompletedAt
 		if err := e.Websocket.Orderbook.Update(obu); err != nil {
-			putWsOrderbookLevels(asksPoolItem)
-			putWsOrderbookLevels(bidsPoolItem)
-			return err
+			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
+				for _, mappedAsset := range assets {
+					err = common.AppendError(err, e.Websocket.Orderbook.InvalidateOrderbook(pair, mappedAsset))
+				}
+				return err
+			}
+			dispatchErr = common.AppendError(dispatchErr, err)
 		}
 	}
-	putWsOrderbookLevels(asksPoolItem)
-	putWsOrderbookLevels(bidsPoolItem)
-	return nil
+	return dispatchErr
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
@@ -1450,23 +1470,15 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				return err
 			}
 		}
-		var baseVolume float64
-		var quoteVolume float64
-		if cap(assets) == 2 {
-			baseVolume = response.Data[i].Vol24H.Float64()
-			quoteVolume = response.Data[i].VolCcy24H.Float64()
-		} else {
-			baseVolume = response.Data[i].VolCcy24H.Float64()
-			quoteVolume = response.Data[i].Vol24H.Float64()
-		}
 		for j := range assets {
+			baseVolume, quoteVolume := tickerVolumes(&response.Data[i], assets[j])
 			tickData := &ticker.Price{
 				ExchangeName: e.Name,
-				Open:         response.Data[i].Open24H.Float64(),
-				Volume:       baseVolume,
+				Open:         response.Data[i].OpenPrice24Hour.Float64(),
+				BaseVolume:   baseVolume,
 				QuoteVolume:  quoteVolume,
-				High:         response.Data[i].High24H.Float64(),
-				Low:          response.Data[i].Low24H.Float64(),
+				High:         response.Data[i].HighestPrice24Hour.Float64(),
+				Low:          response.Data[i].LowestPrice24Hour.Float64(),
 				Bid:          response.Data[i].BestBidPrice.Float64(),
 				Ask:          response.Data[i].BestAskPrice.Float64(),
 				BidSize:      response.Data[i].BestBidSize.Float64(),
@@ -1600,7 +1612,7 @@ const subTplText = `
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
 		{{- else if isSymbolChannel $.S }}
 			{{- range $p := $pairs -}}
-				{"channel":"{{ $name }}","instID":"{{ $p }}"}
+				{"channel":"{{ $name }}","instId":"{{ $p }}"}
 				{{ $.PairSeparator }}
 			{{- end -}}
 		{{- else }}

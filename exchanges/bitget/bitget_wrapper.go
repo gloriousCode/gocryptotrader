@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -37,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -281,7 +281,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(resp)) //nolint:prealloc // It's requesting a preallocation, but this is one
+		pairs := make(currency.Pairs, len(resp))
 		var filter int
 		for x := range resp {
 			if (resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0) || resp[x].OpenTime.Time().After(time.Now().Add(time.Hour*24*365)) {
@@ -292,12 +292,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs[:filter:filter], nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		var pairs currency.Pairs
 		resp, err := e.GetContractConfig(ctx, currency.EMPTYPAIR, itemEncoder(a))
 		if err != nil {
 			return nil, err
 		}
 		productPairs := make(currency.Pairs, 0, len(resp))
+		pairs := make(currency.Pairs, 0, len(resp))
 		for x := range resp {
 			if resp[x].SymbolStatus != "normal" { // see: https://bitgetlimited.github.io/apidoc/en/mix/#symbolstatus
 				continue
@@ -362,7 +362,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 			Low:          tick[0].Low24H.Float64(),
 			Bid:          tick[0].BidPrice.Float64(),
 			Ask:          tick[0].AskPrice.Float64(),
-			Volume:       tick[0].BaseVolume.Float64(),
+			BaseVolume:   tick[0].BaseVolume.Float64(),
 			QuoteVolume:  tick[0].QuoteVolume.Float64(),
 			Open:         tick[0].Open.Float64(),
 			Close:        tick[0].LastPrice.Float64(),
@@ -384,7 +384,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 			Low:          tick[0].Low24H.Float64(),
 			Bid:          tick[0].BidPrice.Float64(),
 			Ask:          tick[0].AskPrice.Float64(),
-			Volume:       tick[0].BaseVolume.Float64(),
+			BaseVolume:   tick[0].BaseVolume.Float64(),
 			QuoteVolume:  tick[0].QuoteVolume.Float64(),
 			Open:         tick[0].Open24H.Float64(),
 			Close:        tick[0].LastPrice.Float64(),
@@ -409,7 +409,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		tickerPrice = &ticker.Price{
 			High:         tick[0].High.Float64(),
 			Low:          tick[0].Low.Float64(),
-			Volume:       tick[0].BaseVolume.Float64(),
+			BaseVolume:   tick[0].BaseVolume.Float64(),
 			QuoteVolume:  tick[0].QuoteVolume.Float64(),
 			Open:         tick[0].Open.Float64(),
 			Close:        tick[0].Close.Float64(),
@@ -452,7 +452,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Low:          ticks[x].Low24H.Float64(),
 				Bid:          ticks[x].BidPrice.Float64(),
 				Ask:          ticks[x].AskPrice.Float64(),
-				Volume:       ticks[x].BaseVolume.Float64(),
+				BaseVolume:   ticks[x].BaseVolume.Float64(),
 				QuoteVolume:  ticks[x].QuoteVolume.Float64(),
 				Open:         ticks[x].Open.Float64(),
 				Close:        ticks[x].LastPrice.Float64(),
@@ -486,7 +486,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Low:          tick[x].Low24H.Float64(),
 				Bid:          tick[x].BidPrice.Float64(),
 				Ask:          tick[x].AskPrice.Float64(),
-				Volume:       tick[x].BaseVolume.Float64(),
+				BaseVolume:   tick[x].BaseVolume.Float64(),
 				QuoteVolume:  tick[x].QuoteVolume.Float64(),
 				Open:         tick[x].Open24H.Float64(),
 				Close:        tick[x].LastPrice.Float64(),
@@ -543,7 +543,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err := ticker.ProcessTicker(&ticker.Price{
 				High:         resp[0].High.Float64(),
 				Low:          resp[0].Low.Float64(),
-				Volume:       resp[0].BaseVolume.Float64(),
+				BaseVolume:   resp[0].BaseVolume.Float64(),
 				QuoteVolume:  resp[0].QuoteVolume.Float64(),
 				Open:         resp[0].Open.Float64(),
 				Close:        resp[0].Close.Float64(),
@@ -1759,7 +1759,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, req *fundingrate.L
 			TimeChecked:    time.Now(),
 		},
 	}
-	dec := decimal.NewFromFloat(curRate[0].FundingRate.Float64())
+	dec := decimal.MustFromFloat(curRate[0].FundingRate.Float64())
 	resp[0].LatestRate.Rate = dec
 	return resp, nil
 }
@@ -1916,7 +1916,7 @@ loop:
 			}
 			pagination = uint64(resp.MaximumID)
 			for i := range resp.ResultList {
-				dailyRate := decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate.Float64())
+				dailyRate := decimal.MustFromFloat(resp.ResultList[i].DailyInterestRate.Float64())
 				rates.Rates = append(rates.Rates, margin.Rate{
 					HourlyBorrowRate: dailyRate.Div(decimal.NewFromInt(24)),
 					YearlyBorrowRate: dailyRate.Mul(decimal.NewFromInt(365)),
@@ -1933,7 +1933,7 @@ loop:
 			}
 			pagination = uint64(resp.MaximumID)
 			for i := range resp.ResultList {
-				dailyRate := decimal.NewFromFloat(resp.ResultList[i].DailyInterestRate.Float64())
+				dailyRate := decimal.MustFromFloat(resp.ResultList[i].DailyInterestRate.Float64())
 				rates.Rates = append(rates.Rates, margin.Rate{
 					HourlyBorrowRate: dailyRate.Div(decimal.NewFromInt(24)),
 					YearlyBorrowRate: dailyRate.Mul(decimal.NewFromInt(365)),
@@ -1963,16 +1963,16 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 	summary := &futures.PositionSummary{
 		Pair:                         req.Pair,
 		Asset:                        req.Asset,
-		CurrentSize:                  decimal.NewFromFloat(resp[0].OpenDelegateSize.Float64()),
-		InitialMarginRequirement:     decimal.NewFromFloat(resp[0].MarginSize.Float64()),
-		AvailableEquity:              decimal.NewFromFloat(resp[0].Available.Float64()),
-		FrozenBalance:                decimal.NewFromFloat(resp[0].Locked.Float64()),
-		Leverage:                     decimal.NewFromFloat(resp[0].Leverage.Float64()),
-		RealisedPNL:                  decimal.NewFromFloat(resp[0].AchievedProfits.Float64()),
-		AverageOpenPrice:             decimal.NewFromFloat(resp[0].OpenPriceAverage.Float64()),
-		UnrealisedPNL:                decimal.NewFromFloat(resp[0].UnrealizedProfitLoss.Float64()),
-		MaintenanceMarginRequirement: decimal.NewFromFloat(resp[0].KeepMarginRate.Float64()),
-		MarkPrice:                    decimal.NewFromFloat(resp[0].MarkPrice.Float64()),
+		CurrentSize:                  decimal.MustFromFloat(resp[0].OpenDelegateSize.Float64()),
+		InitialMarginRequirement:     decimal.MustFromFloat(resp[0].MarginSize.Float64()),
+		AvailableEquity:              decimal.MustFromFloat(resp[0].Available.Float64()),
+		FrozenBalance:                decimal.MustFromFloat(resp[0].Locked.Float64()),
+		Leverage:                     decimal.MustFromFloat(resp[0].Leverage.Float64()),
+		RealisedPNL:                  decimal.MustFromFloat(resp[0].AchievedProfits.Float64()),
+		AverageOpenPrice:             decimal.MustFromFloat(resp[0].OpenPriceAverage.Float64()),
+		UnrealisedPNL:                decimal.MustFromFloat(resp[0].UnrealizedProfitLoss.Float64()),
+		MaintenanceMarginRequirement: decimal.MustFromFloat(resp[0].KeepMarginRate.Float64()),
+		MarkPrice:                    decimal.MustFromFloat(resp[0].MarkPrice.Float64()),
 		StartDate:                    resp[0].CreationTime.Time(),
 	}
 	return summary, nil
@@ -2061,7 +2061,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, req *fundingra
 	for i := range resp {
 		rates[i] = fundingrate.Rate{
 			Time: resp[i].FundingTime.Time(),
-			Rate: decimal.NewFromFloat(resp[i].FundingRate.Float64()),
+			Rate: decimal.MustFromFloat(resp[i].FundingRate.Float64()),
 		}
 	}
 	rateStruct := &fundingrate.HistoricalRates{

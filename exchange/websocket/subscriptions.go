@@ -13,7 +13,10 @@ import (
 
 // Public subscription errors
 var (
-	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrSubscriptionPartial reports degraded multi-connection generation. Returned
+	// subscriptions must remain complete for removals because refresh treats the list as authoritative.
+	ErrSubscriptionPartial     = errors.New("partial subscription generation")
 	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
 )
@@ -329,14 +332,21 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 		return m.updateChannelSubscriptions(ctx, m.subscriptions, newSubs)
 	}
 
+	var subscriptionError error
 	for _, ws := range m.snapshotConnectionManager() {
 		if ws.setup.SubscriptionsNotRequired {
 			continue
 		}
 
 		newSubs, err := ws.setup.GenerateSubscriptions()
-		if err != nil {
-			return err
+		var fatalErr error
+		subscriptionError, fatalErr = collectSubscriptionGenerationError(subscriptionError, err)
+		if fatalErr != nil {
+			return fatalErr
+		}
+
+		if m.subscriptionFilter != nil {
+			newSubs = m.subscriptionFilter(ws.setup.URL, newSubs)
 		}
 
 		if m.subscriptionFilter != nil {
@@ -352,7 +362,17 @@ func (m *Manager) flushChannels(ctx context.Context) error {
 			return err
 		}
 	}
-	return nil
+	return subscriptionError
+}
+
+func collectSubscriptionGenerationError(subscriptionError, generationError error) (updatedSubscriptionError, fatalError error) {
+	if generationError == nil {
+		return subscriptionError, nil
+	}
+	if errors.Is(generationError, ErrSubscriptionPartial) {
+		return common.AppendError(subscriptionError, generationError), nil
+	}
+	return subscriptionError, generationError
 }
 
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
@@ -554,6 +574,31 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		if err := conn.Shutdown(); err != nil {
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 		}
+	}
+	return nil
+}
+
+// ResubscribeFromConnection unsubscribes and resubscribes to a subscription on a connection
+func (m *Manager) ResubscribeFromConnection(ctx context.Context, conn Connection, subs subscription.List) error {
+	if err := common.NilGuard(conn, subs); err != nil {
+		return err
+	}
+	if err := subs.SetStates(subscription.ResubscribingState); err != nil {
+		return err
+	}
+	missing, err := m.unsubscribeFromConnection(ctx, conn, subs)
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%w: %q", ErrSubscriptionsNotRemoved, missing)
+	}
+	remaining, err := m.subscribeToConnection(ctx, conn, subs)
+	if err != nil {
+		return err
+	}
+	if len(remaining) > 0 {
+		return fmt.Errorf("%w: %q", ErrSubscriptionsNotAdded, remaining)
 	}
 	return nil
 }
