@@ -161,7 +161,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				}
 			case asset.MarginFunding:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
+				// asset.ErrNotSupported would fail Bootstrap, and so LoadExchange, for the funding asset enabled by default
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented, "UpdateOrderExecutionLimits must report margin funding limits as not yet implemented")
 			default:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			}
@@ -677,7 +678,7 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.Name = name
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Ticker batch request method should be GET")
 		assert.Equal(t, "/v2/tickers", r.URL.Path, "Ticker batch request path should be correct")
 		assert.Equal(t, "ALL", r.URL.Query().Get("symbols"), "Ticker batch request symbols should be correct")
@@ -686,7 +687,6 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 		err := json.NewEncoder(w).Encode(payload)
 		assert.NoError(t, err, "Encoding ticker batch payload should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
@@ -860,8 +860,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1569348774, 0)),
 		MTSUpdated:         types.Time(time.Unix(1569348774, 0)),
 		Status:             "COMPLETED",
-		Amount:             types.NumberFromFloat64(0.26300954),
-		Fees:               types.NumberFromFloat64(-0.00135),
+		Amount:             types.Number(0.26300954),
+		Fees:               types.Number(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionType:    "deposit",
@@ -876,8 +876,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1574175052, 0)),
 		MTSUpdated:         types.Time(time.Unix(1574181326, 0)),
 		Status:             "CANCELED",
-		Amount:             types.NumberFromFloat64(-0.24),
-		Fees:               types.NumberFromFloat64(-0.00135),
+		Amount:             types.Number(-0.24),
+		Fees:               types.Number(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionNote:    stringPtr("Purchase of 100 pizzas"),
@@ -1721,7 +1721,7 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
 		assert.Equal(t, 61.305, tick.Ask, "Ticker ask should be correct")
 		assert.Equal(t, 61.371, tick.Last, "Ticker last should be correct")
-		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 50973.3020771, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
 		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
@@ -1755,7 +1755,7 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 5.5, tick.Ask, "Ticker ask should be correct")
 		assert.Equal(t, 6.0, tick.AskPeriod, "Ticker ask period should be correct")
 		assert.Equal(t, 10.1, tick.Last, "Ticker last should be correct")
-		assert.Equal(t, 11.11, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 11.11, tick.BaseVolume, "Ticker BaseVolume should be correct")
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")

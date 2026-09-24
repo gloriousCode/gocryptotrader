@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -24,7 +24,7 @@ type benchSyncer struct {
 	running bool
 }
 
-var benchErrSink uint64
+var benchErrSink atomic.Uint64
 
 func (b benchSyncer) IsRunning() bool { return b.running }
 
@@ -85,7 +85,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 		AssetType: asset.Spot,
 		OrderID:   "1",
 	}
-	baseDepth := orderbook.NewDepth(uuid.Must(uuid.NewV4()))
+	baseDepth := orderbook.NewDepth(uuid.NewV4())
 	baseFunding := websocket.FundingData{
 		Timestamp:    now,
 		CurrencyPair: pair,
@@ -149,7 +149,7 @@ func BenchmarkWebsocketDataHandlerTypes(b *testing.B) {
 			b.ResetTimer()
 			for range b.N {
 				if err := m.websocketDataHandler("bench", benchCase.data); err != nil {
-					atomic.AddUint64(&benchErrSink, 1)
+					benchErrSink.Add(1)
 				}
 			}
 		})

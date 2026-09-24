@@ -2,13 +2,14 @@ package bitfinex
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +19,6 @@ import (
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -35,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -433,8 +434,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					}
 					if after, ok0 := strings.CutPrefix(fundingInfo.Symbol, "f"); ok0 {
 						ccy := currency.NewCode(after)
-						currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
-						predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
+						currentYearly := decimal.MustFromFloat(fundingInfo.YieldLend)
+						predictedYearly := decimal.MustFromFloat(fundingInfo.YieldLoan)
 						return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
 							Time:       time.Now().UTC(),
 							HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
@@ -485,7 +486,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				}
 				if after, ok0 := strings.CutPrefix(wsFundingTrade.Symbol, "f"); ok0 {
 					ccy := currency.NewCode(after)
-					yearlyRate := decimal.NewFromFloat(wsFundingTrade.Rate)
+					yearlyRate := decimal.MustFromFloat(wsFundingTrade.Rate)
 					return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
 						Time:       wsFundingTrade.MTSCreated,
 						HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
@@ -890,7 +891,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[6].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[7].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[7].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[8].(float64); !ok {
@@ -924,7 +925,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Last, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker last")
 		}
-		if t.Volume, ok = tickerData[10].(float64); !ok {
+		if t.BaseVolume, ok = tickerData[10].(float64); !ok {
 			return errors.New("unable to type assert ticker volume")
 		}
 		if t.High, ok = tickerData[11].(float64); !ok {
@@ -2150,9 +2151,7 @@ subSort:
 				// Append root element
 				subset = append(subset, depth[x])
 				// Sort IDs by ascending
-				sort.Slice(subset, func(i, j int) bool {
-					return subset[i].ID < subset[j].ID
-				})
+				slices.SortFunc(subset, func(a, b orderbook.Level) int { return cmp.Compare(a.ID, b.ID) })
 				// Re-align elements with sorted ID subset
 				for z := range subset {
 					depth[x+z] = subset[z]

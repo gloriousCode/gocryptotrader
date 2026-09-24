@@ -43,11 +43,11 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	out.Side = strings.ToLower(order.Sell.String())
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = types.NumberFromFloat64(1)
+	out.Amount = types.Number(1)
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = types.NumberFromFloat64(100)
+	out.Price = types.Number(100)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
@@ -71,11 +71,11 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	out.Side = strings.ToLower(order.Buy.String())
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidAmount)
-	out.Amount = types.NumberFromFloat64(0.0003)
+	out.Amount = types.Number(0.0003)
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, errInvalidPrice)
-	out.Price = types.NumberFromFloat64(20000)
+	out.Price = types.Number(20000)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

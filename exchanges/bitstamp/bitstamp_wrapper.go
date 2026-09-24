@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
@@ -229,8 +228,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-			PriceStepIncrementSize:  math.Pow10(-info.CounterDecimals),
-			AmountStepIncrementSize: math.Pow10(-info.BaseDecimals),
+			PriceStepIncrementSize:  math.Pow10(-int(info.CounterDecimals)),
+			AmountStepIncrementSize: math.Pow10(-int(info.BaseDecimals)),
 			MinimumQuoteAmount:      info.MinimumOrder,
 		})
 	}
@@ -259,7 +258,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Low:          result[i].Low.Float64(),
 			Bid:          result[i].Bid.Float64(),
 			Ask:          result[i].Ask.Float64(),
-			Volume:       result[i].Volume.Float64(),
+			BaseVolume:   result[i].Volume.Float64(),
 			Open:         result[i].Open.Float64(),
 			Pair:         cp,
 			ExchangeName: e.Name,
@@ -291,7 +290,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Low:          tick.Low,
 		Bid:          tick.Bid,
 		Ask:          tick.Ask,
-		Volume:       tick.Volume,
+		BaseVolume:   tick.Volume,
 		Open:         tick.Open,
 		Pair:         fPair,
 		LastUpdated:  tick.Timestamp.Time(),
@@ -447,7 +446,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	sort.Sort(trade.ByDate(resp))
+	trade.SortByDate(resp)
 	return resp, nil
 }
 

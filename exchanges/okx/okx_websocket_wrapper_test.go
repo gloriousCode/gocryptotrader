@@ -335,7 +335,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     mainPair,
-				InstrumentIDCode: types.NumberFromFloat64(123456),
+				InstrumentIDCode: types.Number(123456),
 			},
 		}, mainPair.String())
 		require.Equal(t, int64(123456), code)
@@ -346,7 +346,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.NumberFromFloat64(654321),
+				InstrumentIDCode: types.Number(654321),
 			},
 		}, "NON-MATCHING")
 		require.Equal(t, int64(654321), code)
@@ -357,11 +357,11 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.NumberFromFloat64(0),
+				InstrumentIDCode: types.Number(0),
 			},
 			{
 				InstrumentID:     currency.NewPair(currency.ETH, currency.USDT),
-				InstrumentIDCode: types.NumberFromFloat64(0),
+				InstrumentIDCode: types.Number(0),
 			},
 		}, "UNKNOWN")
 		require.Equal(t, int64(0), code)

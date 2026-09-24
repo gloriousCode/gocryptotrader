@@ -3,8 +3,8 @@ package types
 import (
 	"testing"
 
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // TestNumberUnmarshalJSON asserts the following behaviour:
@@ -45,7 +45,7 @@ func TestNumberMarshalJSON(t *testing.T) {
 	assert.NoError(t, err, "MarshalJSON should not error")
 	assert.Equal(t, `""`, string(data), "MarshalJSON should return the correct value")
 
-	data, err = NumberFromFloat64(1337.1337).MarshalJSON()
+	data, err = Number(1337.1337).MarshalJSON()
 	assert.NoError(t, err, "MarshalJSON should not error")
 	assert.Equal(t, `"1337.1337"`, string(data), "MarshalJSON should return the correct value")
 }
@@ -53,20 +53,20 @@ func TestNumberMarshalJSON(t *testing.T) {
 // TestNumberFloat64 asserts Float64() returns a valid float64
 func TestNumberFloat64(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 0.04200064, NumberFromFloat64(0.04200064).Float64(), "Float64() should return the correct value")
+	assert.Equal(t, 0.04200064, Number(0.04200064).Float64(), "Float64() should return the correct value")
 }
 
 // TestNumberDecimal asserts Decimal() returns a valid decimal.Decimal
 func TestNumberDecimal(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, decimal.NewFromFloat(0.04200064), NumberFromFloat64(0.04200064).Decimal(), "Decimal() should return the correct value")
+	assert.Equal(t, decimal.MustFromFloat(0.04200064), Number(0.04200064).Decimal(), "Decimal() should return the correct value")
 }
 
 // TestNumberInt64 asserts Int64() returns a valid truncated int64
 func TestNumberInt64(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, int64(42), NumberFromFloat64(42.00000064).Int64(), "Int64() should return the correct truncated value")
-	assert.Equal(t, int64(43), NumberFromFloat64(43.99999964).Int64(), "Int64() should not round the number")
+	assert.Equal(t, int64(42), Number(42.00000064).Int64(), "Int64() should return the correct truncated value")
+	assert.Equal(t, int64(43), Number(43.99999964).Int64(), "Int64() should not round the number")
 }
 
 // BenchmarkNumberUnmarshalJSON provides a barebones benchmark of Unmarshaling a string value
@@ -83,6 +83,6 @@ func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 func BenchmarkNumberMarshalJSON(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		_, _ = NumberFromFloat64(1337.1337).MarshalJSON()
+		_, _ = Number(1337.1337).MarshalJSON()
 	}
 }

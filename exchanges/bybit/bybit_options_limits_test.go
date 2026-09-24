@@ -118,7 +118,7 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 	ex.Name = name
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
 		assert.Equal(t, bybitAPIVersion+"market/instruments-info", r.URL.Path, "Request path should be the instruments info endpoint")
 
@@ -153,7 +153,6 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 		err := json.NewEncoder(w).Encode(payload)
 		assert.NoError(t, err, "Encoding the instruments info response should not error")
 	}))
-	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
@@ -168,17 +167,17 @@ func newOptionInstrumentInfo(symbol, status string) InstrumentInfo {
 		Status:      status,
 		OptionsType: "Call",
 	}
-	info.PriceFilter.MinPrice = types.NumberFromFloat64(1)
-	info.PriceFilter.MaxPrice = types.NumberFromFloat64(1_000_000)
-	info.PriceFilter.TickSize = types.NumberFromFloat64(0.1)
-	info.LotSizeFilter.MinOrderQuantity = types.NumberFromFloat64(0.1)
-	info.LotSizeFilter.MaxOrderQuantity = types.NumberFromFloat64(10)
-	info.LotSizeFilter.QuantityStep = types.NumberFromFloat64(0.1)
-	info.LotSizeFilter.BasePrecision = types.NumberFromFloat64(0.1)
-	info.LotSizeFilter.QuotePrecision = types.NumberFromFloat64(0.1)
-	info.LotSizeFilter.MinOrderAmount = types.NumberFromFloat64(1)
-	info.LotSizeFilter.MaxOrderAmount = types.NumberFromFloat64(1_000_000)
-	info.LotSizeFilter.MinNotionalValue = types.NumberFromFloat64(1)
+	info.PriceFilter.MinPrice = types.Number(1)
+	info.PriceFilter.MaxPrice = types.Number(1_000_000)
+	info.PriceFilter.TickSize = types.Number(0.1)
+	info.LotSizeFilter.MinOrderQuantity = types.Number(0.1)
+	info.LotSizeFilter.MaxOrderQuantity = types.Number(10)
+	info.LotSizeFilter.QuantityStep = types.Number(0.1)
+	info.LotSizeFilter.BasePrecision = types.Number(0.1)
+	info.LotSizeFilter.QuotePrecision = types.Number(0.1)
+	info.LotSizeFilter.MinOrderAmount = types.Number(1)
+	info.LotSizeFilter.MaxOrderAmount = types.Number(1_000_000)
+	info.LotSizeFilter.MinNotionalValue = types.Number(1)
 	return info
 }
 
