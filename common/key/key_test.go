@@ -93,9 +93,3 @@ func TestNewExchangePairAssetKey(t *testing.T) {
 	k = NewExchangeAssetPair(e, a, p)
 	assert.Equal(t, a, k.Asset, "NewExchangeAssetPair should not alter an invalid asset")
 }
-
-func TestExchangeAssetPairString(t *testing.T) {
-	t.Parallel()
-	k := NewExchangeAssetPair("binance", asset.Spot, currency.NewBTCUSD())
-	assert.Equal(t, `"binance" "spot" "BTC" "USD"`, k.String(), "String should include the exchange, asset and both currencies")
-}

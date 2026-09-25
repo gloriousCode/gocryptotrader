@@ -23,11 +23,6 @@ func NewExchangeAssetPair(exch string, a asset.Item, cp currency.Pair) ExchangeA
 	}
 }
 
-// String returns a stable exchange, asset and currency identity for external consumers.
-func (k ExchangeAssetPair) String() string {
-	return `"` + k.Exchange + `" "` + k.Asset.String() + `" "` + k.Base.Currency().String() + `" "` + k.Quote.Currency().String() + `"`
-}
-
 // Pair combines the base and quote into a pair
 func (k ExchangeAssetPair) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
