@@ -240,8 +240,8 @@ func cancelAll(reservations []*rate.Reservation, at time.Time) {
 
 // DisableRateLimiter disables the rate limiting system for the exchange.
 func (r *Requester) DisableRateLimiter() error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	if !r.disableRateLimiter.CompareAndSwap(false, true) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
@@ -251,8 +251,8 @@ func (r *Requester) DisableRateLimiter() error {
 
 // EnableRateLimiter enables the rate limiting system for the exchange.
 func (r *Requester) EnableRateLimiter() error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	if !r.disableRateLimiter.CompareAndSwap(true, false) {
 		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)

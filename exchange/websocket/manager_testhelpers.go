@@ -106,7 +106,7 @@ func (m *Manager) SetAllConnectionURLs(u string) error {
 		return fmt.Errorf("%v %w: SetAllConnectionURLs must be called before Connect", m.exchangeName, errAlreadyReconnecting)
 	}
 	if m.IsConnected() {
-		return fmt.Errorf("%v %w: SetAllConnectionURLs must be called before Connect", m.exchangeName, ErrAlreadyConnected)
+		return fmt.Errorf("%v %w: SetAllConnectionURLs must be called before Connect", m.exchangeName, errAlreadyConnected)
 	}
 
 	if !m.useMultiConnectionManagement {

@@ -1624,7 +1624,7 @@ func TestResubscribeFromConnection(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
 		m.subscriptions = subscription.NewStore()
-		m.Unsubscriber = func(subscription.List) error { return ErrAlreadyConnected }
+		m.Unsubscriber = func(subscription.List) error { return errAlreadyConnected }
 		m.Subscriber = func(subscription.List) error { return nil }
 		sub1 := &subscription.Subscription{Channel: "sub1"}
 		store := subscription.NewStore()
@@ -1633,14 +1633,14 @@ func TestResubscribeFromConnection(t *testing.T) {
 		conn := &connection{subscriptions: store}
 
 		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
-		require.ErrorIs(t, err, ErrAlreadyConnected, "must error")
+		require.ErrorIs(t, err, errAlreadyConnected, "must error")
 	})
 	t.Run("Bad sub", func(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
 		m.subscriptions = subscription.NewStore()
 		m.Unsubscriber = func(subscription.List) error { return nil }
-		m.Subscriber = func(subscription.List) error { return ErrAlreadyConnected }
+		m.Subscriber = func(subscription.List) error { return errAlreadyConnected }
 		sub1 := &subscription.Subscription{Channel: "sub1"}
 		store := subscription.NewStore()
 		require.NoError(t, store.Add(sub1))
@@ -1648,7 +1648,7 @@ func TestResubscribeFromConnection(t *testing.T) {
 		conn := &connection{subscriptions: store}
 
 		err := m.ResubscribeFromConnection(t.Context(), conn, subscription.List{sub1})
-		require.ErrorIs(t, err, ErrAlreadyConnected, "must error")
+		require.ErrorIs(t, err, errAlreadyConnected, "must error")
 	})
 	t.Run("Missing connection subscription", func(t *testing.T) {
 		t.Parallel()

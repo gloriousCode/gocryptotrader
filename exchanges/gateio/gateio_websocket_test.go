@@ -29,6 +29,34 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// TestPrivateWebsocketEventSpot verifies canonical spot delivery also retains the complete private venue message.
+func TestPrivateWebsocketEventSpot(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name    string
+		payload string
+		fills   bool
+	}{
+		{"orders", wsSpotOrderPushDataJSON, false},
+		{"trades", wsUserTradePushDataJSON, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e))
+			if tc.fills {
+				e.Websocket.Fills.Setup(true, e.Websocket.DataHandler)
+			}
+			require.NoError(t, e.WsHandleSpotData(t.Context(), nil, []byte(tc.payload)))
+			require.Len(t, e.Websocket.DataHandler.C, 2)
+			<-e.Websocket.DataHandler.C // Canonical order or fill data.
+			raw, ok := (<-e.Websocket.DataHandler.C).Data.(*PrivateWebsocketEvent)
+			require.True(t, ok)
+			require.Equal(t, []byte(tc.payload), raw.Payload)
+		})
+	}
+}
+
 func TestGetWSPingHandler(t *testing.T) {
 	t.Parallel()
 

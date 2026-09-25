@@ -601,7 +601,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	}
 	e.incrementalTickers[channels[1]] = state
 	tick := state.tickerPrice(e.Name, cp, a)
-	var option *exchangeoptions.Option
+	var option *exchangeoptions.Greeks
 	if a == asset.Options {
 		value := func(number *float64) float64 {
 			if number == nil {
@@ -609,32 +609,32 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 			}
 			return *number
 		}
-		option = &exchangeoptions.Option{
-			ExchangeName:      e.Name,
-			Pair:              cp,
-			AssetType:         a,
-			InstrumentID:      state.InstrumentName,
-			LastUpdated:       state.Timestamp.Time(),
-			ExchangeTimestamp: state.Timestamp.Time(),
-			ReceivedAt:        time.Now().UTC(),
-			Delta:             value(state.Greeks.Delta),
-			Gamma:             value(state.Greeks.Gamma),
-			Vega:              value(state.Greeks.Vega),
-			Theta:             value(state.Greeks.Theta),
-			Rho:               value(state.Greeks.Rho),
-			BidIV:             value(state.BidIV),
-			AskIV:             value(state.AskIV),
-			MarkIV:            value(state.MarkIV),
-			Bid:               tick.Bid,
-			Ask:               tick.Ask,
-			BidSize:           tick.BidSize,
-			AskSize:           tick.AskSize,
-			MarkPrice:         tick.MarkPrice,
-			IndexPrice:        tick.IndexPrice,
-			UnderlyingPrice:   value(state.UnderlyingPrice),
-			LastTradePrice:    tick.Last,
-			OpenInterest:      tick.OpenInterest,
-			Volume24h:         tick.BaseVolume,
+		option = &exchangeoptions.Greeks{
+			ExchangeName:          e.Name,
+			Pair:                  cp,
+			AssetType:             a,
+			InstrumentID:          state.InstrumentName,
+			LastUpdated:           state.Timestamp.Time(),
+			ExchangeTimestamp:     state.Timestamp.Time(),
+			ReceivedAt:            time.Now().UTC(),
+			Delta:                 value(state.Greeks.Delta),
+			Gamma:                 value(state.Greeks.Gamma),
+			Vega:                  value(state.Greeks.Vega),
+			Theta:                 value(state.Greeks.Theta),
+			Rho:                   value(state.Greeks.Rho),
+			BidImpliedVolatility:  value(state.BidIV),
+			AskImpliedVolatility:  value(state.AskIV),
+			MarkImpliedVolatility: value(state.MarkIV),
+			BidPrice:              tick.Bid,
+			AskPrice:              tick.Ask,
+			BidSize:               tick.BidSize,
+			AskSize:               tick.AskSize,
+			MarkPrice:             tick.MarkPrice,
+			IndexPrice:            tick.IndexPrice,
+			UnderlyingPrice:       value(state.UnderlyingPrice),
+			LastTradePrice:        tick.Last,
+			OpenInterest:          tick.OpenInterest,
+			Volume24Hour:          tick.BaseVolume,
 		}
 	}
 	e.incrementalTickersMtx.Unlock()

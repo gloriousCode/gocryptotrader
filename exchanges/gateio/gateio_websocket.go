@@ -196,9 +196,15 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case spotOrderbookV2:
 		return e.processOrderbookUpdateWithSnapshot(ctx, conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
-		return e.processSpotOrders(ctx, respRaw)
+		if err := e.processSpotOrders(ctx, respRaw); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: asset.Spot, Payload: append([]byte(nil), respRaw...)})
 	case spotUserTradesChannel:
-		return e.processUserPersonalTrades(respRaw)
+		if err := e.processUserPersonalTrades(respRaw); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: asset.Spot, Payload: append([]byte(nil), respRaw...)})
 	case spotBalancesChannel:
 		return e.processSpotBalances(ctx, push.Result)
 	case marginBalancesChannel:

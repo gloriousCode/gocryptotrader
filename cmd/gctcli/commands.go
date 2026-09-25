@@ -4324,7 +4324,7 @@ func shutdown(c *cli.Context) error {
 var getMarginRatesHistoryCommand = &cli.Command{
 	Name:      "getmarginrateshistory",
 	Usage:     "returns margin lending/borrow rates for a period",
-	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getborrowrates> <getborrowcosts> <includeallrates>",
+	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getpredictedrate> <getlendingpayments> <getborrowrates> <getborrowcosts> <includeallrates>",
 	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4360,6 +4360,11 @@ var getMarginRatesHistoryCommand = &cli.Command{
 			Name:    "getpredictedrate",
 			Aliases: []string{"p"},
 			Usage:   "include the predicted upcoming rate in the response",
+		},
+		&cli.BoolFlag{
+			Name:    "getlendingpayments",
+			Aliases: []string{"lp"},
+			Usage:   "retrieve and summarise your lending payments over the time period",
 		},
 		&cli.BoolFlag{
 			Name:    "getborrowrates",
@@ -4432,11 +4437,21 @@ func getMarginRatesHistory(c *cli.Context) error {
 		}
 	}
 
+	var getLendingPayments bool
+	if c.IsSet("getlendingpayments") {
+		getLendingPayments = c.Bool("getlendingpayments")
+	} else if c.Args().Get(6) != "" {
+		getLendingPayments, err = strconv.ParseBool(c.Args().Get(6))
+		if err != nil {
+			return err
+		}
+	}
+
 	var getBorrowRates bool
 	if c.IsSet("getborrowrates") {
 		getBorrowRates = c.Bool("getborrowrates")
-	} else if c.Args().Get(6) != "" {
-		getBorrowRates, err = strconv.ParseBool(c.Args().Get(6))
+	} else if c.Args().Get(7) != "" {
+		getBorrowRates, err = strconv.ParseBool(c.Args().Get(7))
 		if err != nil {
 			return err
 		}
@@ -4445,8 +4460,8 @@ func getMarginRatesHistory(c *cli.Context) error {
 	var getBorrowCosts bool
 	if c.IsSet("getborrowcosts") {
 		getBorrowCosts = c.Bool("getborrowcosts")
-	} else if c.Args().Get(7) != "" {
-		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(7))
+	} else if c.Args().Get(8) != "" {
+		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(8))
 		if err != nil {
 			return err
 		}
@@ -4455,8 +4470,8 @@ func getMarginRatesHistory(c *cli.Context) error {
 	var includeAllRates bool
 	if c.IsSet("includeallrates") {
 		includeAllRates = c.Bool("includeallrates")
-	} else if c.Args().Get(8) != "" {
-		includeAllRates, err = strconv.ParseBool(c.Args().Get(8))
+	} else if c.Args().Get(9) != "" {
+		includeAllRates, err = strconv.ParseBool(c.Args().Get(9))
 		if err != nil {
 			return err
 		}
@@ -4486,15 +4501,16 @@ func getMarginRatesHistory(c *cli.Context) error {
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	result, err := client.GetMarginRatesHistory(c.Context,
 		&gctrpc.GetMarginRatesHistoryRequest{
-			Exchange:         exchangeName,
-			Asset:            assetType,
-			Currency:         curr,
-			StartDate:        s.Format(common.SimpleTimeFormatWithTimezone),
-			EndDate:          e.Format(common.SimpleTimeFormatWithTimezone),
-			GetPredictedRate: getPredictedRate,
-			GetBorrowRates:   getBorrowRates,
-			GetBorrowCosts:   getBorrowCosts,
-			IncludeAllRates:  includeAllRates,
+			Exchange:           exchangeName,
+			Asset:              assetType,
+			Currency:           curr,
+			StartDate:          s.Format(common.SimpleTimeFormatWithTimezone),
+			EndDate:            e.Format(common.SimpleTimeFormatWithTimezone),
+			GetPredictedRate:   getPredictedRate,
+			GetLendingPayments: getLendingPayments,
+			GetBorrowRates:     getBorrowRates,
+			GetBorrowCosts:     getBorrowCosts,
+			IncludeAllRates:    includeAllRates,
 		})
 	if err != nil {
 		return err

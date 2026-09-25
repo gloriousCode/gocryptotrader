@@ -1,8 +1,6 @@
 package key
 
 import (
-	"time"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -25,6 +23,7 @@ func NewExchangeAssetPair(exch string, a asset.Item, cp currency.Pair) ExchangeA
 	}
 }
 
+// String returns a stable exchange, asset and currency identity for external consumers.
 func (k ExchangeAssetPair) String() string {
 	return `"` + k.Exchange + `" "` + k.Asset.String() + `" "` + k.Base.Currency().String() + `" "` + k.Quote.Currency().String() + `"`
 }
@@ -73,39 +72,4 @@ func (k PairAsset) Pair() currency.Pair {
 type SubAccountAsset struct {
 	SubAccount string
 	Asset      asset.Item
-}
-
-// ExchangePairAssetUnderlyingContractExpiry identifies a dated contract and its underlying market.
-type ExchangePairAssetUnderlyingContractExpiry struct {
-	Exchange         string
-	Base             *currency.Item
-	Quote            *currency.Item
-	Asset            asset.Item
-	Contract         string
-	ContractDecimals float64
-	Expiry           time.Time `json:"Expiry,omitzero"`
-	UnderlyingBase   *currency.Item
-	UnderlyingQuote  *currency.Item
-}
-
-// OrderKey identifies an order independently of its mutable state.
-type OrderKey struct {
-	Exchange  string
-	Base      *currency.Item
-	Quote     *currency.Item
-	Asset     asset.Item
-	Time      time.Time
-	OrderID   string
-	OrderSide string
-	OrderSize float64
-}
-
-// ToEPA returns the exchange, pair and asset portion of the contract key.
-func (k *ExchangePairAssetUnderlyingContractExpiry) ToEPA() ExchangeAssetPair {
-	return ExchangeAssetPair{
-		Exchange: k.Exchange,
-		Base:     k.Base,
-		Quote:    k.Quote,
-		Asset:    k.Asset,
-	}
 }

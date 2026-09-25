@@ -60,12 +60,6 @@ update_deps:
 	rm -rf vendor
 	go mod vendor
 
-bench_log:
-	GOCACHE=/tmp/go-build-cache go test ./log -run '^$$' -bench '^Benchmark(InfolnDiscard|InfofDiscard|InfofDiscardWithCustomHook)$$' -benchmem -count $${COUNT:-5}
-
-bench_log_compare_master:
-	bash ./scripts/bench_log_compare_master.sh
-
 .PHONY: profile_heap
 profile_heap:
 	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/heap'

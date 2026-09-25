@@ -1423,9 +1423,37 @@ func TestQueryFuturesAccount(t *testing.T) {
 
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
-	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
+	t.Run("account book fields and pagination", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/api/v4/futures/usdt/account_book", r.URL.Path)
+			assert.Equal(t, "BTC_USDT", r.URL.Query().Get("contract"))
+			assert.Equal(t, "50", r.URL.Query().Get("limit"))
+			assert.Equal(t, "100", r.URL.Query().Get("offset"))
+			assert.Equal(t, "pnl", r.URL.Query().Get("type"))
+			_, err := w.Write([]byte(`[{"time":1682294400.123456,"change":"0.000010152188","balance":"4.59316525194","text":"BTC_USDT:6086261","type":"pnl","contract":"BTC_USDT","trade_id":"6086261","id":"1"}]`))
+			assert.NoError(t, err)
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"))
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		items, err := ex.GetFuturesAccountBooks(t.Context(), currency.USDT, "BTC_USDT", 50, 100, time.Time{}, time.Time{}, "pnl")
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		assert.Equal(t, "BTC_USDT", items[0].Contract)
+		assert.Equal(t, "6086261", items[0].TradeID)
+		assert.Equal(t, "1", items[0].ID)
+	})
+	t.Run("live endpoint", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, "", 0, 0, time.Time{}, time.Time{}, "dnw")
+		assert.NoError(t, err, "GetFuturesAccountBooks should not error")
+	})
 }
 
 func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
@@ -2803,9 +2831,18 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 20, "Should see canonical and private messages")
 	var sawPosition, sawPositionClose bool
+	var privateEvents int
 	for resp := range e.Websocket.DataHandler.C {
+		if privateEvent, ok := resp.Data.(*PrivateWebsocketEvent); ok {
+			privateEvents++
+			var header struct {
+				Channel string `json:"channel"`
+			}
+			require.NoError(t, json.Unmarshal(privateEvent.Payload, &header))
+			assert.Contains(t, header.Channel, "futures.")
+		}
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
@@ -2832,6 +2869,7 @@ func TestFuturesDataHandler(t *testing.T) {
 			}
 		}
 	}
+	assert.Equal(t, 5, privateEvents, "private futures pushes should retain their raw messages")
 	require.True(t, sawPosition, "futures fixture must emit a normalised position")
 	require.True(t, sawPositionClose, "futures fixture must emit a normalised position close")
 }
@@ -3015,6 +3053,10 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "captured payload must emit canonical futures positions")
+		privateEvent := <-ex.Websocket.DataHandler.C
+		raw, ok := privateEvent.Data.(*PrivateWebsocketEvent)
+		require.True(t, ok, "captured payload must retain private position details")
+		assert.Equal(t, payloads[i], raw.Payload)
 		require.Len(t, positions, 1, "captured payload must emit one position")
 		position := positions[0]
 		assert.Equal(t, order.Open, position.Status, "position status should be open")
@@ -4339,17 +4381,30 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	conn := connectGateioTestWithMockedWebsocket(t, ex, staticGateioWSHandler(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`))
+	conn := connectGateioTestWithMockedWebsocket(t, ex, func(_ testing.TB, message []byte, c *gws.Conn) error {
+		var request WsInput
+		if err := json.Unmarshal(message, &request); err != nil {
+			return err
+		}
+		response, err := json.Marshal(map[string]any{
+			"id": request.ID, "channel": request.Channel, "event": request.Event,
+			"result": map[string]string{"status": "success"},
+		})
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, response)
+	})
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+	err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(_ context.Context, event string, _ subscription.List) ([]WsInput, error) {
+		return []WsInput{{ID: 42, Channel: spotTickerChannel, Event: event}}, nil
 	})
 	require.NoError(t, err)
 
-	err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+	err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(_ context.Context, event string, _ subscription.List) ([]WsInput, error) {
+		return []WsInput{{ID: 43, Channel: spotTickerChannel, Event: event}}, nil
 	})
 	require.NoError(t, err)
 }

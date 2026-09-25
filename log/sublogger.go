@@ -28,32 +28,12 @@ func (sl *SubLogger) setOutput(o *multiWriterHolder) error {
 		return errMultiWriterHolderIsNil
 	}
 	sl.output = o
-	sl.buildPrefixes()
-	if err := setupSubLoggerBackend(sl); err != nil {
-		return err
-	}
 	return nil
 }
 
 // setLevels overrides the default levels with new levels; levelception
 func (sl *SubLogger) setLevels(newLevels Levels) {
 	sl.levels = newLevels
-}
-
-// buildPrefixes precomputes static header prefixes for the sublogger.
-// Note: Calling function must have mutex lock in place.
-func (sl *SubLogger) buildPrefixes() {
-	if sl == nil {
-		return
-	}
-	suffix := logger.Spacer
-	if logger.ShowLogSystemName {
-		suffix += sl.name + logger.Spacer
-	}
-	sl.infoPrefix = logger.InfoHeader + suffix
-	sl.warnPrefix = logger.WarnHeader + suffix
-	sl.debugPrefix = logger.DebugHeader + suffix
-	sl.errorPrefix = logger.ErrorHeader + suffix
 }
 
 // getFields checks out and populates sub logger fields for a potential log job.
@@ -73,10 +53,5 @@ func (sl *SubLogger) getFields() *fields {
 	f.output = sl.output
 	f.botName = sl.botName
 	f.structuredLogging = sl.structuredLogging
-	f.zapLogger = sl.zapLogger
-	f.infoPrefix = sl.infoPrefix
-	f.warnPrefix = sl.warnPrefix
-	f.debugPrefix = sl.debugPrefix
-	f.errorPrefix = sl.errorPrefix
 	return f
 }

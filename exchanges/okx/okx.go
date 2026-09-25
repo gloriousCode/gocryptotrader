@@ -4999,49 +4999,6 @@ func (e *Exchange) GetSingleFundingRate(ctx context.Context, instrumentID string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues("public/funding-rate", params), nil, &resp, request.UnauthenticatedRequest)
 }
 
-// FundingRateData contains an arbitrage opportunity and its funding-rate metadata.
-type FundingRateData struct {
-	Acc3DFundingRate types.Number `json:"acc3dFundingRate"`
-	Apy              types.Number `json:"apy"`
-	ArbitrageID      string       `json:"arbitrageId"`
-	BuyInstID        string       `json:"buyInstId"`
-	BuyInstType      string       `json:"buyInstType"`
-	Ccy              string       `json:"ccy"`
-	FundingRate      types.Number `json:"fundingRate"`
-	FundingTime      types.Time   `json:"fundingTime"`
-	NextFundingRate  types.Number `json:"nextFundingRate"`
-	NotionalUsd      types.Number `json:"notionalUsd"`
-	SellInstID       string       `json:"sellInstId"`
-	SellInstType     string       `json:"sellInstType"`
-	Spread           string       `json:"spread"`
-	State            string       `json:"state"`
-	TS               types.Time   `json:"ts"`
-	Yield3DPer10K    types.Number `json:"yield3dPer10K"`
-}
-
-var publicFundingRateArbitrage = "funding-rate-arbitrage"
-
-// GetPrivateFundingRates is a private endpoint for retrieving funding rates.
-func (e *Exchange) GetPrivateFundingRates(ctx context.Context, ccyType, ctType, arbitrageType string, snapshotTime time.Time) ([]FundingRateData, error) {
-	params := url.Values{}
-	if ccyType == "" {
-		return nil, errMissingInstrumentID
-	}
-	if ctType != "inverse" && ctType != "linear" {
-		return nil, errMissingInstrumentID
-	}
-	params.Set("ccyType", ccyType)
-	params.Set("ctType", ctType)
-	if arbitrageType == "" {
-		arbitrageType = "futures_spot"
-	}
-	params.Set("arbitrageType", arbitrageType)
-	params.Set("t", strconv.FormatInt(snapshotTime.UnixMilli(), 10))
-
-	var resp []FundingRateData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, yeahWHATEVEREPL, http.MethodGet, common.EncodeURLValues(publicFundingRateArbitrage, params), nil, &resp, request.UnauthenticatedRequest)
-}
-
 // GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months
 func (e *Exchange) GetFundingRateHistory(ctx context.Context, instrumentID string, before, after time.Time, limit int64) ([]FundingRateResponse, error) {
 	if instrumentID == "" {

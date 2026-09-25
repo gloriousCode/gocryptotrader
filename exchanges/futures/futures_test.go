@@ -1215,16 +1215,28 @@ func TestPTTrackFundingDetails(t *testing.T) {
 
 func TestAreFundingRatePrerequisitesMet(t *testing.T) {
 	t.Parallel()
-	err := CheckFundingRatePrerequisites(false, false)
+	err := CheckFundingRatePrerequisites(false, false, false)
 	assert.NoError(t, err)
 
-	err = CheckFundingRatePrerequisites(true, false)
+	err = CheckFundingRatePrerequisites(true, false, false)
 	assert.NoError(t, err)
 
-	err = CheckFundingRatePrerequisites(true, true)
+	err = CheckFundingRatePrerequisites(true, true, false)
 	assert.NoError(t, err)
 
-	err = CheckFundingRatePrerequisites(false, true)
+	err = CheckFundingRatePrerequisites(true, true, true)
+	assert.NoError(t, err)
+
+	err = CheckFundingRatePrerequisites(true, false, true)
+	assert.NoError(t, err)
+
+	err = CheckFundingRatePrerequisites(false, false, true)
+	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
+
+	err = CheckFundingRatePrerequisites(false, true, true)
+	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
+
+	err = CheckFundingRatePrerequisites(false, true, false)
 	assert.ErrorIs(t, err, ErrGetFundingDataRequired)
 }
 

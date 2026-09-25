@@ -1990,13 +1990,19 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesAccountBooks retrieves account books
-func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, contract string, limit, offset uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	params := url.Values{}
+	if contract != "" {
+		params.Set("contract", contract)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err

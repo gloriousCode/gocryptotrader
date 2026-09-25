@@ -50,7 +50,6 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
-	websocketAssetType    asset.Item
 )
 
 // WsConnect initiates a websocket connection
@@ -294,16 +293,18 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if len(streamType) <= 1 {
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
-	item := websocketAssetType
 	symbol, err := jsonparser.GetUnsafeString(jsonData, "s")
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
 	}
-	pair, _, err := e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	pair, isEnabled, err := e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
+	}
+	if !isEnabled {
+		return nil
 	}
 	switch streamType[1] {
 	case "trade":
@@ -356,7 +357,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			Ask:          t.BestAskPrice.Float64(),
 			Last:         t.LastPrice.Float64(),
 			LastUpdated:  t.EventTime.Time(),
-			AssetType:    item,
+			AssetType:    asset.Spot,
 			Pair:         pair,
 		})
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",

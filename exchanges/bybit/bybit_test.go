@@ -3663,7 +3663,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
-		case *exchangeoptions.Option:
+		case *exchangeoptions.Greeks:
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
 			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
 			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
@@ -3672,9 +3672,9 @@ func TestWsTicker(t *testing.T) {
 			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
 			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
 			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
-			assert.Equal(t, 0.5479, v.BidIV, "BidIV should be correct")
-			assert.Equal(t, 0.5534, v.AskIV, "AskIV should be correct")
-			assert.Equal(t, 0.0, v.MarkIV, "MarkIV should be correct")
+			assert.Equal(t, 0.5479, v.BidImpliedVolatility, "bid implied volatility should be correct")
+			assert.Equal(t, 0.5534, v.AskImpliedVolatility, "ask implied volatility should be correct")
+			assert.Equal(t, 0.0, v.MarkImpliedVolatility, "mark implied volatility should be correct")
 		case error:
 			t.Error(v)
 		default:

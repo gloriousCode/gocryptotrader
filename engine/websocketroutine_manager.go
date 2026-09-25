@@ -20,13 +20,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// SetupWebsocketRoutineManager creates a new websocket routine manager
-func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer ICurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
+// setupWebsocketRoutineManager creates a new websocket routine manager
+func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager iOrderManager, syncer iCurrencyPairSyncer, cfg *currency.Config, verbose bool) (*WebsocketRoutineManager, error) {
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
-	}
-	if orderManager == nil {
-		return nil, errNilOrderManager
 	}
 	if syncer == nil {
 		return nil, errNilCurrencyPairSyncer
@@ -43,7 +40,6 @@ func SetupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
-		currencyFormat:  cfg.CurrencyPairFormat,
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -58,7 +54,7 @@ func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 		return errNilCurrencyConfig
 	}
 
-	if m.currencyFormat == nil {
+	if m.currencyConfig.CurrencyPairFormat == nil {
 		return errNilCurrencyPairFormat
 	}
 
@@ -237,7 +233,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdateTicker(d)
+			err := m.syncer.WebsocketUpdate(exchName,
+				d.Pair,
+				d.AssetType,
+				SyncItemTicker,
+				nil)
 			if err != nil {
 				return err
 			}
@@ -250,7 +250,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdateTicker(&d[x])
+				err := m.syncer.WebsocketUpdate(exchName,
+					d[x].Pair,
+					d[x].AssetType,
+					SyncItemTicker,
+					nil)
 				if err != nil {
 					return err
 				}
@@ -298,6 +302,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
+		if !m.orderManager.IsRunning() {
+			return nil
+		}
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
@@ -321,6 +328,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			m.printOrderSummary(od, true)
 		}
 	case []order.Detail:
+		if !m.orderManager.IsRunning() {
+			return nil
+		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
 				err := m.orderManager.Add(&d[x])
@@ -391,7 +401,7 @@ func (m *WebsocketRoutineManager) FormatCurrency(p currency.Pair) currency.Pair 
 	if m == nil || m.state.Load() == stoppedState {
 		return p
 	}
-	return p.Format(*m.currencyFormat)
+	return p.Format(*m.currencyConfig.CurrencyPairFormat)
 }
 
 // printOrderSummary this function will be deprecated when a order manager

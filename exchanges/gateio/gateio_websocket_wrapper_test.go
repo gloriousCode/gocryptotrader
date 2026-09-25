@@ -179,7 +179,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 		Amount:    1,
 		Price:     1,
 	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestWebsocketModifyOrderMocked(t *testing.T) {

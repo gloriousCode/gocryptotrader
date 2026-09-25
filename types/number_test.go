@@ -81,7 +81,6 @@ func BenchmarkNumberUnmarshalJSON(b *testing.B) {
 // BenchmarkNumberMarshalJSON provides a barebones benchmark of Marshaling a string value
 // Ballpark: 118.2 ns/op            56 B/op          3 allocs/op
 func BenchmarkNumberMarshalJSON(b *testing.B) {
-	b.ReportAllocs()
 	for b.Loop() {
 		_, _ = Number(1337.1337).MarshalJSON()
 	}

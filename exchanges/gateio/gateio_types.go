@@ -1759,11 +1759,14 @@ type FuturesAccount struct {
 
 // AccountBookItem represents account book item
 type AccountBookItem struct {
-	Time    types.Time   `json:"time"`
-	Change  types.Number `json:"change"`
-	Balance types.Number `json:"balance"`
-	Text    string       `json:"text"`
-	Type    string       `json:"type"`
+	Time     types.Time   `json:"time"`
+	Change   types.Number `json:"change"`
+	Balance  types.Number `json:"balance"`
+	Text     string       `json:"text"`
+	Type     string       `json:"type"`
+	Contract string       `json:"contract"`
+	TradeID  string       `json:"trade_id"`
+	ID       string       `json:"id"`
 }
 
 // Position represents futures position
@@ -1887,6 +1890,8 @@ type DeliveryOrderCreateParams struct {
 // FuturesOrder represents future order response
 type FuturesOrder struct {
 	ID                        int64         `json:"id"`
+	UpdateID                  int64         `json:"update_id"`
+	UpdateTime                types.Time    `json:"update_time"`
 	User                      string        `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
@@ -2160,6 +2165,10 @@ type WsOrderbookSnapshot struct {
 // WsSpotOrder represents an order push data through the websocket channel.
 type WsSpotOrder struct {
 	ID                 string        `json:"id,omitempty"`
+	Status             string        `json:"status,omitempty"`
+	FinishAs           string        `json:"finish_as,omitempty"`
+	CreateTimeSeconds  types.Time    `json:"create_time,omitzero"`
+	UpdateTimeSeconds  types.Time    `json:"update_time,omitzero"`
 	User               int64         `json:"user"`
 	Text               string        `json:"text,omitempty"`
 	Succeeded          bool          `json:"succeeded,omitempty"`
@@ -2189,19 +2198,21 @@ type WsSpotOrder struct {
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
 type WsUserPersonalTrade struct {
-	ID           int64         `json:"id"`
-	UserID       int64         `json:"user_id"`
-	OrderID      string        `json:"order_id"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	CreateTime   types.Time    `json:"create_time_ms"`
-	Side         string        `json:"side"`
-	Amount       types.Number  `json:"amount"`
-	Role         string        `json:"role"`
-	Price        types.Number  `json:"price"`
-	Fee          types.Number  `json:"fee"`
-	PointFee     types.Number  `json:"point_fee"`
-	GtFee        string        `json:"gt_fee"`
-	Text         string        `json:"text"`
+	ID                int64         `json:"id"`
+	UserID            int64         `json:"user_id"`
+	OrderID           string        `json:"order_id"`
+	FeeCurrency       currency.Code `json:"fee_currency"`
+	CreateTimeSeconds types.Time    `json:"create_time"`
+	CurrencyPair      currency.Pair `json:"currency_pair"`
+	CreateTime        types.Time    `json:"create_time_ms"`
+	Side              string        `json:"side"`
+	Amount            types.Number  `json:"amount"`
+	Role              string        `json:"role"`
+	Price             types.Number  `json:"price"`
+	Fee               types.Number  `json:"fee"`
+	PointFee          types.Number  `json:"point_fee"`
+	GtFee             string        `json:"gt_fee"`
+	Text              string        `json:"text"`
 }
 
 // WsSpotBalance represents a spot balance.
@@ -2348,7 +2359,8 @@ type WsFuturesUserTrade struct {
 	Role       string        `json:"role"`
 	Text       string        `json:"text"`
 	Fee        types.Number  `json:"fee"`
-	PointFee   int64         `json:"point_fee"`
+	PointFee   types.Number  `json:"point_fee"`
+	CloseSize  types.Number  `json:"close_size"`
 }
 
 // WsFuturesLiquidationNotification represents a liquidation notification push data
@@ -2395,13 +2407,14 @@ type WsPositionClose struct {
 
 // WsBalance represents a options and futures balance push data
 type WsBalance struct {
-	Balance  types.Number  `json:"balance"`
-	Change   types.Number  `json:"change"`
-	Currency currency.Code `json:"currency"`
-	Text     string        `json:"text"`
-	Time     types.Time    `json:"time_ms"`
-	Type     string        `json:"type"`
-	User     string        `json:"user"`
+	Balance   types.Number  `json:"balance"`
+	Change    types.Number  `json:"change"`
+	Currency  currency.Code `json:"currency"`
+	Text      string        `json:"text"`
+	Time      types.Time    `json:"time_ms"`
+	Timestamp types.Time    `json:"time"`
+	Type      string        `json:"type"`
+	User      string        `json:"user"`
 }
 
 // WsFuturesReduceRiskLimitNotification represents a futures reduced risk limit push data

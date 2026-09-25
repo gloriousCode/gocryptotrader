@@ -2640,15 +2640,6 @@ func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 	}
 }
 
-func TestCalculateContractDates(t *testing.T) {
-	t.Parallel()
-	dates, err := e.CalculateContractDates(time.Date(2021, 1, 22, 8, 0, 0, 0, time.UTC), time.Date(2021, 12, 31, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(dates)
-}
-
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -2665,27 +2656,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
-	}
-}
-
-func TestGetHistoricalContractKlineData(t *testing.T) {
-	t.Parallel()
-	e.Verbose = true
-	resp, err := e.GetHistoricalContractKlineData(
-		t.Context(),
-		&futures.GetKlineContractRequest{
-			UnderlyingPair: currency.NewPair(currency.SOL, currency.USD),
-			Asset:          asset.Futures,
-			StartDate:      time.Now().Add(-time.Hour * 24 * 200),
-			EndDate:        time.Now(),
-			Interval:       kline.OneDay,
-			Contract:       futures.SemiAnnually,
-		},
-	)
-	require.NoError(t, err)
-	require.NotEmpty(t, resp.Data)
-	for i := range resp.Data {
-		t.Logf("Data: %+v %v", resp.Data[i].PremiumContract.Name, len(resp.Data[i].PremiumKline.Candles))
 	}
 }
 

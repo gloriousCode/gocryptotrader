@@ -20,32 +20,32 @@ func TestNormalisedOptionsTypes(t *testing.T) {
 	t.Run("option includes market and greek data", func(t *testing.T) {
 		t.Parallel()
 
-		op := Option{
-			ExchangeName:      "okx",
-			Pair:              pair,
-			AssetType:         asset.Options,
-			InstrumentID:      "BTC-USD-260626-100000-C",
-			LastUpdated:       now,
-			ExchangeTimestamp: now.Add(-100 * time.Millisecond),
-			ReceivedAt:        now,
-			Sequence:          12,
-			Delta:             0.21,
-			Gamma:             0.03,
-			Vega:              0.9,
-			Theta:             -0.12,
-			MarkIV:            0.45,
-			Bid:               120,
-			Ask:               122,
-			BidSize:           4.2,
-			AskSize:           3.7,
-			MarkPrice:         121,
-			IndexPrice:        95500,
-			UnderlyingPrice:   95620,
-			LastTradePrice:    121.2,
-			LastTradeSize:     0.5,
-			LastTradeAt:       now.Add(-200 * time.Millisecond),
-			OpenInterest:      110,
-			Volume24h:         984,
+		op := Greeks{
+			ExchangeName:          "okx",
+			Pair:                  pair,
+			AssetType:             asset.Options,
+			InstrumentID:          "BTC-USD-260626-100000-C",
+			LastUpdated:           now,
+			ExchangeTimestamp:     now.Add(-100 * time.Millisecond),
+			ReceivedAt:            now,
+			Sequence:              12,
+			Delta:                 0.21,
+			Gamma:                 0.03,
+			Vega:                  0.9,
+			Theta:                 -0.12,
+			MarkImpliedVolatility: 0.45,
+			BidPrice:              120,
+			AskPrice:              122,
+			BidSize:               4.2,
+			AskSize:               3.7,
+			MarkPrice:             121,
+			IndexPrice:            95500,
+			UnderlyingPrice:       95620,
+			LastTradePrice:        121.2,
+			LastTradeSize:         0.5,
+			LastTradeAt:           now.Add(-200 * time.Millisecond),
+			OpenInterest:          110,
+			Volume24Hour:          984,
 		}
 
 		require.Equal(t, "okx", op.ExchangeName)
@@ -60,9 +60,9 @@ func TestNormalisedOptionsTypes(t *testing.T) {
 		require.Equal(t, 0.03, op.Gamma)
 		require.Equal(t, 0.9, op.Vega)
 		require.Equal(t, -0.12, op.Theta)
-		require.Equal(t, 0.45, op.MarkIV)
-		require.Equal(t, 120.0, op.Bid)
-		require.Equal(t, 122.0, op.Ask)
+		require.Equal(t, 0.45, op.MarkImpliedVolatility)
+		require.Equal(t, 120.0, op.BidPrice)
+		require.Equal(t, 122.0, op.AskPrice)
 		require.Equal(t, 4.2, op.BidSize)
 		require.Equal(t, 3.7, op.AskSize)
 		require.Equal(t, 121.0, op.MarkPrice)
@@ -72,7 +72,7 @@ func TestNormalisedOptionsTypes(t *testing.T) {
 		require.Equal(t, 0.5, op.LastTradeSize)
 		require.Equal(t, now.Add(-200*time.Millisecond), op.LastTradeAt)
 		require.Equal(t, 110.0, op.OpenInterest)
-		require.Equal(t, 984.0, op.Volume24h)
+		require.Equal(t, 984.0, op.Volume24Hour)
 	})
 
 	t.Run("trade captures execution metadata", func(t *testing.T) {

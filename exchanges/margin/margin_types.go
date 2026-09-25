@@ -30,10 +30,11 @@ type RateHistoryRequest struct {
 	EndDate          time.Time
 	GetPredictedRate bool
 
-	GetBorrowRates bool
-	GetBorrowCosts bool
-	// CalculateOffline allows for the borrow rate and borrow costs to be
-	// calculated offline. It requires the taker fee rate and existing rates.
+	GetLendingPayments bool
+	GetBorrowRates     bool
+	GetBorrowCosts     bool
+	// CalculateOffline allows the borrow rate, lending payment amount and
+	// borrow costs to be calculated offline from the supplied rates and fee.
 	CalculateOffline bool
 	TakeFeeRate      decimal.Decimal
 	// Rates is used when calculating offline.
@@ -41,15 +42,7 @@ type RateHistoryRequest struct {
 	Rates []Rate
 }
 
-// CurrentRatesRequest is used to request the latest margin rates.
-// If Pairs is empty, all enabled pairs for the supplied asset are used.
-type CurrentRatesRequest struct {
-	Asset asset.Item
-	Pairs currency.Pairs
-}
-
-// CurrentRateResponse returns current margin rates for a given pair.
-// PredictedRate can be zero-valued if the exchange does not provide it.
+// CurrentRateResponse carries current and predicted margin rates from websocket feeds.
 type CurrentRateResponse struct {
 	Exchange      string
 	Asset         asset.Item

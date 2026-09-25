@@ -1,7 +1,5 @@
 package log
 
-import "go.uber.org/zap"
-
 // Global vars related to the logger package
 var (
 	SubLoggers = map[string]*SubLogger{}
@@ -32,9 +30,6 @@ var (
 	Trade     *SubLogger
 	Fill      *SubLogger
 	Currency  *SubLogger
-	QuickData *SubLogger
-	SpyVsSpy  *SubLogger
-	LinkSys   *SubLogger
 )
 
 // SubLogger defines a sub logger can be used externally for packages wanted to
@@ -45,11 +40,6 @@ type SubLogger struct {
 	output            *multiWriterHolder
 	botName           string
 	structuredLogging bool
-	zapLogger         *zap.Logger
-	infoPrefix        string
-	warnPrefix        string
-	debugPrefix       string
-	errorPrefix       string
 }
 
 // fields stores per-call data while logger references configuration protected
@@ -64,10 +54,5 @@ type fields struct {
 	output            *multiWriterHolder
 	logger            *Logger
 	botName           string
-	zapLogger         *zap.Logger
-	infoPrefix        string
-	warnPrefix        string
-	debugPrefix       string
-	errorPrefix       string
 	structuredFields  ExtraFields
 }

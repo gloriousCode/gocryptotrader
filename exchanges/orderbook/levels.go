@@ -241,37 +241,24 @@ func (l Levels) getMovementByQuotation(quote, refPrice float64, swap bool) (*Mov
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
+	m := Movement{StartPrice: refPrice}
 	for x := range l {
 		levelValue := l[x].Amount * l[x].Price
 		leftover := quote - levelValue
 		if leftover < 0 {
-			m.Trades = append(m.Trades, Trade{
-				Price:        l[x].Price,
-				TrancheSize:  l[x].Amount,
-				PurchaseSize: quote / l[x].Price,
-			})
 			m.Purchased += quote
 			m.Sold += quote / levelValue * l[x].Amount
 			// This level is not consumed so the book shifts to this price.
 			m.EndPrice = l[x].Price
 			quote = 0
-
 			break
 		}
-
-		m.Trades = append(m.Trades, Trade{
-			Price:           l[x].Price,
-			TrancheSize:     l[x].Amount,
-			PurchaseSize:    l[x].Amount,
-			ConsumedTranche: true,
-		})
-		// Full tranche consumed
+		// Full level consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		quote = leftover
 		if leftover == 0 {
-			// Price no longer exists on the book so use next full price tranche
+			// Price no longer exists on the book so use next full price level
 			// to calculate book impact. If available.
 			if x+1 < len(l) {
 				m.EndPrice = l[x+1].Price
@@ -302,15 +289,10 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 		return nil, err
 	}
 
-	m := Movement{StartPrice: refPrice, Trades: make([]Trade, 0, len(l))}
+	m := Movement{StartPrice: refPrice}
 	for x := range l {
 		leftover := base - l[x].Amount
 		if leftover < 0 {
-			m.Trades = append(m.Trades, Trade{
-				Price:        l[x].Price,
-				TrancheSize:  l[x].Amount,
-				PurchaseSize: base,
-			})
 			m.Purchased += l[x].Price * base
 			m.Sold += base
 			// This level is not consumed so the book shifts to this price.
@@ -318,13 +300,7 @@ func (l Levels) getMovementByBase(base, refPrice float64, swap bool) (*Movement,
 			base = 0
 			break
 		}
-		m.Trades = append(m.Trades, Trade{
-			Price:           l[x].Price,
-			TrancheSize:     l[x].Amount,
-			PurchaseSize:    l[x].Amount,
-			ConsumedTranche: true,
-		})
-		// Full tranche consumed
+		// Full level consumed
 		m.Purchased += l[x].Price * l[x].Amount
 		m.Sold += l[x].Amount
 		base = leftover

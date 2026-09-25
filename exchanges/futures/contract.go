@@ -4,123 +4,13 @@ import (
 	"errors"
 	"strings"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
-
-// Butts pairs premium and underlying candles for the same timestamp.
-type Butts struct {
-	PremiumCandle kline.Candle
-	BaseCandle    kline.Candle
-}
 
 // var error definitions
 var (
 	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
 	ErrContractNotSupported          = errors.New("unsupported contract")
 )
-
-// Butteroo indexes paired premium and underlying candles by timestamp.
-type Butteroo map[time.Time]*Butts
-
-// Analyse derives contango and price-difference analytics from aligned candle data.
-func (c *HistoricalContractKline) Analyse() {
-	if len(c.Data) == 0 {
-		return
-	}
-	for i := range c.Data {
-		c.Data[i].PremiumKline.ClearEmpty()
-		c.Data[i].BaseKline.ClearEmpty()
-	}
-	for i := range c.Data {
-		butts := make(Butteroo)
-		for j := range c.Data[i].PremiumKline.Candles {
-			if hello, ok := butts[c.Data[i].PremiumKline.Candles[j].Time]; ok {
-				hello.PremiumCandle = c.Data[i].PremiumKline.Candles[j]
-			} else {
-				butts[c.Data[i].PremiumKline.Candles[j].Time] = &Butts{
-					PremiumCandle: c.Data[i].PremiumKline.Candles[j],
-				}
-			}
-		}
-		for k := range c.Data[i].BaseKline.Candles {
-			if hello, ok := butts[c.Data[i].BaseKline.Candles[k].Time]; ok {
-				hello.BaseCandle = c.Data[i].BaseKline.Candles[k]
-			} else {
-				butts[c.Data[i].BaseKline.Candles[k].Time] = &Butts{
-					BaseCandle: c.Data[i].BaseKline.Candles[k],
-				}
-			}
-		}
-		for k, v := range butts {
-			if v.PremiumCandle.Close == 0 || v.BaseCandle.Close == 0 {
-				delete(butts, k)
-			}
-		}
-		if len(butts) == 0 {
-			return
-		}
-
-		analytics := ContractKlineAnalytics{
-			BaseCurrency:    c.Data[i].BaseKline.Pair,
-			PremiumCurrency: c.Data[i].PremiumKline.Pair,
-		}
-		firstDone := false
-		x := 0
-		last := len(butts) - 1
-		for k, v := range butts {
-			if !firstDone {
-				analytics.Start = k
-				analytics.BaseOpenPrice = v.BaseCandle.Open
-				analytics.PremiumOpenPrice = v.PremiumCandle.Open
-				analytics.StartPercentageDifference = ((analytics.PremiumOpenPrice - analytics.BaseOpenPrice) / analytics.PremiumOpenPrice) * 100
-				firstDone = true
-			}
-			if v.PremiumCandle.Close < v.BaseCandle.Close {
-				analytics.AchievedContango = true
-				c.AnyContangos = true
-				ct := ContangoTime{
-					Time:         k,
-					BasePrice:    v.BaseCandle.Close,
-					PremiumPrice: v.PremiumCandle.Close,
-				}
-				if analytics.PremiumOpenPrice > 0 {
-					ct.Gain = ((analytics.PremiumOpenPrice - v.PremiumCandle.Close) / analytics.PremiumOpenPrice) * 100
-				}
-				analytics.ContagoTimes = append(analytics.ContagoTimes, ct)
-			}
-			x++
-			if x == last {
-				analytics.End = k
-				analytics.BaseClosePrice = v.BaseCandle.Close
-				analytics.PremiumClosePrice = v.PremiumCandle.Close
-				analytics.EndPercentageDifference = ((analytics.PremiumClosePrice - analytics.BaseClosePrice) / analytics.PremiumClosePrice) * 100
-				analytics.EndResult = analytics.EndPercentageDifference - analytics.StartPercentageDifference
-			}
-		}
-		c.Analytics = append(c.Analytics, analytics)
-	}
-
-	if len(c.Analytics) > 0 {
-		c.AnalyticsPerformed = true
-		var contangos, positiveContangos, positiveEndResultPercent float64
-		for i := range c.Analytics {
-			switch {
-			case c.Analytics[i].AchievedContango && c.Analytics[i].EndResult > 0:
-				positiveContangos++
-				positiveEndResultPercent++
-				contangos++
-			case c.Analytics[i].AchievedContango:
-				contangos++
-			case c.Analytics[i].EndResult > 0:
-				positiveEndResultPercent++
-			}
-		}
-		c.ContangoPercent = (contangos / float64(len(c.Analytics))) * 100
-		c.PositiveContangoPercent = (positiveContangos / float64(len(c.Analytics))) * 100
-		c.PositiveOutcomePercent = (positiveEndResultPercent / float64(len(c.Analytics))) * 100
-	}
-}
 
 // StringToContractSettlementType for converting case insensitive contract settlement type
 func StringToContractSettlementType(cstype string) (ContractSettlementType, error) {

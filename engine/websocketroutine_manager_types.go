@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	errNilOrderManager                 = errors.New("nil order manager received")
 	errNilCurrencyPairSyncer           = errors.New("nil currency pair syncer received")
 	errNilCurrencyConfig               = errors.New("nil currency config received")
 	errNilCurrencyPairFormat           = errors.New("nil currency pair format received")
@@ -32,9 +31,8 @@ type WebsocketRoutineManager struct {
 	verbose          bool
 	exchangeManager  iExchangeManager
 	orderManager     iOrderManager
-	syncer           ICurrencyPairSyncer
+	syncer           iCurrencyPairSyncer
 	currencyConfig   *currency.Config
-	currencyFormat   *currency.PairFormat
 	shutdown         chan struct{}
 	connectionCancel context.CancelFunc
 	dataHandlers     []WebsocketDataHandler

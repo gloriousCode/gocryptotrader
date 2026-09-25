@@ -5176,10 +5176,10 @@ func TestProcessIncrementalTicker(t *testing.T) {
 			if got.AssetType == asset.Options {
 				select {
 				case optionMsg := <-ex.Websocket.DataHandler.C:
-					option, ok := optionMsg.Data.(*exchangeoptions.Option)
+					option, ok := optionMsg.Data.(*exchangeoptions.Greeks)
 					require.True(t, ok, "an options ticker must also send option data")
 					assert.Equal(t, got.Pair.String(), option.InstrumentID, "option data should identify the same instrument")
-					assert.Equal(t, got.BaseVolume, option.Volume24h, "option volume should match the merged ticker state")
+					assert.Equal(t, got.BaseVolume, option.Volume24Hour, "option volume should match the merged ticker state")
 				default:
 					require.Fail(t, "option data must accompany an options ticker")
 				}

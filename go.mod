@@ -7,7 +7,6 @@ require (
 	github.com/buger/jsonparser v1.6.1
 	github.com/bytedance/sonic v1.15.4
 	github.com/d5/tengo/v2 v2.17.0
-	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0
@@ -26,7 +25,6 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/yuin/goldmark v1.8.6
-	go.uber.org/zap v1.18.1
 	golang.org/x/crypto v0.57.0
 	golang.org/x/net v0.59.0
 	golang.org/x/term v0.46.0
@@ -51,6 +49,7 @@ require (
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
@@ -68,8 +67,6 @@ require (
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/arch v0.13.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect

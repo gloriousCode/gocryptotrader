@@ -1202,6 +1202,12 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -2773,6 +2779,12 @@
           },
           {
             "name": "includeFullFundingRates",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "includePredictedRate",
             "in": "query",
             "required": false,
             "type": "boolean"

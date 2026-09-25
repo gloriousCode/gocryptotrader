@@ -11,11 +11,9 @@ import (
 	"uuid"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -497,8 +495,8 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	}
 	// Checks for exchange min max limits for order amounts before order
 	// execution can occur
-	err = limits.CheckOrderExecutionLimits(
-		key.NewExchangeAssetPair(newOrder.Exchange, newOrder.AssetType, newOrder.Pair),
+	err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+		newOrder.Pair,
 		newOrder.Price,
 		newOrder.Amount,
 		newOrder.Type)
@@ -549,13 +547,11 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if checkExchangeLimits {
 		// Checks for exchange min max limits for order amounts before order
 		// execution can occur
-		el, err := exch.GetOrderExecutionLimits(newOrder.AssetType, newOrder.Pair)
-		if err != nil {
-			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
-				newOrder.Exchange,
-				err)
-		}
-		err = el.Validate(newOrder.Price, newOrder.Amount, newOrder.Type)
+		err = exch.CheckOrderExecutionLimits(newOrder.AssetType,
+			newOrder.Pair,
+			newOrder.Price,
+			newOrder.Amount,
+			newOrder.Type)
 		if err != nil {
 			return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
 				newOrder.Exchange,

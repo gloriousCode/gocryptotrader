@@ -3465,25 +3465,6 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestConvertContractShortHandToExpiry(t *testing.T) {
-	t.Parallel()
-	ct, _, _, err := e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
-	require.NoError(t, err)
-	t.Log(ct)
-
-	ct, _, _, err = e.convertContractShortHandToExpiry(currency.NewBTCUSDT(), futures.BiQuarterly, time.Now().Add(-kline.ThreeMonth.Duration()))
-	require.NoError(t, err)
-	t.Log(ct)
-}
-
-func TestGetExpiredContractsFromDate(t *testing.T) {
-	t.Parallel()
-	e.Verbose = true
-	resp, err := e.GetLongDatedContractsFromDate(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), futures.Quarterly, time.Now().Add(-time.Hour*24*365*2))
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
-}
-
 func TestGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFundingRateInfo(t.Context())

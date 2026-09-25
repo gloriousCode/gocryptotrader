@@ -911,7 +911,7 @@ func TestSetAllConnectionURLsErrorsAfterConnect(t *testing.T) {
 
 	ws.setState(connectedState)
 	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
-	require.ErrorIs(t, err, ErrAlreadyConnected, "SetAllConnectionURLs must error after connect")
+	require.ErrorIs(t, err, errAlreadyConnected, "SetAllConnectionURLs must error after connect")
 	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
 }
 
@@ -1005,7 +1005,7 @@ func TestManager(t *testing.T) {
 	assert.NoError(t, err, "ReConnect called manually should not error")
 
 	err = ws.Connect(t.Context())
-	assert.ErrorIs(t, err, ErrAlreadyConnected, "ReConnect should error when already connected")
+	assert.ErrorIs(t, err, errAlreadyConnected, "ReConnect should error when already connected")
 
 	err = ws.Shutdown()
 	assert.NoError(t, err, "Shutdown should not error")

@@ -1675,11 +1675,6 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetCurrentMarginRates returns the latest margin rates for the supplied pairs.
-func (b *Base) GetCurrentMarginRates(context.Context, *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFuturesPositionSummary returns stats for a future position
 func (b *Base) GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
@@ -1975,9 +1970,4 @@ func (b *Base) MessageSequence() int64 {
 // SubscribeAccountBalances returns a pipe to stream account holding updates
 func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
 	return b.Accounts.Subscribe()
-}
-
-// GetHistoricalContractKlineData returns an unsupported error for exchanges without dated candle support.
-func (b *Base) GetHistoricalContractKlineData(_ context.Context, _ *futures.GetKlineContractRequest) (*futures.HistoricalContractKline, error) {
-	return nil, common.ErrNotYetImplemented
 }

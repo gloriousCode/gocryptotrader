@@ -39,10 +39,12 @@ var (
 )
 
 var (
+	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
 	errHeaderResponseMapIsNil = errors.New("header response map is nil")
 	errFailedToRetryRequest   = errors.New("failed to retry request")
+	errContextRequired        = errors.New("context is required")
 	errTransportNotSet        = errors.New("transport not set, cannot set timeout")
 	errRequestTypeUnpopulated = errors.New("request type bool is not populated")
 	errExceedsMaxRetries      = errors.New("exceeds maximum retry attempts")
@@ -73,14 +75,22 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
-	if err := common.NilGuard(r, newRequest); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+
+	if ctx == nil {
+		return errContextRequired
 	}
 	if requestType == UnsetRequest {
 		return errRequestTypeUnpopulated
 	}
 
 	defer r.timedLock.UnlockIfLocked()
+
+	if newRequest == nil {
+		return errRequestFunctionIsNil
+	}
 
 	err := r.doRequest(ctx, ep, newRequest)
 	if err != nil && requestType == AuthenticatedRequest {
@@ -349,16 +359,16 @@ func (r *Requester) GetNonce(set nonce.Setter) nonce.Value {
 
 // SetProxy sets a proxy address for the client transport
 func (r *Requester) SetProxy(p *url.URL) error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.setProxy(p)
 }
 
 // SetHTTPClient sets exchanges HTTP client
 func (r *Requester) SetHTTPClient(newClient *http.Client) error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	protectedClient, err := newProtectedClient(newClient)
 	if err != nil {
@@ -371,16 +381,16 @@ func (r *Requester) SetHTTPClient(newClient *http.Client) error {
 // SetHTTPClientTimeout sets the timeout value for the exchanges HTTP Client and
 // also the underlying transports idle connection timeout
 func (r *Requester) SetHTTPClientTimeout(timeout time.Duration) error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.setHTTPClientTimeout(timeout)
 }
 
 // SetHTTPClientUserAgent sets the exchanges HTTP user agent
 func (r *Requester) SetHTTPClientUserAgent(userAgent string) error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	r.userAgent = userAgent
 	return nil
@@ -388,16 +398,16 @@ func (r *Requester) SetHTTPClientUserAgent(userAgent string) error {
 
 // GetHTTPClientUserAgent gets the exchanges HTTP user agent
 func (r *Requester) GetHTTPClientUserAgent() (string, error) {
-	if err := common.NilGuard(r); err != nil {
-		return "", err
+	if r == nil {
+		return "", ErrRequestSystemIsNil
 	}
 	return r.userAgent, nil
 }
 
 // Shutdown releases persistent memory for garbage collection.
 func (r *Requester) Shutdown() error {
-	if err := common.NilGuard(r); err != nil {
-		return err
+	if r == nil {
+		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.release()
 }

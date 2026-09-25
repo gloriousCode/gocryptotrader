@@ -327,21 +327,36 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, processed)
+		if err := e.Websocket.DataHandler.Send(ctx, processed); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresUserTradesChannel:
-		return e.processFuturesUserTrades(respRaw, a)
+		if err := e.processFuturesUserTrades(respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
 		return e.processFuturesAutoDeleveragesNotification(ctx, respRaw)
 	case futuresAutoPositionCloseChannel:
-		return e.processPositionCloseData(ctx, respRaw, a)
+		if err := e.processPositionCloseData(ctx, respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresBalancesChannel:
-		return e.processBalancePushData(ctx, push.Result, a)
+		if err := e.processBalancePushData(ctx, push.Result, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
 	case futuresPositionsChannel:
-		return e.processFuturesPositionsNotification(ctx, respRaw, a)
+		if err := e.processFuturesPositionsNotification(ctx, respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(ctx, respRaw)
 	case "futures.pong":

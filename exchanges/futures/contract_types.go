@@ -1,14 +1,11 @@
 package futures
 
 import (
-	"errors"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
@@ -35,69 +32,6 @@ type Contract struct {
 	FundingRateCeiling             decimal.Decimal
 	AdditionalSettlementCurrencies currency.Currencies
 }
-
-// HistoricalContractKline contains aligned contract and underlying candle history and its analytics.
-type HistoricalContractKline struct {
-	RequestKey              key.PairAsset   `json:"-"`
-	Data                    []ContractKline `json:"-"`
-	Analytics               []ContractKlineAnalytics
-	AnalyticsPerformed      bool
-	AnyContangos            bool
-	AnyPositiveContangoes   bool
-	ContangoPercent         float64
-	PositiveContangoPercent float64
-	PositiveOutcomePercent  float64
-}
-
-// ContractKlineAnalytics summarises the relative performance of a dated contract and its underlying.
-type ContractKlineAnalytics struct {
-	PremiumCurrency           currency.Pair
-	BaseCurrency              currency.Pair
-	Start                     time.Time
-	End                       time.Time
-	BaseOpenPrice             float64
-	PremiumOpenPrice          float64
-	StartPercentageDifference float64
-	BaseClosePrice            float64
-	PremiumClosePrice         float64
-	EndPercentageDifference   float64
-	EndResult                 float64
-	AchievedContango          bool
-	ContagoTimes              []ContangoTime
-}
-
-// ContangoTime records a timestamp at which the contract traded below its underlying.
-type ContangoTime struct {
-	Time         time.Time
-	Gain         float64
-	BasePrice    float64
-	PremiumPrice float64
-}
-
-// ContractKline pairs a contract's candles with the corresponding underlying candles.
-type ContractKline struct {
-	PremiumContract *Contract
-	BaseContract    *Contract
-	Aliases         []string
-	PremiumKline    *kline.Item
-	BaseKline       *kline.Item
-}
-
-// GetKlineContractRequest defines a historical dated-contract candle query.
-type GetKlineContractRequest struct {
-	ContractPair currency.Pair
-	// used for okx
-	UnderlyingPair currency.Pair
-	Asset          asset.Item
-	StartDate      time.Time
-	EndDate        time.Time
-	Interval       kline.Interval
-	Contract       ContractType
-	SettlementType ContractSettlementType
-}
-
-// ErrUnderlyingPairRequired is returned when a contract query omits its underlying market.
-var ErrUnderlyingPairRequired = errors.New("underlying pair required")
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges
 type ContractSettlementType uint8

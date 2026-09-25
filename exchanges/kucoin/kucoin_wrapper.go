@@ -2132,67 +2132,6 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	}, nil
 }
 
-// GetCurrentMarginRates returns the latest margin rates for pairs.
-func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
-	}
-	if r.Asset != asset.Margin {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
-	}
-	pairs := r.Pairs
-	if len(pairs) == 0 {
-		var err error
-		pairs, err = e.GetEnabledPairs(r.Asset)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if len(pairs) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
-
-	timeChecked := time.Now().UTC()
-	cache := make(map[currency.Code]margin.Rate)
-	resp := make([]margin.CurrentRateResponse, len(pairs))
-	for i := range pairs {
-		if pairs[i].IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
-		}
-		rate, ok := cache[pairs[i].Base]
-		if !ok {
-			interestRates, err := e.GetInterestRate(ctx, pairs[i].Base)
-			if err != nil {
-				return nil, err
-			}
-			if len(interestRates) == 0 {
-				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
-			}
-			latest := interestRates[0]
-			for x := 1; x < len(interestRates); x++ {
-				if interestRates[x].Time.Time().After(latest.Time.Time()) {
-					latest = interestRates[x]
-				}
-			}
-			hourlyRate := decimal.MustFromFloat(latest.MarketInterestRate.Float64())
-			rate = margin.Rate{
-				Time:       latest.Time.Time(),
-				HourlyRate: hourlyRate,
-				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-			}
-			cache[pairs[i].Base] = rate
-		}
-		resp[i] = margin.CurrentRateResponse{
-			Exchange:    e.Name,
-			Asset:       r.Asset,
-			Pair:        pairs[i],
-			CurrentRate: rate,
-			TimeChecked: timeChecked,
-		}
-	}
-	return resp, nil
-}
-
 // GetMarginRatesHistory returns available margin market rates history.
 func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if r == nil {

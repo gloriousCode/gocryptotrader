@@ -2411,6 +2411,9 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
+	}
 
 	fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {

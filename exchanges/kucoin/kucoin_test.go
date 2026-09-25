@@ -3008,23 +3008,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetCurrentMarginRatesValidation(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetCurrentMarginRates(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Spot,
-	})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Margin,
-		Pairs: currency.Pairs{currency.EMPTYPAIR},
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-}
-
 func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionSummary(t.Context(), nil)

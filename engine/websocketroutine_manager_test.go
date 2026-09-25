@@ -21,19 +21,19 @@ import (
 )
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
-	_, err := SetupWebsocketRoutineManager(nil, nil, nil, nil, false)
+	_, err := setupWebsocketRoutineManager(nil, nil, nil, nil, false)
 	assert.ErrorIs(t, err, errNilExchangeManager)
 
-	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), (*OrderManager)(nil), nil, nil, false)
+	_, err = setupWebsocketRoutineManager(NewExchangeManager(), (*OrderManager)(nil), nil, nil, false)
 	assert.ErrorIs(t, err, errNilCurrencyPairSyncer)
 
-	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, nil, false)
+	_, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, nil, false)
 	assert.ErrorIs(t, err, errNilCurrencyConfig)
 
-	_, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{}, true)
+	_, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{}, true)
 	assert.ErrorIs(t, err, errNilCurrencyPairFormat)
 
-	m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	if m == nil {
@@ -50,7 +50,7 @@ func TestWebsocketRoutineManagerStart(t *testing.T) {
 		Uppercase: false,
 		Delimiter: "-",
 	}}
-	m, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, true)
+	m, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, true)
 	assert.NoError(t, err)
 
 	err = m.Start(t.Context())
@@ -69,7 +69,7 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	if m.IsRunning() {
@@ -92,7 +92,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 	err := m.Stop()
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
-	m, err = SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
+	m, err = setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}, false)
 	assert.NoError(t, err)
 
 	err = m.Stop()
@@ -108,7 +108,7 @@ func TestWebsocketRoutineManagerStop(t *testing.T) {
 func TestWebsocketRoutineManagerConcurrentStartStop(t *testing.T) {
 	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{}}
 	for range 128 {
-		m, err := SetupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, false)
+		m, err := setupWebsocketRoutineManager(NewExchangeManager(), &OrderManager{}, &SyncManager{}, cfg, false)
 		require.NoError(t, err)
 
 		var wg sync.WaitGroup
@@ -151,7 +151,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		Uppercase: false,
 		Delimiter: "-",
 	}}
-	m, err := SetupWebsocketRoutineManager(em, om, &SyncManager{}, cfg, true)
+	m, err := setupWebsocketRoutineManager(em, om, &SyncManager{}, cfg, true)
 	assert.NoError(t, err)
 
 	err = m.Start(t.Context())
