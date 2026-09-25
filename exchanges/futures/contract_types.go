@@ -25,7 +25,6 @@ type Contract struct {
 	SettlementCurrency             currency.Code
 	MarginCurrency                 currency.Code
 	Multiplier                     float64
-	ContractValueInSettlement      float64
 	MaxLeverage                    float64
 	LatestRate                     fundingrate.Rate
 	FundingRateFloor               decimal.Decimal

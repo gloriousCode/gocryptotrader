@@ -382,23 +382,6 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	return e.EnsureOnePairEnabled()
 }
 
-func (e *Exchange) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
-	cp, err := e.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
-	if err != nil {
-		if errors.Is(err, currency.ErrPairNotFound) {
-			altName := assetTranslator.LookupAltName(symbol)
-			if altName == "" {
-				return currency.Pair{}, err
-			}
-			cp, err = e.CurrencyPairs.Match(altName, item)
-			if err != nil {
-				return currency.Pair{}, err
-			}
-		}
-	}
-	return cp, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
