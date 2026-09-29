@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -136,13 +135,6 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-}
-
-func TestSymbolChannelSeparator(t *testing.T) {
-	t.Parallel()
-
-	assert.Empty(t, symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
-	assert.Equal(t, ".", symbolChannelSeparator(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
 }
 
 func TestWebsocketSubmitOrderMocked(t *testing.T) {

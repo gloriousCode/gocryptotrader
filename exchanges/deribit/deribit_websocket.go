@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -34,8 +33,6 @@ var deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
 
 const (
 	rpcVersion = "2.0"
-	// maxSubscriptionChannelsPerRequest chunks large subscription sets to avoid oversize payloads.
-	maxSubscriptionChannelsPerRequest = 200
 
 	// public websocket channels
 	announcementsChannel                   = "announcements"
@@ -75,7 +72,6 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel:          tradesChannel,
 	subscription.MyTradesChannel:           userTradesChannel,
 	subscription.MyOrdersChannel:           userOrdersChannel,
-	subscription.MyAccountChannel:          userChangesInstrumentsChannel,
 	announcementsChannel:                   announcementsChannel,
 	priceIndexChannel:                      priceIndexChannel,
 	priceRankingChannel:                    priceRankingChannel,
@@ -105,7 +101,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
-	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
 // WsConnect starts a new connection with the websocket API
@@ -474,7 +469,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 	if err != nil {
 		return err
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -483,10 +478,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
 		AskSize:      quoteTicker.BestAskAmount,
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels []string) error {
@@ -510,7 +502,6 @@ func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels [
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
 	tradesData := make([]trade.Data, len(tradeList))
-	optionsTrades := make([]*exchangeoptions.Trade, 0, len(tradeList))
 	for x := range tradesData {
 		var cp currency.Pair
 		var a asset.Item
@@ -527,26 +518,6 @@ func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels [
 			Side:         tradeList[x].Direction,
 			TID:          tradeList[x].TradeID,
 			AssetType:    a,
-		}
-		if a == asset.Options {
-			optionsTrades = append(optionsTrades, &exchangeoptions.Trade{
-				ExchangeName:      e.Name,
-				Pair:              cp,
-				AssetType:         asset.Options,
-				InstrumentID:      tradeList[x].InstrumentName,
-				TradeID:           tradeList[x].TradeID,
-				Side:              tradeList[x].Direction,
-				Price:             tradeList[x].Price,
-				Size:              tradeList[x].Amount,
-				ExchangeTimestamp: tradeList[x].Timestamp.Time().UTC(),
-				ReceivedAt:        time.Now().UTC(),
-				Sequence:          tradeList[x].TradeSequence,
-			})
-		}
-	}
-	for i := range optionsTrades {
-		if err := e.Websocket.DataHandler.Send(ctx, optionsTrades[i]); err != nil {
-			return err
 		}
 	}
 	if tradeFeed {
@@ -601,50 +572,8 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	}
 	e.incrementalTickers[channels[1]] = state
 	tick := state.tickerPrice(e.Name, cp, a)
-	var option *exchangeoptions.Greeks
-	if a == asset.Options {
-		value := func(number *float64) float64 {
-			if number == nil {
-				return 0
-			}
-			return *number
-		}
-		option = &exchangeoptions.Greeks{
-			ExchangeName:          e.Name,
-			Pair:                  cp,
-			AssetType:             a,
-			InstrumentID:          state.InstrumentName,
-			LastUpdated:           state.Timestamp.Time(),
-			ExchangeTimestamp:     state.Timestamp.Time(),
-			ReceivedAt:            time.Now().UTC(),
-			Delta:                 value(state.Greeks.Delta),
-			Gamma:                 value(state.Greeks.Gamma),
-			Vega:                  value(state.Greeks.Vega),
-			Theta:                 value(state.Greeks.Theta),
-			Rho:                   value(state.Greeks.Rho),
-			BidImpliedVolatility:  value(state.BidIV),
-			AskImpliedVolatility:  value(state.AskIV),
-			MarkImpliedVolatility: value(state.MarkIV),
-			BidPrice:              tick.Bid,
-			AskPrice:              tick.Ask,
-			BidSize:               tick.BidSize,
-			AskSize:               tick.AskSize,
-			MarkPrice:             tick.MarkPrice,
-			IndexPrice:            tick.IndexPrice,
-			UnderlyingPrice:       value(state.UnderlyingPrice),
-			LastTradePrice:        tick.Last,
-			OpenInterest:          tick.OpenInterest,
-			Volume24Hour:          tick.BaseVolume,
-		}
-	}
 	e.incrementalTickersMtx.Unlock()
-	if err := e.Websocket.DataHandler.Send(ctx, tick); err != nil {
-		return err
-	}
-	if option != nil {
-		return e.Websocket.DataHandler.Send(ctx, option)
-	}
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 // tickerPrice maps an instrument's merged state as processTicker maps a full ticker
@@ -857,7 +786,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 
 		switch orderbookData.Type {
 		case "snapshot":
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:          e.Name,
 				ValidateOrderbook: e.ValidateOrderbook,
 				LastUpdated:       orderbookData.Timestamp.Time(),
@@ -866,52 +795,16 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 				Bids:              bids,
 				Asset:             a,
 				LastUpdateID:      orderbookData.ChangeID,
-			}); err != nil {
-				return err
-			}
-			if a == asset.Options {
-				return e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
-					ExchangeName:      e.Name,
-					Pair:              cp,
-					AssetType:         asset.Options,
-					InstrumentID:      orderbookData.InstrumentName,
-					IsSnapshot:        true,
-					Bids:              toOptionsOrderbookLevels(bids),
-					Asks:              toOptionsOrderbookLevels(asks),
-					ExchangeTimestamp: orderbookData.Timestamp.Time(),
-					ReceivedAt:        time.Now().UTC(),
-					Sequence:          orderbookData.ChangeID,
-					PrevSequence:      0,
-				})
-			}
-			return nil
+			})
 		case "change":
-			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+			return e.Websocket.Orderbook.Update(&orderbook.Update{
 				Asks:       asks,
 				Bids:       bids,
 				Pair:       cp,
 				Asset:      a,
 				UpdateID:   orderbookData.ChangeID,
 				UpdateTime: orderbookData.Timestamp.Time(),
-			}); err != nil {
-				return err
-			}
-			if a == asset.Options {
-				return e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
-					ExchangeName:      e.Name,
-					Pair:              cp,
-					AssetType:         asset.Options,
-					InstrumentID:      orderbookData.InstrumentName,
-					IsSnapshot:        false,
-					Bids:              toOptionsOrderbookLevels(bids),
-					Asks:              toOptionsOrderbookLevels(asks),
-					ExchangeTimestamp: orderbookData.Timestamp.Time(),
-					ReceivedAt:        time.Now().UTC(),
-					Sequence:          orderbookData.ChangeID,
-					PrevSequence:      0,
-				})
-			}
-			return nil
+			})
 		}
 	} else if len(channels) == 5 {
 		a, cp, err := getAssetPairByInstrument(orderbookData.InstrumentName)
@@ -961,7 +854,7 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,
@@ -969,91 +862,14 @@ func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
 			Exchange:     e.Name,
 			LastUpdateID: orderbookData.ChangeID,
 			LastUpdated:  orderbookData.Timestamp.Time(),
-		}); err != nil {
-			return err
-		}
-		if a == asset.Options {
-			return e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
-				ExchangeName:      e.Name,
-				Pair:              cp,
-				AssetType:         asset.Options,
-				InstrumentID:      orderbookData.InstrumentName,
-				IsSnapshot:        true,
-				Bids:              toOptionsOrderbookLevels(bids),
-				Asks:              toOptionsOrderbookLevels(asks),
-				ExchangeTimestamp: orderbookData.Timestamp.Time(),
-				ReceivedAt:        time.Now().UTC(),
-				Sequence:          orderbookData.ChangeID,
-				PrevSequence:      0,
-			})
-		}
-		return nil
+		})
 	}
 	return nil
 }
 
-func toOptionsOrderbookLevels(levels orderbook.Levels) []exchangeoptions.OrderbookLevel {
-	result := make([]exchangeoptions.OrderbookLevel, len(levels))
-	for i := range levels {
-		result[i] = exchangeoptions.OrderbookLevel{
-			Price:  levels[i].Price,
-			Amount: levels[i].Amount,
-		}
-	}
-	return result
-}
-
 // generateSubscriptions returns a list of configured subscriptions
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	list, err := e.Features.Subscriptions.ExpandTemplates(e)
-	if err != nil {
-		return nil, err
-	}
-	return normalizeOptionSubscriptions(list), nil
-}
-
-func normalizeOptionSubscriptions(list subscription.List) subscription.List {
-	normalized := make(subscription.List, 0, len(list))
-	seenOptionPairs := make(map[string]struct{})
-	hasOptionSubs := false
-	for i := range list {
-		if list[i] == nil {
-			continue
-		}
-		pair, ok := optionPairFromSubscription(list[i])
-		if !ok {
-			normalized = append(normalized, list[i])
-			continue
-		}
-		hasOptionSubs = true
-		key := pair.String()
-		if _, exists := seenOptionPairs[key]; exists {
-			continue
-		}
-		seenOptionPairs[key] = struct{}{}
-		normalized = append(normalized, &subscription.Subscription{
-			Enabled: true,
-			Channel: incrementalTickerChannel,
-			Asset:   asset.Options,
-			Pairs:   currency.Pairs{pair},
-		})
-	}
-	if !hasOptionSubs {
-		return list
-	}
-	return normalized
-}
-
-func optionPairFromSubscription(sub *subscription.Subscription) (currency.Pair, bool) {
-	if len(sub.Pairs) == 0 {
-		return currency.EMPTYPAIR, false
-	}
-	pair := sub.Pairs[0]
-	item, err := getAssetFromInstrument(pair.String())
-	if err != nil || item != asset.Options {
-		return currency.EMPTYPAIR, false
-	}
-	return pair, true
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -1062,8 +878,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatChannelPair,
-		"symbolSep":       symbolChannelSeparator,
+		"fmt":             formatPairString,
 	}).
 		Parse(subTplText)
 }
@@ -1088,52 +903,49 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 	if err != nil || len(subs) == 0 {
 		return err
 	}
-	var errs error
-	for _, batch := range common.Batch(subs, maxSubscriptionChannelsPerRequest) {
-		r := WsSubscriptionInput{
-			JSONRPCVersion: rpcVersion,
-			ID:             e.MessageID(),
-			Method:         method,
-			Params:         map[string][]string{"channels": batch.QualifiedChannels()},
-		}
 
-		data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
+	r := WsSubscriptionInput{
+		JSONRPCVersion: rpcVersion,
+		ID:             e.MessageID(),
+		Method:         method,
+		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
+	}
 
-		var response wsSubscriptionResponse
-		err = json.Unmarshal(data, &response)
-		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%v %v", e.Name, err))
-			continue
-		}
-		subAck := map[string]bool{}
-		for _, c := range response.Result {
-			subAck[c] = true
-		}
-		if len(subAck) != len(batch) {
-			errs = common.AppendError(errs, websocket.ErrSubscriptionFailure)
-		}
-		for _, s := range batch {
-			if _, ok := subAck[s.QualifiedChannel]; ok {
-				delete(subAck, s.QualifiedChannel)
-				if !strings.Contains(method, "unsubscribe") {
-					errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
-				} else {
-					errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
-				}
+	data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
+	if err != nil {
+		return err
+	}
+
+	var response wsSubscriptionResponse
+	err = json.Unmarshal(data, &response)
+	if err != nil {
+		return fmt.Errorf("%v %v", e.Name, err)
+	}
+	subAck := map[string]bool{}
+	for _, c := range response.Result {
+		subAck[c] = true
+	}
+	if len(subAck) != len(subs) {
+		err = websocket.ErrSubscriptionFailure
+	}
+	for _, s := range subs {
+		if _, ok := subAck[s.QualifiedChannel]; ok {
+			delete(subAck, s.QualifiedChannel)
+			if !strings.Contains(method, "unsubscribe") {
+				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
 			} else {
-				errs = common.AppendError(errs, errors.New(s.String()+" failed to "+method))
+				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
 			}
-		}
-
-		for key := range subAck {
-			errs = common.AppendError(errs, fmt.Errorf("unexpected channel %q in result", key))
+		} else {
+			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
 		}
 	}
-	return errs
+
+	for key := range subAck {
+		err = common.AppendError(err, fmt.Errorf("unexpected channel %q in result", key))
+	}
+
+	return err
 }
 
 func channelName(s *subscription.Subscription) string {
@@ -1178,29 +990,11 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-func formatChannelPair(pair currency.Pair) string {
-	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
-		pair.Delimiter = "_"
-	}
-	formatted := pair.String()
-	if strings.Contains(formatted, "/") {
-		return strings.ReplaceAll(formatted, "/", "_")
-	}
-	return formatted
-}
-
-func symbolChannelSeparator(s *subscription.Subscription) string {
-	if strings.HasSuffix(channelName(s), ".") {
-		return ""
-	}
-	return "."
-}
-
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $p }}
+			{{- channelName $.S -}} . {{- fmt $asset $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

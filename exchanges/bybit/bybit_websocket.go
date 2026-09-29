@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -645,39 +644,7 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, tick); err != nil {
-		return err
-	}
-	if assetType != asset.Options {
-		return nil
-	}
-	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-		ExchangeName:          e.Name,
-		Pair:                  p,
-		AssetType:             assetType,
-		InstrumentID:          tickResp.Symbol,
-		LastUpdated:           resp.PushTimestamp.Time(),
-		ExchangeTimestamp:     resp.PushTimestamp.Time(),
-		ReceivedAt:            time.Now().UTC(),
-		Sequence:              resp.CrossSequence,
-		Delta:                 tickResp.Delta.Float64(),
-		Gamma:                 tickResp.Gamma.Float64(),
-		Vega:                  tickResp.Vega.Float64(),
-		Theta:                 tickResp.Theta.Float64(),
-		BidImpliedVolatility:  tickResp.BidImpliedVolatility.Float64(),
-		AskImpliedVolatility:  tickResp.AskImpliedVolatility.Float64(),
-		MarkImpliedVolatility: tickResp.MarkImpliedVolatility.Float64(),
-		BidPrice:              tickResp.BidPrice.Float64(),
-		AskPrice:              tickResp.AskPrice.Float64(),
-		BidSize:               tickResp.BidSize.Float64(),
-		AskSize:               tickResp.AskSize.Float64(),
-		MarkPrice:             tickResp.MarkPrice.Float64(),
-		IndexPrice:            tickResp.IndexPrice.Float64(),
-		UnderlyingPrice:       tickResp.UnderlyingPrice.Float64(),
-		LastTradePrice:        tickResp.LastPrice.Float64(),
-		OpenInterest:          tickResp.OpenInterest.Float64(),
-		Volume24Hour:          tickResp.Volume24Hour.Float64(),
-	})
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
@@ -750,7 +717,6 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 		return err
 	}
 	tradeDatas := make([]trade.Data, len(result))
-	optionTrades := make([]*exchangeoptions.Trade, 0, len(result))
 	for x := range result {
 		cp, err := e.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
@@ -770,31 +736,8 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 			Side:         side,
 			TID:          result[x].TradeID,
 		}
-		if assetType == asset.Options {
-			optionTrades = append(optionTrades, &exchangeoptions.Trade{
-				ExchangeName:      e.Name,
-				Pair:              cp,
-				AssetType:         asset.Options,
-				InstrumentID:      result[x].Symbol,
-				TradeID:           result[x].TradeID,
-				Side:              side,
-				Price:             result[x].Price.Float64(),
-				Size:              result[x].Size.Float64(),
-				ExchangeTimestamp: result[x].OrderFillTimestamp.Time(),
-				ReceivedAt:        time.Now().UTC(),
-				Sequence:          resp.CrossSequence,
-			})
-		}
 	}
-	if err := trade.AddTradesToBuffer(tradeDatas...); err != nil {
-		return err
-	}
-	for i := range optionTrades {
-		if err := e.Websocket.DataHandler.Send(context.Background(), optionTrades[i]); err != nil {
-			return err
-		}
-	}
-	return nil
+	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
 func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
@@ -809,7 +752,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	}
 
 	if resp.Type == "snapshot" {
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         cp,
 			Exchange:     e.Name,
 			Asset:        assetType,
@@ -819,48 +762,17 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 			Asks:         result.Asks.Levels(),
 			Bids:         result.Bids.Levels(),
 		})
-	} else {
-		err = e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asks:       result.Asks.Levels(),
-			Bids:       result.Bids.Levels(),
-			Asset:      assetType,
-			UpdateID:   result.UpdateID,
-			UpdateTime: resp.OrderbookLastUpdated.Time(),
-			LastPushed: resp.PushTimestamp.Time(),
-			AllowEmpty: true,
-		})
 	}
-	if err != nil {
-		return err
-	}
-	if assetType != asset.Options {
-		return nil
-	}
-	return e.Websocket.DataHandler.Send(context.Background(), &exchangeoptions.Orderbook{
-		ExchangeName:      e.Name,
-		Pair:              cp,
-		AssetType:         asset.Options,
-		InstrumentID:      result.Symbol,
-		IsSnapshot:        resp.Type == "snapshot",
-		Bids:              toOptionsOrderbookLevels(result.Bids.Levels()),
-		Asks:              toOptionsOrderbookLevels(result.Asks.Levels()),
-		ExchangeTimestamp: resp.OrderbookLastUpdated.Time(),
-		ReceivedAt:        time.Now().UTC(),
-		Sequence:          result.Sequence,
-		PrevSequence:      resp.CrossSequence,
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       cp,
+		Asks:       result.Asks.Levels(),
+		Bids:       result.Bids.Levels(),
+		Asset:      assetType,
+		UpdateID:   result.UpdateID,
+		UpdateTime: resp.OrderbookLastUpdated.Time(),
+		LastPushed: resp.PushTimestamp.Time(),
+		AllowEmpty: true,
 	})
-}
-
-func toOptionsOrderbookLevels(levels orderbook.Levels) []exchangeoptions.OrderbookLevel {
-	out := make([]exchangeoptions.OrderbookLevel, len(levels))
-	for i := range levels {
-		out[i] = exchangeoptions.OrderbookLevel{
-			Price:  levels[i].Price,
-			Amount: levels[i].Amount,
-		}
-	}
-	return out
 }
 
 // channelName converts global channel names to exchange specific names
@@ -975,18 +887,7 @@ func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation str
 		case chanOrderbook:
 			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", s.Channel, 50, pairFmt.Format(pair)))
 			arg.associatedSubs = append(arg.associatedSubs, s)
-		case chanPublicTrade:
-			// For options, Bybit expects public trades to be subscribed by baseCoin (e.g. "publicTrade.BTC").
-			if assetType == asset.Options {
-				if pair.Base.IsEmpty() {
-					return nil, currency.ErrCurrencyCodeEmpty
-				}
-				arg.Arguments = append(arg.Arguments, s.Channel+"."+pair.Base.Upper().String())
-			} else {
-				arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
-			}
-			arg.associatedSubs = append(arg.associatedSubs, s)
-		case chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
+		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
 			arg.Arguments = append(arg.Arguments, s.Channel+"."+pairFmt.Format(pair))
 			arg.associatedSubs = append(arg.associatedSubs, s)
 		case chanKline, chanLeverageTokenKline:
@@ -1041,7 +942,7 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
-	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks} {
+	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
 	return subscriptions, nil

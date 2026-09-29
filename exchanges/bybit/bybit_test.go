@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -3525,15 +3524,13 @@ func TestWsTicker(t *testing.T) {
 		return e.wsHandleData(t.Context(), nil, a, r)
 	})
 	e.Websocket.DataHandler.Close()
-	expected := 9
+	expected := 8
 	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
-	tickerSequence := 0
 	for resp := range e.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
-			tickerSequence++
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch tickerSequence {
+			switch expected - len(e.Websocket.DataHandler.C) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3663,18 +3660,6 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
-		case *exchangeoptions.Greeks:
-			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
-			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")
-			assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
-			assert.Equal(t, -0.37596534, v.Delta, "Delta should be correct")
-			assert.Equal(t, 0.00003161, v.Gamma, "Gamma should be correct")
-			assert.Equal(t, 82.65324199, v.Vega, "Vega should be correct")
-			assert.Equal(t, -51.54651685, v.Theta, "Theta should be correct")
-			assert.Equal(t, 0.5479, v.BidImpliedVolatility, "bid implied volatility should be correct")
-			assert.Equal(t, 0.5534, v.AskImpliedVolatility, "ask implied volatility should be correct")
-			assert.Equal(t, 0.0, v.MarkImpliedVolatility, "mark implied volatility should be correct")
 		case error:
 			t.Error(v)
 		default:

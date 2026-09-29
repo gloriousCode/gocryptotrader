@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -4020,37 +4019,33 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err)
 	exp := subscription.List{}
-	for _, template := range e.Features.Subscriptions {
+	for _, s := range e.Features.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if !e.IsAssetWebsocketSupported(a) {
 				continue
 			}
 			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
-			qualified := template.Clone()
-			qualified.Asset = a
-			if isSymbolChannel(qualified) {
+			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			s.Asset = a
+			if isSymbolChannel(s) {
 				for i, p := range pairs {
-					pairSub := qualified.Clone()
-					pairSub.QualifiedChannel = channelName(pairSub)
-					if !strings.HasSuffix(pairSub.QualifiedChannel, ".") {
-						pairSub.QualifiedChannel += "."
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = channelName(s) + "." + formatPairString(a, p)
+					if s.Interval != 0 {
+						s.QualifiedChannel += "." + channelInterval(s)
 					}
-					pairSub.QualifiedChannel += p.String()
-					if pairSub.Interval != 0 {
-						pairSub.QualifiedChannel += "." + channelInterval(pairSub)
-					}
-					pairSub.Pairs = pairs[i : i+1]
-					exp = append(exp, pairSub)
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
 				}
 			} else {
-				qualified.Pairs = pairs
-				qualified.QualifiedChannel = channelName(qualified)
-				exp = append(exp, qualified)
+				s.Pairs = pairs
+				s.QualifiedChannel = channelName(s)
+				exp = append(exp, s)
 			}
 		}
 	}
-	testsubs.EqualLists(t, normalizeOptionSubscriptions(exp), subs)
+	testsubs.EqualLists(t, exp, subs)
 }
 
 func TestChannelInterval(t *testing.T) {
@@ -5173,17 +5168,6 @@ func TestProcessIncrementalTicker(t *testing.T) {
 		case msg := <-ex.Websocket.DataHandler.C:
 			got, ok := msg.Data.(*ticker.Price)
 			require.True(t, ok, "the incremental ticker handler must send a ticker price")
-			if got.AssetType == asset.Options {
-				select {
-				case optionMsg := <-ex.Websocket.DataHandler.C:
-					option, ok := optionMsg.Data.(*exchangeoptions.Greeks)
-					require.True(t, ok, "an options ticker must also send option data")
-					assert.Equal(t, got.Pair.String(), option.InstrumentID, "option data should identify the same instrument")
-					assert.Equal(t, got.BaseVolume, option.Volume24Hour, "option volume should match the merged ticker state")
-				default:
-					require.Fail(t, "option data must accompany an options ticker")
-				}
-			}
 			return got
 		default:
 			require.Fail(t, "no ticker price sent", "the incremental ticker handler must send one for each message")
