@@ -2045,6 +2045,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
+			divisor, err := priceDivisor(a, contracts[i].Name)
+			if err != nil {
+				return nil, err
+			}
+			underlying := contracts[i].Name
+			if underlying.Base.Equal(divisorCurrency) {
+				underlying.Base = currency.BABYDOGE
+			}
 			contractSettlementType := futures.Linear
 			switch {
 			case contracts[i].Name.Base.Equal(currency.BTC) && settle.Equal(currency.BTC):
@@ -2055,13 +2063,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			c := futures.Contract{
 				Exchange:           e.Name,
 				Name:               contracts[i].Name,
-				Underlying:         contracts[i].Name,
+				Underlying:         underlying,
 				Asset:              a,
 				IsActive:           contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
 				Type:               futures.Perpetual,
 				SettlementType:     contractSettlementType,
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				PriceDivisor:       divisor,
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 				LatestRate: fundingrate.Rate{
 					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
@@ -2085,6 +2094,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			underlying, err := currency.NewPairFromString(contracts[i].Underlying)
 			if err != nil {
 				return nil, err
+			}
+			divisor, err := priceDivisor(a, name)
+			if err != nil {
+				return nil, err
+			}
+			if name.Base.Equal(divisorCurrency) {
+				underlying.Base = currency.BABYDOGE
 			}
 			// no start information, inferring it based on contract type
 			// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
@@ -2117,6 +2133,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Type:               ct,
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				PriceDivisor:       divisor,
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 		}

@@ -30,6 +30,9 @@ type Contract struct {
 	FundingRateFloor               decimal.Decimal
 	FundingRateCeiling             decimal.Decimal
 	AdditionalSettlementCurrencies currency.Currencies
+	// PriceDivisor converts an exchange-native price to its underlying price.
+	// Divide the native price by this value; 1 means no scaling and 0 means unspecified.
+	PriceDivisor float64
 }
 
 // ContractSettlementType holds the various style of contracts offered by futures exchanges
