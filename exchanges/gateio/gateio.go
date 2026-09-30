@@ -1961,16 +1961,18 @@ func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code
 	return constituents, e.SendHTTPRequest(ctx, exchange.RestSpot, publicIndexConstituentsEPL, futuresPath+settle.Item.Lower+"/index_constituents/"+indexString, &constituents)
 }
 
-// GetLiquidationHistory retrieves liqudiation history
+// GetLiquidationHistory retrieves public liquidation history, optionally across all contracts
 func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
-	if contract.IsInvalid() {
+	if !contract.IsEmpty() && contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
