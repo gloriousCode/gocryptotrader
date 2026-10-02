@@ -1532,6 +1532,9 @@ message GetCurrencyTradeURLResponse {
 }
 
 service GoCryptoTraderService {
+  rpc GetDiagnosticLogs(GetDiagnosticLogsRequest) returns (GetDiagnosticLogsResponse) {
+    option (google.api.http) = {get: "/v1/diagnostics/logs"};
+  }
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {get: "/v1/getinfo"};
   }
@@ -2080,4 +2083,46 @@ service GoCryptoTraderService {
   rpc GetCurrencyTradeURL(GetCurrencyTradeURLRequest) returns (GetCurrencyTradeURLResponse) {
     option (google.api.http) = {get: "/v1/getcurrencytradeurl"};
   }
+}
+
+// Diagnostic logs are opt-in, bounded, sanitised and process-local.
+message GetDiagnosticLogsRequest {
+  uint64 after_sequence = 1;
+  google.protobuf.Timestamp since = 2;
+  google.protobuf.Timestamp until = 3;
+  string severity = 4;
+  string subsystem = 5;
+  string contains = 6;
+  uint64 limit = 7;
+  bool summary = 8;
+}
+
+message DiagnosticLogEntry {
+  uint64 sequence = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string severity = 3;
+  string subsystem = 4;
+  string message = 5;
+  bool truncated = 6;
+}
+
+message DiagnosticLogGroup {
+  string severity = 1;
+  string subsystem = 2;
+  string message = 3;
+  uint64 count = 4;
+  google.protobuf.Timestamp first = 5;
+  google.protobuf.Timestamp last = 6;
+}
+
+message GetDiagnosticLogsResponse {
+  bool enabled = 1;
+  repeated DiagnosticLogEntry entries = 2;
+  repeated DiagnosticLogGroup groups = 3;
+  uint64 matched = 4;
+  uint64 next_sequence = 5;
+  uint64 oldest_sequence = 6;
+  uint64 latest_sequence = 7;
+  uint64 overwritten = 8;
+  bool has_more = 9;
 }

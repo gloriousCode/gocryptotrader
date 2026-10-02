@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 15,
+ "version": 16,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -219,6 +219,12 @@
  "remoteControl": {
   "username": "admin",
   "password": "Password",
+  "mcp": {
+   "enabled": false,
+   "listenAddress": "127.0.0.1:9054",
+   "logCaptureCapacity": 2000,
+   "requestTimeoutSeconds": 30
+  },
   "gRPC": {
    "enabled": true,
    "listenAddress": "localhost:9052",

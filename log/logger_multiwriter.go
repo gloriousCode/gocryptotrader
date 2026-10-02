@@ -38,6 +38,9 @@ func loggerWorker() {
 			continue
 		}
 		msg := j.fn()
+		if capture := DiagnosticCapture.Load(); capture != nil {
+			capture.Record(time.Now(), j.Severity, j.SubLoggerName, msg)
+		}
 		if j.StructuredLogging {
 			structuredOutbound[message] = msg
 			structuredOutbound[timestamp] = time.Now().UnixMilli()

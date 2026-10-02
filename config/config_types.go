@@ -249,6 +249,7 @@ type RemoteControlConfig struct {
 	Username string     `json:"username"`
 	Password string     `json:"password"`
 	GRPC     GRPCConfig `json:"gRPC"`
+	MCP      MCPConfig  `json:"mcp"`
 }
 
 // Post holds the bot configuration data

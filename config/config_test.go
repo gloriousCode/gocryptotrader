@@ -1558,7 +1558,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 	require.NoError(t, err, "ReadFile must load the config fixture")
 	var expected Config
 	require.NoError(t, json.Unmarshal(data, &expected), "Unmarshal must decode the current config fixture")
-	require.Equal(t, 15, expected.Version, "Config.Version must use version 15")
+	require.Equal(t, 16, expected.Version, "Config.Version must use version 16")
 
 	var saved map[string]json.RawMessage
 	require.NoError(t, json.Unmarshal(data, &saved), "Unmarshal must preserve saved config fields")
@@ -1575,7 +1575,7 @@ func TestReadVersion14ConfigFromFile(t *testing.T) {
 
 	var migrated Config
 	require.NoError(t, migrated.ReadConfigFromFile(path, true), "ReadConfigFromFile must upgrade the version 14 config")
-	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 15")
+	assert.Equal(t, expected.Version, migrated.Version, "ReadConfigFromFile should advance the config to version 16")
 	assert.Equal(t, expected.Exchanges, migrated.Exchanges, "ReadConfigFromFile should remove BitMEX credentials while preserving all other exchanges")
 	assert.Equal(t, expected.Currency, migrated.Currency, "ReadConfigFromFile should preserve currency settings")
 }
@@ -1590,6 +1590,16 @@ func TestReadConfigFromReader(t *testing.T) {
 
 	err = c.readConfig(strings.NewReader("{}"))
 	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
+	t.Run("MCP version migration", func(t *testing.T) {
+		t.Parallel()
+		var migrated Config
+		require.NoError(t, migrated.readConfig(strings.NewReader(`{"version":15,"name":"chosen","remoteControl":{"username":"chosen","gRPC":{"enabled":true}}}`)), "real config loader must migrate v15")
+		assert.Equal(t, 16, migrated.Version, "config should advance to v16")
+		assert.False(t, migrated.RemoteControl.MCP.Enabled, "existing installations should retain disabled MCP")
+		assert.Equal(t, 2000, migrated.RemoteControl.MCP.LogCaptureCapacity, "migration should set bounded capture defaults")
+		assert.Equal(t, "chosen", migrated.RemoteControl.Username, "migration should preserve credentials")
+		assert.True(t, migrated.RemoteControl.GRPC.Enabled, "migration should preserve existing RPC settings")
+	})
 }
 
 func TestLoadConfig(t *testing.T) {

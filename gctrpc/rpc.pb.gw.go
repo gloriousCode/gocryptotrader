@@ -35,6 +35,41 @@ var (
 	_ = metadata.Join
 )
 
+var filter_GoCryptoTraderService_GetDiagnosticLogs_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+
+func request_GoCryptoTraderService_GetDiagnosticLogs_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetDiagnosticLogsRequest
+		metadata runtime.ServerMetadata
+	)
+	if req.Body != nil {
+		_, _ = io.Copy(io.Discard, req.Body)
+	}
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetDiagnosticLogs_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := client.GetDiagnosticLogs(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+}
+
+func local_request_GoCryptoTraderService_GetDiagnosticLogs_0(ctx context.Context, marshaler runtime.Marshaler, server GoCryptoTraderServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var (
+		protoReq GetDiagnosticLogsRequest
+		metadata runtime.ServerMetadata
+	)
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_GetDiagnosticLogs_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	msg, err := server.GetDiagnosticLogs(ctx, &protoReq)
+	return msg, metadata, err
+}
+
 func request_GoCryptoTraderService_GetInfo_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var (
 		protoReq GetInfoRequest
@@ -3472,6 +3507,26 @@ func local_request_GoCryptoTraderService_GetCurrencyTradeURL_0(ctx context.Conte
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterGoCryptoTraderServiceHandlerFromEndpoint instead.
 // GRPC interceptors will not work for this type of registration. To use interceptors, you must use the "runtime.WithMiddlewares" option in the "runtime.NewServeMux" call.
 func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server GoCryptoTraderServiceServer) error {
+	mux.Handle(http.MethodGet, pattern_GoCryptoTraderService_GetDiagnosticLogs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		var stream runtime.ServerTransportStream
+		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetDiagnosticLogs", runtime.WithHTTPPathPattern("/v1/diagnostics/logs"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_GoCryptoTraderService_GetDiagnosticLogs_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_GoCryptoTraderService_GetDiagnosticLogs_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_GoCryptoTraderService_GetInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -5734,6 +5789,23 @@ func RegisterGoCryptoTraderServiceHandler(ctx context.Context, mux *runtime.Serv
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
 // "GoCryptoTraderServiceClient" to call the correct interceptors. This client ignores the HTTP middlewares.
 func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client GoCryptoTraderServiceClient) error {
+	mux.Handle(http.MethodGet, pattern_GoCryptoTraderService_GetDiagnosticLogs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/GetDiagnosticLogs", runtime.WithHTTPPathPattern("/v1/diagnostics/logs"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTraderService_GetDiagnosticLogs_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		forward_GoCryptoTraderService_GetDiagnosticLogs_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+	})
 	mux.Handle(http.MethodGet, pattern_GoCryptoTraderService_GetInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -7693,6 +7765,7 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 }
 
 var (
+	pattern_GoCryptoTraderService_GetDiagnosticLogs_0                 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "diagnostics", "logs"}, ""))
 	pattern_GoCryptoTraderService_GetInfo_0                           = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getinfo"}, ""))
 	pattern_GoCryptoTraderService_GetSubsystems_0                     = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "getsubsystems"}, ""))
 	pattern_GoCryptoTraderService_EnableSubsystem_0                   = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "enablesubsystem"}, ""))
@@ -7811,6 +7884,7 @@ var (
 )
 
 var (
+	forward_GoCryptoTraderService_GetDiagnosticLogs_0                 = runtime.ForwardResponseMessage
 	forward_GoCryptoTraderService_GetInfo_0                           = runtime.ForwardResponseMessage
 	forward_GoCryptoTraderService_GetSubsystems_0                     = runtime.ForwardResponseMessage
 	forward_GoCryptoTraderService_EnableSubsystem_0                   = runtime.ForwardResponseMessage

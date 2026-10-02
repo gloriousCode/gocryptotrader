@@ -20,7 +20,7 @@ import (
 func TestNewManager(t *testing.T) {
 	t.Parallel()
 	m := newManager()
-	require.Len(t, m.versions, 16, "newManager must register every config version through v15")
+	require.Len(t, m.versions, 17, "newManager must register every config version through v16")
 	assert.IsType(t, &v13.Version{}, m.Version(13), "newManager should register v13 at index 13")
 	assert.IsType(t, &v14.Version{}, m.Version(14), "newManager should register v14 at index 14")
 	assert.IsType(t, &v15.Version{}, m.Version(15), "newManager should register v15 at index 15")

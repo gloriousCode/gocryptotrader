@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	GoCryptoTraderService_GetDiagnosticLogs_FullMethodName                 = "/gctrpc.GoCryptoTraderService/GetDiagnosticLogs"
 	GoCryptoTraderService_GetInfo_FullMethodName                           = "/gctrpc.GoCryptoTraderService/GetInfo"
 	GoCryptoTraderService_GetSubsystems_FullMethodName                     = "/gctrpc.GoCryptoTraderService/GetSubsystems"
 	GoCryptoTraderService_EnableSubsystem_FullMethodName                   = "/gctrpc.GoCryptoTraderService/EnableSubsystem"
@@ -140,6 +141,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GoCryptoTraderServiceClient interface {
+	GetDiagnosticLogs(ctx context.Context, in *GetDiagnosticLogsRequest, opts ...grpc.CallOption) (*GetDiagnosticLogsResponse, error)
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
 	GetSubsystems(ctx context.Context, in *GetSubsystemsRequest, opts ...grpc.CallOption) (*GetSubsystemsResponse, error)
 	EnableSubsystem(ctx context.Context, in *GenericSubsystemRequest, opts ...grpc.CallOption) (*GenericResponse, error)
@@ -263,6 +265,16 @@ type goCryptoTraderServiceClient struct {
 
 func NewGoCryptoTraderServiceClient(cc grpc.ClientConnInterface) GoCryptoTraderServiceClient {
 	return &goCryptoTraderServiceClient{cc}
+}
+
+func (c *goCryptoTraderServiceClient) GetDiagnosticLogs(ctx context.Context, in *GetDiagnosticLogsRequest, opts ...grpc.CallOption) (*GetDiagnosticLogsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDiagnosticLogsResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetDiagnosticLogs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *goCryptoTraderServiceClient) GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error) {
@@ -1473,6 +1485,7 @@ func (c *goCryptoTraderServiceClient) GetCurrencyTradeURL(ctx context.Context, i
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility.
 type GoCryptoTraderServiceServer interface {
+	GetDiagnosticLogs(context.Context, *GetDiagnosticLogsRequest) (*GetDiagnosticLogsResponse, error)
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
 	GetSubsystems(context.Context, *GetSubsystemsRequest) (*GetSubsystemsResponse, error)
 	EnableSubsystem(context.Context, *GenericSubsystemRequest) (*GenericResponse, error)
@@ -1598,6 +1611,9 @@ type GoCryptoTraderServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedGoCryptoTraderServiceServer struct{}
 
+func (UnimplementedGoCryptoTraderServiceServer) GetDiagnosticLogs(context.Context, *GetDiagnosticLogsRequest) (*GetDiagnosticLogsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetDiagnosticLogs not implemented")
+}
 func (UnimplementedGoCryptoTraderServiceServer) GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInfo not implemented")
 }
@@ -1962,6 +1978,24 @@ func RegisterGoCryptoTraderServiceServer(s grpc.ServiceRegistrar, srv GoCryptoTr
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&GoCryptoTraderService_ServiceDesc, srv)
+}
+
+func _GoCryptoTraderService_GetDiagnosticLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetDiagnosticLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetDiagnosticLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetDiagnosticLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetDiagnosticLogs(ctx, req.(*GetDiagnosticLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _GoCryptoTraderService_GetInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -3999,6 +4033,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "gctrpc.GoCryptoTraderService",
 	HandlerType: (*GoCryptoTraderServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetDiagnosticLogs",
+			Handler:    _GoCryptoTraderService_GetDiagnosticLogs_Handler,
+		},
 		{
 			MethodName: "GetInfo",
 			Handler:    _GoCryptoTraderService_GetInfo_Handler,

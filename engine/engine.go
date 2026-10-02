@@ -423,6 +423,10 @@ func (bot *Engine) Start() error {
 		gctlog.Errorf(gctlog.Global, "Currency Converter system failed to start %s", err)
 	}
 
+	if err := StartMCPServer(runtimeCtx, bot); err != nil {
+		return err
+	}
+
 	if bot.Settings.EnableGRPC {
 		go StartRPCServer(runtimeCtx, bot)
 	}

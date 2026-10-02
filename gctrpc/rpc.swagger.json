@@ -491,6 +491,82 @@
         ]
       }
     },
+    "/v1/diagnostics/logs": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetDiagnosticLogs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetDiagnosticLogsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "afterSequence",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "subsystem",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "contains",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "summary",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/disableexchange": {
       "post": {
         "operationId": "GoCryptoTraderService_DisableExchange",
@@ -5429,6 +5505,57 @@
         }
       }
     },
+    "gctrpcDiagnosticLogEntry": {
+      "type": "object",
+      "properties": {
+        "sequence": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "severity": {
+          "type": "string"
+        },
+        "subsystem": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "gctrpcDiagnosticLogGroup": {
+      "type": "object",
+      "properties": {
+        "severity": {
+          "type": "string"
+        },
+        "subsystem": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "count": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "first": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "gctrpcFiatWithdrawalEvent": {
       "type": "object",
       "properties": {
@@ -6033,6 +6160,51 @@
       "properties": {
         "url": {
           "type": "string"
+        }
+      }
+    },
+    "gctrpcGetDiagnosticLogsResponse": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcDiagnosticLogEntry"
+          }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcDiagnosticLogGroup"
+          }
+        },
+        "matched": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "nextSequence": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "oldestSequence": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "latestSequence": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "overwritten": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "hasMore": {
+          "type": "boolean"
         }
       }
     },
