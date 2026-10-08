@@ -5080,7 +5080,12 @@ func (e *Exchange) GetSystemTime(ctx context.Context) (types.Time, error) {
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day
-func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) (*LiquidationOrder, error) {
+func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrderRequestParams) ([]LiquidationOrder, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	requestCopy := *arg
+	arg = &requestCopy
 	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == "" {
 		return nil, fmt.Errorf("%w, empty instrument type", errInvalidInstrumentType)
@@ -5096,8 +5101,11 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 		params.Set("instId", arg.InstrumentID)
 	case arg.InstrumentType == instTypeMargin && arg.Currency.String() != "":
 		params.Set("ccy", arg.Currency.String())
-	default:
+	case arg.InstrumentType == instTypeMargin:
 		return nil, errEitherInstIDOrCcyIsRequired
+	case arg.InstrumentType == instTypeSwap || arg.InstrumentType == instTypeFutures:
+	default:
+		return nil, errInvalidInstrumentType
 	}
 	if arg.InstrumentType != instTypeMargin && arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
@@ -5111,10 +5119,13 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, arg *LiquidationOrd
 	if !arg.After.IsZero() {
 		params.Set("after", strconv.FormatInt(arg.After.UnixMilli(), 10))
 	}
-	if arg.Limit > 0 && arg.Limit < 100 {
+	if arg.Limit > 0 && arg.Limit <= 100 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp *LiquidationOrder
+	if arg.State != "" {
+		params.Set("state", arg.State)
+	}
+	var resp []LiquidationOrder
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getLiquidationOrdersEPL, http.MethodGet, common.EncodeURLValues("public/liquidation-orders", params), nil, &resp, request.UnauthenticatedRequest)
 }
 

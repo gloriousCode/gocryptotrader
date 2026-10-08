@@ -429,19 +429,20 @@ type OpenInterest struct {
 
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
-	InstrumentType               string       `json:"instType"`
-	InstrumentID                 string       `json:"instId"`
-	FundingRateMethod            string       `json:"method"`
-	FundingRate                  types.Number `json:"fundingRate"`
-	NextFundingRate              types.Number `json:"nextFundingRate"`
-	FundingTime                  types.Time   `json:"fundingTime"`
-	NextFundingTime              types.Time   `json:"nextFundingTime"`
-	MinFundingRate               types.Number `json:"minFundingRate"`
-	MaxFundingRate               types.Number `json:"maxFundingRate"`
-	SettlementStateOfFundingRate string       `json:"settState"`
-	SettlementFundingRate        types.Number `json:"settFundingRate"`
-	Premium                      string       `json:"premium"`
-	Timestamp                    types.Time   `json:"ts"`
+	InstrumentType               string        `json:"instType"`
+	InstrumentID                 string        `json:"instId"`
+	FundingRateMethod            string        `json:"method"`
+	FundingRate                  types.Number  `json:"fundingRate"`
+	RealisedRate                 *types.Number `json:"realizedRate"`
+	NextFundingRate              types.Number  `json:"nextFundingRate"`
+	FundingTime                  types.Time    `json:"fundingTime"`
+	NextFundingTime              types.Time    `json:"nextFundingTime"`
+	MinFundingRate               types.Number  `json:"minFundingRate"`
+	MaxFundingRate               types.Number  `json:"maxFundingRate"`
+	SettlementStateOfFundingRate string        `json:"settState"`
+	SettlementFundingRate        types.Number  `json:"settFundingRate"`
+	Premium                      string        `json:"premium"`
+	Timestamp                    types.Time    `json:"ts"`
 }
 
 // LimitPriceResponse hold an information for
