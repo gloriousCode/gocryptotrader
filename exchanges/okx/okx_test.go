@@ -839,6 +839,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -919,6 +920,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -7014,6 +7016,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7024,6 +7027,27 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+	for _, tc := range []struct {
+		name, position string
+		reduce         bool
+	}{
+		{name: "default net"}, {name: "explicit net", position: "net"}, {name: "net reduce only", position: "net", reduce: true}, {name: "hedge long", position: "long"}, {name: "hedge short", position: "short"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := PlaceOrderRequestParam{AssetType: asset.PerpetualSwap, InstrumentID: "BTC-USDT-SWAP", TradeMode: TradeModeCross, Side: "buy", PositionSide: tc.position, ReduceOnly: tc.reduce, OrderType: "ioc", Amount: 1, Price: 100}
+			require.NoError(t, params.Validate(), "supported position mode must validate")
+			data, err := json.Marshal(params)
+			require.NoError(t, err, "order request must serialise")
+			var fields map[string]any
+			require.NoError(t, json.Unmarshal(data, &fields), "serialised request must be valid JSON")
+			if tc.reduce {
+				require.Equal(t, true, fields["reduceOnly"], "reduceOnly must be a JSON boolean")
+			} else {
+				require.NotContains(t, fields, "reduceOnly", "false reduceOnly must be omitted")
+			}
+		})
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

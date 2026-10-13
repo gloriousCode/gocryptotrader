@@ -781,7 +781,7 @@ type PlaceOrderRequestParam struct {
 	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
 	OrderTag         string     `json:"tag,omitempty"`
 	Side             string     `json:"side"`
-	PositionSide     string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	PositionSide     string     `json:"posSide,omitempty"` // net (default), or long/short in hedge mode for FUTURES and SWAP
 	OrderType        string     `json:"ordType"`           // Time in force for the order
 	Amount           float64    `json:"sz,string"`
 	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
@@ -789,7 +789,7 @@ type PlaceOrderRequestParam struct {
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
 
-	ReduceOnly              bool   `json:"reduceOnly,string,omitempty"`
+	ReduceOnly              bool   `json:"reduceOnly,omitempty"`
 	TargetCurrency          string `json:"tgtCcy,omitempty"`  // values base_ccy and quote_ccy for spot market orders
 	SelfTradePreventionMode string `json:"stpMode,omitempty"` // Default to cancel maker, `cancel_maker`,`cancel_taker`, `cancel_both``
 	// Added in the websocket requests
@@ -815,8 +815,8 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		if !slices.Contains([]string{"", "net", "long", "short"}, arg.PositionSide) {
+			return fmt.Errorf("%w: %q, net, long or short supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
