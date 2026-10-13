@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -648,7 +649,39 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tick)
+	if err := e.Websocket.DataHandler.Send(ctx, tick); err != nil {
+		return err
+	}
+	if assetType != asset.Options {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
+		ExchangeName:          e.Name,
+		Pair:                  p,
+		AssetType:             assetType,
+		InstrumentID:          tickResp.Symbol,
+		LastUpdated:           resp.PushTimestamp.Time(),
+		ExchangeTimestamp:     resp.PushTimestamp.Time(),
+		ReceivedAt:            time.Now().UTC(),
+		Sequence:              resp.CrossSequence,
+		Delta:                 tickResp.Delta.Float64(),
+		Gamma:                 tickResp.Gamma.Float64(),
+		Vega:                  tickResp.Vega.Float64(),
+		Theta:                 tickResp.Theta.Float64(),
+		BidPrice:              tickResp.BidPrice.Float64(),
+		AskPrice:              tickResp.AskPrice.Float64(),
+		BidSize:               tickResp.BidSize.Float64(),
+		AskSize:               tickResp.AskSize.Float64(),
+		MarkPrice:             tickResp.MarkPrice.Float64(),
+		IndexPrice:            tickResp.IndexPrice.Float64(),
+		UnderlyingPrice:       tickResp.UnderlyingPrice.Float64(),
+		LastTradePrice:        tickResp.LastPrice.Float64(),
+		OpenInterest:          tickResp.OpenInterest.Float64(),
+		Volume24Hour:          tickResp.Volume24Hour.Float64(),
+		BidImpliedVolatility:  tickResp.BidImpliedVolatility.Float64(),
+		AskImpliedVolatility:  tickResp.AskImpliedVolatility.Float64(),
+		MarkImpliedVolatility: tickResp.MarkPriceImpliedVolatility.Float64(),
+	})
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
