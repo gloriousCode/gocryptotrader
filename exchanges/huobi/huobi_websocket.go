@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -75,60 +74,66 @@ var subscriptionNames = map[string]string{
 	subscription.MyAccountChannel: wsMyAccountChannel,
 }
 
-func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
-}
+// WsConnect initiates a new websocket connection
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
+		return err
+	}
 
-func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
-	authURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		authURL = wsSpotURL + wsPrivatePath
+	e.Websocket.Wg.Add(1)
+	go e.wsReadMsgs(ctx, e.Websocket.Conn)
+
+	if e.IsWebsocketAuthenticationSupported() {
+		if err := e.wsAuthConnect(ctx); err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			return fmt.Errorf("error authenticating websocket: %w", err)
+		}
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		e.Websocket.Wg.Add(1)
+		go e.wsReadMsgs(ctx, e.Websocket.AuthConn)
 	}
-	if conn.GetURL() != authURL {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return fmt.Errorf("%w: expected auth route %s, got %s", websocket.ErrRequestRouteNotFound, authURL, conn.GetURL())
-	}
-	if err := e.wsLogin(ctx, conn); err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return fmt.Errorf("error authenticating websocket: %w", err)
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
 	return nil
 }
 
-func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
-	if err != nil {
-		return nil, err
+// wsReadMsgs reads and processes messages from a websocket connection
+func (e *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
+	defer e.Websocket.Wg.Done()
+	for {
+		msg := s.ReadMessage()
+		if msg.Raw == nil {
+			return
+		}
+
+		if err := e.wsHandleData(ctx, msg.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
+		}
 	}
-	return subs.Public(), nil
 }
 
-func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
-	subs, err := e.generateSubscriptions()
-	if err != nil {
-		return nil, err
-	}
-	return subs.Private(), nil
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		if conn.IncomingWithData(id, respRaw) {
+		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
 		}
 	}
 
 	if pingValue, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		return e.wsHandleV1ping(ctx, conn, pingValue)
+		return e.wsHandleV1ping(ctx, pingValue)
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		switch action {
 		case "ping":
-			return e.wsHandleV2ping(ctx, conn, respRaw)
-		case wsRequestOp, wsSubOp, wsUnsubOp:
-			return e.wsHandleV2subResp(conn, action, respRaw)
+			return e.wsHandleV2ping(ctx, respRaw)
+		case wsSubOp, wsUnsubOp:
+			return e.wsHandleV2subResp(action, respRaw)
 		}
 	}
 
@@ -141,7 +146,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
-		return e.wsHandleChannelMsgs(ctx, conn, s, respRaw)
+		return e.wsHandleChannelMsgs(ctx, s, respRaw)
 	}
 
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
@@ -150,33 +155,33 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
-func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection, pingValue int64) error {
-	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.FormatInt(pingValue, 10)+`}`)); err != nil {
+func (e *Exchange) wsHandleV1ping(ctx context.Context, pingValue int64) error {
+	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.FormatInt(pingValue, 10)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
 	return nil
 }
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
-func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleV2ping(ctx context.Context, respRaw []byte) error {
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
+	if err := e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.FormatInt(ts, 10)+`}}`)); err != nil {
 		return fmt.Errorf("error sending auth pong response: %w", err)
 	}
 	return nil
 }
 
-func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, respRaw []byte) error {
+func (e *Exchange) wsHandleV2subResp(action string, respRaw []byte) error {
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
-		return conn.RequireMatchWithData(action+":"+ch, respRaw)
+		return e.Websocket.Match.RequireMatchWithData(action+":"+ch, respRaw)
 	}
 	return nil
 }
 
-func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, _ websocket.Connection, s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
 	switch s.Channel {
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
@@ -501,23 +506,32 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsSubOp, l) }, 1)
+// Subscribe sends a websocket message to receive data from the channel
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	ctx := context.TODO()
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubOp, l) }, 1))
 }
 
-func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsUnsubOp, l) }, 1)
+// Unsubscribe sends a websocket message to stop receiving data from the channel
+func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	ctx := context.TODO()
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubOp, l) }, 1))
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
+	var c websocket.Connection
 	var req any
 	if s.Authenticated {
+		c = e.Websocket.AuthConn
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
 	} else {
+		c = e.Websocket.Conn
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
 			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
@@ -527,23 +541,17 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
+		if err := e.Websocket.AddSubscriptions(c, s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
-	matchOp := wsSubOp
-	if s.Authenticated {
-		matchOp = op
-	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, matchOp+":"+s.QualifiedChannel, req)
+	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
 	}
 	if err != nil {
 		if op == wsSubOp {
-			if cleanupErr := e.Websocket.RemoveSubscriptions(conn, s); cleanupErr != nil && !errors.Is(cleanupErr, subscription.ErrNotFound) {
-				err = common.AppendError(err, fmt.Errorf("failed to remove subscription: %w", cleanupErr))
-			}
+			_ = e.Websocket.RemoveSubscriptions(c, s)
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
@@ -553,7 +561,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 		}
 	} else {
-		err = e.Websocket.RemoveSubscriptions(conn, s)
+		err = e.Websocket.RemoveSubscriptions(c, s)
 	}
 	return err
 }
@@ -568,7 +576,17 @@ func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp st
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsAuthConnect(ctx context.Context) error {
+	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
+		return fmt.Errorf("authenticated dial failed: %w", err)
+	}
+	if err := e.wsLogin(ctx); err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
+	}
+	return nil
+}
+
+func (e *Exchange) wsLogin(ctx context.Context) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -591,11 +609,16 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 			Timestamp:        ts,
 		},
 	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsRequestOp+":"+wsAuthChannel, req)
-	if err != nil {
+	c := e.Websocket.AuthConn
+	if err := c.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
-	return getErrResp(respRaw)
+	resp := c.ReadMessage()
+	if resp.Raw == nil {
+		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
+	}
+
+	return getErrResp(resp.Raw)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {

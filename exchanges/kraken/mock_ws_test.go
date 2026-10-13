@@ -8,7 +8,6 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -19,51 +18,10 @@ func mockWsServer(tb testing.TB, msg []byte, w *gws.Conn) error {
 		return err
 	}
 	switch event {
-	case krakenWsCancelOrder, krakenWsCancelAll:
+	case krakenWsCancelOrder:
 		return mockWsCancelOrders(tb, msg, w)
 	case krakenWsAddOrder:
 		return mockWsAddOrder(tb, msg, w)
-	case krakenWsSubscribe, krakenWsUnsubscribe:
-		return mockWsSub(tb, msg, w, event)
-	}
-	return nil
-}
-
-func mockWsSub(tb testing.TB, msg []byte, w *gws.Conn, event string) error {
-	tb.Helper()
-	var req WebsocketSubRequest
-	if err := json.Unmarshal(msg, &req); err != nil {
-		return err
-	}
-	status := event + "d"
-	channelName := req.Subscription.Name
-	switch channelName {
-	case "book":
-		channelName += fmt.Sprintf("-%d", req.Subscription.Depth)
-	case "ohlc":
-		channelName += fmt.Sprintf("-%d", req.Subscription.Interval)
-	}
-
-	for _, p := range req.Pairs {
-		pair, err := currency.NewPairDelimiter(p, "/")
-		if err != nil {
-			return err
-		}
-		resp := map[string]any{
-			"event":        krakenWsSubscriptionStatus,
-			"status":       status,
-			"reqid":        req.RequestID,
-			"channelName":  channelName,
-			"pair":         pair.String(),
-			"subscription": map[string]any{"name": req.Subscription.Name},
-		}
-		raw, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		if err := w.WriteMessage(gws.TextMessage, raw); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -80,9 +38,7 @@ func mockWsCancelOrders(tb testing.TB, msg []byte, w *gws.Conn) error {
 		RequestID: req.RequestID,
 		Count:     int64(len(req.TransactionIDs)),
 	}
-	if req.Event == krakenWsCancelAll {
-		resp.Count = 3
-	} else if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
+	if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
 		resp.Status = "error"
 		resp.ErrorMessage = "[EOrder:Unknown order]"
 	}
