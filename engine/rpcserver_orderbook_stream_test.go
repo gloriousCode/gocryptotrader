@@ -54,10 +54,12 @@ func TestGetOrderbookStream(t *testing.T) {
 		sendErr          error
 		wantErr          error
 		alreadyCancelled bool
+		availableOnly    bool
 	}{
 		{name: "cancel while book is idle", wantErr: context.Canceled},
 		{name: "deadline while book is idle", deadline: true, wantErr: context.DeadlineExceeded},
-		{name: "available-only book updates then cancels", update: true, wantErr: context.Canceled},
+		{name: "book updates then cancels", update: true, wantErr: context.Canceled},
+		{name: "available-only book updates then cancels", availableOnly: true, update: true, wantErr: context.Canceled},
 		{name: "send error", sendErr: errSend, wantErr: errSend},
 		{name: "already cancelled sends no cached snapshot", alreadyCancelled: true, wantErr: context.Canceled},
 	} {
@@ -70,7 +72,11 @@ func TestGetOrderbookStream(t *testing.T) {
 			exch.SetEnabled(true)
 			exch.GetBase().Name = t.Name()
 			pair := currency.NewBTCUSDT()
-			require.NoError(t, exch.GetBase().CurrencyPairs.Store(asset.Spot, &currency.PairStore{Available: currency.Pairs{pair}, AssetEnabled: true, ConfigFormat: &currency.EMPTYFORMAT}))
+			pairs := &currency.PairStore{Available: currency.Pairs{pair}, Enabled: currency.Pairs{pair}, AssetEnabled: true, ConfigFormat: &currency.EMPTYFORMAT}
+			if tc.availableOnly {
+				pairs.Enabled = nil
+			}
+			require.NoError(t, exch.GetBase().CurrencyPairs.Store(asset.Spot, pairs))
 			require.NoError(t, em.Add(exch))
 			depth, err := orderbook.DeployDepth(t.Name(), pair, asset.Spot)
 			require.NoError(t, err)
@@ -113,7 +119,7 @@ func TestGetOrderbookStream(t *testing.T) {
 					require.Len(t, response.Bids, 1)
 					assert.Equal(t, 100.0, response.Bids[0].Price)
 				case <-time.After(time.Second):
-					require.FailNow(t, "stream must send the cached available-only book")
+					require.FailNow(t, "stream must send the cached book")
 				}
 				if tc.update {
 					book.Bids[0].Price = 99
