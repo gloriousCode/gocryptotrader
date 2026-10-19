@@ -403,6 +403,9 @@ func TestIsSymbolChannel(t *testing.T) {
 		{channelOrderBooksTBT, true},
 		{channelBBOTBT, true},
 		{channelFundingRate, true},
+		{channelMarkPrice, true},
+		{channelOpenInterest, true},
+		{channelInstruments, false},
 		{subscription.MyAccountChannel, false},
 		{subscription.MyOrdersChannel, false},
 		{"unknown", false},
@@ -432,6 +435,8 @@ func TestIsAssetChannel(t *testing.T) {
 		want    bool
 	}{
 		{subscription.MyOrdersChannel, true},
+		{channelOrders, true},
+		{channelInstruments, true},
 		{liquidationOrders, true},
 		{subscription.MyAccountChannel, false},
 		{channelTickers, false},
