@@ -808,6 +808,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			LastPushed:        resp.Data[x].Timestamp.Time(),
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -854,6 +855,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			LastPushed:        resp.Data[0].Timestamp.Time(),
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -977,6 +979,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        data.Timestamp.Time(),
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -1429,7 +1432,8 @@ func isAssetChannel(s *subscription.Subscription) bool {
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
 	switch s.Channel {
-	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
+	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel,
+		channelTickers, channelTrades, channelOrderBooks, channelOrderBooks5, channelOrderBooks50TBT, channelOrderBooksTBT, channelBBOTBT, channelFundingRate:
 		return true
 	}
 	return false

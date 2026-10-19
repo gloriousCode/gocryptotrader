@@ -47,8 +47,29 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
 
-	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
+	wsMock := mockws.CurryWsMockUpgrader(t, wsHandler)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v5/public/instruments" {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, instTypeOption, r.URL.Query().Get("instType"))
+			assert.Equal(t, "BTC-USD-270326-100000-C", r.URL.Query().Get("instId"))
+			assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
+			_, err := w.Write([]byte(`{"code":"0","data":[{"instType":"OPTION","instId":"BTC-USD-270326-100000-C","instIdCode":"12345"}]}`))
+			assert.NoError(t, err)
+			return
+		}
+		if r.URL.Path != "/" || !gws.IsWebSocketUpgrade(r) {
+			assert.Failf(t, "unexpected mock request", "%s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		wsMock(w, r)
+	}))
 	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	for endpoint := range ex.API.Endpoints.GetURLMap() {
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(endpoint, server.URL+"/api/v5/"))
+	}
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
@@ -100,13 +121,21 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	return ex
 }
 
-func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
+func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
+	tb.Helper()
 	var req struct {
-		ID string `json:"id"`
-		Op string `json:"op"`
+		ID   string `json:"id"`
+		Op   string `json:"op"`
+		Args []struct {
+			InstrumentIDCode int64 `json:"instIdCode"`
+		} `json:"args"`
 	}
 	if err := json.Unmarshal(p, &req); err != nil {
 		return err
+	}
+	assert.Len(tb, req.Args, 1)
+	if len(req.Args) == 1 {
+		assert.Equal(tb, int64(12345), req.Args[0].InstrumentIDCode)
 	}
 	if req.ID == "" {
 		req.ID = "mock-id"
@@ -133,7 +162,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 
 	resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  ex.Name,
-		Pair:      mainPair,
+		Pair:      currency.NewPairWithDelimiter("BTC", "USD-270326-100000-C", "-"),
 		AssetType: asset.Options,
 		Side:      order.Long,
 		Type:      order.Limit,
@@ -146,7 +175,7 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
 		Exchange:  ex.Name,
-		Pair:      mainPair,
+		Pair:      currency.NewPairWithDelimiter("BTC", "USD-270326-100000-C", "-"),
 		AssetType: asset.Options,
 		Side:      order.Long,
 		Type:      order.Limit,
@@ -164,7 +193,7 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	modify := &order.Modify{
 		OrderID:   "order-1",
 		AssetType: asset.Options,
-		Pair:      mainPair,
+		Pair:      currency.NewPairWithDelimiter("BTC", "USD-270326-100000-C", "-"),
 		Amount:    1,
 		Price:     1,
 	}
@@ -186,7 +215,7 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 	cancel := &order.Cancel{
 		OrderID:   "1",
 		AssetType: asset.Options,
-		Pair:      mainPair,
+		Pair:      currency.NewPairWithDelimiter("BTC", "USD-270326-100000-C", "-"),
 	}
 	err := ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)

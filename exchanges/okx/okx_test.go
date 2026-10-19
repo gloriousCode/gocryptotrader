@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -617,21 +619,39 @@ func TestGetMarkPrice(t *testing.T) {
 
 func TestGetPositionTiers(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPositionTiers(contextGenerate(), "", "cross", mainPair.String(), "", "", "", currency.ETH)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/v5/public/position-tiers", r.URL.Path)
+		assert.Equal(t, instTypeFutures, r.URL.Query().Get("instType"))
+		assert.Equal(t, "cross", r.URL.Query().Get("tdMode"))
+		assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
+		assert.Equal(t, "BTC-USD-261225", r.URL.Query().Get("instId"))
+		assert.Empty(t, r.URL.Query().Get("ccy"))
+		_, err := w.Write([]byte(`{"code":"0","data":[{"instId":"BTC-USD-261225","tier":"1","maxSz":"100","minSz":"0","maxLever":"20"}]}`))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"))
+	_, err := ex.GetPositionTiers(t.Context(), "", "cross", mainPair.String(), "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", mainPair.String(), "", "", "", currency.ETH)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "", mainPair.String(), "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidTradeMode)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.EMPTYCODE)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
-	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", mainPair.String(), "", "", "", currency.ETH)
+	result, err := ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", "", "BTC-USD", "BTC-USD-261225", "", currency.EMPTYCODE)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	require.Len(t, result, 1)
+	assert.Equal(t, "BTC-USD-261225", result[0].InstrumentID)
+	assert.Equal(t, float64(100), result[0].MaximumSize.Float64())
 }
 
 func TestGetInterestRateAndLoanQuota(t *testing.T) {
@@ -661,32 +681,47 @@ func TestGetPublicUnderlyings(t *testing.T) {
 
 func TestGetInsuranceFundInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{})
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/v5/public/insurance-fund", r.URL.Path)
+		assert.Contains(t, []string{instTypeSwap, instTypeFutures}, r.URL.Query().Get("instType"))
+		assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
+		assert.Empty(t, r.URL.Query().Get("uly"))
+		assert.Equal(t, "2", r.URL.Query().Get("limit"))
+		_, err := w.Write([]byte(`{"code":"0","data":[{"total":"100","details":[{"balance":"100","type":"liquidation_balance_deposit","ts":"1700000000000"}]}]}`))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"))
+	_, err := ex.GetInsuranceFundInformation(t.Context(), &InsuranceFundInformationRequestParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg := &InsuranceFundInformationRequestParams{Limit: 2}
-	_, err = e.GetInsuranceFundInformation(contextGenerate(), arg)
+	_, err = ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	arg.InstrumentType = instTypeSwap
-	_, err = e.GetInsuranceFundInformation(contextGenerate(), arg)
+	_, err = ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
-	arg.Underlying = mainPair.String()
-	r, err := e.GetInsuranceFundInformation(contextGenerate(), arg)
+	arg.InstrumentFamily = "BTC-USD"
+	r, err := ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
 		assert.Positive(t, d.Balance, "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
-		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
+		assert.Equal(t, time.UnixMilli(1700000000000), d.Timestamp.Time(), "Timestamp should decode from milliseconds")
 	}
 
-	r, err = e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
-		InstrumentType: instTypeFutures,
-		Underlying:     mainPair.String(),
-		Limit:          2,
+	r, err = ex.GetInsuranceFundInformation(t.Context(), &InsuranceFundInformationRequestParams{
+		InstrumentType:   instTypeFutures,
+		InstrumentFamily: "BTC-USD",
+		Limit:            2,
 	})
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
@@ -694,7 +729,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 	for _, d := range r.Details {
 		assert.Positive(t, d.Balance, "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
-		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
+		assert.Equal(t, time.UnixMilli(1700000000000), d.Timestamp.Time(), "Timestamp should decode from milliseconds")
 	}
 }
 
@@ -4183,6 +4218,8 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
+	assert.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated should preserve the exchange timestamp")
+	assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should preserve the exchange timestamp for snapshot freshness")
 	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
 	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
 	assert.Equal(t, 100.5, book.Bids[0].Price, "Bid price should match")
@@ -4484,6 +4521,7 @@ func TestWsProcessOrderBooks(t *testing.T) {
 		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, asset.Spot)
 		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
 		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
+		assert.Equal(t, time.UnixMilli(1659792392540), book.LastPushed, "Snapshot-only feeds should retain the exchange timestamp on every push")
 	})
 }
 
@@ -5156,11 +5194,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 
 	require.Len(t, got.Asks, 5)
 	require.Len(t, got.Bids, 5)
+	assert.Equal(t, time.UnixMilli(1695864901807), got.LastPushed, "Spot snapshots should preserve the exchange timestamp")
 	// Book replicated to margin
 	got, err = orderbook.Get(e.Name, required, asset.Margin)
 	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
+	assert.Equal(t, time.UnixMilli(1695864901807), got.LastPushed, "Margin snapshots should preserve the exchange timestamp")
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -6886,8 +6926,12 @@ const (
 
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
-	assert.NoError(t, err)
+	require.NoError(t, e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON)), "Spread snapshot processing must succeed")
+	pair, err := e.GetPairFromInstrumentID("BTC-USDT_BTC-USDT-SWAP")
+	require.NoError(t, err, "Spread instrument must resolve")
+	book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spread)
+	require.NoError(t, err, "Spread snapshot must be available")
+	assert.Equal(t, time.UnixMilli(1670324386802), book.LastPushed, "Spread snapshots should preserve the exchange timestamp")
 }
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {

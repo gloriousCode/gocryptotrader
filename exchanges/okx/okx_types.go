@@ -372,6 +372,7 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract
 type Instrument struct {
+	GroupID                         string        `json:"groupId"`
 	MaxLmtAmt                       string        `json:"maxLmtAmt"`
 	MaxMktAmt                       string        `json:"maxMktAmt"`
 	InstrumentType                  string        `json:"instType"`
@@ -2073,20 +2074,25 @@ type MaximumLoanInstrument struct {
 
 // TradeFeeRate holds trade fee rate information for a given instrument type
 type TradeFeeRate struct {
-	Category         string         `json:"category"`
-	DeliveryFeeRate  types.Number   `json:"delivery"`
-	Exercise         string         `json:"exercise"`
-	InstrumentType   asset.Item     `json:"instType"`
-	FeeRateLevel     string         `json:"level"`
-	FeeRateMaker     types.Number   `json:"maker"`
-	FeeRateTaker     types.Number   `json:"taker"`
-	Timestamp        types.Time     `json:"ts"`
-	FeeRateMakerUSDT types.Number   `json:"makerU"`
-	FeeRateTakerUSDT types.Number   `json:"takerU"`
-	FeeRateMakerUSDC types.Number   `json:"makerUSDC"`
-	FeeRateTakerUSDC types.Number   `json:"takerUSDC"`
-	RuleType         string         `json:"ruleType"`
-	Fiat             []FiatItemInfo `json:"fiat"`
+	FeeGroup         []TradeFeeGroup `json:"feeGroup"`
+	MakerPresent     bool            `json:"-"`
+	TakerPresent     bool            `json:"-"`
+	MakerUSDTPresent bool            `json:"-"`
+	TakerUSDTPresent bool            `json:"-"`
+	Category         string          `json:"category"`
+	DeliveryFeeRate  types.Number    `json:"delivery"`
+	Exercise         string          `json:"exercise"`
+	InstrumentType   asset.Item      `json:"instType"`
+	FeeRateLevel     string          `json:"level"`
+	FeeRateMaker     types.Number    `json:"maker"`
+	FeeRateTaker     types.Number    `json:"taker"`
+	Timestamp        types.Time      `json:"ts"`
+	FeeRateMakerUSDT types.Number    `json:"makerU"`
+	FeeRateTakerUSDT types.Number    `json:"takerU"`
+	FeeRateMakerUSDC types.Number    `json:"makerUSDC"`
+	FeeRateTakerUSDC types.Number    `json:"takerUSDC"`
+	RuleType         string          `json:"ruleType"`
+	Fiat             []FiatItemInfo  `json:"fiat"`
 }
 
 // FiatItemInfo represents fiat currency with taker and maker fee details
@@ -5202,4 +5208,12 @@ type tsResp struct {
 
 type withdrawData struct {
 	WithdrawalID string `json:"wdId"`
+}
+
+// TradeFeeGroup identifies the applicable authenticated fee schedule for an instrument group.
+// Strings preserve the distinction between missing rates and an explicit zero fee.
+type TradeFeeGroup struct {
+	GroupID string `json:"groupId"`
+	Maker   string `json:"maker"`
+	Taker   string `json:"taker"`
 }
