@@ -22,20 +22,25 @@ const (
 	SellOrder
 )
 
-// Ticker holds ticker information
+// Ticker holds ticker information from Bitstamp's single-market and all-market endpoints.
 type Ticker struct {
-	Last            float64    `json:"last,string"`
-	High            float64    `json:"high,string"`
-	Low             float64    `json:"low,string"`
-	Vwap            float64    `json:"vwap,string"`
-	Volume          float64    `json:"volume,string"`
-	Bid             float64    `json:"bid,string"`
-	Ask             float64    `json:"ask,string"`
-	Timestamp       types.Time `json:"timestamp"`
-	Open            float64    `json:"open,string"`
-	Open24          float64    `json:"open_24,string"`
-	Side            orderSide  `json:"side"`
-	PercentChange24 float64    `json:"percent_change_24,string"`
+	Last                       types.Number  `json:"last"`
+	High                       types.Number  `json:"high"`
+	Low                        types.Number  `json:"low"`
+	VolumeWeightedAveragePrice types.Number  `json:"vwap"`
+	Volume                     types.Number  `json:"volume"`
+	BestBid                    types.Number  `json:"bid"`
+	BestAsk                    types.Number  `json:"ask"`
+	Timestamp                  types.Time    `json:"timestamp"`
+	Open                       types.Number  `json:"open"`
+	Open24Hour                 types.Number  `json:"open_24"`
+	Side                       orderSide     `json:"side"`
+	PercentChange24Hour        types.Number  `json:"percent_change_24"`
+	MarkPrice                  types.Number  `json:"mark_price"`
+	IndexPrice                 types.Number  `json:"index_price"`
+	OpenInterest               types.Number  `json:"open_interest"`
+	OpenInterestValue          types.Number  `json:"open_interest_value"`
+	Market                     currency.Pair `json:"market"`
 }
 
 // Orderbook holds orderbook information
@@ -300,20 +305,4 @@ type websocketOrderData struct {
 	Side            orderSide  `json:"order_type"`
 	Datetime        types.Time `json:"datetime"`
 	Microtimestamp  types.Time `json:"microtimestamp"`
-}
-
-// TickerFromBatch holds ticker information
-type TickerFromBatch struct {
-	Ask       types.Number `json:"ask"`
-	Bid       types.Number `json:"bid"`
-	High      types.Number `json:"high"`
-	Last      types.Number `json:"last"`
-	Low       types.Number `json:"low"`
-	Open      types.Number `json:"open"`
-	Open24    types.Number `json:"open_24"`
-	Pair      string       `json:"pair"`
-	Side      string       `json:"side"`
-	Timestamp int64        `json:"timestamp,string"`
-	Volume    types.Number `json:"volume"`
-	Vwap      types.Number `json:"vwap"`
 }

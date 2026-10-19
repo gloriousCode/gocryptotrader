@@ -189,7 +189,7 @@ func aesCFBEncrypt(t *testing.T, data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck,gosec // Legacy CFB fixture only; G407: iv was filled by crypto/rand immediately above.
+	stream := cipher.NewCFBEncrypter(block, iv) //nolint:gosec,staticcheck // Legacy CFB format under test; iv is read from crypto/rand
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
 	return ciphertext, nil
 }
@@ -207,7 +207,7 @@ func TestEncryptAESGCMCiphertext(t *testing.T) {
 	aead, err := cipher.NewGCMWithRandomNonce(block)
 	require.NoError(t, err)
 
-	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil) //nolint:gosec // G407: NewGCMWithRandomNonce generates the nonce and requires a nil nonce argument.
+	ciphertext := aead.Seal(nil, nil, []byte("MEOWMEOWMEOWMEOWMEOW"), nil) //nolint:gosec // NewGCMWithRandomNonce generates the nonce itself, so Seal takes none
 
 	data, err := decryptAESGCMCiphertext(ciphertext, validKey)
 	require.NoError(t, err)

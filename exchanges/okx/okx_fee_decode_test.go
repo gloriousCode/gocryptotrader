@@ -43,9 +43,38 @@ func TestTradeFeeRateUnmarshalJSON(t *testing.T) {
 		var row TradeFeeRate
 		require.NoError(t, json.Unmarshal([]byte(`{"feeGroup":[{"groupId":"4","maker":"0","taker":"-0.0005"}]}`), &row))
 		require.Len(t, row.FeeGroup, 1)
-		assert.Equal(t, TradeFeeGroup{GroupID: "4", Maker: "0", Taker: "-0.0005"}, row.FeeGroup[0])
+		assert.Equal(t, TradeFeeGroup{GroupID: "4", MakerRate: 0, TakerRate: -0.0005, MakerPresent: true, TakerPresent: true}, row.FeeGroup[0])
 		var instrument Instrument
 		require.NoError(t, json.Unmarshal([]byte(`{"instId":"BTC-USDT-SWAP","groupId":"4"}`), &instrument))
-		assert.Equal(t, "4", instrument.GroupID)
+		assert.Equal(t, "4", instrument.TradingFeeGroupID)
 	})
+}
+
+func TestTradeFeeGroupUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, payload    string
+		present, invalid bool
+	}{
+		{name: "explicit zero strings", payload: `{"maker":"0","taker":"0"}`, present: true},
+		{name: "explicit zero numbers", payload: `{"maker":0,"taker":0}`, present: true},
+		{name: "charges and rebates", payload: `{"maker":"0.001","taker":"-0.002"}`, present: true},
+		{name: "absent", payload: `{}`},
+		{name: "null", payload: `{"maker":null,"taker":null}`},
+		{name: "empty", payload: `{"maker":"","taker":""}`},
+		{name: "invalid", payload: `{"maker":"invalid","taker":"0"}`, invalid: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			row := TradeFeeGroup{MakerPresent: true, TakerPresent: true}
+			err := json.Unmarshal([]byte(tc.payload), &row)
+			if tc.invalid {
+				require.Error(t, err, "invalid fee values must fail decoding")
+				return
+			}
+			require.NoError(t, err, "valid fee responses must decode")
+			assert.Equal(t, tc.present, row.MakerPresent, "maker presence should match the response")
+			assert.Equal(t, tc.present, row.TakerPresent, "taker presence should match the response")
+		})
+	}
 }

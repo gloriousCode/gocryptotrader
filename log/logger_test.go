@@ -110,6 +110,12 @@ func TestSetGlobalLogConfig(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetupSubLoggersIgnoresRemovedGCTScript(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, SetupSubLoggers([]SubLoggerConfig{{Name: "gctscript", Output: "console"}}), "SetupSubLoggers must ignore the removed GCTScript sublogger")
+	require.Error(t, SetupSubLoggers([]SubLoggerConfig{{Name: "unknown", Output: "console"}}), "SetupSubLoggers must reject other unknown subloggers")
+}
+
 func TestSetLogPath(t *testing.T) {
 	t.Parallel()
 	err := SetLogPath("")
@@ -212,33 +218,44 @@ func TestMultiWriterWrite(t *testing.T) {
 }
 
 func TestGetWriters(t *testing.T) {
-	t.Parallel()
-	err := getWritersProtected(nil)
-	require.ErrorIs(t, err, errSubloggerConfigIsNil)
-
-	outputWriters := "stDout|stderr|filE"
-
+	// This test temporarily replaces package singleton configuration.
 	mu.Lock()
-	fileLoggingConfiguredCorrectly = false
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	require.ErrorIs(t, err, errFileLoggingNotConfiguredCorrectly)
-
-	fileLoggingConfiguredCorrectly = true
-	_, err = getWriters(&SubLoggerConfig{Output: outputWriters})
-	require.NoError(t, err)
-
-	mu.Unlock()
-
-	outputWriters = "stdout|stderr|noobs"
-	err = getWritersProtected(&SubLoggerConfig{Output: outputWriters})
-	require.ErrorIs(t, err, errUnhandledOutputWriter)
-}
-
-func getWritersProtected(s *SubLoggerConfig) error {
-	mu.RLock()
-	defer mu.RUnlock()
-	_, err := getWriters(s)
-	return err
+	originalFileState, originalFile := fileLoggingConfiguredCorrectly, globalLogFile
+	defer func() { fileLoggingConfiguredCorrectly, globalLogFile = originalFileState, originalFile; mu.Unlock() }()
+	globalLogFile = &Rotate{}
+	// The Go JSON test runner aliases stderr to stdout to preserve event ordering.
+	// Both channel names must still honour the duplicate-writer contract.
+	var standardStreamsErr error
+	if os.Stdout == os.Stderr {
+		standardStreamsErr = errWriterAlreadyLoaded
+	}
+	for _, tc := range []struct {
+		name        string
+		config      *SubLoggerConfig
+		fileEnabled bool
+		wantErr     error
+		writers     []io.Writer
+	}{
+		{name: "nil configuration", wantErr: errSubloggerConfigIsNil},
+		{name: "file disabled", config: &SubLoggerConfig{Output: "stDout|stderr|filE"}, wantErr: errFileLoggingNotConfiguredCorrectly},
+		{name: "configured outputs", config: &SubLoggerConfig{Output: "stDout|stderr|filE"}, fileEnabled: true, wantErr: standardStreamsErr, writers: []io.Writer{os.Stdout, os.Stderr, globalLogFile}},
+		{name: "stdout and file", config: &SubLoggerConfig{Output: "stDout|filE"}, fileEnabled: true, writers: []io.Writer{os.Stdout, globalLogFile}},
+		{name: "stderr and file", config: &SubLoggerConfig{Output: "stderr|filE"}, fileEnabled: true, writers: []io.Writer{os.Stderr, globalLogFile}},
+		{name: "unknown output", config: &SubLoggerConfig{Output: "stdout|stderr|noobs"}, wantErr: errUnhandledOutputWriter},
+		{name: "duplicate console alias", config: &SubLoggerConfig{Output: "stdout|console"}, wantErr: errWriterAlreadyLoaded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fileLoggingConfiguredCorrectly = tc.fileEnabled
+			got, err := getWriters(tc.config)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid writer configuration must retain the exact error")
+				return
+			}
+			require.NoError(t, err, "valid writer configuration must initialise")
+			require.Len(t, got.writers, len(tc.writers), "each configured output must appear once")
+			assert.Equal(t, tc.writers, got.writers, "configured writers should retain their identities and order")
+		})
+	}
 }
 
 func TestGenDefaultSettings(t *testing.T) {
@@ -720,9 +737,8 @@ func TestInfo(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	sl, err := NewSubLogger("TESTYMCTESTALOTINFO")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "test sublogger must initialise")
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTYMCTESTALOTINFO"); mu.Unlock() })
 	sl.setLevelsProtected(splitLevel("INFO"))
 	err = sl.setOutputProtected(mw)
 	if err != nil {
@@ -767,9 +783,8 @@ func TestDebug(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	sl, err := NewSubLogger("TESTYMCTESTALOTDEBUG")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "test sublogger must initialise")
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTYMCTESTALOTDEBUG"); mu.Unlock() })
 	sl.setLevelsProtected(splitLevel("DEBUG"))
 	err = sl.setOutputProtected(mw)
 	if err != nil {
@@ -814,9 +829,8 @@ func TestWarn(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	sl, err := NewSubLogger("TESTYMCTESTALOTWARN")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "test sublogger must initialise")
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTYMCTESTALOTWARN"); mu.Unlock() })
 	sl.setLevelsProtected(splitLevel("WARN"))
 	err = sl.setOutputProtected(mw)
 	if err != nil {
@@ -861,9 +875,8 @@ func TestError(t *testing.T) {
 	mw := &multiWriterHolder{writers: []io.Writer{w}}
 
 	sl, err := NewSubLogger("TESTYMCTESTALOTERROR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "test sublogger must initialise")
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTYMCTESTALOTERROR"); mu.Unlock() })
 	sl.setLevelsProtected(splitLevel("ERROR"))
 	err = sl.setOutputProtected(nil)
 	assert.ErrorIs(t, err, errMultiWriterHolderIsNil)
@@ -944,6 +957,7 @@ func TestNewSubLogger(t *testing.T) {
 
 	sl, err := NewSubLogger("TESTERINOS")
 	require.NoError(t, err)
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTERINOS"); mu.Unlock() })
 
 	Debugln(sl, "testerinos")
 
@@ -1355,6 +1369,7 @@ func TestWithFields(t *testing.T) {
 
 	sl, err := NewSubLogger("TESTSTRUCTUREDLOGGING")
 	require.NoError(t, err, "NewSubLogger must not error")
+	t.Cleanup(func() { mu.Lock(); delete(SubLoggers, "TESTSTRUCTUREDLOGGING"); mu.Unlock() })
 	sl.structuredLogging = true
 	sl.setLevelsProtected(splitLevel("DEBUG|ERROR|INFO|WARN"))
 	err = sl.setOutputProtected(mwh)

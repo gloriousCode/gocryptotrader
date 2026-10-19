@@ -37,9 +37,6 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
-	testnetSpotURL = "https://testnet.binance.vision/api"
-	testnetFutures = "https://testnet.binancefuture.com"
-
 	// Public endpoints
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"

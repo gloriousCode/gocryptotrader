@@ -9,12 +9,7 @@ func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		return err
 	}
-	var fields struct {
-		Maker     *json.RawMessage `json:"maker"`
-		Taker     *json.RawMessage `json:"taker"`
-		MakerUSDT *json.RawMessage `json:"makerU"`
-		TakerUSDT *json.RawMessage `json:"takerU"`
-	}
+	var fields tradeFeePresence
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
@@ -23,5 +18,22 @@ func (r *TradeFeeRate) UnmarshalJSON(data []byte) error {
 	decoded.MakerUSDTPresent = fields.MakerUSDT != nil && string(*fields.MakerUSDT) != `""`
 	decoded.TakerUSDTPresent = fields.TakerUSDT != nil && string(*fields.TakerUSDT) != `""`
 	*r = TradeFeeRate(decoded)
+	return nil
+}
+
+// UnmarshalJSON retains explicit zero rates without treating absent fields as free trading.
+func (r *TradeFeeGroup) UnmarshalJSON(data []byte) error {
+	type feeGroup TradeFeeGroup
+	var decoded feeGroup
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	var fields tradeFeePresence
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	decoded.MakerPresent = fields.Maker != nil && string(*fields.Maker) != `""`
+	decoded.TakerPresent = fields.Taker != nil && string(*fields.Taker) != `""`
+	*r = TradeFeeGroup(decoded)
 	return nil
 }

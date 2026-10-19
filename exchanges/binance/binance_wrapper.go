@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -234,11 +233,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Features:              &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-		TradeFeed: e.Features.Enabled.TradeFeed,
+		TradeFeed:             e.Features.Enabled.TradeFeed,
 	})
 	if err != nil {
 		return err
@@ -1906,22 +1901,41 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
+	fPair := r.Pair
+	var err error
+	if !fPair.IsEmpty() {
+		var format currency.PairFormat
+		format, err = e.GetPairFormat(r.Asset, true)
+		if err != nil {
+			return nil, err
+		}
+		fPair = r.Pair.Format(format)
+	}
 
 	switch r.Asset {
 	case asset.USDTMarginedFutures:
 		var mp []UMarkPrice
-		fri, err := e.UGetFundingRateInfo(ctx)
+		var fri []FundingRateInfoResponse
+		fri, err = e.UGetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		mp, err = e.UGetMarkPrice(ctx, currency.EMPTYPAIR)
+		mp, err = e.UGetMarkPrice(ctx, fPair)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
-			cp, err := e.CurrencyPairs.Match(mp[i].Symbol, r.Asset)
-			if err != nil {
+			var cp currency.Pair
+			var isEnabled bool
+			cp, isEnabled, err = e.MatchSymbolCheckEnabled(mp[i].Symbol, r.Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !isEnabled {
 				continue
 			}
 			var isPerp bool
@@ -1962,21 +1976,22 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
-		fri, err := e.GetFundingRateInfo(ctx)
+		var fri []FundingRateInfoResponse
+		fri, err = e.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		var mp []IndexMarkPrice
-
-		mp, err = e.GetIndexAndMarkPrice(ctx, "", "")
+		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
-			cp, err := e.CurrencyPairs.Match(mp[i].Symbol, r.Asset)
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(mp[i].Symbol)
 			if err != nil {
-				continue
+				return nil, err
 			}
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)

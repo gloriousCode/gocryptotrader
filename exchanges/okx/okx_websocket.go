@@ -88,7 +88,7 @@ const (
 	channelAlgoAdvance          = "algo-advance"
 	channelLiquidationWarning   = "liquidation-warning"
 	channelAccountGreeks        = "account-greeks"
-	channelRFQs                 = "rfqs"
+	channelRequestForQuotes     = "rfqs"
 	channelQuotes               = "quotes"
 	channelStructureBlockTrades = "struc-block-trades"
 	channelSpotGridOrder        = "grid-orders-spot"
@@ -386,6 +386,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if resp.Event == operationLogin || (resp.Event == "error" && slices.Contains(authConnErrorCodes, resp.StatusCode)) {
 		return conn.RequireMatchWithData("login-response", respRaw)
 	}
+	if resp.Event == "error" {
+		return fmt.Errorf("%w: code %q channel %q: %s", errWebsocketRequestRejected, resp.StatusCode, resp.Argument.Channel, resp.Message)
+	}
+
 	if len(resp.Data) == 0 {
 		return nil
 	}
@@ -443,8 +447,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelRFQs:
-		var response WsRFQ
+	case channelRequestForQuotes:
+		var response WsRequestForQuote
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
@@ -459,7 +463,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		var response WsContractGridAlgoOrder
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridPositions:
-		var response WsContractGridAlgoOrder
+		var response WsGridPosition
 		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
@@ -475,14 +479,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
-	case channelMarkPrice, channelPriceLimit:
+	case channelMarkPrice:
 		var response WsMarkPrice
 		return e.wsProcessPushData(ctx, respRaw, &response)
+	case channelPriceLimit:
+		var response WsLimitPrice
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelOrderBooks5:
-		return e.wsProcessOrderbook5(respRaw)
+		return e.wsProcessOrderbook5(ctx, respRaw)
 	case okxSpreadOrderbookLevel1,
 		okxSpreadOrderbook:
-		return e.wsProcessSpreadOrderbook(respRaw)
+		return e.wsProcessSpreadOrderbook(ctx, respRaw)
 	case okxSpreadPublicTrades:
 		return e.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
@@ -512,14 +519,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo `json:"arg"`
-			Data      []WsDepositInfo  `json:"data"`
+			Arguments SubscriptionInfo   `json:"arg"`
+			Data      []WsWithdrawalInfo `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo   `json:"arg"`
-			Data      []WsWithdrawalInfo `json:"data"`
+			Arguments SubscriptionInfo `json:"arg"`
+			Data      []WsDepositInfo  `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case channelRecurringBuy:
@@ -529,8 +536,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case liquidationOrders:
-		var resp *LiquidationOrder
-		return e.wsProcessPushData(ctx, respRaw, &resp)
+		var response WsLiquidationOrders
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case adlWarning:
 		var resp ADLWarning
 		return e.wsProcessPushData(ctx, respRaw, &resp)
@@ -739,17 +746,26 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 	}
 	tickers := make([]ticker.Price, len(data))
 	for x := range data {
+		// vol24h is deliberately not mapped: OKX reports it in USD on an
+		// inverse spread, so it is not a base volume, mirroring the REST path.
 		tickers[x] = ticker.Price{
 			Last:         data[x].Last.Float64(),
 			Bid:          data[x].BidPrice.Float64(),
 			Ask:          data[x].AskPrice.Float64(),
+			Open:         data[x].OpenPrice24Hour.Float64(),
+			High:         data[x].HighestPrice24Hour.Float64(),
+			Low:          data[x].LowestPrice24Hour.Float64(),
 			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, tickers)
+	processed, err := ticker.ProcessBatch(tickers)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
@@ -788,7 +804,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.
-func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrderbook(ctx context.Context, respRaw []byte) error {
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -803,7 +819,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 		return err
 	}
 	for x := range extractedResponse.Data {
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Asset:             asset.Spread,
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
@@ -821,7 +837,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 }
 
 // wsProcessOrderbook5 processes orderbook data
-func (e *Exchange) wsProcessOrderbook5(data []byte) error {
+func (e *Exchange) wsProcessOrderbook5(ctx context.Context, data []byte) error {
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -850,7 +866,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 	}
 
 	for x := range assets {
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Asset:             assets[x],
 			Asks:              asks,
 			Bids:              bids,
@@ -933,9 +949,9 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
-			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
+			err = e.WsProcessSnapshotOrderBook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
-			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
+			err = e.WsProcessUpdateOrderbook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
 			if errors.Is(err, errOrderbookSnapshotPending) {
 				continue
 			}
@@ -969,11 +985,11 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 }
 
 // WsProcessSnapshotOrderBook processes snapshot order books
-func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+func (e *Exchange) WsProcessSnapshotOrderBook(ctx context.Context, data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	asks := e.AppendWsOrderbookItems(data.Asks)
 	bids := e.AppendWsOrderbookItems(data.Bids)
 	for i := range assets {
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			LastUpdateID:      data.SequenceID,
 			Asset:             assets[i],
 			Asks:              asks,
@@ -993,7 +1009,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data.
 // OKX can reset sequence IDs to a lower value while retaining continuity through
 // prevSeqId; see https://www.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
-func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+func (e *Exchange) WsProcessUpdateOrderbook(ctx context.Context, data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	asks := e.AppendWsOrderbookItems(data.Asks)
 	bids := e.AppendWsOrderbookItems(data.Bids)
 	// A message without instType can map one instrument to multiple cached assets,
@@ -1027,7 +1043,7 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			}
 			return sequenceErr
 		}
-		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+		if err := e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 			UpdateID:   data.SequenceID,
 			Pair:       pair,
 			Asset:      assets[i],
@@ -1289,6 +1305,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
+	tickerPrices := make([]ticker.Price, 0, len(response.Data))
 	for i := range response.Data {
 		var assets []asset.Item
 		if response.Argument.InstrumentType != "" {
@@ -1305,7 +1322,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 		}
 		for j := range assets {
 			baseVolume, quoteVolume := tickerVolumes(&response.Data[i], assets[j])
-			tickData := &ticker.Price{
+			tickerPrices = append(tickerPrices, ticker.Price{
 				ExchangeName: e.Name,
 				Open:         response.Data[i].OpenPrice24Hour.Float64(),
 				BaseVolume:   baseVolume,
@@ -1320,13 +1337,14 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				AssetType:    assets[j],
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
-			}
-			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
-				return err
-			}
+			})
 		}
 	}
-	return nil
+	processed, err := ticker.ProcessBatch(tickerPrices)
+	if len(processed) == 0 {
+		return err
+	}
+	return common.AppendError(err, e.Websocket.DataHandler.Send(ctx, processed))
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -1390,11 +1408,11 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, resp.Argument.UID)}
 	for i := range resp.Data {
-		for j := range resp.Data[i].BalanceData {
-			subAccts[0].Balances.Set(resp.Data[i].BalanceData[j].Currency, accounts.Balance{
-				Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
-				UpdatedAt: resp.Data[i].BalanceData[j].UpdateTime.Time(),
+		for j := range resp.Data[i].Balances {
+			subAccts[0].Balances.Set(resp.Data[i].Balances[j].Currency, accounts.Balance{
+				Total:     resp.Data[i].Balances[j].CashBalance.Float64(),
+				Free:      resp.Data[i].Balances[j].CashBalance.Float64(),
+				UpdatedAt: resp.Data[i].Balances[j].UpdateTime.Time(),
 			})
 		}
 		// TODO: Handle position data
@@ -1426,7 +1444,7 @@ func channelName(s *subscription.Subscription) string {
 
 // isAssetChannel returns if the channel expects one Asset per subscription
 func isAssetChannel(s *subscription.Subscription) bool {
-	return s.Channel == subscription.MyOrdersChannel
+	return s.Channel == subscription.MyOrdersChannel || s.Channel == liquidationOrders
 }
 
 // isSymbolChannel returns if the channel expects one Symbol per subscription

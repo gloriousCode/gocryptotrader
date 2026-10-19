@@ -240,7 +240,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	topicSplit := strings.Split(result.Topic, ".")
 	switch topicSplit[0] {
 	case chanOrderbook:
-		return e.wsProcessOrderbook(assetType, &result)
+		return e.wsProcessOrderbook(ctx, assetType, &result)
 	case chanPublicTrade:
 		return e.wsProcessPublicTrade(assetType, &result)
 	case chanPublicTicker:
@@ -316,23 +316,40 @@ func (e *Exchange) wsProcessWalletPushData(ctx context.Context, resp []byte) err
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return err
 	}
-	subAcct := accounts.NewSubAccount(asset.Spot, "")
+	subAccts := make(accounts.SubAccounts, 0, len(result.Data))
 	for x := range result.Data {
-		for y := range result.Data[x].Coin {
-			coin := result.Data[x].Coin[y]
-			balance, err := e.Accounts.UpdateBalance(ctx, "", asset.Spot, coin.Coin, func(balance *accounts.Balance) {
-				balance.Total = coin.WalletBalance.Float64()
-				// Unified wallet pushes cannot refresh spendable funds because availableToWithdraw
-				// is deprecated; preserve the REST-derived Free, Hold, and Borrowed values.
-				balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
-			})
-			if err != nil {
-				return err
+		assetTypes := []asset.Item{asset.Spot}
+		if strings.EqualFold(result.Data[x].AccountType, "CONTRACT") {
+			// UTA 1.0 uses CONTRACT only for inverse derivatives. Classic accounts
+			// share CONTRACT across the derivative assets REST caches separately.
+			assetTypes = []asset.Item{asset.CoinMarginedFutures}
+			e.account.m.Lock()
+			if e.account.accountType == accountTypeNormal {
+				assetTypes = append(assetTypes, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Options)
 			}
-			subAcct.Balances.Set(coin.Coin, balance)
+			e.account.m.Unlock()
+		}
+		for _, assetType := range assetTypes {
+			subAcct := accounts.NewSubAccount(assetType, "")
+			for y := range result.Data[x].Coin {
+				coin := result.Data[x].Coin[y]
+				balance, err := e.Accounts.UpdateBalance(ctx, "", assetType, coin.Coin, func(balance *accounts.Balance) {
+					balance.Total = coin.WalletBalance.Float64()
+					// UNIFIED's availableToWithdraw is deprecated in both REST and websocket
+					// responses; do not replace cached availability with this field.
+					if !strings.EqualFold(result.Data[x].AccountType, "UNIFIED") {
+						balance.AvailableWithoutBorrow = coin.AvailableToWithdraw.Float64()
+					}
+				})
+				if err != nil {
+					return err
+				}
+				subAcct.Balances.Set(coin.Coin, balance)
+			}
+			subAccts = append(subAccts, subAcct)
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, accounts.SubAccounts{subAcct})
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.
@@ -534,7 +551,7 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		Last:         result.LastPrice.Float64(),
 		High:         result.HighPrice24Hour.Float64(),
 		Low:          result.LowPrice24Hour.Float64(),
@@ -542,7 +559,11 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.PushTimestamp.Time(),
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {
@@ -740,7 +761,7 @@ func (e *Exchange) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRes
 	return trade.AddTradesToBuffer(tradeDatas...)
 }
 
-func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {
+func (e *Exchange) wsProcessOrderbook(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {
 	var result WsOrderbookDetail
 	if err := json.Unmarshal(resp.Data, &result); err != nil {
 		return err
@@ -752,7 +773,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 	}
 
 	if resp.Type == "snapshot" {
-		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(ctx, &orderbook.Book{
 			Pair:         cp,
 			Exchange:     e.Name,
 			Asset:        assetType,
@@ -763,7 +784,7 @@ func (e *Exchange) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespo
 			Bids:         result.Bids.Levels(),
 		})
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
+	return e.Websocket.Orderbook.Update(ctx, &orderbook.Update{
 		Pair:       cp,
 		Asks:       result.Asks.Levels(),
 		Bids:       result.Bids.Levels(),

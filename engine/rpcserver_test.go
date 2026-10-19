@@ -53,6 +53,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -149,6 +150,8 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 					Exchange:        f.GetName(),
 					Price:           1337,
 					Amount:          1337,
+					Fee:             0.25,
+					FeeAsset:        currency.USDT,
 					InternalOrderID: id,
 					OrderID:         "1337",
 					ClientOrderID:   "1337",
@@ -310,7 +313,6 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 		Ask:          1337,
 		BaseVolume:   1337,
 		QuoteVolume:  1337,
-		PriceATH:     1337,
 		Open:         1337,
 		Close:        1337,
 		Pair:         p,
@@ -1835,6 +1837,8 @@ func TestGetManagedOrders(t *testing.T) {
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
+		Fee:       0.25,
+		FeeAsset:  currency.USDT,
 		Exchange:  "Binance",
 		Type:      order.Limit,
 		Side:      order.Sell,
@@ -1852,10 +1856,15 @@ func TestGetManagedOrders(t *testing.T) {
 		AssetType: "spot",
 		Pair:      p,
 	})
-	if err != nil {
+	switch {
+	case err != nil:
 		t.Errorf("non expected Error: %v", err)
-	} else if oo == nil || len(oo.GetOrders()) != 1 {
+	case oo == nil || len(oo.GetOrders()) != 1:
 		t.Errorf("unexpected order result: %v", oo)
+	default:
+		got := oo.GetOrders()[0]
+		assert.InDelta(t, 0.25, got.GetFee(), 1e-9, "the managed order should carry its fee")
+		assert.Equal(t, "USDT", got.GetFeeCurrency(), "the managed order should carry its fee currency from the stored order")
 	}
 }
 
@@ -1886,6 +1895,98 @@ func TestRPCServer_unixTimestamp(t *testing.T) {
 	timestampNanos := s.unixTimestamp(x)
 	if want := int64(sec*1_000_000_000 + nsec); timestampNanos != want {
 		t.Errorf("have %d, want %d", timestampSeconds, want)
+	}
+}
+
+func TestRPCServer_tickerResponse(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSD()
+	price := &ticker.Price{
+		Pair:                       pair,
+		ExchangeName:               "Bitstamp",
+		AssetType:                  asset.Spot,
+		LastUpdated:                time.Unix(1643640186, 123456789),
+		Last:                       1,
+		LastSize:                   2,
+		VolumeWeightedAveragePrice: 3,
+		High:                       4,
+		Low:                        5,
+		Bid:                        7,
+		BidSize:                    8,
+		Ask:                        10,
+		AskSize:                    11,
+		BaseVolume:                 12,
+		QuoteVolume:                13,
+		Open:                       14,
+		Open24Hour:                 15,
+		PercentChange24Hour:        16,
+		Close:                      17,
+		OpenInterest:               18,
+		OpenInterestValue:          19,
+		MarkPrice:                  20,
+		IndexPrice:                 21,
+		FlashReturnRate:            22,
+		BidPeriod:                  23,
+		AskPeriod:                  24,
+		FlashReturnRateAmount:      25,
+	}
+
+	for _, tc := range []struct {
+		name        string
+		nanoseconds bool
+		timestamp   int64
+	}{
+		{name: "seconds", timestamp: 1643640186},
+		{name: "nanoseconds", nanoseconds: true, timestamp: 1643640186123456789},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s := &RPCServer{Engine: &Engine{Config: &config.Config{}}}
+			s.Config.RemoteControl.GRPC.TimeInNanoSeconds = tc.nanoseconds
+			want := &gctrpc.TickerResponse{
+				Pair: &gctrpc.CurrencyPair{
+					Base:  "BTC",
+					Quote: "USD",
+				},
+				LastUpdated:                tc.timestamp,
+				CurrencyPair:               "BTCUSD",
+				Last:                       1,
+				LastSize:                   2,
+				VolumeWeightedAveragePrice: 3,
+				High:                       4,
+				Low:                        5,
+				Bid:                        7,
+				BidSize:                    8,
+				Ask:                        10,
+				AskSize:                    11,
+				Volume:                     12,
+				BaseVolume:                 12,
+				QuoteVolume:                13,
+				Open:                       14,
+				Open24Hour:                 15,
+				PercentChange24Hour:        16,
+				Close:                      17,
+				OpenInterest:               18,
+				OpenInterestValue:          19,
+				MarkPrice:                  20,
+				IndexPrice:                 21,
+				ExchangeName:               "Bitstamp",
+				AssetType:                  asset.Spot.String(),
+				FlashReturnRate:            22,
+				BidPeriod:                  23,
+				AskPeriod:                  24,
+				FlashReturnRateAmount:      25,
+			}
+			got := s.tickerResponse(price)
+			assert.Equal(t, want, got, "ticker RPC response should contain every stored price field")
+
+			encoded, err := proto.Marshal(got)
+			require.NoError(t, err, "ticker RPC response must marshal")
+			var decoded gctrpc.TickerResponse
+			require.NoError(t, proto.Unmarshal(encoded, &decoded), "ticker RPC response must unmarshal")
+			assert.True(t, proto.Equal(want, &decoded), "ticker RPC fields should survive a wire round trip")
+		})
 	}
 }
 
@@ -1932,7 +2033,7 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	request := &gctrpc.GetTickerRequest{
 		Exchange: testExchange,
 		Pair: &gctrpc.CurrencyPair{
-			Delimiter: pair.Delimiter,
+			Delimiter: "-",
 			Base:      pair.Base.String(),
 			Quote:     pair.Quote.String(),
 		},
@@ -1942,22 +2043,19 @@ func TestRPCServer_GetTicker_LastUpdatedNanos(t *testing.T) {
 	// Check if timestamp returned is in seconds if !TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = false
 	one, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.Unix(); one.LastUpdated != want {
-		t.Errorf("have %d, want %d", one.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.Unix(), one.LastUpdated)
+	assert.Equal(t, request.Pair, one.Pair, "GetTicker should echo the requested pair")
+	assert.Equal(t, "XXXXX-YYYYY", one.CurrencyPair, "GetTicker should echo the requested pair format")
 
 	// Check if timestamp returned is in nanoseconds if TimeInNanoSeconds.
 	server.Config.RemoteControl.GRPC.TimeInNanoSeconds = true
 	two, err := server.GetTicker(t.Context(), request)
-	if err != nil {
-		t.Error(err)
-	}
-	if want := now.UnixNano(); two.LastUpdated != want {
-		t.Errorf("have %d, want %d", two.LastUpdated, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, now.UnixNano(), two.LastUpdated)
+	request.Pair.Base = "changed"
+	assert.Equal(t, "XXXXX", one.Pair.Base, "response pair should not alias the request")
+	assert.Equal(t, "XXXXX", two.Pair.Base, "response pair should not alias the request")
 }
 
 func TestUpdateDataHistoryJobPrerequisite(t *testing.T) {
@@ -2139,7 +2237,7 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	}
 
-	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
+	resp, err := s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
 		Asset:    asset.Futures.String(),
 		Pair: &gctrpc.CurrencyPair{
@@ -2149,6 +2247,9 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the position order should carry its fee currency")
 
 	_, err = s.GetFuturesPositionsOrders(t.Context(), &gctrpc.GetFuturesPositionsOrdersRequest{
 		Exchange: fakeExchangeName,
@@ -3040,6 +3141,8 @@ func TestGetAllManagedPositions(t *testing.T) {
 		ExecutedAmount:       1337,
 		RemainingAmount:      1337,
 		Cost:                 1337,
+		Fee:                  1.5,
+		FeeAsset:             currency.USDT,
 		Exchange:             fakeExchangeName,
 		OrderID:              "1337",
 		Type:                 order.Market,
@@ -3056,8 +3159,11 @@ func TestGetAllManagedPositions(t *testing.T) {
 	request.GetFundingPayments = true
 	request.IncludeFullFundingRates = true
 	request.IncludeFullOrderData = true
-	_, err = s.GetAllManagedPositions(t.Context(), request)
-	assert.NoError(t, err)
+	resp, err := s.GetAllManagedPositions(t.Context(), request)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.GetPositions(), "positions must be returned")
+	require.NotEmpty(t, resp.GetPositions()[0].GetOrders(), "position orders must be returned")
+	assert.Equal(t, "USDT", resp.GetPositions()[0].GetOrders()[0].GetFeeCurrency(), "the managed position's order should carry its fee currency")
 }
 
 func TestGetOrderbookMovement(t *testing.T) {

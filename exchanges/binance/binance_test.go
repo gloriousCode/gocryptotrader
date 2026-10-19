@@ -2279,7 +2279,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	}}`)
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
+	if err := e.SeedLocalCacheWithBook(t.Context(), p, &book); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2940,29 +2940,44 @@ func TestGetLatestFundingRates(t *testing.T) {
 		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
 	}
 	testexch.UpdatePairsOnce(t, e)
-
 	usdtPerpetualPair := currency.NewBTCUSDT()
-	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 usdtPerpetualPair,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
+	err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
 		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, usdtPerpetualPair, err)
 
-	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset: asset.USDTMarginedFutures,
-		Pair:  usdtPerpetualPair,
-	})
-	assert.NoError(t, err, "GetLatestFundingRates should not error for USDTMarginedFutures")
-
-	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset: asset.CoinMarginedFutures,
-	})
-	assert.NoError(t, err, "GetLatestFundingRates should not error for CoinMarginedFutures")
+	for _, tc := range []struct {
+		name    string
+		request *fundingrate.LatestRateRequest
+		wantErr error
+	}{
+		{name: "nil request", wantErr: common.ErrNilPointer},
+		{name: "unsupported prediction", request: &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: usdtPerpetualPair, IncludePredictedRate: true}, wantErr: common.ErrFunctionNotSupported},
+		{name: "unsupported asset", request: &fundingrate.LatestRateRequest{Asset: asset.Spot}, wantErr: asset.ErrNotSupported},
+		{name: "USDT exact pair", request: &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: usdtPerpetualPair}},
+		{name: "coin batch", request: &fundingrate.LatestRateRequest{Asset: asset.CoinMarginedFutures}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rows, err := e.GetLatestFundingRates(t.Context(), tc.request)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid requests must retain their validation error")
+				require.Empty(t, rows, "invalid requests must not produce rates")
+				return
+			}
+			require.NoError(t, err, "GetLatestFundingRates must accept supported requests without a websocket symbol matcher")
+			require.NotEmpty(t, rows, "supported requests must return funding evidence")
+			if !tc.request.Pair.IsEmpty() {
+				require.Len(t, rows, 1, "an exact pair request must return its own funding rate")
+				assert.True(t, rows[0].Pair.Equal(tc.request.Pair), "the returned instrument should match the requested pair")
+			}
+			for _, row := range rows {
+				assert.Equal(t, tc.request.Asset, row.Asset, "the returned asset should match the request")
+				perpetual, err := e.IsPerpetualFutureCurrency(row.Asset, row.Pair)
+				require.NoError(t, err, "funding instruments must support classification")
+				assert.True(t, perpetual, "funding evidence should contain perpetual contracts only")
+			}
+		})
+	}
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -3513,19 +3528,6 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-}
-
-func TestSpotFutures(t *testing.T) {
-	t.Parallel()
-	cp := currency.NewPair(currency.NewCode("BTCUSD"), currency.NewCode("231229"))
-	cp.Delimiter = "_"
-	e.Verbose = true
-	interval := e.FormatExchangeKlineInterval(kline.OneDay)
-	resp, err := e.GetFuturesKlineData(t.Context(), cp, interval, 0, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log(resp)
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

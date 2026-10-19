@@ -922,6 +922,8 @@ var stringsToOrderStatus = []struct {
 	{"iNsUfFiCiEnT_bAlAnCe", InsufficientBalance, nil},
 	{"PARTIALLY_CANCELLEd", PartiallyCancelled, nil},
 	{"partially canceLLed", PartiallyCancelled, nil},
+	{"PARTIALLY_CANCELED", PartiallyCancelled, nil},
+	{"partially_canceled", PartiallyCancelled, nil},
 	{"opeN", Open, nil},
 	{"cLosEd", Closed, nil},
 	{"cancellinG", Cancelling, nil},
@@ -1135,6 +1137,21 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
+}
+
+// TestUpdateOrderFromDetailMergesFeeAsset asserts the commission currency propagates through order
+// management. A venue that reports its fee in a named asset (and a zero fee, as with a maker rebate)
+// must not lose the currency when the fresh detail is merged into the stored order.
+func TestUpdateOrderFromDetailMergesFeeAsset(t *testing.T) {
+	t.Parallel()
+	stored := &Detail{}
+	err := stored.UpdateOrderFromDetail(&Detail{Fee: 0, FeeAsset: currency.USDT})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "the fee currency should merge even when the fee is zero")
+
+	err = stored.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, currency.USDT, stored.FeeAsset, "an empty incoming fee currency should not clear the stored one")
 }
 
 // TestUpdateOrderFromDetailRemainingAmountInvariant ensures that when an
@@ -1854,8 +1871,26 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
-	assert.Equal(t, exp, j)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
+	assert.Equal(t, exp, j, "serialised order should retain the full local submit contract")
+	for _, tc := range []struct {
+		name            string
+		hidden, iceberg bool
+	}{
+		{name: "visible"}, {name: "hidden", hidden: true}, {name: "iceberg", iceberg: true}, {name: "hidden iceberg", hidden: true, iceberg: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			candidate := orderSubmit
+			candidate.Hidden, candidate.Iceberg = tc.hidden, tc.iceberg
+			encoded, err := json.Marshal(candidate)
+			require.NoError(t, err, "submit flags must serialise")
+			var restored Submit
+			require.NoError(t, json.Unmarshal(encoded, &restored), "submit flags must decode")
+			assert.Equal(t, tc.hidden, restored.Hidden, "hidden flag should survive serialisation")
+			assert.Equal(t, tc.iceberg, restored.Iceberg, "iceberg flag should survive serialisation")
+		})
+	}
 }
 
 func TestAdd(t *testing.T) {

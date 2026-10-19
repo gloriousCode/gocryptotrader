@@ -130,6 +130,27 @@ if err != nil {
     // supplied then
 ```
 
+### Websocket endpoints
+
+Public, private and business websocket defaults use TLS port 443, for example
+`wss://ws.okx.com/ws/v5/public`. [OKX retires public internet port 8443 on 31 October 2026](https://www.okx.com/en-us/help/okx-websocket-port-8443-discontinuation-announcement).
+Persisted endpoint overrides still take precedence over defaults: remove `:8443`
+from configured OKX websocket URLs, preserving their regional host and path.
+
+### Public liquidation observations
+
+Configure a public subscription with `Channel: "liquidation-orders"` and
+`Asset: asset.PerpetualSwap` to observe all swap instruments through the existing
+public websocket. The wire argument is `{"channel":"liquidation-orders","instType":"SWAP"}`;
+there is no per-instrument subscription or authentication requirement. Pushes are
+relayed as `*WsLiquidationOrders`. This replaces the removed REST liquidation endpoint.
+
+[OKX documents this feed](https://www.okx.com/docs-v5/en/#public-data-websocket-liquidation-orders-channel)
+as incomplete market coverage, and records can arrive out of timestamp order.
+Consumers must not treat silence as proof of zero liquidations or these observations
+as market-wide totals. Swap quantities are contracts and require instrument metadata
+for notional conversion. The current documentation does not promise a fixed sampling interval.
+
 ## Donations
 
 <img src="../../docs/assets/donate.png" alt="Donate to GoCryptoTrader" hspace="70">

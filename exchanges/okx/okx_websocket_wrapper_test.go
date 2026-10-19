@@ -2,6 +2,7 @@ package okx
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -23,7 +24,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testpath "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func loadOKXExchangeConfig(t *testing.T, exchangeName string) *config.Exchange {
@@ -54,7 +54,7 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 			assert.Equal(t, instTypeOption, r.URL.Query().Get("instType"))
 			assert.Equal(t, "BTC-USD-270326-100000-C", r.URL.Query().Get("instId"))
 			assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
-			_, err := w.Write([]byte(`{"code":"0","data":[{"instType":"OPTION","instId":"BTC-USD-270326-100000-C","instIdCode":"12345"}]}`))
+			_, err := w.Write([]byte(`{"code":"0","data":[{"instType":"OPTION","instId":"BTC-USD-270326-100000-C","instIdCode":12345}]}`))
 			assert.NoError(t, err)
 			return
 		}
@@ -364,7 +364,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     mainPair,
-				InstrumentIDCode: types.Number(123456),
+				InstrumentIDCode: 123456,
 			},
 		}, mainPair.String())
 		require.Equal(t, int64(123456), code)
@@ -375,7 +375,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.Number(654321),
+				InstrumentIDCode: 654321,
 			},
 		}, "NON-MATCHING")
 		require.Equal(t, int64(654321), code)
@@ -386,15 +386,31 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 		code := lookupInstrumentIDCode([]Instrument{
 			{
 				InstrumentID:     currency.NewBTCUSDT(),
-				InstrumentIDCode: types.Number(0),
+				InstrumentIDCode: 0,
 			},
 			{
 				InstrumentID:     currency.NewPair(currency.ETH, currency.USDT),
-				InstrumentIDCode: types.Number(0),
+				InstrumentIDCode: 0,
 			},
 		}, "UNKNOWN")
 		require.Equal(t, int64(0), code)
 	})
+	for _, tc := range []struct {
+		name         string
+		instrumentID string
+		value        uint64
+		want         int64
+	}{
+		{name: "maximum signed code", instrumentID: mainPair.String(), value: math.MaxInt64, want: math.MaxInt64},
+		{name: "overflowing matched code", instrumentID: mainPair.String(), value: math.MaxUint64},
+		{name: "overflowing fallback code", instrumentID: "NON-MATCHING", value: math.MaxUint64},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := lookupInstrumentIDCode([]Instrument{{InstrumentID: mainPair, InstrumentIDCode: tc.value}}, tc.instrumentID)
+			assert.Equal(t, tc.want, got, "instrument code should fit the signed request field")
+		})
+	}
 }
 
 func TestOptionInstrumentSelectors(t *testing.T) {

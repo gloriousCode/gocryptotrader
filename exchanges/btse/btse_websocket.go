@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -255,19 +254,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-
-			if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
-				Last:         tradeHistory.Data[x].Price,
-				Pair:         p,
-				ExchangeName: e.Name,
-				AssetType:    a,
-				LastUpdated:  tradeHistory.Data[x].Timestamp.Time(),
-			}); err != nil {
-				return err
-			}
-			if !e.IsSaveTradeDataEnabled() {
-				continue
-			}
 			trades = append(trades, trade.Data{
 				Timestamp:    tradeHistory.Data[x].Timestamp.Time().UTC(),
 				CurrencyPair: p,
@@ -355,7 +341,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		newOB.Asks.Reverse() // Reverse asks for correct alignment
 		newOB.ValidateOrderbook = e.ValidateOrderbook
 		newOB.LastUpdated = time.Now() // NOTE: Temp to fix test.
-		err = e.Websocket.Orderbook.LoadSnapshot(&newOB)
+		err = e.Websocket.Orderbook.LoadSnapshot(ctx, &newOB)
 		if err != nil {
 			return err
 		}
