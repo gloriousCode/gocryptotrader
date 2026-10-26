@@ -366,7 +366,9 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(conn, subs...)
 	require.NoError(t, err)
 
-	e.wsOBResubMgr.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
+	recoveryCtx, cancelRecovery := context.WithCancel(t.Context())
+	defer cancelRecovery()
+	e.wsOBResubMgr.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = &wsOBRecovery{parentDone: recoveryCtx.Done(), done: recoveryCtx.Done(), cancel: cancelRecovery, stop: cancelRecovery}
 
 	for _, tc := range []struct {
 		payload      []byte
@@ -418,7 +420,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 	}, time.Second, 10*time.Millisecond, "out-of-order update must successfully resubscribe in the background")
 }
 
-func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {
+func TestProcessOrderbookUpdateWithSnapshotRetainsFailedRecovery(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name      string
@@ -437,7 +439,9 @@ func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {
 			pair := currency.NewBTCUSDT()
 			initial := []byte(`{"t":1757377580046,"full":true,"s":"ob.BTC_USDT.50","u":100,"b":[["100","1"],["99","1"]],"a":[["101","1"]]}`)
 			require.NoError(t, e.processOrderbookUpdateWithSnapshot(t.Context(), nil, initial, time.Now(), asset.Spot), "initial snapshot must load")
-			e.wsOBResubMgr.lookup[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}] = true
+			recoveryCtx, cancelRecovery := context.WithCancel(t.Context())
+			defer cancelRecovery()
+			e.wsOBResubMgr.lookup[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}] = &wsOBRecovery{parentDone: recoveryCtx.Done(), done: recoveryCtx.Done(), cancel: cancelRecovery, stop: cancelRecovery}
 			if tc.fillRelay {
 				for len(e.Websocket.DataHandler.C) < cap(e.Websocket.DataHandler.C) {
 					require.NoError(t, e.Websocket.DataHandler.Send(t.Context(), "backlog"), "relay must accept backlog")
@@ -445,7 +449,12 @@ func TestProcessOrderbookUpdateWithSnapshotEndsRecovery(t *testing.T) {
 			}
 			recovery := []byte(`{"t":1757377580046,"full":true,"s":"ob.BTC_USDT.50","u":200,"b":` + tc.bids + `,"a":[["101","1"]]}`)
 			require.Error(t, e.processOrderbookUpdateWithSnapshot(t.Context(), nil, recovery, time.Now(), asset.Spot), "failed recovery snapshot must return an error")
-			assert.False(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "a recovery snapshot should end the resubscription so later updates are not dropped")
+			assert.True(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "failed snapshot should retain recovery until a valid replacement is published")
+			for len(e.Websocket.DataHandler.C) > 0 {
+				<-e.Websocket.DataHandler.C
+			}
+			require.NoError(t, e.processOrderbookUpdateWithSnapshot(t.Context(), nil, initial, time.Now(), asset.Spot), "valid replacement must load")
+			assert.False(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "valid replacement should complete recovery")
 		})
 	}
 }

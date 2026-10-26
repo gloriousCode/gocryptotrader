@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"testing/synctest"
@@ -28,13 +29,27 @@ func TestIsResubscribing(t *testing.T) {
 	t.Parallel()
 
 	m := newWSOBResubManager()
-	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = &wsOBRecovery{parentDone: ctx.Done(), done: ctx.Done(), cancel: cancel, stop: cancel}
 	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Futures))
 }
 
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{"missing snapshot", testResubscribeMissingSnapshot},
+		{"failure recovery", testResubscribeFailureRecovery},
+		{"snapshot during request", testResubscribeSnapshotDuringRequest},
+		{"renewed demand", testResubscribeRenewedDemand},
+		{"connection replacement", testResubscribeConnectionReplacement},
+	} {
+		t.Run(tc.name, tc.run)
+	}
 
 	m := newWSOBResubManager()
 
@@ -107,16 +122,56 @@ func TestResubscribe(t *testing.T) {
 		"resubscription state should clear after completion is signalled",
 	)
 
-	t.Run("failed background resubscription clears tracking", func(t *testing.T) {
+	t.Run("parent cancellation clears background recovery", func(t *testing.T) {
 		t.Parallel()
 
 		synctest.Test(t, func(t *testing.T) {
 			m := newWSOBResubManager()
-			// An untracked connection fails after dispatch, so only background cleanup can clear the entry.
-			require.NoError(t, m.Resubscribe(t.Context(), e, &FixtureConnection{}, qualifiedChannel, currency.NewBTCUSDT(), asset.Spot), "Resubscribe must dispatch before the untracked connection fails")
+			ctx, cancel := context.WithCancel(t.Context())
+			require.NoError(t, m.Resubscribe(ctx, e, &FixtureConnection{}, qualifiedChannel, currency.NewBTCUSDT(), asset.Spot), "Resubscribe must dispatch before the untracked connection fails")
+			cancel()
 			synctest.Wait()
-			assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "a failed background resubscription should clear the tracking entry")
+			assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "parent cancellation should clear the tracking entry")
 		})
+	})
+}
+
+func testResubscribeMissingSnapshot(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		e := new(Exchange)
+		require.NoError(t, testexch.Setup(e), "setup must succeed")
+		e.Name = t.Name()
+		e.Features.Subscriptions = subscription.List{{Enabled: true, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50}}
+		subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+		require.NoError(t, err, "subscriptions must expand")
+		base, err := e.Websocket.CreateTestConnection(asset.Spot)
+		require.NoError(t, err, "test connection must initialise")
+		conn := &FixtureConnection{Connection: base}
+		require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "test connection must register")
+		require.NoError(t, e.Websocket.AddSubscriptions(conn, subs...), "subscriptions must register")
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		pair := currency.NewBTCUSDT()
+		const channel = "ob.BTC_USDT.50"
+		require.NoError(t, e.wsOBResubMgr.Resubscribe(ctx, e, conn, channel, pair, asset.Spot), "initial recovery must start")
+		synctest.Wait()
+		require.True(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "successful acknowledgement must still await the snapshot")
+		synctest.Sleep(time.Minute)
+		assert.True(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "automatic recovery should keep invalid increments suppressed")
+		require.NoError(t, e.wsOBResubMgr.Resubscribe(ctx, e, conn, channel, pair, asset.Spot), "expired recovery must be retryable")
+		synctest.Wait()
+		require.True(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "retry must await its snapshot")
+		snapshot := []byte(`{"t":1757377580046,"full":true,"s":"ob.BTC_USDT.50","u":100,"b":[["100","1"]],"a":[["101","1"]]}`)
+		require.NoError(t, e.processOrderbookUpdateWithSnapshot(t.Context(), conn, snapshot, time.Now(), asset.Spot), "replacement snapshot must load")
+		assert.False(t, e.wsOBResubMgr.IsResubscribing(pair, asset.Spot), "replacement snapshot should finish recovery")
+		update := []byte(`{"t":1757377580047,"s":"ob.BTC_USDT.50","U":101,"u":102,"b":[["100","2"]],"a":[]}`)
+		require.NoError(t, e.processOrderbookUpdateWithSnapshot(t.Context(), conn, update, time.Now(), asset.Spot), "incremental processing must resume")
+		book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.NoError(t, err, "recovered book must be readable")
+		assert.Equal(t, int64(102), book.LastUpdateID, "recovered book should advance")
+		assert.Equal(t, float64(2), book.Bids[0].Amount, "recovered book should apply the new amount")
 	})
 }
 
@@ -209,7 +264,9 @@ func TestCompletedResubscribe(t *testing.T) {
 	m := newWSOBResubManager()
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot) // no-op
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
-	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = true
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	m.lookup[key.PairAsset{Base: currency.BTC.Item, Quote: currency.USDT.Item, Asset: asset.Spot}] = &wsOBRecovery{parentDone: ctx.Done(), done: ctx.Done(), cancel: cancel, stop: cancel}
 	require.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot)
 	assert.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
