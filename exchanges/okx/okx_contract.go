@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
 // FuturesContractFromInstrument converts native REST or websocket metadata without network requests.
-func (e *Exchange) FuturesContractFromInstrument(instrument Instrument, item asset.Item) (futures.Contract, error) {
+func (e *Exchange) FuturesContractFromInstrument(instrument *Instrument, item asset.Item) (futures.Contract, error) {
+	if instrument == nil {
+		return futures.Contract{}, common.ErrNilPointer
+	}
 	if !item.IsFutures() {
 		return futures.Contract{}, futures.ErrNotFuturesAsset
 	}

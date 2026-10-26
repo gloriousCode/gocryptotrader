@@ -3248,7 +3248,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		}
 		resp := make([]futures.Contract, len(result))
 		for i := range result {
-			resp[i], err = e.FuturesContractFromInstrument(result[i], item)
+			resp[i], err = e.FuturesContractFromInstrument(&result[i], item)
 			if err != nil {
 				return nil, err
 			}
