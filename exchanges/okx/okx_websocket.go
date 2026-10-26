@@ -29,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -950,36 +949,23 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	for i := range response.Data {
 		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
+			if err == nil {
+				e.completeOrderbookRecovery(conn, response.Argument.Channel, response.Argument.InstrumentID)
+			}
 		} else {
 			err = e.WsProcessUpdateOrderbook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
-			if errors.Is(err, errOrderbookSnapshotPending) {
-				continue
-			}
 		}
 		if err == nil {
 			continue
 		}
 		if !errors.Is(err, errInvalidOrderbookSequence) &&
-			!errors.Is(err, orderbook.ErrOrderbookInvalid) {
+			!errors.Is(err, orderbook.ErrOrderbookInvalid) &&
+			!errors.Is(err, orderbook.ErrDepthNotFound) {
 			return err
 		}
-		var subscriptionsToResub subscription.List
-		for _, sub := range conn.Subscriptions().List() {
-			if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
-				subscriptionsToResub = append(subscriptionsToResub, sub)
-			}
+		if err := e.recoverOrderbook(ctx, conn, response.Argument.Channel, response.Argument.InstrumentID); err != nil {
+			return err
 		}
-		if len(subscriptionsToResub) == 0 {
-			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
-		}
-		if e.Verbose {
-			log.Debugf(log.ExchangeSys, "Resubscribing to %v due to orderbook error: %v", subscriptionsToResub.Strings(), err)
-		}
-		go func() {
-			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
-				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
-			}
-		}()
 	}
 	return nil
 }

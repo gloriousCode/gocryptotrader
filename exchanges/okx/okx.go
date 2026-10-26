@@ -35,6 +35,8 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+	orderbookRecoveryMu    sync.Mutex
+	orderbookRecoveries    map[orderbookRecoveryKey]*orderbookRecovery
 }
 
 const (
