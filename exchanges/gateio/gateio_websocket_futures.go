@@ -171,7 +171,17 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	}
 
 	var subscriptions subscription.List
+publicChannels:
 	for i := range channelsToSubscribe {
+		// Futures generation predates subscription templates. Honour explicit
+		// disabled channels from configuration before expanding every market.
+		if e.Config != nil && e.Config.Features != nil {
+			for _, configured := range e.Config.Features.Subscriptions {
+				if configured != nil && configured.Asset == a && !configured.Enabled && configured.Channel == channelsToSubscribe[i] {
+					continue publicChannels
+				}
+			}
+		}
 		for j := range pairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {

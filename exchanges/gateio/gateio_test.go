@@ -3554,6 +3554,23 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
+	for _, product := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		t.Run(product.String()+" disabled public channel", func(t *testing.T) {
+			t.Parallel()
+			local := new(Exchange)
+			require.NoError(t, testexch.Setup(local))
+			local.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			local.Config.Features.Subscriptions = append(local.Config.Features.Subscriptions, &subscription.Subscription{Asset: product, Channel: futuresCandlesticksChannel, Enabled: false})
+			for range 2 {
+				subs, err := local.GenerateFuturesDefaultSubscriptions(t.Context(), product)
+				require.NoError(t, err)
+				require.NotEmpty(t, subs)
+				for _, sub := range subs {
+					require.NotEqual(t, futuresCandlesticksChannel, sub.Channel)
+				}
+			}
+		})
+	}
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	_, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.Options)
