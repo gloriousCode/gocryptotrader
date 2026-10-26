@@ -811,7 +811,24 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 	return "ws" + server.URL[len("http"):] + "/ws", dialer, &open
 }
 
-func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
+func TestConnect(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{name: "ConnectReleasesConnectionWhenConnectorFails", run: testConnectReleasesConnectionWhenConnectorFails},
+		{name: "ConnectMultiConnectionRollback", run: testConnectMultiConnectionRollback},
+		{name: "ConnectReturnsTeardownError", run: testConnectReturnsTeardownError},
+		{name: "ConnectStartsTrafficMonitorOnceConnected", run: testConnectStartsTrafficMonitorOnceConnected},
+		{name: "ConnectSingleConnectionTrafficMonitorDropsSilentConnection", run: testConnectSingleConnectionTrafficMonitorDropsSilentConnection},
+	} {
+		t.Run(tc.name, tc.run)
+	}
+}
+
+func testConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	wsURL, dialer, openConnections := newConnectionCountingServer(t)
@@ -855,7 +872,85 @@ func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
 	assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, 5*time.Second, 10*time.Millisecond, "server should see both sockets closed")
 }
 
-func TestConnectReturnsTeardownError(t *testing.T) {
+func testConnectMultiConnectionRollback(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	for _, failAfterDial := range []bool{false, true} {
+		t.Run(strconv.FormatBool(failAfterDial), func(t *testing.T) {
+			t.Parallel()
+			wsURL, dialer, openConnections := newConnectionCountingServer(t)
+			ws := NewManager()
+			setup := newDefaultSetup()
+			setup.UseMultiConnectionManagement = true
+			setup.ExchangeConfig.ConnectionMonitorDelay = time.Millisecond
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			shutdown := ws.ShutdownC
+			workerDone := make(chan struct{})
+			failing := true
+			messages := make(chan string, 1)
+			defer func() {
+				closeChanNoPanic(shutdown)
+				ws.Wg.Wait()
+			}()
+			for i := range 2 {
+				require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+					URL:                      wsURL + "/" + strconv.Itoa(i),
+					SubscriptionsNotRequired: true,
+					Handler: func(_ context.Context, _ Connection, message []byte) error {
+						messages <- string(message)
+						return nil
+					},
+					Connector: func(ctx context.Context, conn Connection) error {
+						if failing && i == 1 && !failAfterDial {
+							return errDastardlyReason
+						}
+						if err := conn.Dial(ctx, dialer, nil, nil); err != nil {
+							return err
+						}
+						if failing && i == 1 {
+							return errDastardlyReason
+						}
+						if failing {
+							ws.Wg.Go(func() {
+								defer close(workerDone)
+								<-shutdown
+							})
+						}
+						return nil
+					},
+				}), "SetupNewConnection must not error")
+			}
+			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the failure")
+			select {
+			case <-workerDone:
+			default:
+				assert.Fail(t, "failed connection attempt should drain its workers before returning")
+			}
+			assert.NotEqual(t, shutdown, ws.ShutdownC, "rollback should renew the shutdown channel")
+			assert.False(t, ws.IsConnecting(), "rollback should leave the manager disconnected")
+			assert.Empty(t, ws.connections, "rollback should remove closed connections")
+			assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, time.Second, time.Millisecond, "rollback should close every socket")
+			failing = false
+			require.NoError(t, ws.Connect(t.Context()), "a subsequent connection attempt must recover")
+			assert.True(t, ws.IsConnected(), "recovered manager should be connected")
+			for conn := range ws.connections {
+				require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("recovered")), "recovered connection must send")
+				break
+			}
+			select {
+			case message := <-messages:
+				assert.Equal(t, "recovered", message, "recovered reader should deliver new data")
+			case <-time.After(time.Second):
+				assert.Fail(t, "recovered reader should deliver new data")
+			}
+			require.NoError(t, ws.Shutdown(), "recovered manager must shut down cleanly")
+		})
+	}
+}
+
+func testConnectReturnsTeardownError(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	ws := NewManager()
@@ -915,7 +1010,8 @@ func TestCreateConnectAndSubscribeClosesUntrackedConnection(t *testing.T) {
 	})
 }
 
-func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
+func testConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -976,7 +1072,8 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 	})
 }
 
-func TestConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T) {
+func testConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -1480,6 +1577,7 @@ func readMessages(t *testing.T, wc *connection) {
 // TestSetupPingHandler logic test
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
+	t.Run("cancel rate limit wait", testSetupPingHandlerCancelsRateLimitWait)
 
 	synctest.Test(t, func(t *testing.T) {
 		var pings atomic.Int64
@@ -1535,6 +1633,40 @@ func TestSetupPingHandler(t *testing.T) {
 			synctest.Sleep(time.Nanosecond)
 			assert.Equal(t, sent+1, pings.Load(), "ping handler should send one ping each time its delay elapses")
 		}
+	})
+}
+
+func testSetupPingHandlerCancelsRateLimitWait(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wc := &connection{
+			URL:       "ws" + mock.URL[len("http"):] + "/ws",
+			Wg:        &sync.WaitGroup{},
+			shutdown:  make(chan struct{}),
+			RateLimit: request.NewWeightedRateLimitByDuration(time.Hour),
+		}
+		require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
+		require.NoError(t, wc.RateLimit.RateLimit(t.Context()), "first reservation must not wait")
+		wc.SetupPingHandler(request.Unset, PingHandler{MessageType: gws.TextMessage, Message: []byte(Ping), Delay: time.Second})
+		synctest.Sleep(time.Second)
+		close(wc.shutdown)
+		require.NoError(t, wc.Shutdown(), "Shutdown must close the socket")
+		done := make(chan struct{})
+		go func() {
+			wc.Wg.Wait()
+			close(done)
+		}()
+		synctest.Wait()
+		select {
+		case <-done:
+		default:
+			assert.Fail(t, "shutdown should cancel the ping rate limit wait immediately")
+		}
+		<-done
 	})
 }
 
@@ -2084,6 +2216,12 @@ func TestWriteToConn(t *testing.T) {
 	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
+	cancelled, cancelRequest := context.WithCancel(t.Context())
+	cancelRequest()
+	require.ErrorIs(t, wc.writeToConn(cancelled, request.Unset, func() error {
+		assert.Fail(t, "cancelled request should not write to the socket")
+		return nil
+	}), context.Canceled, "cancelled request must not write even without a rate limiter")
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
 	// Use a longer interval so the second call always requires delay and hits ctx deadline checks deterministically.
@@ -2142,6 +2280,42 @@ func TestSendMessageBarrierRejectionRemovesSignature(t *testing.T) {
 	require.ErrorIs(t, err, request.ErrRateLimitBarrierRejected)
 	_, err = wc.Match.Set("signature", 1)
 	require.NoError(t, err)
+}
+
+func TestReader(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := NewManager()
+		wc := ws.createConnectionFromSetup(&ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"})
+		ws.Conn = wc
+		require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
+		ws.setState(connectedState)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		entered := make(chan struct{})
+		ws.Wg.Add(1)
+		go ws.Reader(ctx, wc, func(ctx context.Context, _ Connection, _ []byte) error {
+			close(entered)
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		require.NoError(t, wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("update")), "send must succeed")
+		<-entered
+		done := make(chan error, 1)
+		go func() { done <- ws.Shutdown() }()
+		synctest.Wait()
+		select {
+		case err := <-done:
+			require.NoError(t, err, "Shutdown must drain the blocked handler")
+		default:
+			assert.Fail(t, "Shutdown should cancel an in-flight reader handler")
+			cancel()
+			require.NoError(t, <-done, "Shutdown must finish after test cleanup")
+		}
+	})
 }
 
 func TestDrain(t *testing.T) {

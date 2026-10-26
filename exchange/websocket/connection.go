@@ -237,6 +237,9 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 	// This lock acts as a rolling gate to prevent WriteMessage panics. Acquire after rate limit check.
 	c.writeControl.Lock()
 	defer c.writeControl.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	return writeConn()
 }
 
@@ -256,12 +259,26 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		return
 	}
 	c.Wg.Go(func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		// A ping may be waiting for rate-limit capacity when shutdown starts. Cancel that wait so teardown can
+		// drain the workers without waiting for exchange quota to become available.
+		c.Wg.Go(func() {
+			select {
+			case <-c.shutdown:
+				cancel()
+			case <-ctx.Done():
+			}
+		})
 		for {
 			select {
 			case <-c.shutdown:
 				return
 			case <-time.After(handler.Delay):
-				if err := c.SendRawMessage(context.Background(), epl, handler.MessageType, handler.Message); err != nil {
+				if err := c.SendRawMessage(ctx, epl, handler.MessageType, handler.Message); err != nil {
+					if ctx.Err() != nil || !c.IsConnected() {
+						return
+					}
 					log.Errorf(log.WebsocketMgr, "%v websocket connection: ping handler failed to send message [%s]: %v", c.ExchangeName, handler.Message, err)
 					return
 				}

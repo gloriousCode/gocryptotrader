@@ -628,28 +628,11 @@ func (m *Manager) connect(ctx context.Context) error {
 	}
 
 	if multiConnectFatalError != nil {
-		// Roll back any successful connections and flush subscriptions
-		connectionManager = m.snapshotConnectionManager()
-		m.connectionManagerMu.Lock()
-		for _, ws := range connectionManager {
-			for _, conn := range ws.connections {
-				if err := conn.Shutdown(); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
-				conn.Subscriptions().Clear()
-			}
-			ws.connections = nil
-			ws.subscriptions.Clear()
+		// Failed multi-connection attempts own readers and ping workers too. Draining the entire attempt prevents
+		// orphaned workers from surviving into the next connection generation.
+		if _, teardownErr := m.teardown(); teardownErr != nil {
+			multiConnectFatalError = common.AppendError(multiConnectFatalError, teardownErr)
 		}
-		clear(m.connections)
-		m.connectionManagerMu.Unlock()
-		m.setState(disconnectedState) // Flip from connecting to disconnected.
-
-		// Drain residual error in the single buffered channel, this mitigates
-		// the cycle when `Connect` is called again and the connectionMonitor
-		// starts but there is an old error in the channel.
-		drain(m.ReadMessageErrors)
-
 		return multiConnectFatalError
 	}
 
@@ -1056,12 +1039,27 @@ func checkWebsocketURL(s string) error {
 // Reader reads and handles data from a specific connection
 func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx context.Context, conn Connection, message []byte) error) {
 	defer m.Wg.Done()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	shutdown := m.ShutdownC
+	// Closing the socket only interrupts ReadMessage; handlers may themselves be waiting on downstream capacity.
+	// Tie their context to this connection generation so teardown can release those waits before joining the reader.
+	m.Wg.Go(func() {
+		select {
+		case <-shutdown:
+			cancel()
+		case <-ctx.Done():
+		}
+	})
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return // Connection has been closed
 		}
 		if err := handler(ctx, conn, resp.Raw); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
 			err = fmt.Errorf("connection URL:[%v] error: %w", conn.GetURL(), err)
 			if errSend := m.DataHandler.Send(ctx, err); errSend != nil {
 				log.Errorf(log.WebsocketMgr, "%s: %s %s", m.exchangeName, errSend, err)
