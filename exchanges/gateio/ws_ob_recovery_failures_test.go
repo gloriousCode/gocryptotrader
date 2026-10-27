@@ -26,6 +26,8 @@ type gateRecoveryConnection struct {
 	failing          atomic.Bool
 	unsubscribeCalls atomic.Int64
 	subscribeCalls   atomic.Int64
+	unsubscribeState atomic.Uint32
+	target           *subscription.Subscription
 	cancelled        atomic.Bool
 	blockedEvent     string
 	blocked          chan struct{}
@@ -42,6 +44,9 @@ func (c *gateRecoveryConnection) SendMessageReturnResponse(ctx context.Context, 
 	}
 	if event == unsubscribeEvent {
 		c.unsubscribeCalls.Add(1)
+		if c.target != nil {
+			c.unsubscribeState.Store(uint32(c.target.State()))
+		}
 	} else {
 		c.subscribeCalls.Add(1)
 	}
@@ -82,7 +87,7 @@ func testResubscribeFailureRecovery(t *testing.T) {
 				require.Len(t, subs, 1, "recovery fixture must select one instrument")
 				base, err := e.Websocket.CreateTestConnection(asset.Spot)
 				require.NoError(t, err, "connection must initialise")
-				conn := &gateRecoveryConnection{Connection: base, failEvent: failedEvent}
+				conn := &gateRecoveryConnection{Connection: base, failEvent: failedEvent, target: subs[0]}
 				conn.failing.Store(true)
 				require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn), "connection must register")
 				require.NoError(t, e.Websocket.AddSuccessfulSubscriptions(conn, subs...), "subscriptions must register")
@@ -97,6 +102,12 @@ func testResubscribeFailureRecovery(t *testing.T) {
 				synctest.Wait()
 				first := conn.unsubscribeCalls.Load() + conn.subscribeCalls.Load()
 				require.Positive(t, first, "recovery must make an attempt")
+				if conn.unsubscribeCalls.Load() > 0 {
+					assert.Equal(t, uint32(subscription.ResubscribingState), conn.unsubscribeState.Load(), "temporary native unsubscribe should preserve reconnect intent")
+				}
+				if failedEvent == unsubscribeEvent {
+					assert.Equal(t, subscription.SubscribedState, subs[0].State(), "failed unsubscribe should restore its prior local state")
+				}
 				conn.failing.Store(false)
 				synctest.Sleep(time.Minute + time.Millisecond)
 				synctest.Wait()

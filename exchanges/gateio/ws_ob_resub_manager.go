@@ -174,9 +174,14 @@ func (m *wsOBResubManager) Resubscribe(ctx context.Context, e *Exchange, conn we
 			var err error
 			if !unsubscribed {
 				attempt, cancelAttempt := context.WithTimeout(recoveryCtx, retry)
+				previousState := sub.State()
+				_ = sub.SetState(subscription.ResubscribingState)
 				err = unsubscribe(attempt, conn, targets)
 				cancelAttempt()
 				unsubscribed = err == nil
+				if err != nil {
+					_ = sub.SetState(previousState)
+				}
 			}
 			if unsubscribed {
 				attempt, cancelAttempt := context.WithTimeout(workerCtx, retry)

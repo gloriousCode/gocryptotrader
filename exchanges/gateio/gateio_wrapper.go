@@ -226,8 +226,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
 	// Spot connection
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently:  true,
+		OnConnectionFault:     e.onWebsocketConnectionFault,
 		URL:                   gateioWebsocketEndpoint,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -244,6 +247,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Futures connection - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  usdtFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -265,6 +270,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - BTC margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  btcFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -286,6 +293,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -304,6 +313,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently:  true,
+		OnConnectionFault:     e.onWebsocketConnectionFault,
 		URL:                   optionsWebsocketURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
