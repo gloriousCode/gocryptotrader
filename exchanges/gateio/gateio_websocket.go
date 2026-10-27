@@ -689,34 +689,13 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 		return err
 	}
 
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
-		for _, s := range batch {
-			if err := func() error {
-				msg, err := e.manageSubReq(ctx, event, s)
-				if err != nil {
-					return err
-				}
-				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
-				if err != nil {
-					return err
-				}
-				var resp WsEventResponse
-				if err := json.Unmarshal(result, &resp); err != nil {
-					return err
-				}
-				if resp.Error != nil && resp.Error.Code != 0 {
-					return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
-				}
-				if event == "unsubscribe" {
-					return e.Websocket.RemoveSubscriptions(conn, s)
-				}
-				return e.Websocket.AddSuccessfulSubscriptions(conn, s)
-			}(); err != nil {
-				return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
-			}
+	return e.subscriptionOperations(ctx, event, subs, func(ctx context.Context, s *subscription.Subscription) error {
+		msg, err := e.manageSubReq(ctx, event, s)
+		if err != nil {
+			return err
 		}
-		return nil
-	}, 1)
+		return e.sendSubscriptionRequest(ctx, conn, msg, s)
+	})
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -961,38 +940,16 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	if err != nil {
 		return err
 	}
-	index := make(map[*subscription.Subscription]int, len(channelsToSubscribe))
-	for i, s := range channelsToSubscribe {
-		index[s] = i
+	if len(payloads) != len(channelsToSubscribe) {
+		return fmt.Errorf("%w: subscriptions=%d payloads=%d", ErrSubscriptionPayloadCount, len(channelsToSubscribe), len(payloads))
 	}
-	return e.ParallelChanOp(ctx, channelsToSubscribe, func(ctx context.Context, batch subscription.List) error {
-		for _, s := range batch {
-			if err := func() error {
-				k, ok := index[s]
-				if !ok {
-					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
-				}
-				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
-				if err != nil {
-					return err
-				}
-				var resp WsEventResponse
-				if err := json.Unmarshal(result, &resp); err != nil {
-					return err
-				}
-				if resp.Error != nil && resp.Error.Code != 0 {
-					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
-				}
-				if event == subscribeEvent {
-					return e.Websocket.AddSuccessfulSubscriptions(conn, s)
-				}
-				return e.Websocket.RemoveSubscriptions(conn, s)
-			}(); err != nil {
-				return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
-			}
-		}
-		return nil
-	}, 1)
+	index := make(map[*subscription.Subscription]*WsInput, len(channelsToSubscribe))
+	for i, s := range channelsToSubscribe {
+		index[s] = &payloads[i]
+	}
+	return e.subscriptionOperations(ctx, event, channelsToSubscribe, func(ctx context.Context, s *subscription.Subscription) error {
+		return e.sendSubscriptionRequest(ctx, conn, index[s], s)
+	})
 }
 
 type resultHolder struct {

@@ -218,6 +218,9 @@ func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
 type Exchange struct {
 	exchange.Base
 
+	subscriptionSlotsOnce sync.Once
+	subscriptionSlots     chan struct{}
+
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *orderbookmanager.UpdateManager
