@@ -132,6 +132,20 @@ func (m *UpdateManager) ProcessOrderbookUpdate(ctx context.Context, firstUpdateI
 	return nil
 }
 
+// InvalidateOrderbook serialises invalidation with snapshot publication and
+// detaches the old update cache so cancelled workers cannot clear replacement updates.
+func (m *UpdateManager) InvalidateOrderbook(pair currency.Pair, a asset.Item) error {
+	identity := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
+	m.lookupMu.Lock()
+	defer m.lookupMu.Unlock()
+	if cache := m.lookup[identity]; cache != nil {
+		cache.m.Lock()
+		defer cache.m.Unlock()
+		delete(m.lookup, identity)
+	}
+	return m.ob.InvalidateOrderbook(pair, a)
+}
+
 // loadCache loads the cache for the given pair and asset. If the cache does not exist, it creates a new one.
 func (m *UpdateManager) loadCache(p currency.Pair, a asset.Item) (*updateCache, error) {
 	if p.IsEmpty() {
@@ -222,16 +236,19 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		return err
 	}
 
-	if err := m.ob.LoadSnapshot(ctx, book); err != nil {
-		cache.clearWithLock()
-		return err
-	}
-
-	cache.m.Lock() // Lock here to prevent ws handle data interference with REST request above.
+	cache.m.Lock() // Serialise publication with connection-scoped invalidation.
 	defer func() {
 		cache.clearNoLock()
 		cache.m.Unlock()
 	}()
+	if err := ctx.Err(); err != nil {
+		cache.resetStateNoLock()
+		return err
+	}
+	if err := m.ob.LoadSnapshot(ctx, book); err != nil {
+		cache.resetStateNoLock()
+		return err
+	}
 
 	if err := m.applyPendingUpdates(cache); err != nil {
 		cache.resetStateNoLock()
