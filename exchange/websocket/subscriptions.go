@@ -41,7 +41,21 @@ func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, chan
 		if !ok {
 			return fmt.Errorf("%w: %q", errConnectionNotFound, conn.GetURL())
 		}
+		if concrete, ok := conn.(*connection); ok && ws.setup.RecoverIndependently && concrete.faulted.Load() {
+			return ErrConnectionRecovering
+		}
 		return m.unsubscribe(ws.subscriptions, channels, func(channels subscription.List) error {
+			if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently {
+				for _, sub := range channels {
+					// Resubscription is a temporary state transition, not withdrawal of the requested feed.
+					if sub.State() == subscription.ResubscribingState || concrete.desiredSubscriptions.Get(sub) == nil {
+						continue
+					}
+					if err := concrete.desiredSubscriptions.Remove(sub); err != nil {
+						return err
+					}
+				}
+			}
 			return ws.setup.Unsubscriber(ctx, conn, channels)
 		})
 	}
@@ -126,6 +140,23 @@ func (m *Manager) SubscribeToChannels(ctx context.Context, conn Connection, subs
 	}
 
 	if ws, ok := m.managedWebsocket(conn); ok {
+		if concrete, ok := conn.(*connection); ok && ws.setup.RecoverIndependently && concrete.faulted.Load() {
+			return ErrConnectionRecovering
+		}
+		if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently {
+			for _, sub := range subs {
+				if concrete.desiredSubscriptions.Get(sub) == nil {
+					if err := concrete.desiredSubscriptions.Add(sub.Clone()); err != nil {
+						return err
+					}
+				}
+			}
+			if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
+				concrete.reportFault(err)
+				return err
+			}
+			return nil
+		}
 		return ws.setup.Subscriber(ctx, conn, subs)
 	}
 
@@ -148,6 +179,11 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 	subscriptionStore := m.initSubscriptionStore(conn)
 	var errs error
 	for _, s := range subs {
+		if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently && concrete.desiredSubscriptions.Get(s) == nil {
+			if err := concrete.desiredSubscriptions.Add(s.Clone()); err != nil {
+				errs = common.AppendError(errs, err)
+			}
+		}
 		if s.State() == subscription.InactiveState {
 			if err := s.SetState(subscription.SubscribingState); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
@@ -169,6 +205,11 @@ func (m *Manager) AddSuccessfulSubscriptions(conn Connection, subs ...*subscript
 
 	var errs error
 	for _, s := range subs {
+		if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently && concrete.desiredSubscriptions.Get(s) == nil {
+			if err := concrete.desiredSubscriptions.Add(s.Clone()); err != nil {
+				errs = common.AppendError(errs, err)
+			}
+		}
 		if err := s.SetState(subscription.SubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
@@ -192,11 +233,17 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 
 	var errs error
 	for _, s := range subs {
+		preserveIntent := s.State() == subscription.ResubscribingState
 		if err := s.SetState(subscription.UnsubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
 		if err := subscriptionStore.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
+		}
+		if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently && !preserveIntent && concrete.desiredSubscriptions.Get(s) != nil {
+			if err := concrete.desiredSubscriptions.Remove(s); err != nil {
+				errs = common.AppendError(errs, err)
+			}
 		}
 	}
 	return errs
@@ -245,6 +292,47 @@ func (m *Manager) GetSubscriptions() subscription.List {
 		subs = append(subs, store.List()...)
 	}
 	return subs
+}
+
+// GetActiveSubscriptions returns acknowledged subscriptions on installed, healthy
+// managed connections. It is conservative for nil, legacy or disconnected managers.
+// Subscription instances are preserved so callers can distinguish recovered generations.
+func (m *Manager) GetActiveSubscriptions() subscription.List {
+	if m == nil {
+		return nil
+	}
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
+	if !m.useMultiConnectionManagement || !m.IsConnected() {
+		return nil
+	}
+	var active subscription.List
+	for _, ws := range m.connectionManager {
+		if ws == nil {
+			continue
+		}
+		for _, conn := range ws.connections {
+			if conn == nil {
+				continue
+			}
+			if concrete, ok := conn.(*connection); ok && (concrete == nil || concrete.faulted.Load()) {
+				continue
+			}
+			if !conn.IsConnected() {
+				continue
+			}
+			store := conn.Subscriptions()
+			if store == nil {
+				continue
+			}
+			for _, sub := range store.List() {
+				if sub != nil && sub.State() == subscription.SubscribedState {
+					active = append(active, sub)
+				}
+			}
+		}
+	}
+	return active
 }
 
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
@@ -394,6 +482,15 @@ func (m *Manager) applyTrackedSubscriptions(conn Connection, tracked subscriptio
 	if len(tracked) == 0 {
 		return nil
 	}
+	if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently {
+		for _, sub := range tracked {
+			if concrete.desiredSubscriptions.Get(sub) == nil {
+				if err := concrete.desiredSubscriptions.Add(sub.Clone()); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	if err := m.AddSuccessfulSubscriptions(conn, tracked...); err != nil {
 		return err
 	}
@@ -461,8 +558,24 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	if err := common.NilGuard(ws); err != nil {
 		return err
 	}
+	for _, conn := range m.snapshotManagedConnections(ws) {
+		if concrete, ok := conn.(*connection); ok && ws.setup.RecoverIndependently && concrete.faulted.Load() {
+			return ErrConnectionRecovering
+		}
+	}
 	subs, unsubs := ws.subscriptions.Diff(incoming)
 	if len(unsubs) != 0 {
+		for _, conn := range m.snapshotManagedConnections(ws) {
+			if concrete, ok := conn.(*connection); ok && concrete.recoverIndependently {
+				for _, sub := range unsubs {
+					if concrete.desiredSubscriptions.Get(sub) != nil {
+						if err := concrete.desiredSubscriptions.Remove(sub); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
 		currentUnsubs := slices.Clone(unsubs)
 		// Unsubscribe first to free up capacity on existing connections
 		for _, conn := range m.snapshotManagedConnections(ws) {
@@ -571,6 +684,11 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 func (m *Manager) ResubscribeFromConnection(ctx context.Context, conn Connection, subs subscription.List) error {
 	if err := common.NilGuard(conn, subs); err != nil {
 		return err
+	}
+	if ws, ok := m.managedWebsocket(conn); ok {
+		if concrete, ok := conn.(*connection); ok && ws.setup.RecoverIndependently && concrete.faulted.Load() {
+			return ErrConnectionRecovering
+		}
 	}
 	if err := subs.SetStates(subscription.ResubscribingState); err != nil {
 		return err

@@ -76,6 +76,10 @@ type ConnectionSetup struct {
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
+	// RecoverIndependently replaces only a failed socket, preserving other managed connections.
+	RecoverIndependently bool
+	// OnConnectionFault invalidates connection-owned state after its reader exits and before recovery.
+	OnConnectionFault func(Connection, subscription.List) error
 
 	// URL defines the websocket server URL to connect to
 	URL string
@@ -124,6 +128,8 @@ type Response struct {
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
 	subscriptions        *subscription.Store
+	desiredSubscriptions *subscription.Store
+	recoverIndependently bool
 	Verbose              bool
 	connected            atomic.Bool
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -138,8 +144,14 @@ type connection struct {
 	shutdown             chan struct{}
 	Match                *Match
 	ResponseMaxLimit     time.Duration
+	writeTimeout         time.Duration
 	Traffic              chan struct{}
 	readMessageErrors    chan error
+	faulted              atomic.Bool
+	done                 chan struct{}
+	closeOnce            sync.Once
+	workers              sync.WaitGroup
+	recovering           bool
 }
 
 // Dial sets proxy URLs and then connects to the websocket.
@@ -240,7 +252,42 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return writeConn()
+	if c.writeTimeout <= 0 {
+		return writeConn()
+	}
+	if !c.IsConnected() {
+		return errWebsocketIsDisconnected
+	}
+	deadline := time.Now().Add(c.writeTimeout)
+	if requestDeadline, ok := ctx.Deadline(); ok && requestDeadline.Before(deadline) {
+		deadline = requestDeadline
+	}
+	if err := c.Connection.SetWriteDeadline(deadline); err != nil {
+		return err
+	}
+	defer func() { _ = c.Connection.SetWriteDeadline(time.Time{}) }()
+	socket := c.Connection.NetConn()
+	if tlsConn, ok := socket.(*tls.Conn); ok {
+		socket = tlsConn.NetConn()
+	}
+	cancelled := make(chan struct{})
+	stopCancellation := context.AfterFunc(ctx, func() {
+		_ = socket.Close()
+		close(cancelled)
+	})
+	defer func() {
+		if !stopCancellation() {
+			<-cancelled
+		}
+	}()
+	if err := writeConn(); err != nil {
+		_ = socket.Close() // A partial or timed-out websocket write cannot be reused safely.
+		if contextErr := ctx.Err(); contextErr != nil {
+			return contextErr
+		}
+		return err
+	}
+	return nil
 }
 
 // SetupPingHandler will automatically send ping or pong messages based on
@@ -258,7 +305,9 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 		})
 		return
 	}
+	c.workers.Add(1)
 	c.Wg.Go(func() {
+		defer c.workers.Done()
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		// A ping may be waiting for rate-limit capacity when shutdown starts. Cancel that wait so teardown can
@@ -267,12 +316,16 @@ func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHan
 			select {
 			case <-c.shutdown:
 				cancel()
+			case <-c.done:
+				cancel()
 			case <-ctx.Done():
 			}
 		})
 		for {
 			select {
 			case <-c.shutdown:
+				return
+			case <-c.done:
 				return
 			case <-time.After(handler.Delay):
 				if err := c.SendRawMessage(ctx, epl, handler.MessageType, handler.Message); err != nil {
@@ -308,18 +361,7 @@ func (c *connection) ReadMessage() Response {
 		// The `connectionMonitor` handles these errors by flushing the buffer, reconnecting,
 		// and resubscribing to the websocket to restore the connection.
 		if c.setConnectedStatus(false) {
-			// NOTE: When c.setConnectedStatus() returns true the underlying
-			// state was changed and this infers that the connection was
-			// externally closed and an error is reported else Shutdown()
-			// method on WebsocketConnection type has been called and can
-			// be skipped.
-			select {
-			case c.readMessageErrors <- fmt.Errorf("%w: %w (%q)", err, errConnectionFault, c.URL):
-			default:
-				// bypass if there is no receiver, as this stops it returning
-				// when shutdown is called.
-				log.Warnf(log.WebsocketMgr, "%s failed to relay error: %v", c.ExchangeName, err)
-			}
+			c.reportFault(err)
 		}
 		return Response{}
 	}
@@ -371,7 +413,15 @@ func parseBinaryResponse(resp []byte) ([]byte, error) {
 // deadline that any write starting meanwhile clears. Taking writeControl afterwards waits for a write in progress to
 // return, so a reconnect cannot replace c.Connection underneath it.
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
+	if c == nil {
+		return nil
+	}
+	c.closeOnce.Do(func() {
+		if c.done != nil {
+			close(c.done)
+		}
+	})
+	if c.Connection == nil {
 		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
@@ -431,7 +481,7 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	start := time.Now()
 	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
 	if err != nil {
-		c.Match.RemoveSignature(signature)
+		c.Match.removeSignatureIfMatch(signature, ch)
 		return nil, err
 	}
 
@@ -449,25 +499,59 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 
 // waitForResponses waits for N responses from a channel
 func (c *connection) waitForResponses(ctx context.Context, signature any, ch <-chan []byte, expected int, messageInspector Inspector) ([][]byte, error) {
+	if err := ctx.Err(); err != nil {
+		c.Match.removeSignatureIfMatch(signature, ch)
+		return nil, err
+	}
 	timeout := time.NewTimer(c.ResponseMaxLimit * time.Duration(expected))
 	defer timeout.Stop()
 
 	resps := make([][]byte, 0, expected)
 inspection:
 	for range expected {
+		if err := ctx.Err(); err != nil {
+			c.Match.removeSignatureIfMatch(signature, ch)
+			return nil, err
+		}
 		select {
-		case resp := <-ch:
+		case resp, ok := <-ch:
+			if !ok {
+				// The old registration is already retired; the signature may now belong to another waiter.
+				if err := ctx.Err(); err != nil {
+					return nil, err
+				}
+				return nil, ErrSignatureNotMatched
+			}
+			if err := ctx.Err(); err != nil {
+				c.Match.removeSignatureIfMatch(signature, ch)
+				return nil, err
+			}
 			resps = append(resps, resp)
 			// Checks recently received message to determine if this is in fact the final message in a sequence of messages.
 			if messageInspector != nil && messageInspector.IsFinal(resp) {
-				c.Match.RemoveSignature(signature)
+				c.Match.removeSignatureIfMatch(signature, ch)
 				break inspection
 			}
 		case <-timeout.C:
-			c.Match.RemoveSignature(signature)
+			c.Match.removeSignatureIfMatch(signature, ch)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			return nil, fmt.Errorf("%s %w %v", c.ExchangeName, ErrSignatureTimeout, signature)
+		case <-c.done:
+			c.Match.removeSignatureIfMatch(signature, ch)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return nil, errWebsocketIsDisconnected
+		case <-c.shutdown:
+			c.Match.removeSignatureIfMatch(signature, ch)
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return nil, errWebsocketIsDisconnected
 		case <-ctx.Done():
-			c.Match.RemoveSignature(signature)
+			c.Match.removeSignatureIfMatch(signature, ch)
 			return nil, ctx.Err()
 		}
 	}
@@ -524,4 +608,14 @@ func (c *connection) IncomingWithData(signature any, data []byte) bool {
 // Subscriptions returns the subscription store for the connection
 func (c *connection) Subscriptions() *subscription.Store {
 	return c.subscriptions
+}
+
+// reportFault retains failures independently of delivery through the coalescing notification channel.
+func (c *connection) reportFault(err error) {
+	c.faulted.Store(true)
+	select {
+	case c.readMessageErrors <- &connectionFaultError{connection: c, cause: err}:
+	default:
+		log.Warnf(log.WebsocketMgr, "%s failed to relay error: %s", c.ExchangeName, err)
+	}
 }

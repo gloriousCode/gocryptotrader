@@ -96,6 +96,7 @@ type Manager struct {
 	features                      *protocol.Features
 	m                             sync.Mutex
 	connectionManagerMu           sync.RWMutex
+	recoveryWg                    sync.WaitGroup
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
@@ -164,6 +165,10 @@ type websocket struct {
 	setup         *ConnectionSetup
 	subscriptions *subscription.Store
 	connections   []Connection
+	// A temporary recovery plan retains its generation context so readers outlive the bounded dial/auth attempt.
+	recoveryContext context.Context //nolint:containedctx // This plan owns the connection generation lifecycle.
+	attemptComplete chan struct{}
+	attemptMu       sync.Mutex
 }
 
 var globalReporter Reporter
@@ -218,14 +223,17 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	if s.ExchangeConfig.Name == "" {
 		return errExchangeConfigNameEmpty
 	}
+	// Routing must remain readable while initial subscriptions hold the lifecycle lock.
+	m.connectionManagerMu.Lock()
 	m.exchangeName = s.ExchangeConfig.Name
+	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
+	m.connectionManagerMu.Unlock()
 	m.verbose = s.ExchangeConfig.Verbose
 
 	m.features = s.Features
 
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
-	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
 	m.preConnect = s.PreConnect
 
 	if !m.useMultiConnectionManagement {
@@ -396,7 +404,17 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 	if c.ConnectionRateLimiter != nil {
 		rateLimit = c.ConnectionRateLimiter()
 	}
+	writeTimeout := time.Duration(0)
+	if c.RecoverIndependently {
+		writeTimeout = c.ResponseMaxLimit
+		if writeTimeout <= 0 {
+			writeTimeout = defaultHandshakeTimeout
+		}
+	}
 	return &connection{
+		writeTimeout:         writeTimeout,
+		desiredSubscriptions: subscription.NewStore(),
+		recoverIndependently: c.RecoverIndependently,
 		ExchangeName:         m.exchangeName,
 		URL:                  connectionURL,
 		ProxyURL:             m.GetProxyAddress(),
@@ -411,6 +429,7 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
 		subscriptions:        subscription.NewStore(),
+		done:                 make(chan struct{}),
 	}
 }
 
@@ -654,12 +673,19 @@ func (m *Manager) connect(ctx context.Context) error {
 
 // createConnectAndSubscribe creates a new connection for the websocket and subscribes to subs on it
 // The connection's store also records subscriptions accepted before the subscriber fails, because flushing uses it to decide whether the connection is still in use
-func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
+func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) (err error) {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
 	conn := m.createConnectionFromSetup(ws.setup)
+	if conn.recoverIndependently {
+		for _, sub := range subs {
+			if addErr := conn.desiredSubscriptions.Add(sub.Clone()); addErr != nil {
+				return addErr
+			}
+		}
+	}
 
 	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
 	// connector dialled before failing.
@@ -671,10 +697,38 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(ErrNotConnected, conn.Shutdown()))
 	}
 
+	if ws.recoveryContext != nil {
+		conn.workers.Go(func() {
+			select {
+			case <-ctx.Done():
+				ws.attemptMu.Lock()
+				defer ws.attemptMu.Unlock()
+				select {
+				case <-ws.attemptComplete:
+					return
+				default:
+					_ = conn.Shutdown()
+				}
+			case <-ws.attemptComplete:
+			case <-conn.done:
+			}
+		})
+	}
 	m.trackConnection(conn, ws)
+	defer func() {
+		if err != nil && conn.recoverIndependently {
+			conn.reportFault(err)
+		}
+	}()
 
+	readerContext := ctx
+	if ws.recoveryContext != nil {
+		readerContext = ws.recoveryContext
+	}
 	m.Wg.Add(1)
-	go m.Reader(ctx, conn, ws.setup.Handler)
+	conn.workers.Go(func() {
+		m.Reader(readerContext, conn, ws.setup.Handler)
+	})
 
 	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
 		if err := ws.setup.Authenticate(ctx, conn); err != nil {
@@ -769,6 +823,8 @@ func (m *Manager) shutdown() error {
 // disconnected and ready for a fresh connection attempt. It is shared by shutdown and a failed connect, which can leave
 // sockets and readers behind. Close errors are returned separately as they are non-fatal. The caller must hold m.m.
 func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
+	close(m.ShutdownC)
+	m.recoveryWg.Wait()
 	// During the shutdown process, all errors are treated as non-fatal to avoid issues when the connection has already
 	// been closed. In such cases, attempting to close the connection may result in a
 	// "failed to send closeNotify alert (but connection was closed anyway)" error. Treating these errors as non-fatal
@@ -805,7 +861,6 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 	// flush any subscriptions from last connection if needed
 	m.subscriptions.Clear()
 
-	close(m.ShutdownC)
 	m.setState(disconnectedState)
 	m.Wg.Wait()
 	m.ShutdownC = make(chan struct{})
@@ -819,6 +874,8 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 			return nonFatalCloseConnectionErrors, fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
 		}
 		conn.shutdown = m.ShutdownC
+		conn.done = make(chan struct{})
+		conn.closeOnce = sync.Once{}
 	}
 
 	// Drain residual error in the single buffered channel, this mitigates
@@ -1042,11 +1099,17 @@ func (m *Manager) Reader(ctx context.Context, conn Connection, handler func(ctx 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	shutdown := m.ShutdownC
+	var connectionDone <-chan struct{}
+	if managed, ok := conn.(*connection); ok {
+		connectionDone = managed.done
+	}
 	// Closing the socket only interrupts ReadMessage; handlers may themselves be waiting on downstream capacity.
 	// Tie their context to this connection generation so teardown can release those waits before joining the reader.
 	m.Wg.Go(func() {
 		select {
 		case <-shutdown:
+			cancel()
+		case <-connectionDone:
 			cancel()
 		case <-ctx.Done():
 		}
@@ -1106,7 +1169,7 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
 	case err := <-m.ReadMessageErrors:
-		if errors.Is(err, errConnectionFault) {
+		if errors.Is(err, errConnectionFault) && !m.recoverConnectionFaults(ctx, err) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
 				if shutdownErr := m.Shutdown(); shutdownErr != nil {
@@ -1126,6 +1189,7 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 			log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor data handler err: %s", m.exchangeName, err)
 		}
 	case <-t.C:
+		m.recoverConnectionFaults(ctx, nil)
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", m.exchangeName)
 		}
@@ -1210,8 +1274,8 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		return nil, fmt.Errorf("%w: messageFilter", common.ErrNilPointer)
 	}
 
-	m.m.Lock()
-	defer m.m.Unlock()
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
 
 	if !m.useMultiConnectionManagement {
 		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", m.exchangeName, errCannotObtainOutboundConnection)
@@ -1221,8 +1285,6 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		return nil, ErrNotConnected
 	}
 
-	m.connectionManagerMu.RLock()
-	defer m.connectionManagerMu.RUnlock()
 	for _, ws := range m.connectionManager {
 		if ws.setup.MessageFilter != messageFilter {
 			continue
@@ -1230,7 +1292,15 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		if len(ws.connections) == 0 {
 			return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, ws.setup.URL, ErrNotConnected, messageFilter)
 		}
-		return ws.connections[0], nil
+		for _, conn := range ws.connections {
+			if conn.IsConnected() {
+				if concrete, ok := conn.(*connection); ok && concrete.faulted.Load() {
+					continue
+				}
+				return conn, nil
+			}
+		}
+		return nil, fmt.Errorf("%s: %w associated with message filter: %v", m.exchangeName, ErrNotConnected, messageFilter)
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
