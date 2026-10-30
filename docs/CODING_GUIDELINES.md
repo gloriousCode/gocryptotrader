@@ -179,6 +179,22 @@ Verify all tests pass by:
     go test ./... -race -count 1
 ```
 
+### JSON and JSON Lines fixtures
+
+- Use `.json` for a single JSON document, including HTTP mock files containing
+    a routes object.
+- Use `.jsonl` for JSON Lines data: one complete JSON value per line. This
+    includes websocket message fixtures and other fixtures read one record at
+    a time, even when they currently contain only one record.
+- Each JSON Lines record must be valid JSON on a single line. Do not wrap the
+    record stream in an array or add commas between records.
+- When renaming fixtures, update all references, including tests, benchmarks,
+    documentation and any code that generates the files. Preserve fixture
+    contents unless a data change is required.
+- Audit formatter, linter and spell-checker filters when fixture extensions
+    change. Raw protocol fixtures must retain their intended treatment rather
+    than having wire values edited to satisfy prose checks.
+
 ### Assertion Usage
 
 Use `require` and `assert` appropriately:
@@ -226,6 +242,15 @@ Use `require` and `assert` appropriately:
 - Full test coverage is preferable; mock external calls as needed.
 - Distinguish mocked verification from live API verification when reporting results. A credential-gated test that skips does not establish endpoint compatibility; explicitly report the unverified behaviour without exposing credentials.
 - All unit tests must pass before finalising changes.
+- For interface-valued inputs with nil guards, cover both a nil interface and
+    a typed-nil concrete value. For format detection and segmented-name rules,
+    include missing metadata, malformed inputs and multiple separators so the
+    tests distinguish the intended guard and segment from nearby alternatives.
+- When testing cyclic structures or traversal limits, validate the returned
+    structure with a bounded walk before invoking helpers that could traverse
+    indefinitely if the implementation regresses, such as `errors.Is`,
+    `errors.As` or recursive error formatting. Assert the expected termination
+    point without following the potentially cyclic remainder.
 
 ### Interface Contracts
 
