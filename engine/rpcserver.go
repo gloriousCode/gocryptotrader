@@ -2125,7 +2125,9 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		if err := stream.Send(resp); err != nil {
 			return err
 		}
-		<-depth.Wait(nil)
+		if <-depth.Wait(stream.Context().Done()) {
+			return stream.Context().Err()
+		}
 	}
 }
 
@@ -2152,9 +2154,17 @@ func (s *RPCServer) GetExchangeOrderbookStream(r *gctrpc.GetExchangeOrderbookStr
 	}()
 
 	for {
-		data, ok := <-pipe.Channel()
-		if !ok {
-			return errDispatchSystem
+		var (
+			data any
+			ok   bool
+		)
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case data, ok = <-pipe.Channel():
+			if !ok {
+				return errDispatchSystem
+			}
 		}
 
 		d, ok := data.(orderbook.Outbound)
@@ -2225,9 +2235,17 @@ func (s *RPCServer) GetTickerStream(r *gctrpc.GetTickerStreamRequest, stream gct
 	}()
 
 	for {
-		data, ok := <-pipe.Channel()
-		if !ok {
-			return errDispatchSystem
+		var (
+			data any
+			ok   bool
+		)
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case data, ok = <-pipe.Channel():
+			if !ok {
+				return errDispatchSystem
+			}
 		}
 
 		t, ok := data.(*ticker.Price)
@@ -2265,9 +2283,17 @@ func (s *RPCServer) GetExchangeTickerStream(r *gctrpc.GetExchangeTickerStreamReq
 	}()
 
 	for {
-		data, ok := <-pipe.Channel()
-		if !ok {
-			return errDispatchSystem
+		var (
+			data any
+			ok   bool
+		)
+		select {
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		case data, ok = <-pipe.Channel():
+			if !ok {
+				return errDispatchSystem
+			}
 		}
 
 		t, ok := data.(*ticker.Price)

@@ -1,6 +1,10 @@
 wrapperconfig.json
 config.json
 config.dat
+*.pem
+*.crt
+*.cer
+*.key
 lib
 .DS_STORE
 
@@ -21,6 +25,8 @@ vendor/
 gocryptotrader
 /backtester/backtester
 cmd/gctcli/gctcli
+/gctmcp
+cmd/gctmcp/gctmcp
 /benchcheck
 cmd/benchcheck/benchcheck
 backtester/backtester
@@ -53,3 +59,20 @@ wrapperconfig.json
 .bench-output*.txt
 /bench-output.txt
 /.bench-compare/
+
+# Local diagnostic executables and generated test journals
+/gctdiagnosticrun
+cmd/gctdiagnosticrun/gctdiagnosticrun
+/internal/diagnostics/testdata/test-runtime-*
+/internal/gctmcp/testdata/repair/repair-*.json*
+/engine/testdata/diagnostics_record/*
+!/engine/testdata/diagnostics_record/.gitkeep
+/engine/testdata/diagnostics_start/diagnostics/*
+!/engine/testdata/diagnostics_start/diagnostics/.gitkeep
+/engine/testdata/diagnostics_owner/*
+!/engine/testdata/diagnostics_owner/.gitkeep
+/cmd/gctdiagnosticrun/testdata/runtime/crash.json*
+/cmd/gctdiagnosticrun/testdata/runtime/supervisor.lock
+/engine/testdata/diagnostics_archive/runtime.json*
+/engine/testdata/diagnostics_archive/owner.lock
+/engine/testdata/diagnostics_archive/owner.lock.reclaim-*

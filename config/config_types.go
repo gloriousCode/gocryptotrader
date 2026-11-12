@@ -96,6 +96,7 @@ type Config struct {
 	EncryptConfig        int                       `json:"encryptConfig"`
 	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`
 	Database             database.Config           `json:"database"`
+	Diagnostics          DiagnosticsConfig         `json:"diagnostics"`
 	Logging              log.Config                `json:"logging"`
 	SyncManagerConfig    SyncManagerConfig         `json:"syncManager"`
 	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
@@ -120,6 +121,11 @@ type Config struct {
 	storedSalt            []byte
 	sessionDK             []byte
 	EncryptionKeyProvider EncryptionKeyProvider `json:"-"`
+}
+
+// DiagnosticsConfig controls opt-in runtime recording.
+type DiagnosticsConfig struct {
+	Enabled bool `json:"enabled"`
 }
 
 // EncryptionKeyProvider is a function config can use to prompt the user for an encryption key
@@ -246,6 +252,30 @@ type RemoteControlConfig struct {
 	Username string     `json:"username"`
 	Password string     `json:"password"`
 	GRPC     GRPCConfig `json:"gRPC"`
+	MCP      MCPConfig  `json:"mcp"`
+}
+
+const (
+	// MCPReadOnly permits authorised observations without execution capabilities.
+	MCPReadOnly = "readonly"
+	// MCPExecution additionally permits individually authorised state changes.
+	MCPExecution = "execution"
+)
+
+// MCPConfig defines the operator's authority for the separately launched MCP adapter.
+type MCPConfig struct {
+	Enabled     bool           `json:"enabled"`
+	Mode        string         `json:"mode"`
+	Permissions MCPPermissions `json:"permissions"`
+}
+
+// MCPPermissions denies each optional capability unless explicitly authorised.
+type MCPPermissions struct {
+	Diagnostics     bool `json:"diagnostics"`
+	AccountData     bool `json:"accountData"`
+	OrderManagement bool `json:"orderManagement"`
+	Withdrawals     bool `json:"withdrawals"`
+	SystemControl   bool `json:"systemControl"`
 }
 
 // Post holds the bot configuration data

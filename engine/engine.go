@@ -55,6 +55,7 @@ type Engine struct {
 	runtimeCancel            context.CancelFunc
 	runtimeShutdownRequested bool
 	runtimeMu                sync.RWMutex
+	diagnosticsDone          chan struct{}
 	ServicesWG               sync.WaitGroup
 }
 
@@ -162,6 +163,7 @@ func (f FlagSet) WithBool(key string, flagValue *bool, configValue bool) {
 func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	b.Settings = *s
 
+	flagSet.WithBool("diagnostics", &b.Settings.EnableDiagnostics, b.Config.Diagnostics.Enabled)
 	flagSet.WithBool("coinmarketcap", &b.Settings.EnableCoinmarketcapAnalysis, b.Config.Currency.CryptocurrencyProvider.Enabled)
 	flagSet.WithBool("ordermanager", &b.Settings.EnableOrderManager, b.Config.OrderManager.Enabled)
 
@@ -558,6 +560,7 @@ func (bot *Engine) Start() error {
 	}
 
 	startSuccessful = true
+	bot.startDiagnostics(runtimeCtx)
 	return nil
 }
 
@@ -644,7 +647,7 @@ func (bot *Engine) EnsureRuntimeContext() context.Context {
 		return context.Background()
 	}
 
-	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // cancel is retained as bot.runtimeCancel and invoked on shutdown
+	ctx, cancel := context.WithCancel(context.Background())
 	bot.runtimeCtx = ctx
 	bot.runtimeCancel = cancel
 	return ctx
@@ -666,6 +669,16 @@ func (bot *Engine) Stop() {
 
 	bot.setRuntimeShutdownRequested(true)
 	bot.cancelRuntimeContext()
+	bot.runtimeMu.RLock()
+	diagnosticsDone := bot.diagnosticsDone
+	bot.runtimeMu.RUnlock()
+	if diagnosticsDone != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), diagnosticShutdownTimeout)
+		if !bot.waitDiagnostics(ctx) {
+			gctlog.Warnln(gctlog.Global, "Diagnostic recorder shutdown exceeded its deadline; its evidence and ownership remain incomplete.")
+		}
+		cancel()
+	}
 	bot.clearRuntimeContext()
 
 	if bot.portfolioManager != nil && len(bot.portfolioManager.GetAddresses()) != 0 {

@@ -4,6 +4,9 @@
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
+ "diagnostics": {
+  "enabled": false
+ },
  "database": {
   "enabled": true,
   "verbose": false,

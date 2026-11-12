@@ -61,6 +61,67 @@ go build
 ./gocryptotrader -config custom.json
 ```
 
+### Enable Runtime Diagnostics Via Config Example
+
+Runtime diagnostics are optional and disabled by default. To opt in, set the
+following root configuration block:
+
+```json
+{
+ "diagnostics": {
+  "enabled": true
+ }
+}
+```
+
+An omitted block, an omitted or null `enabled` value, or `enabled: false` leaves
+recording disabled. Explicit `--diagnostics=true` or `--diagnostics=false`
+command-line flags override the saved choice for that launch.
+
+When disabled, GCT does not start the diagnostic recorder, register its log
+observer, poll caches or write diagnostic journals. Enabling the recorder saves
+bounded observations under `diagnostics` in GCT's data directory. MCP clients
+inspect these observations through the separately launched standard input/output
+adapter. See the [GCT MCP command reference](../cmd/gctmcp/README.md)
+for the available inspection and repair commands.
+
+### Configure MCP Access Via Config Example
+
+The separately launched MCP adapter is disabled by default. Its access is
+controlled by the GCT configuration:
+
+```json
+{
+ "remoteControl": {
+  "mcp": {
+   "enabled": false,
+   "mode": "readonly",
+   "permissions": {
+    "diagnostics": false,
+    "accountData": false,
+    "orderManagement": false,
+    "withdrawals": false,
+    "systemControl": false
+   }
+  }
+ }
+}
+```
+
+Setting `remoteControl.mcp.enabled` to true permits public market queries.
+The empty mode defaults to `readonly`; `execution` permits individually
+authorised state changes. All five permissions default to false, including when
+execution mode is selected. Omitted and null permission fields do not grant
+access. `--offline` limits access to permitted saved observations.
+
+| Permission | Authority |
+| --- | --- |
+| `diagnostics` | Read sanitised retained operational evidence and pair-refresh receipts. |
+| `accountData` | Read private balances, collateral, orders, positions, account history and balance-refresh receipts. Account refreshes require execution mode. |
+| `orderManagement` | Submit, modify or cancel orders and change margin settings, in execution mode. |
+| `withdrawals` | Withdraw cryptocurrency or fiat, in execution mode. |
+| `systemControl` | Use runtime, exchange, pair, subsystem and connection controls in execution mode, and inspect pair-refresh receipts. Controls that can cancel orders, including shutdown, also require `orderManagement`. Shutdown remains subject to the daemon's shutdown setting. |
+
 ### Enable Exchange Via Config Example
 
 + To enable or disable an exchange via config proceed through the

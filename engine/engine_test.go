@@ -872,29 +872,53 @@ func TestSetupExchanges(t *testing.T) {
 	})
 }
 
-// Not parallel: it swaps the package-level cache the parallel withdrawal tests use
-func TestValidateSettingsWithdrawCacheSize(t *testing.T) {
-	oldCache, oldSize := withdraw.Cache, withdraw.CacheSize
-	t.Cleanup(func() { withdraw.Cache, withdraw.CacheSize = oldCache, oldSize })
+// Settings validation mutates singleton HTTP settings and the withdrawal cache.
+func TestValidateSettings(t *testing.T) {
+	t.Run("withdrawal cache size", func(t *testing.T) {
+		oldCache, oldSize := withdraw.Cache, withdraw.CacheSize
+		t.Cleanup(func() { withdraw.Cache, withdraw.CacheSize = oldCache, oldSize })
 
-	for _, size := range []uint64{1, 3, 26} {
-		withdraw.Cache = cache.New(oldSize)
-		validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: size}, FlagSet{"withdrawcachesize": true})
-		assert.Equal(t, size, withdraw.CacheSize, "CacheSize should take the flag's value")
-		for i := range size + 1 {
-			withdraw.Cache.Add(i, i)
+		for _, size := range []uint64{1, 3, 26} {
+			withdraw.Cache = cache.New(oldSize)
+			validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: size}, FlagSet{"withdrawcachesize": true})
+			assert.Equal(t, size, withdraw.CacheSize, "CacheSize should take the flag's value")
+			for i := range size + 1 {
+				withdraw.Cache.Add(i, i)
+			}
+			assert.Equalf(t, size, withdraw.Cache.Len(), "the withdrawal cache should hold the flag's size of %d", size)
+			assert.Falsef(t, withdraw.Cache.Contains(uint64(0)), "the withdrawal cache should evict its oldest entry beyond %d", size)
 		}
-		assert.Equalf(t, size, withdraw.Cache.Len(), "the withdrawal cache should hold the flag's size of %d", size)
-		assert.Falsef(t, withdraw.Cache.Contains(uint64(0)), "the withdrawal cache should evict its oldest entry beyond %d", size)
-	}
 
-	unflagged := cache.New(oldSize)
-	withdraw.Cache, withdraw.CacheSize = unflagged, oldSize
-	validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: 2}, FlagSet{})
-	assert.Same(t, unflagged, withdraw.Cache, "the withdrawal cache should be left alone without the flag")
-	assert.Equal(t, oldSize, withdraw.CacheSize, "CacheSize should be left alone without the flag")
-	for i := range oldSize + 1 {
-		unflagged.Add(i, i)
-	}
-	assert.Equal(t, oldSize, unflagged.Len(), "the withdrawal cache should keep its size without the flag")
+		unflagged := cache.New(oldSize)
+		withdraw.Cache, withdraw.CacheSize = unflagged, oldSize
+		validateSettings(&Engine{Config: &config.Config{}}, &Settings{WithdrawCacheSize: 2}, FlagSet{})
+		assert.Same(t, unflagged, withdraw.Cache, "the withdrawal cache should be left alone without the flag")
+		assert.Equal(t, oldSize, withdraw.CacheSize, "CacheSize should be left alone without the flag")
+		for i := range oldSize + 1 {
+			unflagged.Add(i, i)
+		}
+		assert.Equal(t, oldSize, unflagged.Len(), "the withdrawal cache should keep its size without the flag")
+	})
+	t.Run("diagnostics configuration and explicit flag precedence", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			configured bool
+			flagged    bool
+			flagValue  bool
+			want       bool
+		}{
+			{name: "disabled by default"},
+			{name: "enabled by configuration", configured: true, want: true},
+			{name: "unflagged settings do not bypass configuration", flagValue: true},
+			{name: "explicit enable overrides disabled configuration", flagged: true, flagValue: true, want: true},
+			{name: "explicit disable overrides enabled configuration", configured: true, flagged: true},
+			{name: "explicit enable preserves enabled configuration", configured: true, flagged: true, flagValue: true, want: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				bot := &Engine{Config: &config.Config{Diagnostics: config.DiagnosticsConfig{Enabled: tc.configured}}}
+				validateSettings(bot, &Settings{EnableDiagnostics: tc.flagValue}, FlagSet{"diagnostics": tc.flagged})
+				assert.Equal(t, tc.want, bot.Settings.EnableDiagnostics, "diagnostics should follow configuration unless explicitly overridden")
+			})
+		}
+	})
 }

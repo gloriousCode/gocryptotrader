@@ -1164,15 +1164,29 @@ func TestGetRecentTrades(t *testing.T) {
 
 // dummyServer implements a basic RPC server interface for deployment in a test
 // when streaming occurs, so we can deliver a context value.
-type dummyServer struct{}
+type dummyServer struct {
+	getContext func() context.Context
+	send       func(any) error
+}
 
 func (d *dummyServer) Send(*gctrpc.SavedTradesResponse) error { return nil }
 func (d *dummyServer) SetHeader(metadata.MD) error            { return nil }
 func (d *dummyServer) SendHeader(metadata.MD) error           { return nil }
 func (d *dummyServer) SetTrailer(metadata.MD)                 {}
-func (d *dummyServer) Context() context.Context               { return context.Background() }
-func (d *dummyServer) SendMsg(_ any) error                    { return nil }
-func (d *dummyServer) RecvMsg(_ any) error                    { return nil }
+func (d *dummyServer) Context() context.Context {
+	if d.getContext != nil {
+		return d.getContext()
+	}
+	return context.Background()
+}
+
+func (d *dummyServer) SendMsg(message any) error {
+	if d.send != nil {
+		return d.send(message)
+	}
+	return nil
+}
+func (d *dummyServer) RecvMsg(_ any) error { return nil }
 
 func TestGetHistoricTrades(t *testing.T) {
 	engerino := RPCTestSetup(t)

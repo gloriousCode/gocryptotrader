@@ -1564,6 +1564,12 @@ func TestReadVersion0ConfigFromFile(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(latestCfg, &latest), "json.Unmarshal must not error when reading latest config version")
 	assert.Equal(t, latest.Version, legacy.Version, "ReadConfigFromFile should upgrade version 0 fixture to the latest registered version")
+	t.Run("legacy configuration keeps optional diagnostics and MCP disabled", func(t *testing.T) {
+		// The parent owns the process-wide standard logger for this load.
+		assert.False(t, legacy.Diagnostics.Enabled, "legacy configurations should leave diagnostic recording disabled")
+		assert.False(t, legacy.RemoteControl.MCP.Enabled, "legacy configurations should leave the MCP adapter disabled")
+		assert.Equal(t, MCPPermissions{}, legacy.RemoteControl.MCP.Permissions, "legacy configurations should deny every omitted MCP permission")
+	})
 	_, err = legacy.GetExchangeConfig("Bitmex")
 	assert.ErrorIs(t, err, ErrExchangeNotFound, "GetExchangeConfig should return ErrExchangeNotFound for retired BitMEX")
 }
@@ -1668,6 +1674,117 @@ func TestReadConfigFromReader(t *testing.T) {
 
 	err = c.readConfig(strings.NewReader("{}"))
 	require.NoError(t, err, "Reading a config shorter than encryptionPrefix must not error EOF")
+	t.Run("diagnostics remain opt-in", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			version int
+			field   string
+			enabled bool
+		}{
+			{name: "previous version omitted", version: 17},
+			{name: "current version omitted", version: 18},
+			{name: "null block", version: 18, field: `,"diagnostics":null`},
+			{name: "empty block", version: 18, field: `,"diagnostics":{}`},
+			{name: "null enabled", version: 18, field: `,"diagnostics":{"enabled":null}`},
+			{name: "explicit false", version: 18, field: `,"diagnostics":{"enabled":false}`},
+			{name: "explicit true", version: 18, field: `,"diagnostics":{"enabled":true}`, enabled: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var loaded Config
+				input := `{"name":"test","version":` + strconv.Itoa(tc.version) + tc.field + `}`
+				require.NoError(t, loaded.readConfig(strings.NewReader(input)), "saved configuration must load through the migration-aware reader")
+				assert.Equal(t, tc.enabled, loaded.Diagnostics.Enabled, "diagnostics should require an explicit true setting")
+				var output bytes.Buffer
+				require.NoError(t, loaded.Save(func() (io.Writer, error) { return &output, nil }), "configuration must save")
+				var roundTrip Config
+				require.NoError(t, roundTrip.readConfig(&output), "saved configuration must reload")
+				assert.Equal(t, tc.enabled, roundTrip.Diagnostics.Enabled, "round-trip configuration should preserve the explicit diagnostics choice")
+			})
+		}
+	})
+	t.Run("MCP authority remains opt-in", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name    string
+			version int
+			field   string
+			want    MCPConfig
+		}{
+			{name: "previous version omitted", version: 17},
+			{name: "current version omitted", version: 18},
+			{name: "null remote control", version: 18, field: `,"remoteControl":null`},
+			{name: "null MCP", version: 18, field: `,"remoteControl":{"mcp":null}`},
+			{name: "empty MCP", version: 18, field: `,"remoteControl":{"mcp":{}}`},
+			{name: "explicit disabled", version: 18, field: `,"remoteControl":{"mcp":{"enabled":false,"mode":"readonly"}}`, want: MCPConfig{Mode: MCPReadOnly}},
+			{name: "enabled without permissions", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true}}`, want: MCPConfig{Enabled: true}},
+			{name: "execution without permissions", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"execution"}}`, want: MCPConfig{Enabled: true, Mode: MCPExecution}},
+			{name: "null permissions", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"permissions":null}}`, want: MCPConfig{Enabled: true}},
+			{name: "null permission values", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"permissions":{"diagnostics":null,"accountData":null,"orderManagement":null,"withdrawals":null,"systemControl":null}}}`, want: MCPConfig{Enabled: true}},
+			{name: "public queries only", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"readonly","permissions":{}}}`, want: MCPConfig{Enabled: true, Mode: MCPReadOnly}},
+			{name: "diagnostics only", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"readonly","permissions":{"diagnostics":true}}}`, want: MCPConfig{Enabled: true, Mode: MCPReadOnly, Permissions: MCPPermissions{Diagnostics: true}}},
+			{name: "account data only", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"permissions":{"accountData":true}}}`, want: MCPConfig{Enabled: true, Permissions: MCPPermissions{AccountData: true}}},
+			{name: "explicit false permissions", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"execution","permissions":{"diagnostics":false,"accountData":false,"orderManagement":false,"withdrawals":false,"systemControl":false}}}`, want: MCPConfig{Enabled: true, Mode: MCPExecution}},
+			{name: "unknown aliases do not grant authority", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"execution","permissions":{"publicData":true,"accountFunds":true,"orderHistory":true,"runtimeControl":true,"maintenance":true,"secrets":true,"shutdown":true}}}`, want: MCPConfig{Enabled: true, Mode: MCPExecution}},
+			{name: "explicit execution choices", version: 18, field: `,"remoteControl":{"mcp":{"enabled":true,"mode":"execution","permissions":{"diagnostics":true,"accountData":true,"orderManagement":true,"withdrawals":true,"systemControl":true}}}`, want: MCPConfig{Enabled: true, Mode: MCPExecution, Permissions: MCPPermissions{Diagnostics: true, AccountData: true, OrderManagement: true, Withdrawals: true, SystemControl: true}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				var loaded Config
+				input := `{"name":"test","version":` + strconv.Itoa(tc.version) + tc.field + `}`
+				require.NoError(t, loaded.readConfig(strings.NewReader(input)), "saved configuration must load through the migration-aware reader")
+				assert.Equal(t, tc.want, loaded.RemoteControl.MCP, "only explicit MCP permissions should be loaded")
+				var output bytes.Buffer
+				require.NoError(t, loaded.Save(func() (io.Writer, error) { return &output, nil }), "MCP configuration must save")
+				var roundTrip Config
+				require.NoError(t, roundTrip.readConfig(&output), "saved MCP configuration must reload")
+				assert.Equal(t, tc.want, roundTrip.RemoteControl.MCP, "round-trip configuration should preserve each permission choice")
+			})
+		}
+	})
+	t.Run("reloading revokes omitted optional authority", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name  string
+			field string
+			want  MCPConfig
+		}{
+			{name: "omitted optional blocks"},
+			{name: "null optional blocks", field: `,"diagnostics":null,"remoteControl":{"mcp":null}`},
+			{name: "empty optional blocks", field: `,"diagnostics":{},"remoteControl":{"mcp":{}}`},
+			{name: "null enabled and permissions", field: `,"diagnostics":{"enabled":null},"remoteControl":{"mcp":{"enabled":null,"permissions":null}}`},
+			{name: "public queries only replace execution authority", field: `,"remoteControl":{"mcp":{"enabled":true}}`, want: MCPConfig{Enabled: true}},
+			{name: "null mode replaces execution authority", field: `,"remoteControl":{"mcp":{"enabled":true,"mode":null}}`, want: MCPConfig{Enabled: true}},
+			{name: "partial permissions replace execution authority", field: `,"remoteControl":{"mcp":{"enabled":true,"permissions":{"diagnostics":true}}}`, want: MCPConfig{Enabled: true, Permissions: MCPPermissions{Diagnostics: true}}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				loaded := Config{Diagnostics: DiagnosticsConfig{Enabled: true}, RemoteControl: RemoteControlConfig{MCP: MCPConfig{Enabled: true, Mode: MCPExecution, Permissions: MCPPermissions{Diagnostics: true, AccountData: true, OrderManagement: true, Withdrawals: true, SystemControl: true}}}}
+				require.NoError(t, loaded.readConfig(strings.NewReader(`{"version":18`+tc.field+`}`)), "replacement configuration must load")
+				assert.False(t, loaded.Diagnostics.Enabled, "replacement configuration should revoke omitted diagnostic recording")
+				assert.Equal(t, tc.want, loaded.RemoteControl.MCP, "replacement configuration should revoke every omitted MCP permission and mode")
+			})
+		}
+	})
+	t.Run("failed replacement revokes optional authority", func(t *testing.T) {
+		t.Parallel()
+		for _, tc := range []struct {
+			name  string
+			input string
+		}{
+			{name: "malformed configuration", input: `{"version":18,"remoteControl":`},
+			{name: "partially decoded configuration", input: `{"version":18,"diagnostics":{"enabled":true},"remoteControl":{"mcp":{"enabled":true,"mode":[],"permissions":{"systemControl":true}}}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				loaded := Config{Diagnostics: DiagnosticsConfig{Enabled: true}, RemoteControl: RemoteControlConfig{MCP: MCPConfig{Enabled: true, Mode: MCPExecution, Permissions: MCPPermissions{SystemControl: true}}}}
+				require.Error(t, loaded.readConfig(strings.NewReader(tc.input)), "invalid replacement configuration must fail")
+				assert.False(t, loaded.Diagnostics.Enabled, "failed replacement should leave diagnostic recording disabled")
+				assert.Equal(t, MCPConfig{}, loaded.RemoteControl.MCP, "failed replacement should leave all optional MCP authority disabled")
+			})
+		}
+	})
 	t.Run("OKX saved endpoint migration", func(t *testing.T) {
 		t.Parallel()
 		for _, name := range []string{"Okx", "OKX", "okx", "oKx"} {

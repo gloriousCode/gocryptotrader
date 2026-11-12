@@ -4,6 +4,9 @@
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
+ "diagnostics": {
+  "enabled": false
+ },
  "database": {
   "enabled": false,
   "verbose": false,
@@ -227,6 +230,17 @@
  "remoteControl": {
   "username": "admin",
   "password": "Password",
+  "mcp": {
+   "enabled": false,
+   "mode": "readonly",
+   "permissions": {
+    "diagnostics": false,
+    "accountData": false,
+    "orderManagement": false,
+    "withdrawals": false,
+    "systemControl": false
+   }
+  },
   "gRPC": {
    "enabled": true,
    "listenAddress": "localhost:9052",

@@ -30,6 +30,7 @@ type Settings struct {
 
 // CoreSettings defines settings related to core engine operations
 type CoreSettings struct {
+	EnableDiagnostics           bool
 	EnableDryRun                bool
 	EnableAllExchanges          bool
 	EnableAllPairs              bool

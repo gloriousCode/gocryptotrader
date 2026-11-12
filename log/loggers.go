@@ -268,6 +268,20 @@ func (l *fields) stage(header string, deferFunc deferral) {
 // custom log hook if set, otherwise falls back to the library's internal log
 // system.
 func (l *fields) stageln(header string, a ...any) {
+	if snapshot := observerState.Load(); snapshot != nil {
+		level := "INFO"
+		switch header {
+		case l.logger.ErrorHeader:
+			level = "ERROR"
+		case l.logger.WarnHeader:
+			level = "WARN"
+		case l.logger.DebugHeader:
+			level = "DEBUG"
+		}
+		for _, observer := range snapshot.callbacks {
+			observer(level, l.name)
+		}
+	}
 	if customLogHook != nil && customLogHook(header, l.name, a...) {
 		logFieldsPool.Put(l)
 		return
@@ -279,6 +293,20 @@ func (l *fields) stageln(header string, a ...any) {
 // the custom log hook if set, otherwise falls back to the library's internal
 // log system.
 func (l *fields) stagef(header, format string, a ...any) {
+	if snapshot := observerState.Load(); snapshot != nil {
+		level := "INFO"
+		switch header {
+		case l.logger.ErrorHeader:
+			level = "ERROR"
+		case l.logger.WarnHeader:
+			level = "WARN"
+		case l.logger.DebugHeader:
+			level = "DEBUG"
+		}
+		for _, observer := range snapshot.callbacks {
+			observer(level, l.name)
+		}
+	}
 	if customLogHook == nil {
 		l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 		return

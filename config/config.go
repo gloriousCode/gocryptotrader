@@ -1450,6 +1450,9 @@ func (c *Config) ReadConfigFromFile(path string, dryrun bool) error {
 // versions manager will upgrade/downgrade if appropriate
 // If encrypted, prompts for encryption key
 func (c *Config) readConfig(d io.Reader) error {
+	// Reusing a Config must not retain authority omitted from its replacement.
+	c.Diagnostics = DiagnosticsConfig{}
+	c.RemoteControl.MCP = MCPConfig{}
 	j, err := io.ReadAll(d)
 	if err != nil {
 		return err
@@ -1465,7 +1468,12 @@ func (c *Config) readConfig(d io.Reader) error {
 		return err
 	}
 
-	return json.Unmarshal(j, c)
+	if err := json.Unmarshal(j, c); err != nil {
+		c.Diagnostics = DiagnosticsConfig{}
+		c.RemoteControl.MCP = MCPConfig{}
+		return err
+	}
+	return nil
 }
 
 // saveWithEncryptPrompt will prompt the user if they want to encrypt their config
