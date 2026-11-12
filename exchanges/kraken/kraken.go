@@ -189,7 +189,6 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 	values := url.Values{}
 	values.Set("pair", translatedAsset)
 	values.Set("interval", interval)
-
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
 	var result map[string]json.RawMessage

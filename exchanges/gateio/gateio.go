@@ -218,6 +218,9 @@ func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
 type Exchange struct {
 	exchange.Base
 
+	subscriptionSlotsOnce sync.Once
+	subscriptionSlots     chan struct{}
+
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *orderbookmanager.UpdateManager
@@ -477,15 +480,13 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 }
 
 // GetCandlesticks retrieves market candlesticks.
-func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
+func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, _ uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
 	params := url.Values{}
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params.Set("currency_pair", currencyPair.String())
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
+	params.Set("limit", "1000")
 	var err error
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
@@ -556,10 +557,10 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if !isSpotOrderAccount(args[x].Account) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
-		if args[x].Amount <= 0 {
+		if args[x].Amount.Float64() <= 0 {
 			return nil, errInvalidAmount
 		}
-		if args[x].Price <= 0 {
+		if args[x].Price.Float64() <= 0 {
 			return nil, errInvalidPrice
 		}
 	}
@@ -620,10 +621,10 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 	if !isSpotOrderAccount(arg.Account) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
-	if arg.Amount <= 0 {
+	if arg.Amount.Float64() <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price < 0 {
+	if arg.Price.Float64() < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
@@ -1532,7 +1533,7 @@ func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoan
 	if arg.Mode != "all" && arg.Mode != "partial" {
 		return nil, errInvalidRepayMode
 	}
-	if arg.Mode == "partial" && arg.Amount <= 0 {
+	if arg.Mode == "partial" && arg.Amount.Float64() <= 0 {
 		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", errInvalidAmount)
 	}
 	var response *MarginLoanResponse
@@ -1963,16 +1964,18 @@ func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code
 	return constituents, e.SendHTTPRequest(ctx, exchange.RestSpot, publicIndexConstituentsEPL, futuresPath+settle.Item.Lower+"/index_constituents/"+indexString, &constituents)
 }
 
-// GetLiquidationHistory retrieves liqudiation history
+// GetLiquidationHistory retrieves public liquidation history, optionally across all contracts
 func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
-	if contract.IsInvalid() {
+	if !contract.IsEmpty() && contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
 	}
@@ -1993,13 +1996,19 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesAccountBooks retrieves account books
-func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, contract string, limit, offset uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	params := url.Values{}
+	if contract != "" {
+		params.Set("contract", contract)
+	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
 	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
 		return nil, err
@@ -2370,7 +2379,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
@@ -2844,10 +2853,10 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 	if arg.Initial.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	if arg.Initial.Price < 0 {
+	if arg.Initial.Price.Float64() < 0 {
 		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
 	}
-	if arg.Initial.Size <= 0 {
+	if arg.Initial.Size.Float64() <= 0 {
 		return nil, errors.New("invalid argument: initial.size out of range")
 	}
 	if arg.Initial.TimeInForce != "" &&
@@ -3129,17 +3138,17 @@ func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) 
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}
-	if arg.OrderSize == 0 {
+	if arg.OrderSize.Float64() == 0 {
 		return nil, errInvalidOrderSize
 	}
-	if arg.Iceberg < 0 {
-		arg.Iceberg = 0
+	if arg.Iceberg.Float64() < 0 {
+		arg.Iceberg = types.Number(0)
 	}
 	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF {
 		arg.TimeInForce = ""
 	}
-	if arg.TimeInForce == iocTIF || arg.Price < 0 {
-		arg.Price = 0
+	if arg.TimeInForce == iocTIF || arg.Price.Float64() < 0 {
+		arg.Price = types.Number(0)
 	}
 	var response *OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSubmitOrderEPL, http.MethodPost, gateioOptionsOrders, nil, &arg, &response)

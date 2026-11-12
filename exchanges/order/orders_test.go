@@ -1846,8 +1846,26 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
-	assert.Equal(t, exp, j)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"AutoRepay":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
+	assert.Equal(t, exp, j, "serialised order should retain the full local submit contract")
+	for _, tc := range []struct {
+		name            string
+		hidden, iceberg bool
+	}{
+		{name: "visible"}, {name: "hidden", hidden: true}, {name: "iceberg", iceberg: true}, {name: "hidden iceberg", hidden: true, iceberg: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			candidate := orderSubmit
+			candidate.Hidden, candidate.Iceberg = tc.hidden, tc.iceberg
+			encoded, err := json.Marshal(candidate)
+			require.NoError(t, err, "submit flags must serialise")
+			var restored Submit
+			require.NoError(t, json.Unmarshal(encoded, &restored), "submit flags must decode")
+			assert.Equal(t, tc.hidden, restored.Hidden, "hidden flag should survive serialisation")
+			assert.Equal(t, tc.iceberg, restored.Iceberg, "iceberg flag should survive serialisation")
+		})
+	}
 }
 
 func TestAdd(t *testing.T) {

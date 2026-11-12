@@ -18,6 +18,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
+const (
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+)
+
 var (
 	mockTests = false
 	// Please supply your own credentials here to do authenticated endpoint testing.

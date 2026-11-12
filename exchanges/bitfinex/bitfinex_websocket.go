@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -34,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 const (
@@ -427,7 +429,23 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if fundingInfo.DurationLend, ok = symbolData[3].(float64); !ok {
 						return errors.New("unable to type assert funding info update duration lend")
 					}
-					return e.Websocket.DataHandler.Send(ctx, fundingInfo)
+					if err := e.Websocket.DataHandler.Send(ctx, fundingInfo); err != nil {
+						return err
+					}
+					if after, ok0 := strings.CutPrefix(fundingInfo.Symbol, "f"); ok0 {
+						ccy := currency.NewCode(after)
+						currentYearly := decimal.MustFromFloat(fundingInfo.YieldLend)
+						predictedYearly := decimal.MustFromFloat(fundingInfo.YieldLoan)
+						return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
+							Time:       time.Now().UTC(),
+							HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
+							YearlyRate: currentYearly,
+						}, &margin.Rate{
+							Time:       time.Now().UTC(),
+							HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
+							YearlyRate: predictedYearly,
+						})
+					}
 				}
 			}
 		case wsFundingTradeExecuted, wsFundingTradeUpdated:
@@ -463,7 +481,19 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				}
 				wsFundingTrade.Period = int64(period)
 				wsFundingTrade.Maker = data[7] != nil
-				return e.Websocket.DataHandler.Send(ctx, wsFundingTrade)
+				if err := e.Websocket.DataHandler.Send(ctx, wsFundingTrade); err != nil {
+					return err
+				}
+				if after, ok0 := strings.CutPrefix(wsFundingTrade.Symbol, "f"); ok0 {
+					ccy := currency.NewCode(after)
+					yearlyRate := decimal.MustFromFloat(wsFundingTrade.Rate)
+					return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, &margin.Rate{
+						Time:       wsFundingTrade.MTSCreated,
+						HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
+						YearlyRate: yearlyRate,
+					}, &margin.Rate{})
+				}
+				return nil
 			}
 		default:
 			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
@@ -472,6 +502,32 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 	}
 	return nil
+}
+
+func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset.Item, c currency.Code, current, predicted *margin.Rate) error {
+	pairs, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	timeChecked := time.Now().UTC()
+	resp := make([]margin.CurrentRateResponse, 0, len(pairs))
+	for i := range pairs {
+		if !pairs[i].Base.Equal(c) {
+			continue
+		}
+		resp = append(resp, margin.CurrentRateResponse{
+			Exchange:      e.Name,
+			Asset:         a,
+			Pair:          pairs[i],
+			CurrentRate:   *current,
+			PredictedRate: *predicted,
+			TimeChecked:   timeChecked,
+		})
+	}
+	if len(resp) == 0 {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {

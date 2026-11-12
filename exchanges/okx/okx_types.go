@@ -524,20 +524,6 @@ type DiscountRateInfoItem struct {
 	DiscountCurrencyEquity types.Number `json:"disCcyEq"`
 }
 
-// LiquidationOrderRequestParams holds information to request liquidation orders
-type LiquidationOrderRequestParams struct {
-	InstrumentType   string
-	MarginMode       string // values are either isolated or crossed
-	InstrumentID     string
-	Currency         currency.Code
-	InstrumentFamily string
-	Alias            string
-	State            string
-	Before           time.Time
-	After            time.Time
-	Limit            uint64
-}
-
 // LiquidationOrder represents liquidation order item detailed information
 type LiquidationOrder struct {
 	Details          []LiquidationOrderDetailItem `json:"details"`
@@ -789,21 +775,22 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
-	AssetType     asset.Item `json:"-"`
-	InstrumentID  string     `json:"instId"`
-	TradeMode     string     `json:"tdMode"` // cash isolated
-	ClientOrderID string     `json:"clOrdId,omitempty"`
-	Currency      string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag      string     `json:"tag,omitempty"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
-	OrderType     string     `json:"ordType"`           // Time in force for the order
-	Amount        float64    `json:"sz,string"`
-	Price         float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	AssetType        asset.Item `json:"-"`
+	InstrumentID     string     `json:"instId"`
+	InstrumentIDCode int64      `json:"instIdCode,omitempty"`
+	TradeMode        string     `json:"tdMode"` // cash isolated
+	ClientOrderID    string     `json:"clOrdId,omitempty"`
+	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag         string     `json:"tag,omitempty"`
+	Side             string     `json:"side"`
+	PositionSide     string     `json:"posSide,omitempty"` // net (default), or long/short in hedge mode for FUTURES and SWAP
+	OrderType        string     `json:"ordType"`           // Time in force for the order
+	Amount           float64    `json:"sz,string"`
+	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
 	// Options orders
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
-	ReduceOnly                           bool   `json:"reduceOnly,string,omitempty"`
+	ReduceOnly                           bool   `json:"reduceOnly,omitempty"`
 	TargetCurrency                       string `json:"tgtCcy,omitempty"`  // values base_ccy and quote_ccy for spot market orders
 	SelfTradePreventionMode              string `json:"stpMode,omitempty"` // Default to cancel maker, `cancel_maker`,`cancel_taker`, `cancel_both``
 	// Added in the websocket requests
@@ -815,7 +802,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg == nil {
 		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
-	if arg.InstrumentID == "" {
+	if arg.InstrumentID == "" && arg.InstrumentIDCode == 0 {
 		return errMissingInstrumentID
 	}
 	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
@@ -829,8 +816,8 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
-			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
+		if !slices.Contains([]string{"", "net", "long", "short"}, arg.PositionSide) {
+			return fmt.Errorf("%w: %q, net, long or short supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
 	arg.OrderType = strings.ToLower(arg.OrderType)
@@ -840,7 +827,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg.Amount <= 0 {
 		return limits.ErrAmountBelowMin
 	}
-	if !slices.Contains([]string{"", "base_ccy", "quote_ccy"}, arg.TargetCurrency) {
+	if !slices.Contains([]string{"", "base_ccy", quoteCurrencyQuantity}, arg.TargetCurrency) {
 		return errCurrencyQuantityTypeRequired
 	}
 	return nil
@@ -881,9 +868,10 @@ func (r *ResponseResult) Error() error {
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
-	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	InstrumentID     string `json:"instId"`
+	InstrumentIDCode int64  `json:"instIdCode,omitempty"`
+	OrderID          string `json:"ordId"`
+	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
 
 // CancelMassReqParam holds MMP batch cancel request parameters
@@ -894,13 +882,14 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string  `json:"instId"`
-	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
-	OrderID         string  `json:"ordId,omitempty"`
-	ClientOrderID   string  `json:"clOrdId,omitempty"`
-	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,omitempty,string"`
-	NewPrice        float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string  `json:"instId"`
+	InstrumentIDCode int64   `json:"instIdCode,omitempty"`
+	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
+	OrderID          string  `json:"ordId,omitempty"`
+	ClientOrderID    string  `json:"clOrdId,omitempty"`
+	ClientRequestID  string  `json:"reqId,omitempty"`
+	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
@@ -2980,9 +2969,9 @@ type GridAlgoOrderResponse struct {
 
 	// Suborders Detail
 
-	AnnualisedRate   types.Number `json:"annualizedRate,omitempty"`
-	CurrentBaseSize  types.Number `json:"curBaseSz,omitempty"`
-	CurrentQuoteSize types.Number `json:"curQuoteSz,omitempty"`
+	AnnualisedRate   types.Number `json:"annualizedRate,omitzero"`
+	CurrentBaseSize  types.Number `json:"curBaseSz,omitzero"`
+	CurrentQuoteSize types.Number `json:"curQuoteSz,omitzero"`
 }
 
 // AlgoOrderPosition represents algo order position detailed data
@@ -3894,6 +3883,7 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
+	Checksum           int32             `json:"checksum"`
 	Asks               [][4]types.Number `json:"asks"`
 	Bids               [][4]types.Number `json:"bids"`
 	Timestamp          types.Time        `json:"ts"`
@@ -5429,14 +5419,14 @@ type OrderPreCheckParams struct {
 // AlgoOrderInfo represents an algo order info
 type AlgoOrderInfo struct {
 	AttachAlgoClientOrderID    string       `json:"attachAlgoClOrdId,omitempty"`
-	TakeProfitTriggerPrice     types.Number `json:"tpTriggerPx,omitempty"`
-	TakeProfitOrderPrice       types.Number `json:"tpOrdPx,omitempty"`
+	TakeProfitTriggerPrice     types.Number `json:"tpTriggerPx,omitzero"`
+	TakeProfitOrderPrice       types.Number `json:"tpOrdPx,omitzero"`
 	TakeProfitOrderKind        string       `json:"tpOrdKind,omitempty"`
-	StopLossTriggerPrice       types.Number `json:"slTriggerPx,omitempty"`
-	StopLossOrderPrice         types.Number `json:"slOrdPx,omitempty"`
+	StopLossTriggerPrice       types.Number `json:"slTriggerPx,omitzero"`
+	StopLossOrderPrice         types.Number `json:"slOrdPx,omitzero"`
 	TakeProfitTriggerPriceType string       `json:"tpTriggerPxType,omitempty"`
 	StopLossTriggerPriceType   string       `json:"slTriggerPxType,omitempty"`
-	Size                       types.Number `json:"sz,omitempty"`
+	Size                       types.Number `json:"sz,omitzero"`
 }
 
 // OrderPreCheckResponse represents an order pre-checks response of account information for placing orders

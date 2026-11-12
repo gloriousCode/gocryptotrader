@@ -226,8 +226,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
 	// Spot connection
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently:  true,
+		OnConnectionFault:     e.onWebsocketConnectionFault,
 		URL:                   gateioWebsocketEndpoint,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -244,6 +247,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	// Futures connection - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  usdtFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -265,6 +270,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - BTC margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  btcFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -286,6 +293,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently: true,
+		OnConnectionFault:    e.onWebsocketConnectionFault,
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -304,6 +313,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		RecoverIndependently:  true,
+		OnConnectionFault:     e.onWebsocketConnectionFault,
 		URL:                   optionsWebsocketURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -1122,6 +1133,82 @@ func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyRes
 	return nil, common.ErrFunctionNotSupported
 }
 
+// WebsocketModifyOrder modifies an order through websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	formattedPair, err := e.FormatExchangeCurrency(action.Pair, action.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	action.Pair = formattedPair.Upper()
+
+	modResp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	switch action.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		req := &WebsocketAmendOrder{
+			OrderID: action.OrderID,
+			Pair:    action.Pair,
+			Account: e.assetTypeToString(action.AssetType),
+		}
+		if action.Amount != 0 {
+			req.Amount = strconv.FormatFloat(action.Amount, 'f', -1, 64)
+		}
+		if action.Price != 0 {
+			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)
+		}
+		resp, err := e.WebsocketSpotAmendOrder(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		modResp.OrderID = resp.ID
+		modResp.Status = order.Open
+		if resp.Status != "" && resp.Status != statusOpen {
+			modResp.Status, err = order.StringToOrderStatus(resp.Status)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		req := &WebsocketFuturesAmendOrder{
+			OrderID:  action.OrderID,
+			Contract: action.Pair,
+			Asset:    action.AssetType,
+		}
+		if action.Amount != 0 {
+			sizeFloat := math.Round(action.Amount)
+			if sizeFloat != action.Amount {
+				return nil, fmt.Errorf("%w: futures amend size must be a whole number", errInvalidAmount)
+			}
+			req.Size = int64(sizeFloat)
+		}
+		if action.Price != 0 {
+			req.Price = strconv.FormatFloat(action.Price, 'f', -1, 64)
+		}
+		resp, err := e.WebsocketFuturesAmendOrder(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		modResp.OrderID = strconv.FormatInt(resp.ID, 10)
+		modResp.Status = order.Open
+		if resp.Status != "" && resp.Status != statusOpen {
+			modResp.Status, err = order.StringToOrderStatus(resp.Status)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case asset.Options:
+		return nil, common.ErrFunctionNotSupported
+	default:
+		return nil, common.ErrNotYetImplemented
+	}
+	return modResp, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	if err := o.Validate(o.StandardCancel()); err != nil {
@@ -1149,6 +1236,33 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 	return err
+}
+
+// WebsocketCancelOrder cancels an order through websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	switch o.AssetType {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		fPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return err
+		}
+		_, err = e.WebsocketSpotCancelOrder(ctx, o.OrderID, fPair.Upper(), e.assetTypeToString(o.AssetType))
+		return err
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		fPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return err
+		}
+		_, err = e.WebsocketFuturesCancelOrder(ctx, o.OrderID, fPair.Upper(), o.AssetType)
+		return err
+	case asset.Options:
+		return common.ErrFunctionNotSupported
+	default:
+		return common.ErrNotYetImplemented
+	}
 }
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
@@ -1470,7 +1584,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 	response, err := e.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   types.Number(withdrawRequest.Amount),
+			Amount:   withdrawRequest.Amount,
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,
@@ -1941,6 +2055,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		}
 		resp := make([]futures.Contract, len(contracts))
 		for i := range contracts {
+			divisor, err := priceDivisor(a, contracts[i].Name)
+			if err != nil {
+				return nil, err
+			}
+			underlying := contracts[i].Name
+			if underlying.Base.Equal(divisorCurrency) {
+				underlying.Base = currency.BABYDOGE
+			}
 			contractSettlementType := futures.Linear
 			switch {
 			case contracts[i].Name.Base.Equal(currency.BTC) && settle.Equal(currency.BTC):
@@ -1951,13 +2073,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			c := futures.Contract{
 				Exchange:           e.Name,
 				Name:               contracts[i].Name,
-				Underlying:         contracts[i].Name,
+				Underlying:         underlying,
 				Asset:              a,
 				IsActive:           contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
 				Type:               futures.Perpetual,
 				SettlementType:     contractSettlementType,
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				PriceDivisor:       divisor,
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 				LatestRate: fundingrate.Rate{
 					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
@@ -1981,6 +2104,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			underlying, err := currency.NewPairFromString(contracts[i].Underlying)
 			if err != nil {
 				return nil, err
+			}
+			divisor, err := priceDivisor(a, name)
+			if err != nil {
+				return nil, err
+			}
+			if name.Base.Equal(divisorCurrency) {
+				underlying.Base = currency.BABYDOGE
 			}
 			// no start information, inferring it based on contract type
 			// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
@@ -2013,6 +2143,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 				Type:               ct,
 				SettlementCurrency: settle,
 				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
+				PriceDivisor:       divisor,
 				MaxLeverage:        contracts[i].LeverageMax.Float64(),
 			}
 		}
@@ -2197,8 +2328,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				}
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-					MinimumBaseAmount:       float64(contractInfo[x].OrderSizeMin),
-					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
+					MinimumBaseAmount:       contractInfo[x].OrderSizeMin.Float64(),
+					MaximumBaseAmount:       contractInfo[x].OrderSizeMax.Float64(),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
 					MultiplierDecimal:       contractInfo[x].QuantoMultiplier.Float64(),
@@ -2233,8 +2364,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-					MinimumBaseAmount:       float64(contracts[c].OrderSizeMin),
-					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
+					MinimumBaseAmount:       contracts[c].OrderSizeMin.Float64(),
+					MaximumBaseAmount:       contracts[c].OrderSizeMax.Float64(),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
 					MultiplierDecimal:       contracts[c].Multiplier.Float64(),
@@ -2307,7 +2438,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
-
 	if r.IncludePredictedRate {
 		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
 	}
@@ -2383,7 +2513,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		return []fundingrate.LatestRateResponse{
-			contractToFundingRate(e.Name, r.Asset, fPair, contract, r.IncludePredictedRate),
+			contractToFundingRate(e.Name, r.Asset, fPair, contract),
 		}, nil
 	}
 
@@ -2401,13 +2531,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		if !pairs.Contains(contracts[i].Name, true) {
 			continue
 		}
-		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i], r.IncludePredictedRate))
+		resp = append(resp, contractToFundingRate(e.Name, r.Asset, contracts[i].Name, &contracts[i]))
 	}
 
 	return slices.Clip(resp), nil
 }
 
-func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,
 		Asset:    item,
@@ -2418,12 +2548,10 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		},
 		TimeOfNextRate: contract.FundingNextApply.Time(),
 		TimeChecked:    time.Now(),
-	}
-	if includeUpcomingRate {
-		resp.PredictedUpcomingRate = fundingrate.Rate{
+		PredictedUpcomingRate: fundingrate.Rate{
 			Time: contract.FundingNextApply.Time(),
 			Rate: contract.FundingRateIndicative.Decimal(),
-		}
+		},
 	}
 	return resp
 }
@@ -2704,7 +2832,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 			return nil, err
 		}
 		return e.deriveSpotWebsocketOrderResponse(resp)
-	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		req, err := getFuturesOrderRequest(s)
 		if err != nil {
 			return nil, err
@@ -2839,7 +2967,7 @@ func (e *Exchange) deriveSpotWebsocketOrderResponses(responses []*WebsocketOrder
 
 		var cost float64
 		var purchased float64
-		if resp.AverageDealPrice != 0 {
+		if resp.AverageDealPrice.Float64() != 0 {
 			if side.IsLong() {
 				cost = resp.FilledTotal.Float64()
 				purchased = resp.FilledTotal.Decimal().Div(resp.AverageDealPrice.Decimal()).InexactFloat64()
@@ -2903,12 +3031,12 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 		}
 
 		oType := order.Market
-		if resp.Price != 0 {
+		if resp.Price.Float64() != 0 {
 			oType = order.Limit
 		}
 
 		side := order.Long
-		if resp.Size < 0 {
+		if resp.Size.Float64() < 0 {
 			side = order.Short
 		}
 

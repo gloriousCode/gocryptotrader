@@ -814,7 +814,24 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 	return "ws" + server.URL[len("http"):] + "/ws", dialer, &open
 }
 
-func TestConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
+func TestConnect(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{name: "ConnectReleasesConnectionWhenConnectorFails", run: testConnectReleasesConnectionWhenConnectorFails},
+		{name: "ConnectMultiConnectionRollback", run: testConnectMultiConnectionRollback},
+		{name: "ConnectReturnsTeardownError", run: testConnectReturnsTeardownError},
+		{name: "ConnectStartsTrafficMonitorOnceConnected", run: testConnectStartsTrafficMonitorOnceConnected},
+		{name: "ConnectSingleConnectionTrafficMonitorDropsSilentConnection", run: testConnectSingleConnectionTrafficMonitorDropsSilentConnection},
+	} {
+		t.Run(tc.name, tc.run)
+	}
+}
+
+func testConnectReleasesConnectionWhenConnectorFails(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -945,7 +962,85 @@ func TestConnectRetriesSingleConnectionAfterContextEnds(t *testing.T) {
 	})
 }
 
-func TestConnectReturnsTeardownError(t *testing.T) {
+func testConnectMultiConnectionRollback(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	for _, failAfterDial := range []bool{false, true} {
+		t.Run(strconv.FormatBool(failAfterDial), func(t *testing.T) {
+			t.Parallel()
+			wsURL, dialer, openConnections := newConnectionCountingServer(t)
+			ws := NewManager()
+			setup := newDefaultSetup()
+			setup.UseMultiConnectionManagement = true
+			setup.ExchangeConfig.ConnectionMonitorDelay = time.Millisecond
+			t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+			require.NoError(t, ws.Setup(setup), "Setup must not error")
+			shutdown := ws.ShutdownC
+			workerDone := make(chan struct{})
+			failing := true
+			messages := make(chan string, 1)
+			defer func() {
+				closeChanNoPanic(shutdown)
+				ws.Wg.Wait()
+			}()
+			for i := range 2 {
+				require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+					URL:                      wsURL + "/" + strconv.Itoa(i),
+					SubscriptionsNotRequired: true,
+					Handler: func(_ context.Context, _ Connection, message []byte) error {
+						messages <- string(message)
+						return nil
+					},
+					Connector: func(ctx context.Context, conn Connection) error {
+						if failing && i == 1 && !failAfterDial {
+							return errDastardlyReason
+						}
+						if err := conn.Dial(ctx, dialer, nil, nil); err != nil {
+							return err
+						}
+						if failing && i == 1 {
+							return errDastardlyReason
+						}
+						if failing {
+							ws.Wg.Go(func() {
+								defer close(workerDone)
+								<-shutdown
+							})
+						}
+						return nil
+					},
+				}), "SetupNewConnection must not error")
+			}
+			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the failure")
+			select {
+			case <-workerDone:
+			default:
+				assert.Fail(t, "failed connection attempt should drain its workers before returning")
+			}
+			assert.NotEqual(t, shutdown, ws.ShutdownC, "rollback should renew the shutdown channel")
+			assert.False(t, ws.IsConnecting(), "rollback should leave the manager disconnected")
+			assert.Empty(t, ws.connections, "rollback should remove closed connections")
+			assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, time.Second, time.Millisecond, "rollback should close every socket")
+			failing = false
+			require.NoError(t, ws.Connect(t.Context()), "a subsequent connection attempt must recover")
+			assert.True(t, ws.IsConnected(), "recovered manager should be connected")
+			for conn := range ws.connections {
+				require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("recovered")), "recovered connection must send")
+				break
+			}
+			select {
+			case message := <-messages:
+				assert.Equal(t, "recovered", message, "recovered reader should deliver new data")
+			case <-time.After(time.Second):
+				assert.Fail(t, "recovered reader should deliver new data")
+			}
+			require.NoError(t, ws.Shutdown(), "recovered manager must shut down cleanly")
+		})
+	}
+}
+
+func testConnectReturnsTeardownError(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	ws := NewManager()
@@ -1007,7 +1102,8 @@ func TestCreateConnectAndSubscribeClosesUntrackedConnection(t *testing.T) {
 	})
 }
 
-func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
+func testConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -1068,7 +1164,8 @@ func TestConnectStartsTrafficMonitorOnceConnected(t *testing.T) {
 	})
 }
 
-func TestConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T) {
+func testConnectSingleConnectionTrafficMonitorDropsSilentConnection(t *testing.T) {
+	t.Helper()
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -1679,6 +1776,80 @@ func TestSendMessageReturnResponse(t *testing.T) {
 
 func TestWaitForResponses(t *testing.T) {
 	t.Parallel()
+	for _, reason := range []string{"context cancellation", "connection shutdown", "manager shutdown", "timeout", "inspector completion"} {
+		t.Run("reused signature survives "+reason, func(t *testing.T) {
+			t.Parallel()
+			conn := &connection{Match: NewMatch(), ResponseMaxLimit: time.Hour, done: make(chan struct{}), shutdown: make(chan struct{})}
+			old, err := conn.Match.Set("exit reuse", 1)
+			require.NoError(t, err, "old matcher registration must succeed")
+			// Keep the retired channel open so the chosen exit path is deterministic.
+			conn.Match.mu.Lock()
+			retired := conn.Match.m["exit reuse"]
+			delete(conn.Match.m, "exit reuse")
+			conn.Match.mu.Unlock()
+			defer close(retired.c)
+			current, err := conn.Match.Set("exit reuse", 1)
+			require.NoError(t, err, "replacement matcher registration must succeed")
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var inspector Inspector
+			expectedError := errWebsocketIsDisconnected
+			switch reason {
+			case "context cancellation":
+				cancel()
+				expectedError = context.Canceled
+			case "connection shutdown":
+				require.NoError(t, conn.Shutdown(), "connection retirement must succeed")
+			case "manager shutdown":
+				close(conn.shutdown)
+			case "timeout":
+				conn.ResponseMaxLimit = time.Nanosecond
+				expectedError = ErrSignatureTimeout
+			case "inspector completion":
+				retired.c <- []byte("old response")
+				inspector = inspection{breakEarly: true}
+			}
+			responses, err := conn.waitForResponses(ctx, "exit reuse", old, 1, inspector)
+			if reason == "inspector completion" {
+				require.NoError(t, err, "old inspector completion must preserve its response")
+				assert.Equal(t, [][]byte{[]byte("old response")}, responses, "old response should belong only to its original waiter")
+			} else {
+				assert.ErrorIs(t, err, expectedError, "retired waiter should retain its own exit reason")
+				assert.Empty(t, responses, "retired waiter should not manufacture responses")
+			}
+			require.True(t, conn.Match.IncomingWithData("exit reuse", []byte("current response")), "every old exit path must preserve replacement ownership")
+			assert.Equal(t, []byte("current response"), <-current, "replacement matcher should receive its own native response")
+		})
+	}
+	t.Run("cancelled retired waiter preserves a reused signature", func(t *testing.T) {
+		t.Parallel()
+		conn := &connection{Match: NewMatch(), ResponseMaxLimit: time.Hour}
+		old, err := conn.Match.Set("cancelled reuse", 1)
+		require.NoError(t, err, "old matcher registration must succeed")
+		conn.Match.RemoveSignature("cancelled reuse")
+		current, err := conn.Match.Set("cancelled reuse", 1)
+		require.NoError(t, err, "replacement matcher registration must succeed")
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err = conn.waitForResponses(ctx, "cancelled reuse", old, 1, nil)
+		assert.ErrorIs(t, err, context.Canceled, "old waiter should retain caller cancellation")
+		require.True(t, conn.Match.IncomingWithData("cancelled reuse", []byte("current response")), "cancelled old waiter must preserve the replacement matcher")
+		assert.Equal(t, []byte("current response"), <-current, "replacement matcher should receive its own response")
+	})
+	t.Run("retired channel preserves a reused signature", func(t *testing.T) {
+		t.Parallel()
+		conn := &connection{Match: NewMatch(), ResponseMaxLimit: time.Hour}
+		old, err := conn.Match.Set("reused", 1)
+		require.NoError(t, err, "old matcher registration must succeed")
+		conn.Match.RemoveSignature("reused")
+		current, err := conn.Match.Set("reused", 1)
+		require.NoError(t, err, "replacement matcher registration must succeed")
+		responses, err := conn.waitForResponses(t.Context(), "reused", old, 1, nil)
+		assert.ErrorIs(t, err, ErrSignatureNotMatched, "closed old channel should report its retired registration")
+		assert.Empty(t, responses, "closed old channel should not manufacture response data")
+		require.True(t, conn.Match.IncomingWithData("reused", []byte("current response")), "old waiter must preserve the replacement matcher")
+		assert.Equal(t, []byte("current response"), <-current, "replacement matcher should receive its own response")
+	})
 	dummy := &connection{
 		ResponseMaxLimit: time.Nanosecond,
 		Match:            NewMatch(),
@@ -1752,6 +1923,7 @@ func readMessages(t *testing.T, wc *connection) {
 // TestSetupPingHandler logic test
 func TestSetupPingHandler(t *testing.T) {
 	t.Parallel()
+	t.Run("cancel rate limit wait", testSetupPingHandlerCancelsRateLimitWait)
 
 	synctest.Test(t, func(t *testing.T) {
 		var pings atomic.Int64
@@ -1807,6 +1979,40 @@ func TestSetupPingHandler(t *testing.T) {
 			synctest.Sleep(time.Nanosecond)
 			assert.Equal(t, sent+1, pings.Load(), "ping handler should send one ping each time its delay elapses")
 		}
+	})
+}
+
+func testSetupPingHandlerCancelsRateLimitWait(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wc := &connection{
+			URL:       "ws" + mock.URL[len("http"):] + "/ws",
+			Wg:        &sync.WaitGroup{},
+			shutdown:  make(chan struct{}),
+			RateLimit: request.NewWeightedRateLimitByDuration(time.Hour),
+		}
+		require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
+		require.NoError(t, wc.RateLimit.RateLimit(t.Context()), "first reservation must not wait")
+		wc.SetupPingHandler(request.Unset, PingHandler{MessageType: gws.TextMessage, Message: []byte(Ping), Delay: time.Second})
+		synctest.Sleep(time.Second)
+		close(wc.shutdown)
+		require.NoError(t, wc.Shutdown(), "Shutdown must close the socket")
+		done := make(chan struct{})
+		go func() {
+			wc.Wg.Wait()
+			close(done)
+		}()
+		synctest.Wait()
+		select {
+		case <-done:
+		default:
+			assert.Fail(t, "shutdown should cancel the ping rate limit wait immediately")
+		}
+		<-done
 	})
 }
 
@@ -2165,10 +2371,11 @@ func TestConnectionShutdown(t *testing.T) {
 // closed, as they do once the socket send buffer is full
 type stalledWriteConn struct {
 	net.Conn
-	stalled   atomic.Bool
-	blocked   chan struct{}
-	closed    chan struct{}
-	closeOnce sync.Once
+	stalled       atomic.Bool
+	blocked       chan struct{}
+	closed        chan struct{}
+	closeOnce     sync.Once
+	writeDeadline atomic.Int64
 }
 
 func (c *stalledWriteConn) Write(b []byte) (int, error) {
@@ -2179,8 +2386,27 @@ func (c *stalledWriteConn) Write(b []byte) (int, error) {
 	case c.blocked <- struct{}{}:
 	default:
 	}
-	<-c.closed
+	if deadline := c.writeDeadline.Load(); deadline != 0 {
+		timer := time.NewTimer(time.Until(time.Unix(0, deadline)))
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			return 0, context.DeadlineExceeded
+		case <-c.closed:
+		}
+	} else {
+		<-c.closed
+	}
 	return 0, net.ErrClosed
+}
+
+func (c *stalledWriteConn) SetWriteDeadline(deadline time.Time) error {
+	value := int64(0)
+	if !deadline.IsZero() {
+		value = deadline.UnixNano()
+	}
+	c.writeDeadline.Store(value)
+	return c.Conn.SetWriteDeadline(deadline)
 }
 
 func (c *stalledWriteConn) Close() error {
@@ -2359,10 +2585,67 @@ func TestRemoveURLQueryString(t *testing.T) {
 
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		writeTimeout   time.Duration
+		requestTimeout time.Duration
+		cancelInFlight bool
+	}{
+		{name: "configured socket timeout", writeTimeout: 30 * time.Millisecond},
+		{name: "earlier request deadline", writeTimeout: time.Hour, requestTimeout: 30 * time.Millisecond},
+		{name: "cancel in flight", writeTimeout: time.Hour, cancelInFlight: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			wc, stalled := dialStalledWriteConn(t, false)
+			stalled.stalled.Store(true)
+			defer func() { _ = wc.Shutdown() }()
+			wc.writeTimeout = tc.writeTimeout
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if tc.requestTimeout > 0 {
+				var timeoutCancel context.CancelFunc
+				ctx, timeoutCancel = context.WithTimeout(ctx, tc.requestTimeout)
+				defer timeoutCancel()
+			}
+			started := make(chan struct{})
+			result := make(chan error, 1)
+			go func() {
+				result <- wc.writeToConn(ctx, request.Unset, func() error {
+					close(started)
+					return wc.Connection.WriteMessage(gws.TextMessage, bytes.Repeat([]byte("x"), 1<<20))
+				})
+			}()
+			<-started
+			<-stalled.blocked
+			if tc.cancelInFlight {
+				cancel()
+			}
+			select {
+			case err := <-result:
+				if tc.cancelInFlight {
+					assert.ErrorIs(t, err, context.Canceled, "request cancellation should release a stalled write")
+				} else {
+					require.Error(t, err, "stalled write must respect its bounded deadline")
+					var timeout net.Error
+					require.ErrorAs(t, err, &timeout, "socket deadline failure must be a network error")
+					assert.True(t, timeout.Timeout(), "stalled peer should return a timeout")
+				}
+			case <-time.After(2 * time.Second):
+				require.FailNow(t, "stalled write must finish promptly without occupying shared subscription capacity")
+			}
+		})
+	}
 	wc := connection{}
 	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
+	cancelled, cancelRequest := context.WithCancel(t.Context())
+	cancelRequest()
+	require.ErrorIs(t, wc.writeToConn(cancelled, request.Unset, func() error {
+		assert.Fail(t, "cancelled request should not write to the socket")
+		return nil
+	}), context.Canceled, "cancelled request must not write even without a rate limiter")
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
 	// Use a longer interval so the second call always requires delay and hits ctx deadline checks deterministically.
@@ -2421,6 +2704,42 @@ func TestSendMessageBarrierRejectionRemovesSignature(t *testing.T) {
 	require.ErrorIs(t, err, request.ErrRateLimitBarrierRejected)
 	_, err = wc.Match.Set("signature", 1)
 	require.NoError(t, err)
+}
+
+func TestReader(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		ws := NewManager()
+		wc := ws.createConnectionFromSetup(&ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"})
+		ws.Conn = wc
+		require.NoError(t, wc.Dial(t.Context(), dialer, nil, nil), "Dial must not error")
+		ws.setState(connectedState)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		entered := make(chan struct{})
+		ws.Wg.Add(1)
+		go ws.Reader(ctx, wc, func(ctx context.Context, _ Connection, _ []byte) error {
+			close(entered)
+			<-ctx.Done()
+			return ctx.Err()
+		})
+		require.NoError(t, wc.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("update")), "send must succeed")
+		<-entered
+		done := make(chan error, 1)
+		go func() { done <- ws.Shutdown() }()
+		synctest.Wait()
+		select {
+		case err := <-done:
+			require.NoError(t, err, "Shutdown must drain the blocked handler")
+		default:
+			assert.Fail(t, "Shutdown should cancel an in-flight reader handler")
+			cancel()
+			require.NoError(t, <-done, "Shutdown must finish after test cleanup")
+		}
+	})
 }
 
 func TestDrain(t *testing.T) {
@@ -2555,6 +2874,69 @@ func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel
 
 func TestGetConnection(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		state uint32
+	}{
+		{name: "connecting fails closed while lifecycle lock is held", state: connectingState},
+		{name: "healthy routing avoids lifecycle lock", state: connectedState},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			manager := NewManager()
+			manager.useMultiConnectionManagement = true
+			manager.setState(tc.state)
+			failed := manager.createConnectionFromSetup(&ConnectionSetup{})
+			failed.setConnectedStatus(true)
+			failed.faulted.Store(true)
+			healthy := manager.createConnectionFromSetup(&ConnectionSetup{})
+			healthy.setConnectedStatus(true)
+			manager.connectionManager = []*websocket{{
+				setup:       &ConnectionSetup{MessageFilter: "testFilter"},
+				connections: []Connection{failed, healthy},
+			}}
+			manager.m.Lock()
+			defer manager.m.Unlock()
+			result := make(chan struct {
+				connection Connection
+				err        error
+			}, 1)
+			go func() {
+				conn, err := manager.GetConnection("testFilter")
+				result <- struct {
+					connection Connection
+					err        error
+				}{conn, err}
+			}()
+			select {
+			case got := <-result:
+				if tc.state == connectingState {
+					assert.ErrorIs(t, got.err, ErrNotConnected, "startup readiness should fail closed during subscription setup")
+					assert.Nil(t, got.connection, "startup readiness should not expose a partially initialised socket")
+				} else {
+					require.NoError(t, got.err, "healthy routing must not wait for the lifecycle lock")
+					assert.Same(t, healthy, got.connection, "routing should skip a faulted socket with the same filter")
+				}
+			case <-time.After(time.Second):
+				assert.Fail(t, "GetConnection should finish while the lifecycle lock remains held")
+			}
+		})
+	}
+	t.Run("setup can run concurrently with routing", func(t *testing.T) {
+		t.Parallel()
+		manager := NewManager()
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		var readers sync.WaitGroup
+		readers.Go(func() {
+			for range 100 {
+				_, err := manager.GetConnection("testFilter")
+				assert.Error(t, err, "unconnected routing should fail closed during setup")
+			}
+		})
+		require.NoError(t, manager.Setup(setup), "setup must succeed while routing is inspected")
+		readers.Wait()
+	})
 	var ws *Manager
 	_, err := ws.GetConnection(nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
@@ -2587,11 +2969,20 @@ func TestGetConnection(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotConnected)
 
 	expected := &connection{subscriptions: subscription.NewStore()}
+	expected.setConnectedStatus(true)
 	ws.connectionManager[0].connections = []Connection{expected}
 
 	conn, err := ws.GetConnection("testURL")
 	require.NoError(t, err)
 	assert.Same(t, expected, conn)
+	disconnected := &connection{subscriptions: subscription.NewStore()}
+	ws.connectionManager[0].connections = []Connection{disconnected, expected}
+	conn, err = ws.GetConnection("testURL")
+	require.NoError(t, err, "GetConnection must find the healthy socket after a disconnected socket")
+	assert.Same(t, expected, conn, "route lookup should skip failed sockets within the same filter")
+	expected.setConnectedStatus(false)
+	_, err = ws.GetConnection("testURL")
+	assert.ErrorIs(t, err, ErrNotConnected, "route lookup should fail closed when every matching socket is disconnected")
 }
 
 func TestShutdown(t *testing.T) {

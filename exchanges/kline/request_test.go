@@ -335,7 +335,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	dates, err := r.GetRanges(100)
 	require.NoError(t, err)
 
-	rExt = &ExtendedRequest{r, dates}
+	rExt = &ExtendedRequest{Request: r, RangeHolder: dates}
 
 	holder, err := rExt.ProcessResponse(ohc)
 	require.NoError(t, err)
@@ -353,7 +353,7 @@ func TestExtendedRequest_ProcessResponse(t *testing.T) {
 	require.NoError(t, err)
 
 	r.IsExtended = true
-	rExt = &ExtendedRequest{r, dates}
+	rExt = &ExtendedRequest{Request: r, RangeHolder: dates}
 	holder, err = rExt.ProcessResponse(ohc)
 	require.NoError(t, err)
 

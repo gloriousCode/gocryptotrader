@@ -135,8 +135,9 @@ func TestSetDefaults(t *testing.T) {
 	t.Run("endpoint map", func(t *testing.T) {
 		t.Parallel()
 		defaults := ex.API.Endpoints.GetURLMap()
-		require.Len(t, defaults, 4, "endpoint defaults must match the declared API scope")
+		require.Len(t, defaults, 5, "endpoint defaults must match the declared API scope")
 		assert.Equal(t, "https://www.okx.com/api/v5/", defaults[exchange.RestSpot.String()], "REST default should target the v5 API")
+		assert.Equal(t, "https://app.okx.com/api/v5/", defaults[exchange.RestSpotSupplementary.String()], "account REST default should target the supplementary v5 API")
 		assert.Equal(t, "wss://ws.okx.com/ws/v5/public", defaults[exchange.WebsocketSpot.String()], "public websocket default should use port 443")
 		assert.Equal(t, "wss://ws.okx.com/ws/v5/private", defaults[exchange.WebsocketPrivate.String()], "private websocket default should use port 443")
 		assert.Equal(t, "wss://ws.okx.com/ws/v5/business", defaults[exchange.WebsocketSpotSupplementary.String()], "business websocket default should use port 443")

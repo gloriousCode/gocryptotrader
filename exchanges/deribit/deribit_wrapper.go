@@ -136,7 +136,7 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	for _, assetType := range []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo} {
+	for _, assetType := range []asset.Item{asset.OptionCombo, asset.FutureCombo} {
 		if err = e.DisableAssetWebsocketSupport(assetType); err != nil {
 			log.Errorln(log.ExchangeSys, err)
 		}
@@ -632,6 +632,61 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
+// WebsocketSubmitOrder submits a new order via websocket.
+func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	err := s.Validate(e.GetTradingRequirements())
+	if err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(s.AssetType) {
+		return nil, fmt.Errorf("%s: orderType %v is not valid", e.Name, s.AssetType)
+	}
+	fmtPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return nil, err
+	}
+	timeInForce := ""
+	if s.TimeInForce.Is(order.ImmediateOrCancel) {
+		timeInForce = "immediate_or_cancel"
+	}
+	reqParams := &OrderBuyAndSellParams{
+		Instrument:   fmtPair.String(),
+		OrderType:    strings.ToLower(s.Type.String()),
+		Label:        s.ClientOrderID,
+		TimeInForce:  timeInForce,
+		Amount:       s.Amount,
+		Price:        s.Price,
+		TriggerPrice: s.TriggerPrice,
+		PostOnly:     s.TimeInForce.Is(order.PostOnly),
+		ReduceOnly:   s.ReduceOnly,
+	}
+
+	var data *PrivateTradeData
+	switch {
+	case s.Side.IsLong():
+		data, err = e.WSSubmitBuy(ctx, reqParams)
+	case s.Side.IsShort():
+		data, err = e.WSSubmitSell(ctx, reqParams)
+	default:
+		return nil, order.ErrSideIsInvalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, common.ErrNoResponse
+	}
+	resp, err := s.DeriveSubmitResponse(data.Order.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	resp.Status = order.New
+	return resp, nil
+}
+
 // ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
@@ -665,6 +720,35 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	return resp, nil
 }
 
+// WebsocketModifyOrder modifies an order via websocket.
+func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if !e.SupportsAsset(action.AssetType) {
+		return nil, fmt.Errorf("%s: %w - %v", e.Name, asset.ErrNotSupported, action.AssetType)
+	}
+	modify, err := e.WSSubmitEdit(ctx, &OrderBuyAndSellParams{
+		TriggerPrice: action.TriggerPrice,
+		PostOnly:     action.TimeInForce.Is(order.PostOnly),
+		Amount:       action.Amount,
+		OrderID:      action.OrderID,
+		Price:        action.Price,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = modify.Order.OrderID
+	return resp, nil
+}
+
 // CancelOrder cancels an order by its corresponding ID number
 func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if ord == nil {
@@ -686,6 +770,21 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return err
 	}
 	return nil
+}
+
+// WebsocketCancelOrder cancels an order by ID via websocket.
+func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		return common.ErrFunctionNotSupported
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
+	}
+	if err := ord.Validate(ord.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := e.WSSubmitCancel(ctx, ord.OrderID)
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -1142,7 +1241,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if !item.IsFutures() {
 		return nil, futures.ErrNotFuturesAsset
 	}
-	if item != asset.Futures {
+	if item != asset.Futures && item != asset.Options {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 	resp := []futures.Contract{}
@@ -1158,7 +1257,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			return nil, err
 		}
 		for _, inst := range marketSummary {
-			if inst.Kind != "future" && inst.Kind != "future_combo" {
+			validKind := false
+			switch item {
+			case asset.Futures:
+				validKind = inst.Kind == "future" || inst.Kind == "future_combo"
+			case asset.Options:
+				validKind = inst.Kind == "option" || inst.Kind == "option_combo"
+			}
+			if !validKind {
 				continue
 			}
 			cp, err := currency.NewPairFromString(inst.InstrumentName)
@@ -1173,14 +1279,14 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				ct = futures.Weekly
 			case "month":
 				ct = futures.Monthly
+			case "quarter":
+				ct = futures.Quarterly
 			case "perpetual":
 				ct = futures.Perpetual
 			}
-			var contractSettlementType futures.ContractSettlementType
+			contractSettlementType := futures.Linear
 			if inst.InstrumentType == "reversed" {
 				contractSettlementType = futures.Inverse
-			} else {
-				contractSettlementType = futures.Linear
 			}
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,

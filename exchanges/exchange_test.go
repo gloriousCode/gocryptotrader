@@ -1564,26 +1564,17 @@ func TestCheckTransientError(t *testing.T) {
 }
 
 func TestDisableEnableRateLimiter(t *testing.T) {
+	t.Parallel()
 	b := Base{}
-	err := b.EnableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRequestSystemIsNil)
-
+	require.ErrorIs(t, b.EnableRateLimiter(), request.ErrRequestSystemIsNil, "enabling without a requester must retain the request subsystem error")
+	require.ErrorIs(t, b.DisableRateLimiter(), request.ErrRequestSystemIsNil, "disabling without a requester must retain the request subsystem error")
+	var err error
 	b.Requester, err = request.New("testingRateLimiter", common.NewHTTPClientWithTimeout(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.DisableRateLimiter()
-	require.NoError(t, err)
-
-	err = b.DisableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyDisabled)
-
-	err = b.EnableRateLimiter()
-	require.NoError(t, err)
-
-	err = b.EnableRateLimiter()
-	require.ErrorIs(t, err, request.ErrRateLimiterAlreadyEnabled)
+	require.NoError(t, err, "requester must initialise")
+	require.NoError(t, b.DisableRateLimiter(), "first disable must succeed")
+	require.ErrorIs(t, b.DisableRateLimiter(), request.ErrRateLimiterAlreadyDisabled, "repeated disable must report the current state")
+	require.NoError(t, b.EnableRateLimiter(), "first enable must succeed")
+	require.ErrorIs(t, b.EnableRateLimiter(), request.ErrRateLimiterAlreadyEnabled, "repeated enable must report the current state")
 }
 
 func TestGetWebsocket(t *testing.T) {

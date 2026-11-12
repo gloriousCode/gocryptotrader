@@ -171,7 +171,17 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(ctx context.Context, a as
 	}
 
 	var subscriptions subscription.List
+publicChannels:
 	for i := range channelsToSubscribe {
+		// Futures generation predates subscription templates. Honour explicit
+		// disabled channels from configuration before expanding every market.
+		if e.Config != nil && e.Config.Features != nil {
+			for _, configured := range e.Config.Features.Subscriptions {
+				if configured != nil && configured.Asset == a && !configured.Enabled && configured.Channel == channelsToSubscribe[i] {
+					continue publicChannels
+				}
+			}
+		}
 		for j := range pairs {
 			params := make(map[string]any)
 			switch channelsToSubscribe[i] {
@@ -327,21 +337,36 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		if err != nil {
 			return err
 		}
-		return e.Websocket.DataHandler.Send(ctx, processed)
+		if err := e.Websocket.DataHandler.Send(ctx, processed); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresUserTradesChannel:
-		return e.processFuturesUserTrades(respRaw, a)
+		if err := e.processFuturesUserTrades(respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresLiquidatesChannel:
 		return e.processFuturesLiquidatesNotification(ctx, respRaw)
 	case futuresAutoDeleveragesChannel:
 		return e.processFuturesAutoDeleveragesNotification(ctx, respRaw)
 	case futuresAutoPositionCloseChannel:
-		return e.processPositionCloseData(ctx, respRaw, a)
+		if err := e.processPositionCloseData(ctx, respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresBalancesChannel:
-		return e.processBalancePushData(ctx, push.Result, a)
+		if err := e.processBalancePushData(ctx, push.Result, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresReduceRiskLimitsChannel:
 		return e.processFuturesReduceRiskLimitNotification(ctx, respRaw)
 	case futuresPositionsChannel:
-		return e.processFuturesPositionsNotification(ctx, respRaw, a)
+		if err := e.processFuturesPositionsNotification(ctx, respRaw, a); err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, &PrivateWebsocketEvent{Asset: a, Payload: append([]byte(nil), respRaw...)})
 	case futuresAutoOrdersChannel:
 		return e.processFuturesAutoOrderPushData(ctx, respRaw)
 	case "futures.pong":
@@ -655,7 +680,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(ctx context.Context, event st
 		if !ok {
 			ab = [2][]orderbook.Level{}
 		}
-		if data[x].Amount > 0 {
+		if data[x].Amount.Float64() > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
 				Price:  data[x].Price.Float64(),
 				Amount: data[x].Amount.Float64(),

@@ -479,10 +479,9 @@ func TestHistoricalVolatilityDataUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal(data, &targets)
 	require.NoError(t, err)
 	require.Len(t, targets, 21)
-	assert.Equal(t, HistoricalVolatilityData{
-		Timestamp: types.Time(time.UnixMilli(1746532800000)),
-		Value:     33.926694663144644,
-	}, targets[0])
+	assert.Equal(t, types.Time(time.UnixMilli(1746532800000)), targets[0].Timestamp)
+	assert.Equal(t, 33.926694663144644, targets[0].Value.Float64())
+	assert.Equal(t, "33.926694663144644", targets[0].Value.String())
 }
 
 func TestGetHistoricalVolatility(t *testing.T) {
@@ -4037,7 +4036,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s) + "." + formatPairString(a, p)
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}
@@ -4547,9 +4546,8 @@ func TestWSRetrieveCombos(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSDT(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{

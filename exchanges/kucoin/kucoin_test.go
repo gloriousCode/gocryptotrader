@@ -294,12 +294,12 @@ func TestKlineUnmarshalJSON(t *testing.T) {
 	require.Len(t, target, 12)
 	assert.Equal(t, Kline{
 		StartTime: types.Time(time.Unix(1746645900, 0)),
-		Open:      96248.3,
-		Close:     96060.4,
-		High:      96248.3,
-		Low:       95991.1,
-		Volume:    7.30387554,
-		Amount:    701787.956631596,
+		Open:      types.Number(96248.3),
+		Close:     types.Number(96060.4),
+		High:      types.Number(96248.3),
+		Low:       types.Number(95991.1),
+		Volume:    types.Number(7.30387554),
+		Amount:    types.Number(701787.956631596),
 	}, target[0])
 }
 
@@ -922,15 +922,15 @@ func TestGetRecentFills(t *testing.T) {
 
 func TestPostStopOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PostStopOrder(t.Context(), "", "buy", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, true)
+	_, err := e.PostStopOrder(t.Context(), "", "buy", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
-	_, err = e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, true)
+	_, err = e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	_, err = e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "buy", "", "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, true)
+	_, err = e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "buy", "", "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "buy", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, true)
+	result, err := e.PostStopOrder(t.Context(), "5bd6e9286d99522a52e458de", "buy", spotTradablePair(t).String(), "", "", "entry", "CO", SpotTradeType, "", 0.1, 1, 10, 0, 0, 0, true, false, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3124,6 +3124,30 @@ func TestChangePositionMargin(t *testing.T) {
 	result, err = e.ChangePositionMargin(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USDT,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:          asset.Margin,
+		Currency:       currency.USDT,
+		GetBorrowCosts: true,
+	})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {

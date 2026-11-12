@@ -368,6 +368,75 @@ func TestMessageID(t *testing.T) {
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 
+func TestGetFuturesContractDetailsMetadata(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		asset      asset.Item
+		path       string
+		response   string
+		contract   currency.Pair
+		underlying currency.Pair
+		multiplier float64
+		divisor    float64
+	}{
+		{
+			name:       "bundled perpetual",
+			asset:      asset.USDTMarginedFutures,
+			path:       "/api/v4/futures/usdt/contracts",
+			response:   `[{"name":"MBABYDOGE_USDT","quanto_multiplier":"100","leverage_max":"50"}]`,
+			contract:   currency.NewPair(divisorCurrency, currency.USDT),
+			underlying: currency.NewPair(currency.BABYDOGE, currency.USDT),
+			multiplier: 100,
+			divisor:    1e6,
+		},
+		{
+			name:       "ordinary perpetual",
+			asset:      asset.USDTMarginedFutures,
+			path:       "/api/v4/futures/usdt/contracts",
+			response:   `[{"name":"BTC_USDT","quanto_multiplier":"0.0001","leverage_max":"50"}]`,
+			contract:   currency.NewBTCUSDT(),
+			underlying: currency.NewBTCUSDT(),
+			multiplier: 0.0001,
+			divisor:    1,
+		},
+		{
+			name:       "bundled delivery",
+			asset:      asset.DeliveryFutures,
+			path:       "/api/v4/delivery/usdt/contracts",
+			response:   `[{"name":"MBABYDOGE_USDT_20261225","underlying":"MBABYDOGE_USDT","quanto_multiplier":"100","leverage_max":"50"}]`,
+			contract:   currency.NewPair(divisorCurrency, currency.NewCode("USDT_20261225")),
+			underlying: currency.NewPair(currency.BABYDOGE, currency.USDT),
+			multiplier: 100,
+			divisor:    1e6,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodGet, r.Method, "contract request method should be GET")
+				assert.Equal(t, tc.path, r.URL.Path, "contract request path should match the asset")
+				_, err := fmt.Fprint(w, tc.response)
+				assert.NoError(t, err, "mocked contract response should be written")
+			}))
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+			contracts, err := ex.GetFuturesContractDetails(t.Context(), tc.asset)
+			require.NoError(t, err, "GetFuturesContractDetails must decode the mocked contract")
+			require.Len(t, contracts, 1, "GetFuturesContractDetails must return one mocked contract")
+			assert.True(t, contracts[0].Name.Equal(tc.contract), "native contract name should remain unchanged")
+			assert.True(t, contracts[0].Underlying.Equal(tc.underlying), "underlying should name the economic base")
+			assert.Equal(t, tc.multiplier, contracts[0].Multiplier, "native multiplier should remain unchanged")
+			assert.Equal(t, tc.divisor, contracts[0].PriceDivisor, "price divisor should describe native price scaling")
+		})
+	}
+}
+
 func TestPriceDivisor(t *testing.T) {
 	t.Parallel()
 

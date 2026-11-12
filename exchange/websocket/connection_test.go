@@ -19,6 +19,68 @@ import (
 
 func TestMatchReturnResponses(t *testing.T) {
 	t.Parallel()
+	for _, tc := range []struct {
+		name          string
+		closeManager  bool
+		cancelRequest bool
+		removeMatcher bool
+	}{
+		{name: "connection shutdown"},
+		{name: "manager shutdown", closeManager: true},
+		{name: "caller cancellation retains priority", cancelRequest: true},
+		{name: "removed matcher cannot produce an empty success", removeMatcher: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				conn := &connection{Match: NewMatch(), ResponseMaxLimit: time.Hour, done: make(chan struct{}), shutdown: make(chan struct{})}
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				pending := make([]<-chan MatchedResponse, 8)
+				for i := range pending {
+					var err error
+					pending[i], err = conn.MatchReturnResponses(ctx, i, 1)
+					require.NoError(t, err, "pending matcher registration must succeed")
+				}
+				synctest.Wait()
+				started := time.Now()
+				switch {
+				case tc.cancelRequest:
+					cancel()
+					require.NoError(t, conn.Shutdown(), "connection retirement must succeed")
+				case tc.closeManager:
+					close(conn.shutdown)
+				case tc.removeMatcher:
+					for i := range pending {
+						conn.Match.RemoveSignature(i)
+					}
+				default:
+					require.NoError(t, conn.Shutdown(), "connection retirement must succeed")
+				}
+				synctest.Wait()
+				for _, results := range pending {
+					select {
+					case result := <-results:
+						switch {
+						case tc.cancelRequest:
+							assert.ErrorIs(t, result.Err, context.Canceled, "already cancelled requests should preserve caller cancellation")
+						case tc.removeMatcher:
+							assert.ErrorIs(t, result.Err, ErrSignatureNotMatched, "removed matchers should fail without manufacturing an empty response")
+						default:
+							assert.ErrorIs(t, result.Err, errWebsocketIsDisconnected, "retirement should immediately release pending response waiters")
+						}
+						assert.Empty(t, result.Responses, "retired requests should not claim response data")
+					default:
+						assert.Fail(t, "retirement should release every waiter without waiting for its response timeout")
+					}
+				}
+				assert.Equal(t, started, time.Now(), "retirement should not advance the response timeout clock")
+				conn.Match.mu.Lock()
+				assert.Empty(t, conn.Match.m, "retired requests should remove all matcher registrations")
+				conn.Match.mu.Unlock()
+			})
+		})
+	}
 
 	conn := connection{Match: NewMatch()}
 	_, err := conn.MatchReturnResponses(t.Context(), nil, 0)

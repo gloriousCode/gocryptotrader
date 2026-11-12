@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -33,6 +35,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
+)
+
+const (
+	currentQuarterContract = "CURRENT_QUARTER"
+	nextQuarterContract    = "NEXT_QUARTER"
 )
 
 var defaultAssetPairStores = map[asset.Item]currency.PairStore{
@@ -138,6 +145,7 @@ func (e *Exchange) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.USDTMarginedFutures: true,
+					asset.CoinMarginedFutures: true,
 				},
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported: true,
@@ -299,7 +307,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset,
 					uInfo.Symbols[u].QuoteAsset)
 			} else {
-				pair, err = currency.NewPairFromString(uInfo.Symbols[u].Symbol)
+				pair, err = currency.NewPairFromStrings(uInfo.Symbols[u].BaseAsset, uInfo.Symbols[u].Symbol[len(uInfo.Symbols[u].BaseAsset):])
 			}
 			if err != nil {
 				return nil, err
@@ -1769,6 +1777,22 @@ func compatibleOrderVars(side, status, orderType string) OrderVars {
 	return resp
 }
 
+// GetOrderExecutionLimits returns the cached order limits for an instrument.
+func (e *Exchange) GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (limits.MinMaxLevel, error) {
+	if a == asset.USDTMarginedFutures {
+		doesIt := cp.Quote.String()
+		switch {
+		case strings.Contains(doesIt, "USDT"):
+			cp.Quote = currency.USDT
+		case strings.Contains(doesIt, "BUSD"):
+			cp.Quote = currency.BUSD
+		case strings.Contains(doesIt, "USDC"):
+			cp.Quote = currency.USDC
+		}
+	}
+	return limits.GetOrderExecutionLimits(key.NewExchangeAssetPair(e.Name, a, cp))
+}
+
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var l []limits.MinMaxLevel
@@ -2014,9 +2038,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
-	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w GetFundingRates IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 	if !r.PaymentCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w GetFundingRates PaymentCurrency", common.ErrFunctionNotSupported)
@@ -2279,6 +2300,75 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 		MarginType:      req.MarginType,
 		AllocatedMargin: req.NewAllocatedMargin,
 	}, nil
+}
+
+// GetMarginRatesHistory retrieves margin borrow rates and borrow costs.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if req.GetPredictedRate {
+		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+
+	const pageSize = int64(100)
+	page := int64(1)
+	rates := make([]margin.Rate, 0, pageSize)
+	for {
+		history, err := e.GetUserMarginInterestHistory(ctx, req.Currency, req.Pair, req.StartDate, req.EndDate, page, pageSize, false)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range history.Rows {
+			hourlyRate := decimal.MustFromFloat(history.Rows[i].InterestRate)
+			mr := margin.Rate{
+				Time:       history.Rows[i].InterestAccruedTime.Time(),
+				HourlyRate: hourlyRate,
+				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			if req.GetBorrowCosts {
+				mr.BorrowCost = margin.BorrowCost{
+					Cost: decimal.MustFromFloat(history.Rows[i].Interest),
+					Size: decimal.MustFromFloat(history.Rows[i].Principal),
+				}
+			}
+			rates = append(rates, mr)
+		}
+
+		if len(history.Rows) < int(pageSize) || history.Total <= int64(len(rates)) {
+			break
+		}
+		page++
+	}
+
+	sort.Slice(rates, func(i, j int) bool {
+		return rates[i].Time.Before(rates[j].Time)
+	})
+	resp := &margin.RateHistoryResponse{
+		Rates: rates,
+	}
+	if req.GetBorrowCosts {
+		for i := range rates {
+			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(rates[i].BorrowCost.Cost)
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(rates[i].BorrowCost.Size)
+		}
+		if len(rates) > 0 {
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(rates))))
+		}
+	}
+	return resp, nil
 }
 
 // marginTypeToString converts the GCT margin type to Binance's string
@@ -2817,14 +2907,25 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+			var ct futures.ContractType
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
 				ct = futures.Perpetual
-			} else {
+			case "CURRENT_MONTH":
+				ct = futures.Monthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "NEXT_MONTH":
+				ct = futures.BiMonthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case currentQuarterContract:
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
+			case nextQuarterContract:
+				ct = futures.BiQuarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
+			oneContract := ei.Symbols[i].Filters[2].StepSize
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
@@ -2839,6 +2940,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Type:               ct,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
+				Multiplier:         oneContract,
 			})
 		}
 		return resp, nil
@@ -2871,12 +2973,23 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote.Equal(currency.PERP) {
+			switch ei.Symbols[i].ContractType {
+			case "PERPETUAL":
 				ct = futures.Perpetual
-			} else {
+			case "CURRENT_MONTH":
+				ct = futures.Monthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case "NEXT_MONTH":
+				ct = futures.BiMonthly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			case currentQuarterContract:
 				ct = futures.Quarterly
 				ed = ei.Symbols[i].DeliveryDate.Time()
+			case nextQuarterContract:
+				ct = futures.BiQuarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
 			}
+
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
@@ -2888,6 +3001,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				MarginCurrency:     currency.NewCode(ei.Symbols[i].MarginAsset),
 				SettlementType:     futures.Inverse,
 				Type:               ct,
+				Multiplier:         ei.Symbols[i].ContractSize,
 				FundingRateFloor:   fundingRateFloor,
 				FundingRateCeiling: fundingRateCeil,
 			})
@@ -2898,39 +3012,47 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
-	if len(k) == 0 {
+func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(keys) == 0 {
 		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
 	}
-	for i := range k {
-		if k[i].Asset != asset.USDTMarginedFutures && k[i].Asset != asset.CoinMarginedFutures {
+	for i := range keys {
+		if keys[i].Asset != asset.USDTMarginedFutures && keys[i].Asset != asset.CoinMarginedFutures {
 			// avoid API calls or returning errors after a successful retrieval
-			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
 		}
 	}
-	result := make([]futures.OpenInterest, len(k))
-	for i := range k {
-		switch k[i].Asset {
-		case asset.USDTMarginedFutures:
-			oi, err := e.UOpenInterest(ctx, k[i].Pair())
+	var wg sync.WaitGroup
+	result := make([]futures.OpenInterest, len(keys))
+	for i := range keys {
+		wg.Go(func() {
+			fPair, err := e.FormatExchangeCurrency(keys[i].Pair(), keys[i].Asset)
 			if err != nil {
-				return nil, err
+				return
 			}
-			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
-				OpenInterest: oi.OpenInterest,
+			switch keys[i].Asset {
+			case asset.USDTMarginedFutures:
+				oi, err := e.UOpenInterest(ctx, fPair)
+				if err != nil {
+					return
+				}
+				result[i] = futures.OpenInterest{
+					Key:          key.NewExchangeAssetPair(e.Name, keys[i].Asset, keys[i].Pair()),
+					OpenInterest: oi.OpenInterest,
+				}
+			case asset.CoinMarginedFutures:
+				oi, err := e.OpenInterest(ctx, fPair)
+				if err != nil {
+					return
+				}
+				result[i] = futures.OpenInterest{
+					Key:          key.NewExchangeAssetPair(e.Name, keys[i].Asset, keys[i].Pair()),
+					OpenInterest: oi.OpenInterest,
+				}
 			}
-		case asset.CoinMarginedFutures:
-			oi, err := e.OpenInterest(ctx, k[i].Pair())
-			if err != nil {
-				return nil, err
-			}
-			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
-				OpenInterest: oi.OpenInterest,
-			}
-		}
+		})
 	}
+	wg.Wait()
 	return result, nil
 }
 
@@ -2957,9 +3079,9 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 					continue
 				}
 				switch ei.Symbols[i].ContractType {
-				case "CURRENT_QUARTER":
+				case currentQuarterContract:
 					ct = "_QUARTER"
-				case "NEXT_QUARTER":
+				case nextQuarterContract:
 					ct = "_BI-QUARTER"
 				}
 				symbol = ei.Symbols[i].Pair
@@ -2979,9 +3101,9 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 					continue
 				}
 				switch ei.Symbols[i].ContractType {
-				case "CURRENT_QUARTER":
+				case currentQuarterContract:
 					ct = "_QUARTER"
-				case "NEXT_QUARTER":
+				case nextQuarterContract:
 					ct = "_BI-QUARTER"
 				}
 				symbol = ei.Symbols[i].Pair

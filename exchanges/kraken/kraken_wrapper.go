@@ -1470,6 +1470,21 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				Volume: candles[x].Volume,
 			})
 		}
+	case asset.Futures:
+		fc, err := e.GetFuturesCharts(ctx, e.FormatExchangeKlineIntervalFutures(interval), "spot", pair, end, start)
+		if err != nil {
+			return nil, err
+		}
+		for j := range fc.Candles {
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   fc.Candles[j].Time.Time(),
+				Open:   fc.Candles[j].Open,
+				High:   fc.Candles[j].High,
+				Low:    fc.Candles[j].Low,
+				Close:  fc.Candles[j].Close,
+				Volume: fc.Candles[j].Volume,
+			})
+		}
 	default:
 		// TODO add new Futures API support
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
@@ -1621,6 +1636,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			SettlementType: contractSettlementType,
 			IsActive:       result.Instruments[i].Tradable,
 			Type:           ct,
+			Multiplier:     result.Instruments[i].ContractSize,
 		}
 	}
 	return resp, nil

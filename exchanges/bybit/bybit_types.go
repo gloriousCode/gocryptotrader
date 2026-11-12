@@ -1110,7 +1110,7 @@ type TransferableCoins struct {
 type TransferParams struct {
 	TransferID      uuid.UUID     `json:"transferId"`
 	Coin            currency.Code `json:"coin"`
-	Amount          types.Number  `json:"amount,string"`
+	Amount          types.Number  `json:"amount"`
 	FromAccountType string        `json:"fromAccountType"`
 	ToAccountType   string        `json:"toAccountType"`
 

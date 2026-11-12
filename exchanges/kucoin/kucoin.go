@@ -1069,8 +1069,8 @@ func (e *Exchange) GetRecentFills(ctx context.Context) ([]Fill, error) {
 
 // PostStopOrder used to place two types of stop orders: limit and market
 func (e *Exchange) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp,
-	tradeType, timeInForce string, size, price, stopPrice, cancelAfter,
-	funds float64, postOnly bool,
+	tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize,
+	funds float64, postOnly, hidden, iceberg bool,
 ) (string, error) {
 	if clientOID == "" {
 		return "", order.ErrClientOrderIDMustBeSet
@@ -1119,6 +1119,11 @@ func (e *Exchange) PostStopOrder(ctx context.Context, clientOID, side, symbol, o
 			arg["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
 		arg["postOnly"] = postOnly
+		arg["hidden"] = hidden
+		arg["iceberg"] = iceberg
+		if visibleSize > 0 {
+			arg["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+		}
 	case order.Market.Lower():
 		switch {
 		case size > 0:
@@ -2299,7 +2304,7 @@ func (e *Exchange) GetInterestRate(ctx context.Context, ccy currency.Code) ([]In
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp []InterestRate
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, http.MethodGet, "/v3/project/marketInterestRate?currency="+ccy.String(), nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, "/v3/project/marketInterestRate?currency="+ccy.String(), &resp)
 }
 
 // MarginLendingSubscription retrieves margin lending subscription information.

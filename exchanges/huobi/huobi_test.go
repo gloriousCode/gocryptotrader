@@ -1771,16 +1771,14 @@ func TestGetLatestFundingRates(t *testing.T) {
 	updatePairsOnce(t, e)
 
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSD(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSD(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.CoinMarginedFutures,
-		Pair:                 currency.NewBTCUSD(),
-		IncludePredictedRate: true,
+		Asset: asset.CoinMarginedFutures,
+		Pair:  currency.NewBTCUSD(),
 	})
 	require.NoError(t, err)
 
@@ -1788,8 +1786,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrPairAlreadyEnabled)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.CoinMarginedFutures,
-		IncludePredictedRate: true,
+		Asset: asset.CoinMarginedFutures,
 	})
 	require.NoError(t, err)
 }

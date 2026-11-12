@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -43,6 +44,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
@@ -588,12 +590,12 @@ func TestCandlestickUnmarshalJSON(t *testing.T) {
 	require.Len(t, targets, 3)
 	assert.Equal(t, Candlestick{
 		Timestamp:      types.Time(time.Unix(1738108800, 0)),
-		QuoteCcyVolume: 229534412.73508700,
-		ClosePrice:     103734.3,
-		HighestPrice:   104779.9,
-		LowestPrice:    101336.6,
-		OpenPrice:      101343.8,
-		BaseCcyAmount:  2232.94510000,
+		QuoteCcyVolume: types.Number(229534412.73508700),
+		ClosePrice:     types.Number(103734.3),
+		HighestPrice:   types.Number(104779.9),
+		LowestPrice:    types.Number(101336.6),
+		OpenPrice:      types.Number(101343.8),
+		BaseCcyAmount:  types.Number(2232.94510000),
 		WindowClosed:   true,
 	}, targets[0])
 }
@@ -628,16 +630,16 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			CurrencyPair: getPair(t, asset.Spot),
 			Side:         "sell",
-			Amount:       0.001,
-			Price:        12349,
+			Amount:       types.Number(0.001),
+			Price:        types.Number(12349),
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
 		{
 			CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
 			Side:         "buy",
-			Amount:       1,
-			Price:        1234567789,
+			Amount:       types.Number(1),
+			Price:        types.Number(1234567789),
 			Account:      e.assetTypeToString(asset.Spot),
 			Type:         "limit",
 		},
@@ -671,8 +673,8 @@ func TestCreateSpotOrder(t *testing.T) {
 	_, err := e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
-		Amount:       1,
-		Price:        900000,
+		Amount:       types.Number(1),
+		Price:        types.Number(900000),
 		Account:      e.assetTypeToString(asset.Spot),
 		Type:         "limit",
 	})
@@ -1569,9 +1571,37 @@ func TestQueryFuturesAccount(t *testing.T) {
 
 func TestGetFuturesAccountBooks(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, 0, time.Time{}, time.Time{}, "dnw")
-	assert.NoError(t, err, "GetFuturesAccountBooks should not error")
+	t.Run("account book fields and pagination", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/api/v4/futures/usdt/account_book", r.URL.Path)
+			assert.Equal(t, "BTC_USDT", r.URL.Query().Get("contract"))
+			assert.Equal(t, "50", r.URL.Query().Get("limit"))
+			assert.Equal(t, "100", r.URL.Query().Get("offset"))
+			assert.Equal(t, "pnl", r.URL.Query().Get("type"))
+			_, err := w.Write([]byte(`[{"time":1682294400.123456,"change":"0.000010152188","balance":"4.59316525194","text":"BTC_USDT:6086261","type":"pnl","contract":"BTC_USDT","trade_id":"6086261","id":"1"}]`))
+			assert.NoError(t, err)
+		}))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"))
+		ex.API.AuthenticatedSupport = true
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+		items, err := ex.GetFuturesAccountBooks(t.Context(), currency.USDT, "BTC_USDT", 50, 100, time.Time{}, time.Time{}, "pnl")
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+		assert.Equal(t, "BTC_USDT", items[0].Contract)
+		assert.Equal(t, "6086261", items[0].TradeID)
+		assert.Equal(t, "1", items[0].ID)
+	})
+	t.Run("live endpoint", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.GetFuturesAccountBooks(t.Context(), currency.USDT, "", 0, 0, time.Time{}, time.Time{}, "dnw")
+		assert.NoError(t, err, "GetFuturesAccountBooks should not error")
+	})
 }
 
 func TestGetAllFuturesPositionsOfUsers(t *testing.T) {
@@ -1717,8 +1747,8 @@ func TestGetDeliveryPriceTriggeredOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, &FuturesPriceTriggeredOrderParam{
 		Initial: FuturesInitial{
-			Price:    1234.,
-			Size:     12,
+			Price:    types.Number(1234),
+			Size:     types.Number(12),
 			Contract: getPair(t, asset.DeliveryFutures),
 		},
 		Trigger: FuturesTrigger{
@@ -1966,8 +1996,8 @@ func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
 	} {
 		_, err := e.CreatePriceTriggeredFuturesOrder(t.Context(), tc.c, &FuturesPriceTriggeredOrderParam{
 			Initial: FuturesInitial{
-				Price:    1234.,
-				Size:     2,
+				Price:    types.Number(1234),
+				Size:     types.Number(2),
 				Contract: getPair(t, tc.a),
 			},
 			Trigger: FuturesTrigger{
@@ -2255,11 +2285,11 @@ func TestPlaceOptionOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.PlaceOptionOrder(t.Context(), &OptionOrderParam{
 		Contract:    getPair(t, asset.Options).String(),
-		OrderSize:   -1,
-		Iceberg:     0,
+		OrderSize:   types.Number(-1),
+		Iceberg:     types.Number(0),
 		Text:        "-",
 		TimeInForce: "gtc",
-		Price:       100,
+		Price:       types.Number(100),
 	})
 	if err != nil {
 		t.Errorf("%s PlaceOptionOrder() error %v", e.Name, err)
@@ -2967,9 +2997,18 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 20, "Should see canonical and private messages")
 	var sawPosition, sawPositionClose bool
+	var privateEvents int
 	for resp := range e.Websocket.DataHandler.C {
+		if privateEvent, ok := resp.Data.(*PrivateWebsocketEvent); ok {
+			privateEvents++
+			var header struct {
+				Channel string `json:"channel"`
+			}
+			require.NoError(t, json.Unmarshal(privateEvent.Payload, &header))
+			assert.Contains(t, header.Channel, "futures.")
+		}
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
@@ -2996,6 +3035,7 @@ func TestFuturesDataHandler(t *testing.T) {
 			}
 		}
 	}
+	assert.Equal(t, 5, privateEvents, "private futures pushes should retain their raw messages")
 	require.True(t, sawPosition, "futures fixture must emit a normalised position")
 	require.True(t, sawPositionClose, "futures fixture must emit a normalised position close")
 }
@@ -3179,6 +3219,10 @@ func TestFuturesPositionBOBCapturedPayloads(t *testing.T) {
 		message := <-ex.Websocket.DataHandler.C
 		positions, ok := message.Data.([]futures.Position)
 		require.True(t, ok, "captured payload must emit canonical futures positions")
+		privateEvent := <-ex.Websocket.DataHandler.C
+		raw, ok := privateEvent.Data.(*PrivateWebsocketEvent)
+		require.True(t, ok, "captured payload must retain private position details")
+		assert.Equal(t, payloads[i], raw.Payload)
 		require.Len(t, positions, 1, "captured payload must emit one position")
 		position := positions[0]
 		assert.Equal(t, order.Open, position.Status, "position status should be open")
@@ -3487,10 +3531,17 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	subs, err := ex.Features.Subscriptions.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	e.Features.Subscriptions = subscription.List{}
-	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
+	require.NotEmpty(t, subs, "ExpandTemplates must provide a subscription")
+	subs = subscription.List{subs[0]}
+	ex.Features.Subscriptions = subscription.List{}
+
+	conn := connectGateioTestWithMockedWebsocket(t, ex, staticGateioWSHandler(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`))
+	err = ex.Subscribe(t.Context(), conn, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
@@ -3503,6 +3554,23 @@ func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
+	for _, product := range []asset.Item{asset.USDTMarginedFutures, asset.CoinMarginedFutures} {
+		t.Run(product.String()+" disabled public channel", func(t *testing.T) {
+			t.Parallel()
+			local := new(Exchange)
+			require.NoError(t, testexch.Setup(local))
+			local.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			local.Config.Features.Subscriptions = append(local.Config.Features.Subscriptions, &subscription.Subscription{Asset: product, Channel: futuresCandlesticksChannel, Enabled: false})
+			for range 2 {
+				subs, err := local.GenerateFuturesDefaultSubscriptions(t.Context(), product)
+				require.NoError(t, err)
+				require.NotEmpty(t, subs)
+				for _, sub := range subs {
+					require.NotEqual(t, futuresCandlesticksChannel, sub.Channel)
+				}
+			}
+		})
+	}
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	_, err := e.GenerateFuturesDefaultSubscriptions(t.Context(), asset.Options)
@@ -3981,6 +4049,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 					fallthrough
 				case asset.CoinMarginedFutures:
+					assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", p)
 					if !l.Delisted.IsZero() {
 						assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 					}
@@ -4469,24 +4538,76 @@ func TestGetSettlementCurrency(t *testing.T) {
 
 type FixtureConnection struct{ websocket.Connection }
 
-func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
-	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
+func (d *FixtureConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+	var req WsInput
+	switch p := payload.(type) {
+	case *WsInput:
+		req = *p
+	case WsInput:
+		req = p
+	}
+	return json.Marshal(map[string]any{
+		"id": req.ID, "channel": req.Channel, "event": req.Event,
+		"result": map[string]string{"status": "success"},
+	})
 }
 
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
+func staticGateioWSHandler(response string) mockws.WsMockFunc {
+	return func(_ testing.TB, _ []byte, c *gws.Conn) error {
+		return c.WriteMessage(gws.TextMessage, []byte(response))
+	}
+}
+
+func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler mockws.WsMockFunc) websocket.Connection {
+	t.Helper()
+
+	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
+	t.Cleanup(server.Close)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
+	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Connect(t.Context()))
+	t.Cleanup(func() {
+		_ = ex.Websocket.Shutdown()
+	})
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "GetConnection must find the mocked spot connection")
+	return conn
+}
+
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := connectGateioTestWithMockedWebsocket(t, ex, func(_ testing.TB, message []byte, c *gws.Conn) error {
+		var request WsInput
+		if err := json.Unmarshal(message, &request); err != nil {
+			return err
+		}
+		response, err := json.Marshal(map[string]any{
+			"id": request.ID, "channel": request.Channel, "event": request.Event,
+			"result": map[string]string{"status": "success"},
+		})
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, response)
+	})
+
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+	err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(_ context.Context, event string, _ subscription.List) ([]WsInput, error) {
+		return []WsInput{{ID: 42, Channel: spotTickerChannel, Event: event}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+	err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(_ context.Context, event string, _ subscription.List) ([]WsInput, error) {
+		return []WsInput{{ID: 43, Channel: spotTickerChannel, Event: event}}, nil
 	})
 	require.NoError(t, err)
 }

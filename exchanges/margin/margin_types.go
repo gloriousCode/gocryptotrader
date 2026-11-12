@@ -33,15 +33,23 @@ type RateHistoryRequest struct {
 	GetLendingPayments bool
 	GetBorrowRates     bool
 	GetBorrowCosts     bool
-
-	// CalculateOffline allows for the borrow rate, lending payment amount
-	// and borrow costs to be calculated offline. It requires the takerfeerate
-	// and existing rates
+	// CalculateOffline allows the borrow rate, lending payment amount and
+	// borrow costs to be calculated offline from the supplied rates and fee.
 	CalculateOffline bool
 	TakeFeeRate      decimal.Decimal
-	// Rates is used when calculating offline and determiningPayments
+	// Rates is used when calculating offline.
 	// Each Rate must have the Rate and Size fields populated
 	Rates []Rate
+}
+
+// CurrentRateResponse carries current and predicted margin rates from websocket feeds.
+type CurrentRateResponse struct {
+	Exchange      string
+	Asset         asset.Item
+	Pair          currency.Pair
+	CurrentRate   Rate
+	PredictedRate Rate
+	TimeChecked   time.Time
 }
 
 // PositionChangeRequest used for wrapper functions to change margin fields for a position
