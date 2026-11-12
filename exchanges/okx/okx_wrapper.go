@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -2635,13 +2637,15 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		return nil, err
 	}
 	if fr == nil {
-		return nil, common.ErrNilPointer
+		return nil, fmt.Errorf("%w GetSingleFundingRate", common.ErrNilPointer)
 	}
-	// The current rate is indicative and observed at ts; fundingTime is the
-	// imminent settlement, while nextFundingTime belongs to the following period.
+	// ts is the observation time; fundingTime is the imminent settlement.
+	// nextFundingTime refers to the following period, not this indicative rate.
 	pairRate.LatestRate = fundingrate.Rate{Time: fr.Timestamp.Time(), Rate: fr.FundingRate.Decimal()}
 	pairRate.TimeOfNextRate = fr.FundingTime.Time()
-	pairRate.PredictedUpcomingRate = fundingrate.Rate{Time: fr.FundingTime.Time(), Rate: fr.FundingRate.Decimal()}
+	if r.IncludePredictedRate {
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{Time: fr.FundingTime.Time(), Rate: fr.FundingRate.Decimal()}
+	}
 	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
 
@@ -2650,15 +2654,20 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
-	if r.Asset != asset.PerpetualSwap {
+	// OKX publishes funding history for perpetual swaps and X-Perps futures
+	if r.Asset != asset.PerpetualSwap && r.Asset != asset.Futures {
 		return nil, futures.ErrNotPerpetualFuture
 	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+	}
 	if r.EndDate.IsZero() {
-		// An open-ended request must start at the newest page and move backwards.
+		// An unset end reads as open-ended, spanning up to now; a before-only
+		// query would make OKX answer with the oldest page after the start
+		// date, silently truncating the history.
 		r.EndDate = time.Now()
 	}
 	requestLimit := 100
-	var sd time.Time
 	maxLookback := time.Now().Add(-e.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
 	if r.StartDate.Before(maxLookback) {
 		if r.RespectHistoryLimits {
@@ -2669,7 +2678,6 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		if r.EndDate.Before(maxLookback) {
 			return nil, futures.ErrGetFundingDataRequired
 		}
-		r.StartDate = maxLookback
 	}
 	format, err := e.GetPairFormat(r.Asset, true)
 	if err != nil {
@@ -2683,54 +2691,64 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
-	pairRate.PaymentCurrency = r.PaymentCurrency
-	if pairRate.PaymentCurrency.IsEmpty() {
-		switch {
-		case strings.EqualFold(fPair.Quote.String(), "USDT-SWAP"):
-			pairRate.PaymentCurrency = currency.USDT
-		case strings.EqualFold(fPair.Quote.String(), "USDC-SWAP"):
-			pairRate.PaymentCurrency = currency.USDC
-		default:
-			pairRate.PaymentCurrency = fPair.Base
+	if !r.IncludePayments {
+		pairRate.PaymentCurrency = r.PaymentCurrency
+		if pairRate.PaymentCurrency.IsEmpty() {
+			switch {
+			case strings.EqualFold(fPair.Quote.String(), "USDT-SWAP"):
+				pairRate.PaymentCurrency = currency.USDT
+			case strings.EqualFold(fPair.Quote.String(), "USDC-SWAP"):
+				pairRate.PaymentCurrency = currency.USDC
+			default:
+				pairRate.PaymentCurrency = fPair.Base
+			}
 		}
 	}
-	sd = r.StartDate
-	afterTS := r.EndDate
-	// map of time indexes, allowing for easy lookup of slice index from unix time data
-	mti := make(map[int64]int)
-	// OKX returns newest first; after pages towards older settlements while
-	// before holds the fixed requested floor. Refuse a non-progressing page.
+	// The history arrives newest first, so after is the documented cursor for
+	// records earlier than the page's oldest funding time, while before holds
+	// the requested window floor.
+	sd := r.StartDate
+	historyCursor := r.EndDate
+	seen := make(common.Seen[int64])
 	for {
-		var frh []FundingRateResponse
-		frh, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, afterTS, int64(requestLimit))
+		var history []FundingRateResponse
+		history, err = e.GetFundingRateHistory(ctx, fPair.String(), sd, historyCursor, int64(requestLimit))
 		if err != nil {
 			return nil, err
 		}
-		if len(frh) == 0 {
+		if len(history) == 0 {
 			break
 		}
-		oldest := afterTS
-		for i := range frh {
-			stamp := frh[i].FundingTime.Time()
-			if stamp.Before(oldest) {
-				oldest = stamp
-			}
-			if stamp.Before(r.StartDate) || stamp.After(r.EndDate) {
+		for i := range history {
+			settledRate := &history[i]
+			settlementTime := settledRate.FundingTime.Time()
+			if settlementTime.Before(r.StartDate) || settlementTime.After(r.EndDate) {
 				continue
 			}
-			if _, exists := mti[stamp.UnixMilli()]; exists {
+			if seen.CheckAndRecord(settlementTime.Unix()) {
 				continue
 			}
-			if frh[i].RealisedRate == nil {
+			if settledRate.RealisedRate == nil {
 				return nil, fmt.Errorf("%w: realised funding rate missing", common.ErrNoResponse)
 			}
-			mti[stamp.UnixMilli()] = len(pairRate.FundingRates)
-			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{Time: stamp, Rate: frh[i].RealisedRate.Decimal()})
+			pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
+				Time: settlementTime,
+				Rate: settledRate.RealisedRate.Decimal(),
+			})
 		}
-		if len(frh) < requestLimit || !oldest.Before(afterTS) || !sd.Before(oldest) {
+		if len(history) < requestLimit {
 			break
 		}
-		afterTS = oldest
+		oldest := history[len(history)-1].FundingTime.Time()
+		if !sd.Before(oldest) {
+			break
+		}
+		// A full page above the requested start still needs an older cursor.
+		// Repeated or newer timestamps cannot establish that history is complete.
+		if !oldest.Before(historyCursor) {
+			return nil, fmt.Errorf("%w: funding history page did not advance before %s", common.ErrNoResponse, historyCursor)
+		}
+		historyCursor = oldest
 	}
 	var fr *FundingRateResponse
 	fr, err = e.GetSingleFundingRate(ctx, fPair.String())
@@ -2745,25 +2763,36 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		Rate: fr.FundingRate.Decimal(),
 	}
 	pairRate.TimeOfNextRate = fr.FundingTime.Time()
-	pairRate.PredictedUpcomingRate = fundingrate.Rate{
-		Time: fr.FundingTime.Time(),
-		Rate: fr.FundingRate.Decimal(),
+	if r.IncludePredictedRate {
+		pairRate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: fr.FundingTime.Time(),
+			Rate: fr.FundingRate.Decimal(),
+		}
 	}
 	if r.IncludePayments {
-		sd = r.StartDate
+		pairRate.PaymentCurrency = r.PaymentCurrency
+		if pairRate.PaymentCurrency.IsEmpty() {
+			// Linear and inverse swaps settle in different currencies; the pair
+			// name alone does not identify the account bills' payment currency.
+			instType := GetInstrumentTypeFromAssetItem(r.Asset)
+			instruments, err := e.GetInstruments(ctx, &InstrumentsFetchParams{InstrumentType: instType, InstrumentID: fPair.String()})
+			if err != nil {
+				return nil, err
+			}
+			if len(instruments) != 1 || instruments[0].InstrumentID.String() != fPair.String() || instruments[0].InstrumentType != instType || instruments[0].SettlementCurrency.IsEmpty() {
+				return nil, fmt.Errorf("%w: settlement currency unavailable for %s", common.ErrNoResponse, fPair)
+			}
+			pairRate.PaymentCurrency = instruments[0].SettlementCurrency
+		}
+		slices.SortFunc(pairRate.FundingRates, func(a, b fundingrate.Rate) int { return b.Time.Compare(a.Time) })
 		billDetailsFunc := e.GetBillsDetail3Months
 		if time.Since(r.StartDate) < kline.OneWeek.Duration() {
 			billDetailsFunc = e.GetBillsDetailLast7Days
 		}
 		var after string
-		for sd.Before(r.EndDate) {
-			var fri time.Duration
-			if len(e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
-				// can infer funding rate interval from the only funding rate frequency defined
-				for k := range e.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
-					fri = k.Duration()
-				}
-			}
+		seenBills := make(map[string]struct{})
+		seenCursors := make(map[string]struct{})
+		for {
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: GetInstrumentTypeFromAssetItem(r.Asset),
@@ -2779,20 +2808,38 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(fri).UnixMilli()]; okay {
-					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
+				bill := &billDetails[i]
+				billTime := bill.Timestamp.Time()
+				if billTime.Before(r.StartDate) || billTime.After(r.EndDate) {
 					continue
+				}
+				if bill.BillID == "" {
+					return nil, fmt.Errorf("%w: funding bill ID missing", common.ErrNoResponse)
+				}
+				if _, duplicate := seenBills[bill.BillID]; duplicate {
+					continue
+				}
+				seenBills[bill.BillID] = struct{}{}
+				// Bills report the balance update time, which can follow settlement.
+				// Match the latest actual settlement at or before that update, so
+				// changes in funding frequency do not shift payments into another period.
+				index := sort.Search(len(pairRate.FundingRates), func(i int) bool {
+					return !pairRate.FundingRates[i].Time.After(billTime)
+				})
+				if index < len(pairRate.FundingRates) {
+					pairRate.FundingRates[index].Payment = pairRate.FundingRates[index].Payment.Add(bill.ProfitAndLoss.Decimal())
 				}
 			}
 			if len(billDetails) < requestLimit {
 				break
 			}
-			// Bills pages arrive newest first, so page strictly older via the
-			// unique bill ID cursor; reusing the page timestamp could repeat
-			// the same page when many bills share one funding timestamp.
-			lastBill := billDetails[len(billDetails)-1]
-			after = lastBill.BillID
-			sd = lastBill.Timestamp.Time()
+			// Use the bill ID rather than its timestamp: multiple payments can
+			// share the same balance update time.
+			after = billDetails[len(billDetails)-1].BillID
+			if _, repeated := seenCursors[after]; repeated || after == "" {
+				return nil, fmt.Errorf("%w: funding bills pagination did not advance", common.ErrNoResponse)
+			}
+			seenCursors[after] = struct{}{}
 		}
 
 		for i := range pairRate.FundingRates {
@@ -3293,17 +3340,16 @@ func (e *Exchange) optionInstrumentFamilies(ctx context.Context) ([]string, erro
 	if err != nil {
 		return nil, err
 	}
-	seen := make(map[string]struct{}, len(tickBands))
+	seen := make(common.Seen[string], len(tickBands))
 	families := make([]string, 0, len(tickBands))
 	for i := range tickBands {
 		family := tickBands[i].InstrumentFamily
 		if family == "" {
 			continue
 		}
-		if _, alreadySeen := seen[family]; alreadySeen {
+		if seen.CheckAndRecord(family) {
 			continue
 		}
-		seen[family] = struct{}{}
 		families = append(families, family)
 	}
 	if len(families) == 0 {

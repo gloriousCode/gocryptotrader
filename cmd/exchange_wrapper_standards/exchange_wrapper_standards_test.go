@@ -166,6 +166,25 @@ func isUnacceptableError(t *testing.T, err error) error {
 	return err
 }
 
+func TestIsUnacceptableError(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		err  error
+		want error
+	}{
+		{name: "nil"},
+		{name: "empty parameters", err: common.ErrEmptyParams},
+		{name: "wrapped empty parameters", err: errors.Join(common.ErrEmptyParams, context.Canceled)},
+		{name: "unexpected error", err: common.ErrNoResponse, want: common.ErrNoResponse},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorIs(t, isUnacceptableError(t, tc.err), tc.want, "wrapper validation must classify the error correctly")
+		})
+	}
+}
+
 var validWrapperParams = []reflect.Type{
 	assetParam,
 	orderSubmitParam,
@@ -623,6 +642,7 @@ var cryptoChainPerExchange = map[string]string{
 
 // acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
+	common.ErrEmptyParams,                // Empty requests must be rejected before calling an exchange API.
 	common.ErrFunctionNotSupported,       // Shows API cannot perform function and developer has recognised this
 	common.ErrNotYetImplemented,          // Shows API can perform function but developer has not implemented it yet
 	asset.ErrNotSupported,                // Shows that valid and invalid asset types are handled

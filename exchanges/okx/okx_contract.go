@@ -32,23 +32,22 @@ func (e *Exchange) FuturesContractFromInstrument(instrument *Instrument, item as
 		contractSettlementType futures.ContractSettlementType
 	)
 
-	if instrument.State == "live" {
+	if instrument.Underlying != "" || instrument.State == "live" {
 		underlying, err = currency.NewPairFromString(instrument.Underlying)
 		if err != nil {
 			return futures.Contract{}, err
 		}
+	}
+	settleCurr = instrument.SettlementCurrency
 
-		settleCurr = instrument.SettlementCurrency
-
-		contractSettlementType, err = futures.StringToContractSettlementType(instrument.ContractType)
-		if err != nil {
-			return futures.Contract{}, err
-		}
-		if contractSettlementType == futures.UnsetSettlementType {
-			contractSettlementType = futures.Linear
-			if instrument.SettlementCurrency.Equal(underlying.Base) {
-				contractSettlementType = futures.Inverse
-			}
+	contractSettlementType, err = futures.StringToContractSettlementType(instrument.ContractType)
+	if err != nil {
+		return futures.Contract{}, err
+	}
+	if contractSettlementType == futures.UnsetSettlementType {
+		contractSettlementType = futures.Linear
+		if !instrument.SettlementCurrency.IsEmpty() && instrument.SettlementCurrency.Equal(underlying.Base) {
+			contractSettlementType = futures.Inverse
 		}
 	}
 

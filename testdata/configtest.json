@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 17,
+ "version": 18,
  "dataDirectory": "",
  "encryptConfig": -1,
  "globalHTTPTimeout": 15000000000,
@@ -135,6 +135,14 @@
    },
    {
     "name": "FXMacroData",
+    "enabled": false,
+    "verbose": false,
+    "apiKey": "Key",
+    "apiKeyLvl": -1,
+    "primaryProvider": false
+   },
+   {
+    "name": "AllRatesToday",
     "enabled": false,
     "verbose": false,
     "apiKey": "Key",

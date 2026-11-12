@@ -18,10 +18,15 @@ func TestFuturesContractFromInstrument(t *testing.T) {
 		instrument *Instrument
 		asset      asset.Item
 		err        error
+		settlement futures.ContractSettlementType
 	}{
 		{name: "nil", asset: asset.PerpetualSwap, err: common.ErrNilPointer},
 		{name: "spot", instrument: &Instrument{}, asset: asset.Spot, err: futures.ErrNotFuturesAsset},
-		{name: "linear", instrument: &Instrument{InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-"), InstrumentType: "SWAP", Underlying: "BTC-USDT", SettlementCurrency: currency.USDT, ContractType: "linear", State: "live"}, asset: asset.PerpetualSwap},
+		{name: "linear", instrument: &Instrument{InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-"), InstrumentType: "SWAP", Underlying: "BTC-USDT", SettlementCurrency: currency.USDT, ContractType: "linear", State: "live"}, asset: asset.PerpetualSwap, settlement: futures.Linear},
+		{name: "inactive linear", instrument: &Instrument{InstrumentID: currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-"), InstrumentType: "SWAP", Underlying: "BTC-USDT", SettlementCurrency: currency.USDT, ContractType: "linear", State: "suspend"}, asset: asset.PerpetualSwap, settlement: futures.Linear},
+		{name: "inactive inverse without underlying", instrument: &Instrument{SettlementCurrency: currency.BTC, ContractType: "inverse", State: "expired"}, asset: asset.Futures, settlement: futures.Inverse},
+		{name: "inactive inferred inverse", instrument: &Instrument{Underlying: "BTC-USD", SettlementCurrency: currency.BTC, State: "expired"}, asset: asset.Futures, settlement: futures.Inverse},
+		{name: "inactive without settlement currency", instrument: &Instrument{State: "expired"}, asset: asset.Futures, settlement: futures.Linear},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -32,7 +37,9 @@ func TestFuturesContractFromInstrument(t *testing.T) {
 				return
 			}
 			require.NoError(t, err, "conversion must succeed")
-			assert.Equal(t, futures.Linear, result.SettlementType, "conversion should preserve settlement")
+			assert.Equal(t, tc.settlement, result.SettlementType, "conversion should preserve settlement")
+			assert.Equal(t, tc.instrument.SettlementCurrency, result.SettlementCurrency, "conversion should retain settlement currency for inactive contracts")
+			assert.Equal(t, tc.instrument.State == "live", result.IsActive, "conversion should retain instrument activity")
 			assert.Equal(t, tc.instrument.InstrumentID, result.Name, "conversion should preserve instrument identity")
 		})
 	}
