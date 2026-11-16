@@ -2053,43 +2053,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]futures.Contract, len(contracts))
-		for i := range contracts {
-			divisor, err := priceDivisor(a, contracts[i].Name)
-			if err != nil {
-				return nil, err
-			}
-			underlying := contracts[i].Name
-			if underlying.Base.Equal(divisorCurrency) {
-				underlying.Base = currency.BABYDOGE
-			}
-			contractSettlementType := futures.Linear
-			switch {
-			case contracts[i].Name.Base.Equal(currency.BTC) && settle.Equal(currency.BTC):
-				contractSettlementType = futures.Inverse
-			case !contracts[i].Name.Base.Equal(settle) && !settle.Equal(currency.USDT):
-				contractSettlementType = futures.Quanto
-			}
-			c := futures.Contract{
-				Exchange:           e.Name,
-				Name:               contracts[i].Name,
-				Underlying:         underlying,
-				Asset:              a,
-				IsActive:           contracts[i].DelistedTime.Time().IsZero() || contracts[i].DelistedTime.Time().After(time.Now()),
-				Type:               futures.Perpetual,
-				SettlementType:     contractSettlementType,
-				SettlementCurrency: settle,
-				Multiplier:         contracts[i].QuantoMultiplier.Float64(),
-				PriceDivisor:       divisor,
-				MaxLeverage:        contracts[i].LeverageMax.Float64(),
-				LatestRate: fundingrate.Rate{
-					Time: contracts[i].FundingNextApply.Time().Add(-time.Duration(contracts[i].FundingInterval) * time.Second),
-					Rate: contracts[i].FundingRate.Decimal(),
-				},
-			}
-			resp[i] = c
-		}
-		return resp, nil
+		return NormaliseFuturesContracts(e.Name, a, contracts, time.Now())
 	case asset.DeliveryFutures:
 		contracts, err := e.GetAllDeliveryContracts(ctx, settle)
 		if err != nil {
