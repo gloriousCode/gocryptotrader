@@ -3428,6 +3428,9 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		if err != nil {
 			return 0, err
 		}
+		if feePairs == nil || feeBuilder.IsMaker && feePairs.MakerFee == nil || !feeBuilder.IsMaker && feePairs.TakerFee == nil {
+			return 0, errNoValidResponseFromServer
+		}
 		if feeBuilder.IsMaker {
 			fee = calculateTradingFee(feePairs.MakerFee.Float64(),
 				feeBuilder.PurchasePrice,

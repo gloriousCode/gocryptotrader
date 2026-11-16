@@ -816,6 +816,27 @@ func newConnectionCountingServer(t *testing.T) (string, *gws.Dialer, *atomic.Int
 
 func TestConnect(t *testing.T) {
 	t.Parallel()
+	t.Run("observer counts actual legacy connector calls only", func(t *testing.T) {
+		t.Parallel()
+		manager := NewManager()
+		require.NoError(t, manager.Setup(newDefaultSetup()), "manager setup must succeed")
+		// Drive retries directly to avoid a second owner competing in this test.
+		manager.connectionMonitorRunning.Store(true)
+		var outcomes []ConnectionAttempt
+		manager.SetConnectionAttemptObserver(func(attempt ConnectionAttempt) { outcomes = append(outcomes, attempt) })
+		calls := 0
+		manager.connector = func() error { calls++; return errDastardlyReason }
+		for range 2 {
+			require.ErrorIs(t, manager.Connect(t.Context()), errDastardlyReason, "actual connector error must remain unchanged")
+		}
+		manager.enabled.Store(false)
+		require.ErrorIs(t, manager.Connect(t.Context()), ErrWebsocketNotEnabled, "disabled preflight must remain unchanged")
+		require.Equal(t, 2, calls, "only explicit connector calls must count")
+		require.Len(t, outcomes, 2, "each connector call must complete exactly once")
+		for _, outcome := range outcomes {
+			assert.Equal(t, "failed", outcome.Outcome, "real failures should remain visible")
+		}
+	})
 	for _, tc := range []struct {
 		name string
 		run  func(*testing.T)
@@ -977,7 +998,9 @@ func testConnectMultiConnectionRollback(t *testing.T) {
 			require.NoError(t, ws.Setup(setup), "Setup must not error")
 			shutdown := ws.ShutdownC
 			workerDone := make(chan struct{})
-			failing := true
+			var failing atomic.Bool
+			failing.Store(true)
+			var workerClosed sync.Once
 			messages := make(chan string, 1)
 			defer func() {
 				closeChanNoPanic(shutdown)
@@ -992,18 +1015,18 @@ func testConnectMultiConnectionRollback(t *testing.T) {
 						return nil
 					},
 					Connector: func(ctx context.Context, conn Connection) error {
-						if failing && i == 1 && !failAfterDial {
+						if failing.Load() && i == 1 && !failAfterDial {
 							return errDastardlyReason
 						}
 						if err := conn.Dial(ctx, dialer, nil, nil); err != nil {
 							return err
 						}
-						if failing && i == 1 {
+						if failing.Load() && i == 1 {
 							return errDastardlyReason
 						}
-						if failing {
+						if failing.Load() {
 							ws.Wg.Go(func() {
-								defer close(workerDone)
+								defer workerClosed.Do(func() { close(workerDone) })
 								<-shutdown
 							})
 						}
@@ -1012,6 +1035,8 @@ func testConnectMultiConnectionRollback(t *testing.T) {
 				}), "SetupNewConnection must not error")
 			}
 			require.ErrorIs(t, ws.Connect(t.Context()), errDastardlyReason, "Connect must return the failure")
+			// Inspect the completed rollback while the automatic retry owner waits.
+			ws.m.Lock()
 			select {
 			case <-workerDone:
 			default:
@@ -1019,12 +1044,18 @@ func testConnectMultiConnectionRollback(t *testing.T) {
 			}
 			assert.NotEqual(t, shutdown, ws.ShutdownC, "rollback should renew the shutdown channel")
 			assert.False(t, ws.IsConnecting(), "rollback should leave the manager disconnected")
+			ws.connectionManagerMu.RLock()
 			assert.Empty(t, ws.connections, "rollback should remove closed connections")
+			ws.connectionManagerMu.RUnlock()
 			assert.Eventually(t, func() bool { return openConnections.Load() == 0 }, time.Second, time.Millisecond, "rollback should close every socket")
-			failing = false
-			require.NoError(t, ws.Connect(t.Context()), "a subsequent connection attempt must recover")
+			failing.Store(false)
+			ws.m.Unlock()
+			if err := ws.Connect(t.Context()); err != nil {
+				require.ErrorIs(t, err, errAlreadyConnected, "only a completed background reconnect may win the manual attempt")
+			}
+			require.Eventually(t, ws.IsConnected, time.Second, time.Millisecond, "a subsequent connection attempt must recover")
 			assert.True(t, ws.IsConnected(), "recovered manager should be connected")
-			for conn := range ws.connections {
+			for _, conn := range ws.snapshotManagedConnections(ws.snapshotConnectionManager()[0]) {
 				require.NoError(t, conn.SendRawMessage(t.Context(), request.Unset, gws.TextMessage, []byte("recovered")), "recovered connection must send")
 				break
 			}

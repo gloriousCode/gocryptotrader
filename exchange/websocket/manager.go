@@ -80,6 +80,7 @@ const (
 
 // Manager provides connection and subscription management and routing
 type Manager struct {
+	attemptObserver               atomic.Pointer[ConnectionAttemptObserver]
 	enabled                       atomic.Bool
 	state                         atomic.Uint32
 	verbose                       bool
@@ -481,7 +482,7 @@ func (m *Manager) Connect(ctx context.Context) error {
 	return m.connect(ctx)
 }
 
-func (m *Manager) connect(ctx context.Context) error {
+func (m *Manager) connect(ctx context.Context) (resultErr error) {
 	if !m.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
@@ -513,6 +514,8 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 		}()
 
+		attempt := m.newConnectionAttempt(nil, m.CanUseAuthenticatedEndpoints())
+		defer func() { m.completeConnectionAttempt(&attempt, resultErr) }()
 		err := m.connector()
 		if err != nil {
 			// The connector may have dialled and started readers before failing. Release them so the next attempt does
@@ -703,6 +706,10 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 
 	// The connection is only tracked once connected, so a rollback cannot reach it; close it here in case the
 	// connector dialled before failing.
+	if ws.recoveryContext == nil {
+		attempt := m.newConnectionAttempt(subs, ws.setup.Authenticated)
+		defer func() { m.completeConnectionAttempt(&attempt, err) }()
+	}
 	if err := ws.setup.Connector(ctx, conn); err != nil {
 		return fmt.Errorf("%w: %w", common.ErrFatal, common.AppendError(err, conn.Shutdown()))
 	}

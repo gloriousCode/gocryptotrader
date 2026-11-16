@@ -1346,19 +1346,19 @@ type WalletSavedAddress struct {
 
 // PersonalTradingFee represents personal trading fee for specific currency pair
 type PersonalTradingFee struct {
-	UserID           int64        `json:"user_id"`
-	TakerFee         types.Number `json:"taker_fee"`
-	MakerFee         types.Number `json:"maker_fee"`
-	GtDiscount       bool         `json:"gt_discount"`
-	GtTakerFee       types.Number `json:"gt_taker_fee"`
-	GtMakerFee       types.Number `json:"gt_maker_fee"`
-	LoanFee          types.Number `json:"loan_fee"`
-	PointType        string       `json:"point_type"`
-	FuturesTakerFee  types.Number `json:"futures_taker_fee"`
-	FuturesMakerFee  types.Number `json:"futures_maker_fee"`
-	DeliveryTakerFee types.Number `json:"delivery_taker_fee"`
-	DeliveryMakerFee types.Number `json:"delivery_maker_fee"`
-	DebitFee         types.Number `json:"debit_fee"`
+	UserID           int64         `json:"user_id"`
+	TakerFee         *types.Number `json:"taker_fee"`
+	MakerFee         *types.Number `json:"maker_fee"`
+	GtDiscount       bool          `json:"gt_discount"`
+	GtTakerFee       types.Number  `json:"gt_taker_fee"`
+	GtMakerFee       types.Number  `json:"gt_maker_fee"`
+	LoanFee          types.Number  `json:"loan_fee"`
+	PointType        string        `json:"point_type"`
+	FuturesTakerFee  *types.Number `json:"futures_taker_fee"`
+	FuturesMakerFee  *types.Number `json:"futures_maker_fee"`
+	DeliveryTakerFee *types.Number `json:"delivery_taker_fee"`
+	DeliveryMakerFee *types.Number `json:"delivery_maker_fee"`
+	DebitFee         types.Number  `json:"debit_fee"`
 }
 
 // UsersAllAccountBalance represents user all account balances.
@@ -1892,7 +1892,7 @@ type FuturesOrder struct {
 	ID                        int64         `json:"id"`
 	UpdateID                  int64         `json:"update_id"`
 	UpdateTime                types.Time    `json:"update_time"`
-	User                      string        `json:"user"`
+	User                      AccountID     `json:"user"`
 	Contract                  currency.Pair `json:"contract"`
 	CreateTime                types.Time    `json:"create_time"`
 	Size                      types.Number  `json:"size"`
@@ -2782,3 +2782,6 @@ type UserTransactionRateLimitInfo struct {
 	MainRatio types.Number `json:"main_ratio"`
 	UpdatedAt types.Time   `json:"updated_at"`
 }
+
+// AccountID preserves Gate account identifiers returned as either JSON strings or integers.
+type AccountID string

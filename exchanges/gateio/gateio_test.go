@@ -1426,9 +1426,87 @@ func TestGetSavedAddresses(t *testing.T) {
 
 func TestGetPersonalTradingFee(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetPersonalTradingFee(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, currency.EMPTYCODE)
-	assert.NoError(t, err, "GetPersonalTradingFee should not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.GetPersonalTradingFee(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, currency.EMPTYCODE)
+		assert.NoError(t, err, "GetPersonalTradingFee should not error")
+	})
+	for _, tc := range []struct {
+		name, response string
+		present        bool
+		maker          float64
+	}{
+		{"explicit zero", `{"maker_fee":"0","taker_fee":"0","futures_maker_fee":"0","futures_taker_fee":"0","delivery_maker_fee":"0","delivery_taker_fee":"0"}`, true, 0},
+		{"signed rates", `{"maker_fee":"-0.001","taker_fee":"0","futures_maker_fee":"-0.001","futures_taker_fee":"0","delivery_maker_fee":"-0.001","delivery_taker_fee":"0"}`, true, -0.001},
+		{"omitted rates", `{}`, false, 0},
+		{"null rates", `{"maker_fee":null,"taker_fee":null,"futures_maker_fee":null,"futures_taker_fee":null,"delivery_maker_fee":null,"delivery_taker_fee":null}`, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/api/v4/wallet/fee", r.URL.Path)
+				_, err := w.Write([]byte(tc.response))
+				assert.NoError(t, err)
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"))
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "fixture", Secret: "fixture"})
+			response, err := ex.GetPersonalTradingFee(t.Context(), currency.NewBTCUSDT(), currency.USDT)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+			for _, pair := range [][2]*types.Number{{response.MakerFee, response.TakerFee}, {response.FuturesMakerFee, response.FuturesTakerFee}, {response.DeliveryMakerFee, response.DeliveryTakerFee}} {
+				if tc.present {
+					require.NotNil(t, pair[0])
+					require.NotNil(t, pair[1])
+					assert.InDelta(t, tc.maker, pair[0].Float64(), 1e-12)
+					assert.Zero(t, pair[1].Float64())
+				} else {
+					assert.Nil(t, pair[0])
+					assert.Nil(t, pair[1])
+				}
+			}
+		})
+	}
+}
+
+func TestGetFee(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, response string
+		maker          bool
+		wantErr        bool
+	}{
+		{"missing maker", `{"taker_fee":"0.001"}`, true, true},
+		{"missing taker", `{"maker_fee":"0.001"}`, false, true},
+		{"null response", `null`, false, true},
+		{"explicit zero maker", `{"maker_fee":"0"}`, true, false},
+		{"explicit zero taker", `{"taker_fee":"0"}`, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, err := w.Write([]byte(tc.response))
+				assert.NoError(t, err)
+			}))
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex))
+			require.NoError(t, ex.SetHTTPClient(server.Client()))
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"))
+			ex.API.AuthenticatedSupport = true
+			ex.SetCredentials(&accounts.Credentials{Key: "fixture", Secret: "fixture"})
+			fee, err := ex.GetFee(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: currency.NewBTCUSDT(), IsMaker: tc.maker, Amount: 1, PurchasePrice: 100})
+			if tc.wantErr {
+				require.ErrorIs(t, err, errNoValidResponseFromServer)
+			} else {
+				require.NoError(t, err)
+				assert.Zero(t, fee)
+			}
+		})
+	}
 }
 
 func TestGetUsersTotalBalance(t *testing.T) {
@@ -1839,9 +1917,27 @@ func TestPlaceFuturesOrder(t *testing.T) {
 
 func TestGetFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, true)
-	assert.NoError(t, err, "GetFuturesOrders should not error")
+	t.Run("live API", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		_, err := e.GetFuturesOrders(t.Context(), currency.NewBTCUSD(), statusOpen, "", currency.BTC, 0, 0, true)
+		assert.NoError(t, err, "GetFuturesOrders should not error")
+	})
+	for _, tc := range []struct{ name, user, want string }{
+		{"numeric account", "123456", "123456"},
+		{"quoted account", `"123456"`, "123456"},
+		{"large numeric account", "9007199254740993", "9007199254740993"},
+		{"large quoted account", `"9007199254740993"`, "9007199254740993"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var orders []FuturesOrder
+			require.NoError(t, json.Unmarshal([]byte(`[{"id":42,"user":`+tc.user+`,"contract":"BTC_USDT","size":1,"left":1,"price":"65000","status":"open"}]`), &orders), "futures order response must decode numeric and quoted account IDs")
+			require.Len(t, orders, 1, "order must survive decoding")
+			assert.Equal(t, tc.want, fmt.Sprint(orders[0].User), "account identity should retain every digit")
+			assert.Equal(t, int64(42), orders[0].ID, "order identity should be preserved")
+		})
+	}
 }
 
 func TestCancelMultipleFuturesOpenOrders(t *testing.T) {

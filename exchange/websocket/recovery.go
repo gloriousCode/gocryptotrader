@@ -118,8 +118,11 @@ func (m *Manager) recoverConnection(ctx context.Context, shutdown <-chan struct{
 			err = ws.setup.OnConnectionFault(faultedConnection, faultedSubscriptions)
 			invalidated = err == nil
 		}
+		var observation *ConnectionAttempt
 		attemptCtx, attemptCancel := context.WithTimeout(ctx, connectionRecoveryTimeout(len(desired), ws.setup.ResponseMaxLimit))
 		if err == nil {
+			observed := m.newConnectionAttempt(desired, ws.setup.Authenticated)
+			observation = &observed
 			err = m.createConnectAndSubscribe(attemptCtx, attempt, desired)
 		}
 		attempt.attemptMu.Lock()
@@ -177,6 +180,7 @@ func (m *Manager) recoverConnection(ctx context.Context, shutdown <-chan struct{
 			if err == nil {
 				old.Subscriptions().Clear()
 				installed = true
+				m.completeConnectionAttempt(observation, nil)
 				return
 			}
 		}
@@ -189,6 +193,12 @@ func (m *Manager) recoverConnection(ctx context.Context, shutdown <-chan struct{
 			invalidationErr := ws.setup.OnConnectionFault(faultedConnection, faultedSubscriptions)
 			invalidated = invalidationErr == nil
 			err = common.AppendError(err, invalidationErr)
+		}
+		if observation != nil {
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			}
+			m.completeConnectionAttempt(observation, err)
 		}
 		if ctx.Err() != nil {
 			return

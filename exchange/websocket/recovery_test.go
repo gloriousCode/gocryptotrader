@@ -57,6 +57,15 @@ func TestRecoverConnection(t *testing.T) {
 			require.NoError(t, manager.Setup(setup), "manager setup must succeed")
 			manager.setState(connectedState)
 			var attempts, invalidations atomic.Int32
+			var completions atomic.Int32
+			manager.SetConnectionAttemptObserver(func(attempt ConnectionAttempt) {
+				assert.NotEmpty(t, attempt.SelectionID, "every actual socket attempt should retain its public selection")
+				assert.False(t, attempt.CompletedAt.Before(attempt.StartedAt), "completion should follow acquisition start")
+				completions.Add(1)
+			})
+			t.Cleanup(func() {
+				assert.Equal(t, attempts.Load(), completions.Load(), "each actual connector call should complete once; invalidation-only retries should not count")
+			})
 			pending := make(chan struct{}, 1)
 			desiredCount := 2
 			if tc.explicitUnsubscribe || tc.nativeUnsubscribe {

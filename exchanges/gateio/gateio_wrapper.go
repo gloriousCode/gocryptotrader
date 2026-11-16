@@ -2129,32 +2129,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		l = make([]limits.MinMaxLevel, 0, len(pairsData))
-		for i := range pairsData {
-			if pairsData[i].TradeStatus == "untradable" {
-				continue
-			}
-			// Minimum base amounts are not always provided this will default to
-			// precision for base deployment. This can't be done for quote.
-			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
-			if minBaseAmount == 0 {
-				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
-			}
-			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
-				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
-				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
-				MinimumBaseAmount:       minBaseAmount,
-				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
-				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
-				MaximumQuoteAmount:      pairsData[i].MaxQuoteAmount.Float64(),
-				Delisted:                pairsData[i].DelistingTime.Time(),
-				Listed:                  earliestTime(time.Now(), pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
-				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
-				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
-				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
-			})
-		}
+		l = NormaliseSpotExecutionLimits(e.Name, pairsData, time.Now())
 	case asset.Margin:
 		marginPairs, err := e.GetIsolatedMarginLendingMarkets(ctx)
 		if err != nil {
@@ -2253,25 +2228,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		l = make([]limits.MinMaxLevel, 0, len(contractInfo))
-		for i := range contractInfo {
-			pd, err := priceDivisor(a, contractInfo[i].Name)
-			if err != nil {
-				return err
-			}
-
-			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, contractInfo[i].Name),
-				MinimumBaseAmount:       contractInfo[i].OrderSizeMin.Float64(),
-				MaximumBaseAmount:       contractInfo[i].OrderSizeMax.Float64(),
-				PriceStepIncrementSize:  contractInfo[i].OrderPriceRound.Float64(),
-				AmountStepIncrementSize: 1, // 1 Contract
-				MultiplierDecimal:       contractInfo[i].QuantoMultiplier.Float64(),
-				PriceDivisor:            pd,
-				Delisting:               contractInfo[i].DelistingTime.Time(),
-				Delisted:                contractInfo[i].DelistedTime.Time(),
-				Listed:                  contractInfo[i].LaunchTime.Time(),
-			})
+		l, err = NormaliseFuturesExecutionLimits(e.Name, a, contractInfo)
+		if err != nil {
+			return err
 		}
 	case asset.DeliveryFutures:
 		for _, settlement := range []currency.Code{currency.BTC, currency.USDT} {
@@ -2279,28 +2238,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if err != nil {
 				return err
 			}
-			l = slices.Grow(l, len(contractInfo))
-			for x := range contractInfo {
-				p := strings.ToUpper(contractInfo[x].Name)
-				cp, err := currency.NewPairFromString(p)
-				if err != nil {
-					return err
-				}
-				pd, err := priceDivisor(a, cp)
-				if err != nil {
-					return err
-				}
-				l = append(l, limits.MinMaxLevel{
-					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
-					MinimumBaseAmount:       contractInfo[x].OrderSizeMin.Float64(),
-					MaximumBaseAmount:       contractInfo[x].OrderSizeMax.Float64(),
-					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
-					AmountStepIncrementSize: 1,
-					MultiplierDecimal:       contractInfo[x].QuantoMultiplier.Float64(),
-					PriceDivisor:            pd,
-					Expiry:                  contractInfo[x].ExpireTime.Time(),
-				})
+			normalised, err := NormaliseDeliveryExecutionLimits(e.Name, contractInfo)
+			if err != nil {
+				return err
 			}
+			l = append(l, normalised...)
 		}
 	case asset.Options:
 		underlyings, err := e.GetAllOptionsUnderlyings(ctx)
