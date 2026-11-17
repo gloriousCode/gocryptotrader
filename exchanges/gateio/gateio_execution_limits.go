@@ -61,7 +61,7 @@ func NormaliseFuturesExecutionLimits(name string, a asset.Item, contractInfo []F
 			MinimumBaseAmount:       contractInfo[i].OrderSizeMin.Float64(),
 			MaximumBaseAmount:       contractInfo[i].OrderSizeMax.Float64(),
 			PriceStepIncrementSize:  contractInfo[i].OrderPriceRound.Float64(),
-			AmountStepIncrementSize: 1, // 1 Contract
+			AmountStepIncrementSize: min(1, contractInfo[i].OrderSizeMin.Float64()), // Preserve Gate's advertised fractional contract quantum.
 			MultiplierDecimal:       contractInfo[i].QuantoMultiplier.Float64(),
 			PriceDivisor:            pd,
 			Delisting:               contractInfo[i].DelistingTime.Time(),

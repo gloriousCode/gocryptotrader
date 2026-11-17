@@ -1531,6 +1531,28 @@ func TestGetAllFutureContracts(t *testing.T) {
 		_, err := e.GetAllFutureContracts(t.Context(), c)
 		assert.NoErrorf(t, err, "GetAllFutureContracts %s should not error", c)
 	}
+	t.Run("fractional catalogue wire contract", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "1", r.Header.Get("X-Gate-Size-Decimal"), "decimal header should preserve fractional quantities")
+			assert.Equal(t, "/futures/usdt/contracts", r.URL.Path)
+			_, err := w.Write([]byte(`[{"name":"SIREN_USDT","order_size_min":"0.1","order_size_max":"7500","quanto_multiplier":"100","order_price_round":"0.00001","enable_decimal":true}]`))
+			assert.NoError(t, err)
+		}))
+		t.Cleanup(server.Close)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		require.NoError(t, ex.SetHTTPClient(server.Client()))
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"))
+		contracts, err := ex.GetAllFutureContracts(t.Context(), currency.USDT)
+		require.NoError(t, err)
+		require.Len(t, contracts, 1)
+		require.Equal(t, types.Number(.1), contracts[0].OrderSizeMin)
+		rows, err := NormaliseFuturesExecutionLimits(ex.Name, asset.USDTMarginedFutures, contracts)
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		require.Equal(t, .1, rows[0].AmountStepIncrementSize)
+	})
 }
 
 func TestGetFuturesContract(t *testing.T) {

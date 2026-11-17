@@ -59,6 +59,24 @@ func TestNormaliseFuturesExecutionLimits(t *testing.T) {
 			require.Equal(t, 1e6, rows[0].PriceDivisor)
 		})
 	}
+	for _, tc := range []struct {
+		name    string
+		minimum types.Number
+		step    float64
+	}{
+		{name: "fractional contract quantum", minimum: .1, step: .1},
+		{name: "larger minimum retains integer quantum", minimum: 5, step: 1},
+		{name: "missing minimum stays unusable", minimum: 0, step: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rows, err := NormaliseFuturesExecutionLimits("GateIO", asset.USDTMarginedFutures, []FuturesContract{{Name: currency.NewPair(currency.NewCode("SIREN"), currency.USDT), OrderSizeMin: tc.minimum, QuantoMultiplier: 100}})
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			require.Equal(t, tc.minimum.Float64(), rows[0].MinimumBaseAmount)
+			require.Equal(t, tc.step, rows[0].AmountStepIncrementSize)
+		})
+	}
 }
 
 func TestNormaliseDeliveryExecutionLimits(t *testing.T) {
