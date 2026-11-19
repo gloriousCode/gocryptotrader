@@ -408,6 +408,40 @@ func TestInvalidateCache(t *testing.T) {
 
 func TestSyncOrderbook(t *testing.T) {
 	t.Parallel()
+	t.Run("cancelled fetch cannot publish after invalidation", func(t *testing.T) {
+		t.Parallel()
+		tp := newTestParams()
+		fetching, release := make(chan struct{}), make(chan struct{})
+		tp.FetchOrderbook = func(ctx context.Context, pair currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			close(fetching)
+			<-release // Reproduce a transport returning a successful result after cancellation.
+			return fetchOrderbookMock(ctx, pair, a)
+		}
+		m := NewUpdateManager(&tp)
+		pair, err := getExclusivePair()
+		require.NoError(t, err, "exclusive pair must construct")
+		cache, err := m.loadCache(pair, asset.Spot)
+		require.NoError(t, err, "original cache must initialise")
+		cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1337}}}
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		finished := make(chan error, 1)
+		go func() { finished <- m.syncOrderbook(ctx, cache, pair, asset.Spot) }()
+		<-fetching
+		cancel()
+		assert.ErrorIs(t, m.InvalidateOrderbook(pair, asset.Spot), orderbook.ErrDepthNotFound, "missing depth should retain its classification")
+		replacement, err := m.loadCache(pair, asset.Spot)
+		require.NoError(t, err, "replacement cache must initialise")
+		require.NotSame(t, cache, replacement, "replacement must not share the old worker's cache")
+		replacement.updates = []pendingUpdate{{update: &orderbook.Update{UpdateID: 2000}}}
+		close(release)
+		assert.ErrorIs(t, <-finished, context.Canceled, "late snapshot should retain cancellation classification")
+		_, err = m.ob.GetOrderbook(pair, asset.Spot)
+		assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "cancelled fetch should not publish an old snapshot")
+		assert.Empty(t, tp.Orderbook.dataHandler.C, "cancelled fetch should not relay an old snapshot")
+		require.Len(t, replacement.updates, 1, "old worker must not clear replacement updates")
+		assert.Equal(t, int64(2000), replacement.updates[0].update.UpdateID, "replacement continuity should remain independent")
+	})
 
 	cache := &updateCache{}
 	tp := newTestParams()
@@ -740,4 +774,29 @@ func TestClearNoLock(t *testing.T) {
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}
 	cache.clearNoLock()
 	require.Empty(t, cache.updates)
+}
+
+func TestUpdateManagerInvalidateOrderbook(t *testing.T) {
+	t.Parallel()
+	for _, withCache := range []bool{true, false} {
+		t.Run(map[bool]string{true: "cached depth", false: "uncached depth"}[withCache], func(t *testing.T) {
+			t.Parallel()
+			tp := newTestParams()
+			m := NewUpdateManager(&tp)
+			pair, err := getExclusivePair()
+			require.NoError(t, err, "exclusive pair must construct")
+			book, err := fetchOrderbookMock(t.Context(), pair, asset.Spot)
+			require.NoError(t, err, "snapshot fixture must construct")
+			require.NoError(t, m.ob.LoadSnapshot(t.Context(), book), "initial depth must load")
+			identity := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: asset.Spot}
+			if withCache {
+				_, err := m.loadCache(pair, asset.Spot)
+				require.NoError(t, err, "cache must initialise")
+			}
+			require.NoError(t, m.InvalidateOrderbook(pair, asset.Spot), "connection depth must invalidate")
+			_, err = m.ob.GetOrderbook(pair, asset.Spot)
+			assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid, "depth should retire before replacement publication")
+			assert.NotContains(t, m.lookup, identity, "old cache should detach from replacement updates")
+		})
+	}
 }

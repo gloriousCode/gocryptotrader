@@ -21,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -862,8 +863,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1569348774, 0)),
 		MTSUpdated:         types.Time(time.Unix(1569348774, 0)),
 		Status:             "COMPLETED",
-		Amount:             0.26300954,
-		Fees:               -0.00135,
+		Amount:             types.Number(0.26300954),
+		Fees:               types.Number(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionType:    "deposit",
@@ -878,8 +879,8 @@ func TestMovementHistoryUnmarshalJSON(t *testing.T) {
 		MTSStarted:         types.Time(time.Unix(1574175052, 0)),
 		MTSUpdated:         types.Time(time.Unix(1574181326, 0)),
 		Status:             "CANCELED",
-		Amount:             -0.24,
-		Fees:               -0.00135,
+		Amount:             types.Number(-0.24),
+		Fees:               types.Number(-0.00135),
 		DestinationAddress: "DESTINATION_ADDRESS",
 		TransactionID:      stringPtr("TRANSACTION_ID"),
 		TransactionNote:    stringPtr("Purchase of 100 pizzas"),
@@ -2106,6 +2107,30 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USD,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.MarginFunding,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:          asset.MarginFunding,
+		Currency:       currency.USD,
+		GetBorrowRates: true,
+	})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetHistoricTrades(t *testing.T) {

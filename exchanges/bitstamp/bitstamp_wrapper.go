@@ -89,6 +89,7 @@ func (e *Exchange) SetDefaults() {
 				DateRanges: true,
 			},
 		},
+
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
@@ -759,9 +760,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		var quoteCurrency, baseCurrency currency.Code
 
 		switch {
-		case resp[i].BTC > 0:
+		case resp[i].BTC.Float64() > 0:
 			baseCurrency = currency.BTC
-		case resp[i].XRP > 0:
+		case resp[i].XRP.Float64() > 0:
 			baseCurrency = currency.XRP
 		default:
 			log.Warnf(log.ExchangeSys,
@@ -771,9 +772,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		switch {
-		case resp[i].USD > 0:
+		case resp[i].USD.Float64() > 0:
 			quoteCurrency = currency.USD
-		case resp[i].EUR > 0:
+		case resp[i].EUR.Float64() > 0:
 			quoteCurrency = currency.EUR
 		default:
 			log.Warnf(log.ExchangeSys,

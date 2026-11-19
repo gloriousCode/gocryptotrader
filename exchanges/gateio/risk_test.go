@@ -113,7 +113,7 @@ func TestDeliveryUpdatePositionRiskLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, tiers)
 
-	lowestTierRiskLimit := float64(tiers[0].RiskLimit)
+	lowestTierRiskLimit := tiers[0].RiskLimit.Float64()
 	got, err := e.DeliveryUpdatePositionRiskLimit(request.WithVerbose(t.Context()), currency.USDT, avail[0], lowestTierRiskLimit)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -141,7 +141,7 @@ func TestFuturesUpdatePositionRiskLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, tiers)
 
-	lowestTierRiskLimit := float64(tiers[0].RiskLimit)
+	lowestTierRiskLimit := tiers[0].RiskLimit.Float64()
 	got, err := e.FuturesUpdatePositionRiskLimit(request.WithVerbose(t.Context()), currency.USDT, avail[0], lowestTierRiskLimit)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -170,7 +170,7 @@ func TestFuturesUpdatePositionRiskLimitDualMode(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, tiers)
 
-	lowestTierRiskLimit := float64(tiers[0].RiskLimit)
+	lowestTierRiskLimit := tiers[0].RiskLimit.Float64()
 	got, err := e.FuturesUpdatePositionRiskLimitDualMode(t.Context(), currency.USDT, avail[0], lowestTierRiskLimit)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)

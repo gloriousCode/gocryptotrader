@@ -437,7 +437,10 @@ type PlaceHFParam struct {
 	PostOnly    bool    `json:"postOnly"`
 
 	// Additional 'market' parameters
-	Funds string `json:"funds"`
+	Funds       string  `json:"funds"`
+	Hidden      bool    `json:"hidden"`
+	Iceberg     bool    `json:"iceberg"`
+	VisibleSize float64 `json:"visibleSize"`
 }
 
 // ModifyHFOrderParam represents a modify high frequency order parameter
@@ -547,6 +550,9 @@ type OrderRequest struct {
 	TimeInForce         string  `json:"timeInForce,omitempty"` // optional
 	CancelAfter         int64   `json:"cancelAfter,omitempty"` // optional
 	PostOnly            bool    `json:"postOnly,omitempty"`    // optional
+	Hidden              bool    `json:"hidden,omitempty"`      // optional
+	Iceberg             bool    `json:"iceberg,omitempty"`     // optional
+	VisibleSize         string  `json:"visibleSize,omitempty"` // optional
 }
 
 // PostBulkOrderResp response data for submitting a bulk order
@@ -1757,6 +1763,9 @@ type FuturesOrderParam struct {
 	SelfTradePrevention string  `json:"stp,omitempty"` // self trade prevention, CN, CO, CB. Not supported DC at the moment
 	TimeInForce         string  `json:"timeInForce,omitempty"`
 	PostOnly            bool    `json:"postOnly,omitempty"`
+	VisibleSize         float64 `json:"visibleSize,omitempty,string"` // The maximum visible size of an iceberg order
+	Hidden              bool    `json:"hidden,omitempty"`
+	Iceberg             bool    `json:"iceberg,omitempty"`
 }
 
 // FuturesOrderRespItem represents a single futures order placing response in placing multiple orders
@@ -1784,6 +1793,9 @@ type SpotOrderParam struct {
 	Size                float64       `json:"size,omitempty,string"`
 	Price               float64       `json:"price,string,omitempty"`
 	Funds               float64       `json:"funds,string,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 }
 
 // MarginOrderParam represents the margin place order request parameters
@@ -1803,6 +1815,9 @@ type MarginOrderParam struct {
 	CancelAfter         int64         `json:"cancelAfter,omitempty"` // [Optional] cancel after n seconds, requires timeInForce to be GTT
 	PostOnly            bool          `json:"postOnly,omitempty"`
 	Funds               float64       `json:"funds,string,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 }
 
 // UniversalTransferParam represents a universal transfer parameter
@@ -1892,6 +1907,9 @@ type PlaceMarginHFOrderParam struct {
 	CancelAfter         int64         `json:"cancelAfter,omitempty"`
 	PostOnly            bool          `json:"postOnly,omitempty"`
 	Funds               string        `json:"funds,omitempty"`
+	Hidden              bool          `json:"hidden,omitempty"`
+	Iceberg             bool          `json:"iceberg,omitempty"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 }
 
 // MarginHFOrderResponse  represents a margin HF order creation response

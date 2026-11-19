@@ -194,6 +194,7 @@ func TestUExchangeInfo(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 2)
 }
 
 func TestUFuturesOrderbook(t *testing.T) {
@@ -737,16 +738,16 @@ func TestGetFuturesKlineData(t *testing.T) {
 		require.Equal(t, 5, len(r), "GetFuturesKlineData must return 5 items in mock test")
 		exp := FuturesCandleStick{
 			OpenTime:                types.Time(time.UnixMilli(1596240000000)),
-			Open:                    11785,
-			High:                    12513.6,
-			Low:                     11114.1,
-			Close:                   11663.5,
-			Volume:                  12155433,
+			Open:                    types.Number(11785),
+			High:                    types.Number(12513.6),
+			Low:                     types.Number(11114.1),
+			Close:                   types.Number(11663.5),
+			Volume:                  types.Number(12155433),
 			CloseTime:               types.Time(time.UnixMilli(1598918399999)),
-			BaseAssetVolume:         104142.54608485,
+			BaseAssetVolume:         types.Number(104142.54608485),
 			NumberOfTrades:          359100,
-			TakerBuyVolume:          6013546,
-			TakerBuyBaseAssetVolume: 51511.95826419,
+			TakerBuyVolume:          types.Number(6013546),
+			TakerBuyBaseAssetVolume: types.Number(51511.95826419),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {
@@ -1251,16 +1252,16 @@ func TestGetSpotKline(t *testing.T) {
 		require.Equal(t, 24, len(r), "GetSpotKline must return 24 items in mock test")
 		exp := CandleStick{
 			OpenTime:                 types.Time(time.UnixMilli(1577836800000)),
-			Open:                     7195.24,
-			High:                     7196.25,
-			Low:                      7178.64,
-			Close:                    7179.78,
-			Volume:                   95.509133,
+			Open:                     types.Number(7195.24),
+			High:                     types.Number(7196.25),
+			Low:                      types.Number(7178.64),
+			Close:                    types.Number(7179.78),
+			Volume:                   types.Number(95.509133),
 			CloseTime:                types.Time(time.UnixMilli(1577837099999)),
-			QuoteAssetVolume:         686317.13625177,
+			QuoteAssetVolume:         types.Number(686317.13625177),
 			TradeCount:               1127,
-			TakerBuyAssetVolume:      32.773245,
-			TakerBuyQuoteAssetVolume: 235537.29504531,
+			TakerBuyAssetVolume:      types.Number(32.773245),
+			TakerBuyQuoteAssetVolume: types.Number(235537.29504531),
 		}
 		assert.Equal(t, exp, r[0])
 	} else {
@@ -2670,12 +2671,12 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = e.obm.fetchBookViaREST(p)
+	err = e.obm.fetchBookViaREST(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = e.obm.cleanup(p)
+	err = e.obm.cleanup(p, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2953,17 +2954,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSDT(),
-		StartDate:            start,
-		EndDate:              end,
-		IncludePayments:      true,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+	_, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewBTCUSDT(),
 		StartDate:       start,
@@ -3006,29 +2998,44 @@ func TestGetLatestFundingRates(t *testing.T) {
 		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
 	}
 	testexch.UpdatePairsOnce(t, e)
-
 	usdtPerpetualPair := currency.NewBTCUSDT()
-	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 usdtPerpetualPair,
-		IncludePredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
+	err := e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
 		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, usdtPerpetualPair, err)
 
-	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset: asset.USDTMarginedFutures,
-		Pair:  usdtPerpetualPair,
-	})
-	assert.NoError(t, err, "GetLatestFundingRates should not error for USDTMarginedFutures")
-
-	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset: asset.CoinMarginedFutures,
-	})
-	assert.NoError(t, err, "GetLatestFundingRates should not error for CoinMarginedFutures")
+	for _, tc := range []struct {
+		name    string
+		request *fundingrate.LatestRateRequest
+		wantErr error
+	}{
+		{name: "nil request", wantErr: common.ErrNilPointer},
+		{name: "unsupported prediction", request: &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: usdtPerpetualPair, IncludePredictedRate: true}, wantErr: common.ErrFunctionNotSupported},
+		{name: "unsupported asset", request: &fundingrate.LatestRateRequest{Asset: asset.Spot}, wantErr: asset.ErrNotSupported},
+		{name: "USDT exact pair", request: &fundingrate.LatestRateRequest{Asset: asset.USDTMarginedFutures, Pair: usdtPerpetualPair}},
+		{name: "coin batch", request: &fundingrate.LatestRateRequest{Asset: asset.CoinMarginedFutures}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			rows, err := e.GetLatestFundingRates(t.Context(), tc.request)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "invalid requests must retain their validation error")
+				require.Empty(t, rows, "invalid requests must not produce rates")
+				return
+			}
+			require.NoError(t, err, "GetLatestFundingRates must accept supported requests without a websocket symbol matcher")
+			require.NotEmpty(t, rows, "supported requests must return funding evidence")
+			if !tc.request.Pair.IsEmpty() {
+				require.Len(t, rows, 1, "an exact pair request must return its own funding rate")
+				assert.True(t, rows[0].Pair.Equal(tc.request.Pair), "the returned instrument should match the requested pair")
+			}
+			for _, row := range rows {
+				assert.Equal(t, tc.request.Asset, row.Asset, "the returned asset should match the request")
+				perpetual, err := e.IsPerpetualFutureCurrency(row.Asset, row.Pair)
+				require.NoError(t, err, "funding instruments must support classification")
+				assert.True(t, perpetual, "funding evidence should contain perpetual contracts only")
+			}
+		})
+	}
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -3233,6 +3240,30 @@ func TestSetMarginType(t *testing.T) {
 
 	err = e.SetMarginType(t.Context(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USDT,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:            asset.Margin,
+		Currency:         currency.USDT,
+		GetPredictedRate: true,
+	})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetLeverage(t *testing.T) {

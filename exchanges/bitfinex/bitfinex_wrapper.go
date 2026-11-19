@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -30,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // SetDefaults sets the basic defaults for bitfinex
@@ -438,6 +442,66 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 // withdrawals
 func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetMarginRatesHistory returns margin funding rates history for funding currencies.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.MarginFunding {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if req.GetPredictedRate {
+		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
+	}
+	if req.GetBorrowRates {
+		return nil, fmt.Errorf("%w GetBorrowRates", common.ErrFunctionNotSupported)
+	}
+	if req.GetBorrowCosts {
+		return nil, fmt.Errorf("%w GetBorrowCosts", common.ErrFunctionNotSupported)
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !req.StartDate.IsZero() {
+		params.Set("start", strconv.FormatInt(req.StartDate.Unix(), 10))
+	}
+	if !req.EndDate.IsZero() {
+		params.Set("end", strconv.FormatInt(req.EndDate.Unix(), 10))
+	}
+	lends, err := e.GetLends(ctx, req.Currency.String(), params)
+	if err != nil {
+		return nil, err
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates: make([]margin.Rate, 0, len(lends)),
+	}
+	for i := range lends {
+		t := lends[i].Timestamp.Time()
+		if !req.StartDate.IsZero() && t.Before(req.StartDate) {
+			continue
+		}
+		if !req.EndDate.IsZero() && t.After(req.EndDate) {
+			continue
+		}
+		yearlyRate := decimal.MustFromFloat(lends[i].Rate)
+		resp.Rates = append(resp.Rates, margin.Rate{
+			Time:       t,
+			HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
+			YearlyRate: yearlyRate,
+		})
+	}
+	sort.Slice(resp.Rates, func(i, j int) bool {
+		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
+	})
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data

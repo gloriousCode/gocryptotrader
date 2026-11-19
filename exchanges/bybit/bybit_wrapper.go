@@ -101,6 +101,7 @@ func (e *Exchange) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
+				TickerBatching:        true,
 				TickerFetching:        true,
 				TradeFetching:         true,
 				KlineFetching:         true,
@@ -1838,6 +1839,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Type:               ct,
 				SettlementCurrency: inverseContracts.List[i].SettleCoin,
 				MaxLeverage:        inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:         inverseContracts.List[i].LeverageFilter.LeverageStep.Float64(),
 			})
 		}
 		return resp, nil
@@ -2028,9 +2030,6 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
-	}
-	if r.IncludePredictedRate {
-		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 	switch r.Asset {
 	case asset.USDCMarginedFutures,

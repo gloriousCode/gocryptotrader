@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -327,6 +328,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				BaseVolume:   baseVolume,
 				QuoteVolume:  quoteVolume,
 				OpenInterest: ticks[x].OpenInterest.Float64(),
+				MarkPrice:    ticks[x].MarkPrice,
+				IndexPrice:   ticks[x].IndexPrice,
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -680,8 +683,11 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			Size:          s.Amount,
 			Price:         s.Price,
 			Leverage:      s.Leverage,
+			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.TimeInForce.Is(order.PostOnly),
+			Hidden:        s.Hidden,
+			Iceberg:       s.Iceberg,
 			Stop:          stopOrderBoundary,
 			StopPrice:     s.TriggerPrice,
 			StopPriceType: stopOrderType,
@@ -729,7 +735,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					s.Pair.String(),
 					oType.Lower(), "", stopType, "", SpotTradeType,
 					timeInForce, s.Amount, s.Price, stopPrice, 0,
-					0, s.TimeInForce.Is(order.PostOnly))
+					0, 0, s.TimeInForce.Is(order.PostOnly), s.Hidden, s.Iceberg)
 				if err != nil {
 					return nil, err
 				}
@@ -744,6 +750,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				Price:         s.Price,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				TimeInForce:   timeInForce,
+				Hidden:        s.Hidden,
+				Iceberg:       s.Iceberg,
 				TradeType:     SpotTradeType,
 				ReduceOnly:    s.ReduceOnly,
 			})
@@ -799,6 +807,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				MarginModel:   MarginModeToString(s.MarginType),
 				Price:         s.Price,
 				Size:          s.Amount,
+				VisibleSize:   s.Amount,
+				Hidden:        s.Hidden,
+				Iceberg:       s.Iceberg,
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				AutoBorrow:    s.AutoBorrow,
 				AutoRepay:     s.AutoBorrow,
@@ -1487,7 +1498,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			}
 			oType, err := order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s %v", e.Name, err)
+				return nil, err
 			}
 			orders = append(orders, order.Detail{
 				Price:           futuresOrders.Items[i].Price,
@@ -1895,6 +1906,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 }
 
 // GetLatestFundingRates returns the latest funding rates data
+// if no pair is supplied it returns all funding rates, but no predicted rate
+// if an individual pair is supplied it returns the predicted rate as well
 func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
@@ -1910,9 +1923,6 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		contracts, err := e.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
-		}
-		if r.IncludePredictedRate {
-			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", e.Name, len(contracts))
 		}
 		timeChecked := time.Now()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
@@ -2031,6 +2041,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if len(records) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
+
 	fundingRates := make([]fundingrate.Rate, 0, len(records))
 	for i := range records {
 		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timepoint.Time())) ||
@@ -2118,6 +2129,59 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 		AllocatedMargin: resp.PosMargin,
 		MarginType:      r.MarginType,
 	}, nil
+}
+
+// GetMarginRatesHistory returns available margin market rates history.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if r.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if r.GetPredictedRate {
+		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
+	}
+	if r.GetBorrowCosts {
+		return nil, fmt.Errorf("%w GetBorrowCosts", common.ErrFunctionNotSupported)
+	}
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
+			return nil, err
+		}
+	}
+
+	interestRates, err := e.GetInterestRate(ctx, r.Currency)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &margin.RateHistoryResponse{
+		Rates: make([]margin.Rate, 0, len(interestRates)),
+	}
+	for i := range interestRates {
+		t := interestRates[i].Time.Time()
+		if !r.StartDate.IsZero() && t.Before(r.StartDate) {
+			continue
+		}
+		if !r.EndDate.IsZero() && t.After(r.EndDate) {
+			continue
+		}
+		hourlyRate := decimal.MustFromFloat(interestRates[i].MarketInterestRate.Float64())
+		entry := margin.Rate{
+			Time:       t,
+			HourlyRate: hourlyRate,
+			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		}
+		resp.Rates = append(resp.Rates, entry)
+	}
+	sort.Slice(resp.Rates, func(i, j int) bool {
+		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
+	})
+	return resp, nil
 }
 
 // GetFuturesPositionSummary returns position summary details for an active position

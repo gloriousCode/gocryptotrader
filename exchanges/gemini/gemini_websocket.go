@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -273,11 +274,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			tSide, err := order.StringToOrderSide(result.Side)
-			if err != nil {
-				return err
-			}
-
 			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
@@ -293,6 +289,24 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
+			if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+				Last:         result.Price,
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    asset.Spot,
+				LastUpdated:  result.Timestamp.Time(),
+			}); err != nil {
+				return err
+			}
+
+			if !e.IsSaveTradeDataEnabled() {
+				return nil
+			}
+
+			tSide, err := order.StringToOrderSide(result.Side)
+			if err != nil {
+				return err
+			}
 			tradeEvent := trade.Data{
 				Timestamp:    result.Timestamp.Time(),
 				CurrencyPair: pair,
@@ -444,6 +458,19 @@ func (e *Exchange) wsProcessUpdate(ctx context.Context, result *wsL2MarketData) 
 
 	bids := make([]orderbook.Level, 0, len(result.Changes))
 	asks := make([]orderbook.Level, 0, len(result.Changes))
+
+	// TODO investigate this
+	for x := range result.Trades {
+		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+			Last:         result.Trades[x].Price,
+			Pair:         pair,
+			ExchangeName: e.Name,
+			AssetType:    asset.Spot,
+			LastUpdated:  result.Trades[x].Timestamp.Time(),
+		}); err != nil {
+			return err
+		}
+	}
 
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)

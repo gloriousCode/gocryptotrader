@@ -4,11 +4,6 @@ import (
 	"errors"
 	"strings"
 	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
-	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
 // var error definitions
@@ -16,62 +11,6 @@ var (
 	ErrInvalidContractSettlementType = errors.New("invalid contract settlement type")
 	ErrContractNotSupported          = errors.New("unsupported contract")
 )
-
-// Contract holds details on futures contracts
-type Contract struct {
-	Exchange       string
-	Name           currency.Pair
-	Underlying     currency.Pair
-	Asset          asset.Item
-	StartDate      time.Time
-	EndDate        time.Time
-	IsActive       bool
-	Status         string
-	Type           ContractType
-	SettlementType ContractSettlementType
-	// Optional values if the exchange offers them
-	SettlementCurrency             currency.Code
-	AdditionalSettlementCurrencies currency.Currencies
-	MarginCurrency                 currency.Code
-	Multiplier                     float64
-	MaxLeverage                    float64
-	LatestRate                     fundingrate.Rate
-	FundingRateFloor               decimal.Decimal
-	FundingRateCeiling             decimal.Decimal
-}
-
-// ContractSettlementType holds the various style of contracts offered by futures exchanges
-type ContractSettlementType uint8
-
-// ContractSettlementType definitions
-const (
-	UnsetSettlementType ContractSettlementType = iota
-	Linear
-	Inverse
-	Quanto
-	LinearOrInverse
-	Hybrid
-)
-
-// String returns the string representation of a contract settlement type
-func (d ContractSettlementType) String() string {
-	switch d {
-	case UnsetSettlementType:
-		return "unset"
-	case Linear:
-		return "linear"
-	case Inverse:
-		return "inverse"
-	case Quanto:
-		return "quanto"
-	case LinearOrInverse:
-		return "linearOrInverse"
-	case Hybrid:
-		return "hybrid"
-	default:
-		return "unknown"
-	}
-}
 
 // StringToContractSettlementType for converting case insensitive contract settlement type
 func StringToContractSettlementType(cstype string) (ContractSettlementType, error) {
@@ -94,26 +33,21 @@ func StringToContractSettlementType(cstype string) (ContractSettlementType, erro
 	}
 }
 
-// ContractType holds the various style of contracts offered by futures exchanges
-type ContractType uint8
-
-// ContractType definitions
-const (
-	UnsetContractType ContractType = iota
-	Perpetual
-	LongDated
-	Weekly
-	Fortnightly
-	ThreeWeekly
-	Monthly
-	Quarterly
-	SemiAnnually
-	HalfYearly
-	NineMonthly
-	Yearly
-	Unknown
-	Daily
-)
+// IsLongDated reports whether the contract type has a fixed expiry.
+func (c ContractType) IsLongDated() bool {
+	return c == LongDated ||
+		c == Quarterly ||
+		c == SemiAnnually ||
+		c == HalfYearly ||
+		c == NineMonthly ||
+		c == Yearly ||
+		c == Weekly ||
+		c == Fortnightly ||
+		c == ThreeWeekly ||
+		c == Monthly ||
+		c == BiMonthly ||
+		c == BiQuarterly
+}
 
 // String returns the string representation of the contract type
 func (c ContractType) String() string {
@@ -132,8 +66,12 @@ func (c ContractType) String() string {
 		return "three-weekly"
 	case Monthly:
 		return "monthly"
+	case BiMonthly:
+		return "bi-monthly"
 	case Quarterly:
 		return "quarterly"
+	case BiQuarterly:
+		return "bi-quarterly"
 	case SemiAnnually:
 		return "semi-annually"
 	case HalfYearly:
@@ -146,5 +84,37 @@ func (c ContractType) String() string {
 		return "unknown"
 	default:
 		return "unset"
+	}
+}
+
+// Duration returns the nominal duration represented by the contract type.
+func (c ContractType) Duration() time.Duration {
+	switch c {
+	case Daily:
+		return time.Hour * 24
+	case Weekly:
+		return time.Hour * 24 * 7
+	case Fortnightly:
+		return time.Hour * 24 * 14
+	case ThreeWeekly:
+		return time.Hour * 24 * 21
+	case Monthly:
+		return time.Hour * 24 * 30
+	case BiMonthly:
+		return time.Hour * 24 * 60
+	case Quarterly:
+		return time.Hour * 24 * 90
+	case BiQuarterly:
+		return time.Hour * 24 * 180
+	case SemiAnnually:
+		return time.Hour * 24 * 180
+	case HalfYearly:
+		return time.Hour * 24 * 180
+	case NineMonthly:
+		return time.Hour * 24 * 270
+	case Yearly:
+		return time.Hour * 24 * 365
+	default:
+		return 0
 	}
 }

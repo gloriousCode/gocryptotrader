@@ -219,6 +219,154 @@ func TestGetSubscriptions(t *testing.T) {
 	assert.ElementsMatch(t, s, w.GetSubscriptions(), "GetSubscriptions should return the correct channel details")
 }
 
+func TestGetActiveSubscriptions(t *testing.T) {
+	t.Parallel()
+	assert.Nil(t, (*Manager)(nil).GetActiveSubscriptions(), "nil manager should expose no active subscriptions")
+	legacy := NewManager()
+	legacy.setState(connectedState)
+	assert.Nil(t, legacy.GetActiveSubscriptions(), "legacy managers should not expose managed subscription coverage")
+	t.Run("incomplete installed entries fail closed", func(t *testing.T) {
+		t.Parallel()
+		manager := NewManager()
+		manager.useMultiConnectionManagement = true
+		manager.setState(connectedState)
+		missingStore := &connection{}
+		missingStore.setConnectedStatus(true)
+		var missingConnection *connection
+		manager.connectionManager = []*websocket{nil, {connections: []Connection{nil, missingConnection, missingStore}}}
+		assert.Nil(t, manager.GetActiveSubscriptions(), "incomplete installed entries should not manufacture live coverage")
+	})
+	for _, tc := range []struct {
+		name              string
+		disconnected      bool
+		faulted           bool
+		unacknowledged    bool
+		managerConnecting bool
+		candidate         bool
+	}{
+		{name: "healthy installed owners"},
+		{name: "disconnected owner", disconnected: true},
+		{name: "faulted owner still reports connected", faulted: true},
+		{name: "unacknowledged subscription", unacknowledged: true},
+		{name: "initial manager setup", managerConnecting: true},
+		{name: "uninstalled recovery candidate", candidate: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			manager, first := newManagedSubscriptionTestManager(t)
+			manager.setState(connectedState)
+			owner, ok := first.(*connection)
+			require.True(t, ok, "test owner must be a managed connection")
+			owner.setConnectedStatus(!tc.disconnected)
+			owner.faulted.Store(tc.faulted)
+			ws, ok := manager.managedWebsocket(owner)
+			require.True(t, ok, "owner must be installed in its websocket")
+			sibling := manager.createConnectionFromSetup(ws.setup)
+			sibling.setConnectedStatus(true)
+			manager.trackConnection(sibling, ws)
+			owned := &subscription.Subscription{Key: "owned", Channel: "native-owned"}
+			healthy := &subscription.Subscription{Key: "healthy", Channel: "native-healthy"}
+			ownedState := subscription.SubscribedState
+			if tc.unacknowledged {
+				ownedState = subscription.SubscribingState
+			}
+			require.NoError(t, owned.SetState(ownedState), "owned subscription state must be established")
+			require.NoError(t, healthy.SetState(subscription.SubscribedState), "healthy subscription must be acknowledged")
+			require.NoError(t, owner.Subscriptions().Add(owned), "owner must record its subscription")
+			require.NoError(t, sibling.Subscriptions().Add(healthy), "sibling must record its subscription")
+			require.NoError(t, ws.subscriptions.Add(owned), "manager must retain owned subscription intent")
+			require.NoError(t, ws.subscriptions.Add(healthy), "manager must retain healthy subscription intent")
+			if tc.candidate {
+				candidate := manager.createConnectionFromSetup(ws.setup)
+				candidate.setConnectedStatus(true)
+				pending := &subscription.Subscription{Key: "candidate", Channel: "native-candidate"}
+				require.NoError(t, pending.SetState(subscription.SubscribedState), "candidate acknowledgement must be represented")
+				require.NoError(t, candidate.Subscriptions().Add(pending), "candidate must record its acknowledgement")
+				attempt := &websocket{setup: ws.setup, subscriptions: subscription.NewStore()}
+				manager.trackConnection(candidate, attempt)
+			}
+			if tc.managerConnecting {
+				manager.setState(connectingState)
+			}
+			active := manager.GetActiveSubscriptions()
+			switch {
+			case tc.managerConnecting:
+				assert.Nil(t, active, "partially initialised manager should fail closed")
+			case tc.disconnected || tc.faulted || tc.unacknowledged:
+				require.Len(t, active, 1, "only the healthy acknowledged sibling must provide coverage")
+				assert.Same(t, healthy, active[0], "healthy sibling should retain its generation pointer")
+			default:
+				require.Len(t, active, 2, "all installed acknowledged owners must provide coverage")
+				assert.Same(t, owned, active[0], "owner should retain its generation pointer")
+				assert.Same(t, healthy, active[1], "sibling should retain its generation pointer")
+			}
+			assert.ElementsMatch(t, subscription.List{owned, healthy}, manager.GetSubscriptions(), "legacy subscription listing semantics should remain unchanged")
+			if tc.faulted {
+				replacement := manager.createConnectionFromSetup(ws.setup)
+				replacement.setConnectedStatus(true)
+				refreshed := owned.Clone()
+				require.NoError(t, replacement.Subscriptions().Add(refreshed), "replacement must record its new acknowledgement")
+				manager.connectionManagerMu.Lock()
+				delete(manager.connections, owner)
+				manager.connections[replacement] = ws
+				ws.connections[0] = replacement
+				manager.connectionManagerMu.Unlock()
+				active = manager.GetActiveSubscriptions()
+				require.Len(t, active, 2, "installed replacement must restore coverage")
+				assert.Same(t, refreshed, active[0], "replacement should expose its fresh generation pointer")
+				assert.NotSame(t, owned, active[0], "retired acknowledgement should not retain coverage generation")
+			}
+		})
+	}
+	t.Run("pool preserves every native subscription and excludes one failed partition", func(t *testing.T) {
+		t.Parallel()
+		manager, original := newManagedSubscriptionTestManager(t)
+		manager.setState(connectedState)
+		manager.MaxSubscriptionsPerConnection = 2
+		ws, ok := manager.managedWebsocket(original)
+		require.True(t, ok, "test websocket must exist")
+		manager.connectionManagerMu.Lock()
+		delete(manager.connections, original)
+		ws.connections = nil
+		manager.connectionManagerMu.Unlock()
+		url, dialer, _ := newConnectionCountingServer(t)
+		ws.setup.URL = url
+		ws.setup.Connector = func(ctx context.Context, conn Connection) error { return conn.Dial(ctx, dialer, nil, nil) }
+		ws.setup.Handler = func(context.Context, Connection, []byte) error { return nil }
+		nativeRequests := make(map[*subscription.Subscription]int)
+		ws.setup.Subscriber = func(_ context.Context, conn Connection, subs subscription.List) error {
+			for _, sub := range subs {
+				nativeRequests[sub]++
+			}
+			return manager.AddSuccessfulSubscriptions(conn, subs...)
+		}
+		t.Cleanup(func() { cleanupManagedConnectionReaders(t, manager, ws) })
+		requested := make(subscription.List, 5)
+		for i := range requested {
+			requested[i] = &subscription.Subscription{Key: i, Channel: fmt.Sprintf("native-%d", i), Pairs: currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()}}
+		}
+		require.NoError(t, manager.scaleConnectionsToSubscriptions(t.Context(), ws, requested), "pool allocation must retain every requested subscription")
+		installed := manager.snapshotManagedConnections(ws)
+		require.Len(t, installed, 3, "five subscription entries must allocate three sockets at cap two regardless of pair count")
+		for _, conn := range installed {
+			assert.LessOrEqual(t, conn.Subscriptions().Len(), 2, "each socket should respect the subscription entry cap")
+		}
+		assert.ElementsMatch(t, requested, manager.GetActiveSubscriptions(), "pool should expose the complete acknowledged union")
+		for _, sub := range requested {
+			assert.Equal(t, 1, nativeRequests[sub], "each original native subscription should be passed to the subscriber exactly once")
+		}
+		failed, ok := installed[0].(*connection)
+		require.True(t, ok, "failed partition must be a managed connection")
+		failed.faulted.Store(true)
+		active := manager.GetActiveSubscriptions()
+		require.Len(t, active, 3, "only the failed socket's two subscription entries must lose coverage")
+		for _, sub := range failed.Subscriptions().List() {
+			assert.NotContains(t, active, sub, "failed partition should not retain acknowledged coverage")
+		}
+		assert.Len(t, manager.GetSubscriptions(), 5, "desired subscription listing should preserve all markets during recovery")
+	})
+}
+
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := Manager{}

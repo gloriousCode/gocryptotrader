@@ -699,21 +699,39 @@ func TestGetMarkPrice(t *testing.T) {
 
 func TestGetPositionTiers(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetPositionTiers(contextGenerate(), "", "cross", "", "", "", currency.ETH)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/v5/public/position-tiers", r.URL.Path)
+		assert.Equal(t, instTypeFutures, r.URL.Query().Get("instType"))
+		assert.Equal(t, "cross", r.URL.Query().Get("tdMode"))
+		assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
+		assert.Equal(t, "BTC-USD-261225", r.URL.Query().Get("instId"))
+		assert.Empty(t, r.URL.Query().Get("ccy"))
+		_, err := w.Write([]byte(`{"code":"0","data":[{"instId":"BTC-USD-261225","tier":"1","maxSz":"100","minSz":"0","maxLever":"20"}]}`))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"))
+	_, err := ex.GetPositionTiers(t.Context(), "", "cross", "", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", futuresPair.String(), "", "", currency.ETH)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "", "BTC-USD", "", "", currency.ETH)
 	require.ErrorIs(t, err, errInvalidTradeMode)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", currency.EMPTYCODE)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", futuresPair.String(), "", "", currency.EMPTYCODE)
+	_, err = ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", "BTC-USD", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errEitherInstIDOrCcyIsRequired)
 
-	result, err := e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", futuresPair.String(), "", "", currency.ETH)
+	result, err := ex.GetPositionTiers(t.Context(), instTypeFutures, "cross", "BTC-USD", "BTC-USD-261225", "", currency.EMPTYCODE)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result, "GetPositionTiers should return tiers")
+	require.Len(t, result, 1)
+	assert.Equal(t, "BTC-USD-261225", result[0].InstrumentID)
+	assert.Equal(t, float64(100), result[0].MaximumSize.Float64())
 }
 
 func TestGetInterestRateAndLoanQuota(t *testing.T) {
@@ -736,32 +754,46 @@ func TestGetPublicUnderlyings(t *testing.T) {
 
 func TestGetInsuranceFundInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{})
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/api/v5/public/insurance-fund", r.URL.Path)
+		assert.Contains(t, []string{instTypeSwap, instTypeFutures}, r.URL.Query().Get("instType"))
+		assert.Equal(t, "BTC-USD", r.URL.Query().Get("instFamily"))
+		assert.Empty(t, r.URL.Query().Get("uly"))
+		assert.Equal(t, "2", r.URL.Query().Get("limit"))
+		_, err := w.Write([]byte(`{"code":"0","data":[{"total":"100","details":[{"balance":"100","type":"liquidation_balance_deposit","ts":"1700000000000"}]}]}`))
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ex.SetHTTPClient(server.Client()))
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v5/"))
+	_, err := ex.GetInsuranceFundInformation(t.Context(), &InsuranceFundInformationRequestParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg := &InsuranceFundInformationRequestParams{Limit: 2}
-	_, err = e.GetInsuranceFundInformation(contextGenerate(), arg)
+	_, err = ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	arg.InstrumentType = instTypeSwap
-	_, err = e.GetInsuranceFundInformation(contextGenerate(), arg)
+	_, err = ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 
-	arg.InstrumentFamily = mainPair.String()
-	r, err := e.GetInsuranceFundInformation(contextGenerate(), arg)
+	arg.InstrumentFamily = "BTC-USD"
+	r, err := ex.GetInsuranceFundInformation(t.Context(), arg)
 	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
 		assert.Positive(t, d.Balance, "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
-		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
+		assert.Equal(t, time.UnixMilli(1700000000000), d.Timestamp.Time(), "Timestamp should decode from milliseconds")
 	}
 
-	// The underlying BTC-USD spans several futures families, each answered separately, so name one family
-	r, err = e.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
+	r, err = ex.GetInsuranceFundInformation(t.Context(), &InsuranceFundInformationRequestParams{
 		InstrumentType:   instTypeFutures,
-		InstrumentFamily: futuresPair.String(),
+		InstrumentFamily: "BTC-USD",
 		Limit:            2,
 	})
 	require.NoError(t, err)
@@ -770,7 +802,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 	for _, d := range r.Details {
 		assert.Positive(t, d.Balance, "Balance should be positive")
 		assert.NotEmpty(t, d.InsuranceType, "Type should not be empty")
-		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
+		assert.Equal(t, time.UnixMilli(1700000000000), d.Timestamp.Time(), "Timestamp should decode from milliseconds")
 	}
 }
 
@@ -1015,6 +1047,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1095,6 +1128,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.AssetType = asset.Futures
+	arg.PositionSide = "invalid"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -1311,6 +1345,7 @@ func TestGetTransactionDetailsOrderID(t *testing.T) {
 	ex.SkipAuthCheck = true
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
 	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "SetRunningURL must not error")
 
 	const orderID = "312269865356374016"
 	_, err := ex.GetTransactionDetailsLast3Days(t.Context(), &TransactionDetailRequestParams{
@@ -1845,7 +1880,7 @@ func TestSetQuoteProducts(t *testing.T) {
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errMissingMakerInstrumentSettings)
 
-	data := MakerInstrumentSetting{MaxBlockSize: 10000, MakerPriceBand: 5}
+	data := MakerInstrumentSetting{MaxBlockSize: types.Number(10000), MakerPriceBand: types.Number(5)}
 	arg.Data = []MakerInstrumentSetting{data}
 	_, err = e.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{arg})
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
@@ -3074,7 +3109,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	arg.TakeProfitTriggerPrice = 1234.5
+	arg.TakeProfitTriggerPrice = types.Number(1234.5)
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
 	require.ErrorIs(t, err, errAlgoIDRequired)
 
@@ -4186,6 +4221,8 @@ func TestWsProcessSnapshotOrderBook(t *testing.T) {
 	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.Equal(t, int64(42), book.LastUpdateID, "LastUpdateID should match the snapshot sequence ID")
+	assert.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated should preserve the exchange timestamp")
+	assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should preserve the exchange timestamp for snapshot freshness")
 	require.Len(t, book.Bids, 1, "Snapshot must contain one bid")
 	require.Len(t, book.Asks, 1, "Snapshot must contain one ask")
 	assert.Equal(t, 100.5, book.Bids[0].Price, "Bid price should match")
@@ -4487,6 +4524,7 @@ func TestWsProcessOrderBooks(t *testing.T) {
 		book, err := tracked.Websocket.Orderbook.GetOrderbook(mainPair, asset.Spot)
 		require.NoError(t, err, "GetOrderbook must return the bbo-tbt snapshot")
 		assert.Equal(t, int64(10), book.LastUpdateID, "The bbo-tbt snapshot should set the sequence ID")
+		assert.Equal(t, time.UnixMilli(1659792392540), book.LastPushed, "Snapshot-only feeds should retain the exchange timestamp on every push")
 	})
 }
 
@@ -4962,16 +5000,16 @@ func TestInstrument(t *testing.T) {
 
 	swap := GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
 	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
-	assert.Equal(t, 125, int(i.MaxLeverage), "expected 125 leverage")
+	assert.Equal(t, int64(125), i.MaxLeverage.Int64(), "expected 125 leverage")
 	assert.Equal(t, int64(1666076190000), i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
-	assert.Equal(t, 1, int(i.LotSize))
+	assert.Equal(t, int64(1), i.LotSize.Int64())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize.Float64())
-	assert.Equal(t, 100000000, int(i.MaxQuantityOfSpotLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxQuantityOfMarketLimitOrder))
-	assert.Equal(t, 85000, int(i.MaxStopSize))
+	assert.Equal(t, int64(100000000), i.MaxQuantityOfSpotLimitOrder.Int64())
+	assert.Equal(t, int64(85000), i.MaxQuantityOfMarketLimitOrder.Int64())
+	assert.Equal(t, int64(85000), i.MaxStopSize.Int64())
 	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize.Float64())
-	assert.Equal(t, 0, int(i.MaxQuantityOfSpotTwapLimitOrder), "expected empty max TWAP size")
-	assert.Equal(t, 1, int(i.MinimumOrderSize))
+	assert.Zero(t, i.MaxQuantityOfSpotTwapLimitOrder.Int64(), "expected empty max TWAP size")
+	assert.Equal(t, int64(1), i.MinimumOrderSize.Int64())
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency.String(), "expected USDC settlement currency")
@@ -5006,6 +5044,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, IncludePredictedRate: predicted})
 			require.NoError(t, err, "funding observation must load")
 			require.Len(t, got, 1, "one market must be returned")
@@ -5123,6 +5162,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePredictedRate: true})
 			if tc.missing {
 				require.ErrorIs(t, err, common.ErrNoResponse, "unknown settlement must fail closed")
@@ -5186,6 +5226,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: pair, PaymentCurrency: tc.paymentCurrency, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePayments: true})
 			require.ErrorIs(t, err, tc.wantErr, "payment currency resolution must return the expected outcome")
 			if tc.wantErr != nil {
@@ -5230,6 +5271,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		}))
 		require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 		got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.Futures, Pair: pair, StartDate: at.Add(-2 * time.Hour), EndDate: at, IncludePayments: true})
 		require.NoError(t, err, "X-Perps funding history must load")
 		require.Len(t, got.FundingRates, 1, "one settled rate must load")
@@ -5304,6 +5346,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 				Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, PaymentCurrency: currency.USDT,
 				StartDate: now.Add(-16 * time.Hour), EndDate: now, IncludePayments: true,
@@ -5744,6 +5787,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "in-memory HTTP client must initialise")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must use the test server")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must use the test server")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, StartDate: end.Add(-time.Duration(tc.startMinutes) * time.Minute), EndDate: end})
 			require.ErrorIs(t, err, tc.wantErr, "history pagination must return the expected outcome")
 			mu.Lock()
@@ -5800,6 +5844,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "in-memory HTTP client must initialise")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must use the test server")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must use the test server")
 			got, err := ex.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{Asset: asset.PerpetualSwap, Pair: perpetualSwapPair, PaymentCurrency: currency.USDT, StartDate: end.Add(-2 * time.Hour), EndDate: end, IncludePayments: true})
 			require.ErrorIs(t, err, tc.wantErr, "bills must return the expected validation outcome")
 			if tc.wantErr != nil {
@@ -6048,6 +6093,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 			}))
 			require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 			contracts, err := ex.GetFuturesContractDetails(t.Context(), tc.item)
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr, "invalid metadata must return the expected error")
@@ -6088,11 +6134,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 
 	require.Len(t, got.Asks, 5)
 	require.Len(t, got.Bids, 5)
+	assert.Equal(t, time.UnixMilli(1695864901807), got.LastPushed, "Spot snapshots should preserve the exchange timestamp")
 	// Book replicated to margin
 	got, err = orderbook.Get(e.Name, required, asset.Margin)
 	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
+	assert.Equal(t, time.UnixMilli(1695864901807), got.LastPushed, "Margin snapshots should preserve the exchange timestamp")
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -7466,6 +7514,23 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	for _, endpoint := range []struct {
+		name   exchange.URL
+		filter any
+		want   string
+	}{
+		{exchange.WebsocketSpot, nil, "wss://ws.okx.com/ws/v5/public"},
+		{exchange.WebsocketPrivate, privateConnection, "wss://ws.okx.com/ws/v5/private"},
+		{exchange.WebsocketSpotSupplementary, businessConnection, "wss://ws.okx.com/ws/v5/business"},
+	} {
+		got, err := e.API.Endpoints.GetURL(endpoint.name)
+		require.NoError(t, err, "default websocket endpoint must exist")
+		require.Equal(t, endpoint.want, got, "default websocket endpoint must use TLS port 443")
+		conn, err := e.Websocket.CreateTestConnection(endpoint.filter)
+		require.NoError(t, err, "configured websocket route must exist")
+		require.Equal(t, endpoint.want, conn.GetURL(), "configured connection must use the port 443 default")
+	}
+
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	public, err := e.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -7614,8 +7679,12 @@ const (
 
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrderbook(t.Context(), []byte(processSpreadOrderbookJSON))
-	assert.NoError(t, err)
+	require.NoError(t, e.wsProcessSpreadOrderbook(t.Context(), []byte(processSpreadOrderbookJSON)), "Spread snapshot processing must succeed")
+	pair, err := e.GetPairFromInstrumentID("BTC-USDT_BTC-USDT-SWAP")
+	require.NoError(t, err, "Spread instrument must resolve")
+	book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spread)
+	require.NoError(t, err, "Spread snapshot must be available")
+	assert.Equal(t, time.UnixMilli(1670324386802), book.LastPushed, "Spread snapshots should preserve the exchange timestamp")
 }
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {
@@ -7767,6 +7836,7 @@ func TestGetFee(t *testing.T) {
 				}))
 				require.NoError(t, ex.SetHTTPClient(server.Client()), "HTTP client must use the test server")
 				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "endpoint must be local")
+				require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpotSupplementary.String(), server.URL+"/"), "endpoint must be local")
 				got, err := ex.GetFee(t.Context(), &exchange.FeeBuilder{FeeType: exchange.CryptocurrencyTradeFee, Pair: pair, IsMaker: maker, Amount: 2, PurchasePrice: 500})
 				require.ErrorIs(t, err, tc.wantErr, "fee selection must return the expected result")
 				want := tc.want
@@ -7816,6 +7886,9 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), common.ErrNilPointer)
 	p = &PlaceOrderRequestParam{}
 	require.ErrorIs(t, p.Validate(), errMissingInstrumentID)
+	p.InstrumentIDCode = 123
+	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
+	p.InstrumentIDCode = 0
 	p.InstrumentID = mainPair.String()
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
@@ -7823,6 +7896,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -7833,6 +7907,27 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errCurrencyQuantityTypeRequired)
 	p.TargetCurrency = "base_ccy"
 	require.NoError(t, p.Validate())
+	for _, tc := range []struct {
+		name, position string
+		reduce         bool
+	}{
+		{name: "default net"}, {name: "explicit net", position: "net"}, {name: "net reduce only", position: "net", reduce: true}, {name: "hedge long", position: "long"}, {name: "hedge short", position: "short"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			params := PlaceOrderRequestParam{AssetType: asset.PerpetualSwap, InstrumentID: "BTC-USDT-SWAP", TradeMode: TradeModeCross, Side: "buy", PositionSide: tc.position, ReduceOnly: tc.reduce, OrderType: "ioc", Amount: 1, Price: 100}
+			require.NoError(t, params.Validate(), "supported position mode must validate")
+			data, err := json.Marshal(params)
+			require.NoError(t, err, "order request must serialise")
+			var fields map[string]any
+			require.NoError(t, json.Unmarshal(data, &fields), "serialised request must be valid JSON")
+			if tc.reduce {
+				require.Equal(t, true, fields["reduceOnly"], "reduceOnly must be a JSON boolean")
+			} else {
+				require.NotContains(t, fields, "reduceOnly", "false reduceOnly must be omitted")
+			}
+		})
+	}
 }
 
 func TestValidateSpreadOrderParam(t *testing.T) {

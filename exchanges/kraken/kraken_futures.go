@@ -43,10 +43,10 @@ func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType st
 		return nil, err
 	}
 	params := url.Values{}
-	if !to.IsZero() {
+	if !to.IsZero() && to.Before(time.Now()) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if !from.IsZero() {
+	if !from.IsZero() && from.Before(time.Now()) {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	reqStr := futuresCandles + tickType + "/" + symbolValue + "/" + resolution

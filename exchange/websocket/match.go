@@ -30,7 +30,7 @@ type Match struct {
 
 type incoming struct {
 	expected int
-	c        chan<- []byte
+	c        chan []byte
 }
 
 // IncomingWithData matches with requests and takes in the returned payload, to
@@ -83,4 +83,17 @@ func (m *Match) RemoveSignature(signature any) {
 		close(ch.c)
 		delete(m.m, signature)
 	}
+}
+
+// removeSignatureIfMatch prevents an older waiter from retiring a reused signature.
+func (m *Match) removeSignatureIfMatch(signature any, responseChannel <-chan []byte) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	current, ok := m.m[signature]
+	if !ok || current.c != responseChannel {
+		return false
+	}
+	close(current.c)
+	delete(m.m, signature)
+	return true
 }

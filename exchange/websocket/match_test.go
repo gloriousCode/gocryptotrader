@@ -66,3 +66,42 @@ func TestRequireMatchWithData(t *testing.T) {
 	require.NoError(t, err, "Must not error on matched signature")
 	assert.Equal(t, "world", string(<-ch))
 }
+
+func TestRemoveSignatureIfMatch(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		absent         bool
+		differentOwner bool
+	}{
+		{name: "owner"},
+		{name: "different owner", differentOwner: true},
+		{name: "absent", absent: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			match := NewMatch()
+			var registered <-chan []byte
+			if !tc.absent {
+				var err error
+				registered, err = match.Set("owned", 1)
+				require.NoError(t, err, "matcher registration must succeed")
+			}
+			provided := registered
+			if tc.differentOwner {
+				provided = make(chan []byte, 1)
+			}
+			assert.Equal(t, !tc.absent && !tc.differentOwner, match.removeSignatureIfMatch("owned", provided), "removal should require ownership of the current response channel")
+			if tc.differentOwner {
+				require.True(t, match.IncomingWithData("owned", []byte("current")), "another owner's registration must remain available")
+				assert.Equal(t, []byte("current"), <-registered, "retained registration should receive its native response")
+			} else {
+				assert.False(t, match.IncomingWithData("owned", []byte("retired")), "absent or retired signatures should not match")
+				if registered != nil {
+					_, open := <-registered
+					assert.False(t, open, "owned removal should close its response channel")
+				}
+			}
+		})
+	}
+}

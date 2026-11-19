@@ -112,15 +112,15 @@ func TestGetKlines(t *testing.T) {
 
 				switch tc.category {
 				case cSpot:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 29393.99, High: 29399.76, Low: 29393.98, Close: 29399.76, TradeVolume: 1.168988, Turnover: 34363.5346739}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.Number(29393.99), High: types.Number(29399.76), Low: types.Number(29393.98), Close: types.Number(29399.76), TradeVolume: types.Number(1.168988), Turnover: types.Number(34363.5346739)}, r[0])
 				case cLinear:
 					if tc.pair == usdtMarginedTradablePair {
-						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.0003, High: 0.0003, Low: 0.0002995, Close: 0.0003, TradeVolume: 55102100, Turnover: 16506.2427}, r[0])
+						assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.Number(0.0003), High: types.Number(0.0003), Low: types.Number(0.0002995), Close: types.Number(0.0003), TradeVolume: types.Number(55102100), Turnover: types.Number(16506.2427)}, r[0])
 						return
 					}
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 239.7, High: 239.7, Low: 239.7, Close: 239.7}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.Number(239.7), High: types.Number(239.7), Low: types.Number(239.7), Close: types.Number(239.7)}, r[0])
 				case cInverse:
-					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: 0.2908, High: 0.2912, Low: 0.2908, Close: 0.2912, TradeVolume: 5131, Turnover: 17626.40000346}, r[0])
+					assert.Equal(t, KlineItem{StartTime: types.Time(endTime), Open: types.Number(0.2908), High: types.Number(0.2912), Low: types.Number(0.2908), Close: types.Number(0.2912), TradeVolume: types.Number(5131), Turnover: types.Number(17626.40000346)}, r[0])
 				}
 			} else {
 				assert.NotEmpty(t, r)
@@ -1877,8 +1877,8 @@ func TestSetMMP(t *testing.T) {
 		BaseCoin:           "ETH",
 		TimeWindowMS:       5000,
 		FrozenPeriod:       100000,
-		TradeQuantityLimit: 50,
-		DeltaLimit:         20,
+		TradeQuantityLimit: types.Number(50),
+		DeltaLimit:         types.Number(20),
 	})
 	if err != nil {
 		t.Error(err)
@@ -2026,25 +2026,25 @@ func TestCreateInternalTransfer(t *testing.T) {
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.Number(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.Number(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.Number(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateInternalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.Number(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2117,25 +2117,25 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
 		Coin:       currency.BTC,
-		Amount:     123.456,
+		Amount:     types.Number(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.Number(123.456),
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456, FromAccountType: "UNIFIED",
+		Coin:       currency.BTC, Amount: types.Number(123.456), FromAccountType: "UNIFIED",
 	})
 	require.ErrorIs(t, err, errMissingAccountType)
 
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.Number(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 	})
@@ -2147,7 +2147,7 @@ func TestCreateUniversalTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.CreateUniversalTransfer(t.Context(), &TransferParams{
 		TransferID: transferID,
-		Coin:       currency.BTC, Amount: 123.456,
+		Coin:       currency.BTC, Amount: types.Number(123.456),
 		ToAccountType:   "CONTRACT",
 		FromAccountType: "UNIFIED",
 		FromMemberID:    123,

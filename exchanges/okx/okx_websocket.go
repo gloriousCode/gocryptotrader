@@ -29,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -827,6 +826,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(ctx context.Context, respRaw []byte)
 			Asks:              extractedResponse.Data[x].Asks,
 			Bids:              extractedResponse.Data[x].Bids,
 			LastUpdated:       resp.Data[x].Timestamp.Time(),
+			LastPushed:        resp.Data[x].Timestamp.Time(),
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -873,6 +873,7 @@ func (e *Exchange) wsProcessOrderbook5(ctx context.Context, data []byte) error {
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       resp.Data[0].Timestamp.Time(),
+			LastPushed:        resp.Data[0].Timestamp.Time(),
 			Pair:              resp.Argument.InstrumentID,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -951,36 +952,23 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	for i := range response.Data {
 		if isSnapshotOnly || response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
+			if err == nil {
+				e.completeOrderbookRecovery(conn, response.Argument.Channel, response.Argument.InstrumentID)
+			}
 		} else {
 			err = e.WsProcessUpdateOrderbook(ctx, &response.Data[i], response.Argument.InstrumentID, assets)
-			if errors.Is(err, errOrderbookSnapshotPending) {
-				continue
-			}
 		}
 		if err == nil {
 			continue
 		}
 		if !errors.Is(err, errInvalidOrderbookSequence) &&
-			!errors.Is(err, orderbook.ErrOrderbookInvalid) {
+			!errors.Is(err, orderbook.ErrOrderbookInvalid) &&
+			!errors.Is(err, orderbook.ErrDepthNotFound) {
 			return err
 		}
-		var subscriptionsToResub subscription.List
-		for _, sub := range conn.Subscriptions().List() {
-			if channelName(sub) == response.Argument.Channel && sub.Pairs.Contains(response.Argument.InstrumentID, true) {
-				subscriptionsToResub = append(subscriptionsToResub, sub)
-			}
+		if err := e.recoverOrderbook(ctx, conn, response.Argument.Channel, response.Argument.InstrumentID); err != nil {
+			return err
 		}
-		if len(subscriptionsToResub) == 0 {
-			return fmt.Errorf("%w: %s %s", subscription.ErrNotFound, response.Argument.Channel, response.Argument.InstrumentID)
-		}
-		if e.Verbose {
-			log.Debugf(log.ExchangeSys, "Resubscribing to %v due to orderbook error: %v", subscriptionsToResub.Strings(), err)
-		}
-		go func() {
-			if err := e.Websocket.ResubscribeFromConnection(ctx, conn, subscriptionsToResub); err != nil {
-				log.Errorf(log.ExchangeSys, "Failed to resubscribe %v: %v", subscriptionsToResub.Strings(), err)
-			}
-		}()
 	}
 	return nil
 }
@@ -996,6 +984,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(ctx context.Context, data *WsOrder
 			Asks:              asks,
 			Bids:              bids,
 			LastUpdated:       data.Timestamp.Time(),
+			LastPushed:        data.Timestamp.Time(),
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
@@ -1189,7 +1178,7 @@ func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 		execAmount := response.Data[x].AccumulatedFillSize.Float64()
 
 		var quoteAmount float64
-		if response.Data[x].SizeType == "quote_ccy" {
+		if response.Data[x].SizeType == quoteCurrencyQuantity {
 			// Size is quote amount.
 			quoteAmount = orderAmount
 			if orderStatus == order.Filled {

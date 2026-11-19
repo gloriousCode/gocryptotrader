@@ -1801,7 +1801,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	_, err := e.GetHistoricCandles(t.Context(), spotTestPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
 
-	_, err = e.GetHistoricCandles(t.Context(), futuresTestPair, asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
+	_, err = e.GetHistoricCandles(t.Context(), futuresTestPair, asset.Options, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error with asset.ErrNotSupported")
 }
 
@@ -2169,9 +2169,8 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewBTCUSD(),
-		IncludePredictedRate: true,
+		Asset: asset.USDTMarginedFutures,
+		Pair:  currency.NewBTCUSD(),
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetLatestFundingRates should error")
 
@@ -2183,9 +2182,8 @@ func TestGetLatestFundingRates(t *testing.T) {
 	err = e.CurrencyPairs.EnablePair(asset.Futures, futuresTestPair)
 	assert.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), "EnablePair should not error: %s", err)
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
-		Asset:                asset.Futures,
-		Pair:                 futuresTestPair,
-		IncludePredictedRate: true,
+		Asset: asset.Futures,
+		Pair:  futuresTestPair,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error")
 }
